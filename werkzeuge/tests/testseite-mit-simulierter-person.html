@@ -114,6 +114,15 @@ ul.tips{margin:0;padding-left:18px;color:var(--chalk-dim);font-size:13px;display
 .gbtn img{height:62px;width:auto;max-width:100%;object-fit:contain}
 .gbtn span{font-size:11.5px;font-weight:500;color:var(--chalk-dim);text-align:center;line-height:1.25}
 .gbtn[aria-pressed=true] span{color:var(--chalk)}
+.gitem{flex:1 1 110px;min-width:0;position:relative;display:flex}
+.gitem .gbtn{flex:1 1 auto}
+.gdel{position:absolute;top:4px;right:4px;width:34px;height:34px;min-height:0;padding:0;border-radius:50%;background:rgba(12,17,25,.85);border:1px solid var(--line);color:var(--chalk-dim);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
+.gdel:hover,.gdel:focus-visible{border-color:var(--bad);color:var(--bad)}
+.gbtn .warnb{color:var(--warn)}
+.gdims{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.gdims .sub{color:var(--chalk-faint);font-size:11.5px}
+.gdims input.bad{border-color:var(--bad)}
+.gmsg{min-height:1.3em;font-size:13px;color:var(--warn);margin-top:4px}
 footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
 @media (prefers-reduced-motion:reduce){.frame{transition:none}}
 </style>
@@ -218,7 +227,7 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
       <div class="row">
         <label>Name <input type="text" id="own-name" maxlength="24" placeholder="z. B. Blaue Baggy"></label>
         <label>Bund in cm <span style="color:var(--chalk-faint)">(oben quer von Kante zu Kante)</span>
-          <input type="number" id="own-waist" step="0.5" min="10" max="90" inputmode="decimal" placeholder="leer = geschätzt"></label>
+          <input type="number" id="own-waist" step="0.5" min="20" max="80" inputmode="decimal" placeholder="leer = geschätzt"></label>
       </div>
       <div class="row">
         <label>Ein Hosenbein unten in cm <span style="color:var(--chalk-faint)">(quer am Saum, optional)</span>
@@ -229,13 +238,17 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
       <div id="own-msg" style="margin-top:6px"></div>
     </div>
     <div class="gwrap" id="gwrap"></div>
-    <label>Bund der ausgewählten Hose, cm <span style="color:var(--chalk-faint)">(lässt sich jederzeit nachtragen)</span>
-      <input type="number" id="g-waist" step="0.5" min="10" max="90" inputmode="decimal" placeholder="leer = geschätzt" disabled></label>
-    <label>Ein Hosenbein unten, cm <span style="color:var(--chalk-faint)">(korrigiert die Weite nach unten hin)</span>
-      <input type="number" id="g-hemw" step="0.5" min="5" max="60" inputmode="decimal" placeholder="leer = aus dem Foto" disabled></label>
+    <div class="gdims" id="gdims">
+      <label>Hosenlänge, cm <span class="sub">außen, vom Bund bis zum Saum</span>
+        <input type="number" id="g-len" step="0.5" min="30" max="150" inputmode="decimal" disabled></label>
+      <label>Bundweite, cm <span class="sub">Bund flach, von Kante zu Kante</span>
+        <input type="number" id="g-waist" step="0.5" min="20" max="80" inputmode="decimal" disabled></label>
+      <label>Saumweite, cm <span class="sub">ein Bein unten flach, wo der Fuß herauskommt</span>
+        <input type="number" id="g-hemw" step="0.5" min="5" max="60" inputmode="decimal" disabled></label>
+    </div>
+    <div id="g-msg" class="gmsg" aria-live="polite"></div>
     <div class="row">
       <button id="g-clear">Anprobe aus</button>
-      <button id="own-del">Ausgewählte Hose löschen</button>
     </div>
     <label>Höhe verschieben <span id="g-offv" style="color:var(--chalk)">0 cm</span>
       <input type="range" id="g-off" min="-25" max="25" step="0.5" value="0"></label>
@@ -849,7 +862,7 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
   if(use3){
     // Echte 3D-Form: Umfang aus den Maßen, Lage aus dem Skelett, Drehung aus Hüfte und Schultern
     mesh3d(g.key,G.m3);
-    const M=G.m3, cmH=g.flat?g.flat/M.wf:g.len;
+    const M=G.m3, cmH=g.flat?g.flat/M.wf:null, cmL=G.len||cmH;
     if(g3.texReady&&cmH){
       // Kamera: Brennweite grob aus dem Bildwinkel, Blickachse durch die Bildmitte
       const foc=cam.fk*Math.max(vw,vh), pc=[vw/2,vh/2], yw=ext.yaw, sy=Math.sin(yw);
@@ -860,19 +873,19 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
       const m=clamp(1+.68*(scene.lum/Math.max(20,G.base.lum)-1),.35,1.45);
       const mx=Math.max(scene.r,scene.g,scene.b)||1;
       const tint=[scene.r,scene.g,scene.b].map(v=>(1-(1-v/mx)*.45)*m);
-      const info=draw3d(M,{ppc:pxPerCm,cmH,kHem:G.hem?G.hem/(M.hw[M.nr-1]*cmH):1,h,belt:[cx,anchorY*vh+g.off*pxPerCm,0],yCrotch,bone:B,foc,pc},vw,vh,tint);
+      const info=draw3d(M,{ppc:pxPerCm,cmH,cmL,kHem:G.hem?G.hem/(M.hw[M.nr-1]*cmH):1,h,belt:[cx,anchorY*vh+g.off*pxPerCm,0],yCrotch,bone:B,foc,pc},vw,vh,tint);
       ctx.save();
       ctx.globalAlpha=g.opa;
       ctx.shadowColor="rgba(0,0,0,.4)"; ctx.shadowBlur=Math.max(6,vw/90); ctx.shadowOffsetY=Math.max(2,vw/400);
       ctx.drawImage(g3.c,0,0);
       ctx.restore();
-      topY=info.top[1]; hPx=info.S; wPx=2*M.hw[Math.min(M.nr-1,g3.ic)]*info.S; done3=true; g.yaw=yw;
+      topY=info.top[1]; hPx=info.S; wPx=2*M.hw[Math.min(M.nr-1,g3.ic)]*info.SW; done3=true; g.yaw=yw;
     }
   }
   if(!done3){
   // Seitlich wird eine Hose schmaler. Grobe Verkürzung, damit es nicht albern wirkt.
   const squash=1-.45*turn, fade=1-.55*turn;
-  wPx=Wcm*pxPerCm*squash; hPx=Wcm*pxPerCm*G.aspect;
+  wPx=Wcm*pxPerCm*squash; hPx=Wcm*pxPerCm*G.aspect*(G.len&&G.m3?G.len/(g.flat/G.m3.wf):1);
   if(!(wPx>4&&hPx>4&&wPx<vw*8)) return;
   topY=anchorY*vh - G.prof.bund.y*hPx + g.off*pxPerCm;
 
@@ -961,8 +974,15 @@ function init3d(){
   return g3.ok;
 }
 /* Feste Teile des Netzes: Dreiecke, Texturkoordinaten, Schattierung zwischen den Beinen */
+/* Geometrie und Textur der bisherigen Hose auf der Grafikkarte freigeben */
+function free3d(){
+  const gl=g3.gl;
+  if(gl){ for(const b of [g3.vb,g3.nb,g3.ub,g3.ab,g3.ib]) if(b) gl.deleteBuffer(b); if(g3.tex) gl.deleteTexture(g3.tex); }
+  g3.vb=g3.nb=g3.ub=g3.ab=g3.ib=g3.tex=null; g3.pos=g3.nor=null; g3.texReady=false; g3.key=null; g3.row={}; g3.ni=0;
+}
 function mesh3d(key,M){
   if(g3.key===key) return;
+  free3d();
   const gl=g3.gl, NR=M.nr, C=K3+1, ic=M.v.findIndex(v=>v>=M.vc);
   const nRing=2*NR*2*C, nWall=2*NR*2;
   const nv=nRing+nWall, uv=new Float32Array(nv*2), ao=new Float32Array(nv), idx=[];
@@ -1000,6 +1020,7 @@ function mesh3d(key,M){
   g3.texReady=false;
   const im=new Image();
   im.onload=()=>{
+    if(g3.key!==key) return;                     // inzwischen andere Hose gewählt: alte Textur nicht mehr anlegen
     const tx=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tx);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,im);
@@ -1033,7 +1054,9 @@ const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 /* Alle Punkte der Hose für dieses Bild berechnen */
 function pose3d(M,P){
   const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos, ppc=P.ppc;
-  const S=P.cmH*ppc;                                   // Länge der Hose in Bildpunkten
+  const S=P.cmH*ppc;                                   // Maßstab der Weiten: Länge laut Foto in Bildpunkten
+  // Eingetragene Länge ändert nur die Beine, wie bei echten Hosen (32er und 34er Länge haben dieselbe Leibhöhe)
+  const SV=Math.max(.3*S,((P.cmL||P.cmH)-M.vc*P.cmH)/(1-M.vc)*ppc);
   const h=P.h, up=v3.norm(v3.sub([0,-1,0],v3.mul(h,v3.dot([0,-1,0],h)))), fw=v3.cross(h,up), dn=v3.mul(up,-1);
   const top=v3.add(P.belt,v3.mul(up,.015*S));
   // Leibhöhe: reicht die Hose nicht bis in den Schritt, wird sie leicht gedehnt statt eingeschnitten
@@ -1050,11 +1073,15 @@ function pose3d(M,P){
     const sg=s===0?1:-1, ch=P.bone[s];
     const cl=v3.len(v3.sub(ch[1],ch[0]))+v3.len(v3.sub(ch[2],ch[1]));
     const d0=cl+1*ppc, tau=5*ppc;
+    // Stoff fällt außen gerade von der Hüfte: das Hosenbein liegt nicht mittig um den Knochen, sondern so weit außen,
+    // dass seine Außenkante unter dem Schritt dort weiterläuft, wo die Hüfte endet. Sonst entsteht eine Beule an der Hüfte.
+    const dC=v3.dot(v3.sub(cr,ch[0]),dn), bC=walk3(ch,Math.max(0,dC));
+    const off=Math.max(0,ell(M.hw[ic-1]*S)[0]-Rc-v3.dot(v3.sub(bC,cr),h)*sg);
     for(let i=0;i<NR;i++){
       const below=i>=ic, hwPx=M.hw[i]*S*(i>=ic?legK(i):1);
       let cT,a,b,sCm=0;
       if(!below){ cT=v3.add(top,v3.mul(dn,M.v[i]*S*rs)); [a,b]=ell(hwPx); }
-      else { const sPx=(M.v[i]-M.vc)*S; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); [a,b]=ell(M.hw[ic-1]*S); }
+      else { const sPx=(M.v[i]-M.vc)*SV; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); [a,b]=ell(M.hw[ic-1]*S); }
       // Dieselbe Höhe am Bein: so viele Bildpunkte unter dem Hüftgelenk, entlang der Knochen
       let d=v3.dot(v3.sub(cT,ch[0]),dn), cL=null,r=null,fl=null,R=0,wdev=0,wband=below?sstep(0,BAND3,sCm):0;
       const onLeg=d>0;
@@ -1064,9 +1091,10 @@ function pose3d(M,P){
         cL=v3.mul(v3.add(pa,pb),.5);
         const tg=v3.norm(v3.sub(pb,pa));
         r=v3.norm(v3.sub(h,v3.mul(tg,v3.dot(h,tg)))); fl=v3.cross(tg,r);
+        cL=v3.add(cL,v3.mul(r,sg*off));
         R=below?hwPx/Math.PI:Rc;
         // Steht das Bein, bleibt oben die Beckenform. Hebt oder spreizt es sich, zieht es den Stoff mit.
-        const stand=v3.add(ch[0],v3.mul(dn,d));
+        const stand=v3.add(v3.add(ch[0],v3.mul(dn,d)),v3.mul(r,sg*off));
         wdev=sstep(.15,1,v3.len(v3.sub(cL,stand))/Rc);
         // Stoff schwingt nach: je weiter unten, desto träger folgt er dem Bein
         const key=s*100+i, lag=.11*sstep(0,70,sCm), st=g3.row[key];
@@ -1113,7 +1141,7 @@ function pose3d(M,P){
     nor[w]=n[0]; nor[w+1]=n[1]; nor[w+2]=n[2];
   }
   g3.S=S;
-  return {top,S,rs};
+  return {top,S:M.vc*S*rs+(1-M.vc)*SV,SW:S,rs};
 }
 /* Zeichnen: in eine eigene WebGL-Fläche, die dann wie ein Bild aufgelegt wird */
 function draw3d(M,P,vw,vh,tint){
@@ -1239,7 +1267,7 @@ function kmeans(px,n,K,it=8){
     const S=C.map(()=>[0,0,0,0]);
     for(let i=0;i<n;i++){ let bk=0,bd=1e9; for(let k=0;k<C.length;k++){ const c=C[k], d=(px[i*3]-c[0])**2+(px[i*3+1]-c[1])**2+(px[i*3+2]-c[2])**2; if(d<bd){bd=d;bk=k;} }
       const s=S[bk]; s[0]+=px[i*3]; s[1]+=px[i*3+1]; s[2]+=px[i*3+2]; s[3]++; }
-    for(let k=0;k<C.length;k++) if(S[k][3]) C[k]=[S[k][0]/S[k][3],S[k][1]/S[k][3],S[k][2]/S[k][3]];
+    for(let k=0;k<C.length;k++){ if(S[k][3]) C[k]=[S[k][0]/S[k][3],S[k][1]/S[k][3],S[k][2]/S[k][3]]; C[k].share=S[k][3]/(n||1); }
   }
   return C;
 }
@@ -1296,7 +1324,8 @@ function segColor(d,w,h){
     // 1. Untergrund vom Rand: ein Streifen von 3 % rundherum
     const bw=Math.max(3,Math.round(Math.min(w,h)*.03));
     const edge=i=>{ const x=i%w,y=(i/w)|0; return x<bw||y<bw||x>=w-bw||y>=h-bw; };
-    let [px,n]=sample(edge,6000); const BG=kmeans(px,n,10);
+    // Farben, die nur einen winzigen Teil des Randes ausmachen (Kabel, Fuß, Ecke eines Gegenstands), sind nicht der Untergrund
+    let [px,n]=sample(edge,6000); const BG=kmeans(px,n,10).filter((c,_,A)=>c.share>=.02||A.length===1);
     // Wie gut erklärt das Modell den Rand selbst? Daraus die Schwelle für „sicher nicht Untergrund“
     const ed=[]; for(let i=0;i<w*h;i+=3) if(edge(i)) ed.push(dBg(BG,i)); ed.sort((p,q)=>p-q);
     const T=Math.max(14,2.2*ed[Math.floor(ed.length*.97)]);
@@ -1427,12 +1456,97 @@ function garmentProfile(A,VC,off){
   const uv=arr.map((r,i)=>{ const e=vv[i]>VC?1.5:0; return [r[0]+3,r[1]-e,r[2]+e,r[3]-3].map(u=>+((u+off)/(2*CW)).toFixed(4)); });
   return {hw,vv,tv,uv,H};
 }
+/* Hosenmodell prüfen und normalisieren. Die ganze Größe hängt an wf (Bundbreite im Verhältnis zur Länge).
+   Ragt oben etwas Dünnes aus der Hose (Kabel, Bügel, Etikett, Hand) oder unten (Schnur, Fuß), zählte es früher zur
+   Hose: der „Bund“ war dann nur ein paar Zentimeter breit und die Hose wurde meterlang (der „Blob“). Solche Zeilen
+   werden abgeschnitten und das Profil neu auf 0..1 verteilt. Gilt für neue Hosen und beim Laden für alle gespeicherten. */
+function normalizeProfile(M){
+  const NR=M.nr, ic=M.v.findIndex(v=>v>=M.vc), up=[], leg=[];
+  for(let i=0;i<NR;i++) (i<ic?up:leg).push(M.hw[i]);
+  const maxU=Math.max(...up), legS=[...leg].sort((a,b)=>a-b), medL=legS[legS.length>>1]||0;
+  let it=0; while(it<ic-1&&M.hw[it]<.55*maxU) it++;
+  let ib=NR-1; while(ib>ic+1&&M.hw[ib]<.4*medL) ib--;
+  let out=M, changed=false, span=1;
+  if(it>0||ib<NR-1){
+    // Neu abtasten zwischen der ersten echten Bundzeile und der letzten echten Saumzeile
+    const v0=M.v[it], v1=M.v[ib]; span=v1-v0;
+    const at=(arr,vv)=>{ let k=0; while(k<NR-2&&M.v[k+1]<vv) k++;
+      const t=clamp((vv-M.v[k])/((M.v[k+1]-M.v[k])||1),0,1), A=arr[k], B=arr[k+1];
+      return Array.isArray(A)?A.map((x,j)=>x+(B[j]-x)*t):A+(B-A)*t; };
+    const r4=x=>+x.toFixed(4), vv=[], v=[];
+    for(let k=0;k<NR;k++){ const vk=.004+.985*k/(NR-1); v.push(r4(vk)); vv.push(v0+span*(vk-.004)/.985); }
+    out={...M, v, vc:+(.004+.985*(M.vc-v0)/span).toFixed(3),
+      hw:vv.map(x=>r4(at(M.hw,x)/span*.985)), tv:vv.map(x=>r4(at(M.tv,x))), tvb:M.tvb?vv.map(x=>r4(at(M.tvb,x))):M.tvb,
+      f:vv.map(x=>at(M.f,x).map(r4)), b:vv.map(x=>at(M.b,x).map(r4))};
+    out.wf=r4(2*out.hw[1]); changed=true; span/=.985;
+  }
+  // Plausibel? Lange Hosen: Bund flach 0,2–0,6 der Länge, Schritt bei 0,2–0,6, ein Bein nie viel breiter als der ganze Bund
+  const ic2=out.v.findIndex(v=>v>=out.vc), legMax=Math.max(...out.hw.slice(Math.max(0,ic2)));
+  let bad=null;
+  if(!(out.wf>=.2&&out.wf<=.6)) bad="Bund und Länge passen nicht zusammen";
+  else if(!(out.vc>=.2&&out.vc<=.6)) bad="Schritt nicht gefunden";
+  else if(legMax>1.15*out.wf) bad="Hosenbeine breiter als der Bund (Foto quer oder Untergrund mit erkannt)";
+  return {M:out,changed,bad,span};
+}
+/* Liegt die Hose quer oder auf dem Kopf? Am Saum-Ende sind zwei Beine getrennt, am Bund-Ende ist alles eins. */
+function garmentTurn(S){
+  const bw=S.x1-S.x0, bh=S.y1-S.y0;
+  const runs=line=>{ let n=0,on=false,len=0; const minL=Math.max(3,line.length*.04);
+    for(const x of line){ if(x){ len++; if(!on&&len>=minL){ n++; on=true; } } else { len=0; on=false; } } return n; };
+  const band=(horiz,from,to)=>{ const c=[];
+    for(let t=0;t<9;t++){ const f=from+(to-from)*(t+.5)/9, line=[];
+      if(horiz){ const y=Math.min(S.y1-1,Math.round(S.y0+f*bh)); for(let x=S.x0;x<S.x1;x++) line.push(S.m[y*S.w+x]); }
+      else { const x=Math.min(S.x1-1,Math.round(S.x0+f*bw)); for(let y=S.y0;y<S.y1;y++) line.push(S.m[y*S.w+x]); }
+      c.push(runs(line)); }
+    c.sort((a,b)=>a-b); return c[4]; };
+  if(bw>1.15*bh){                                    // quer: liegt der Saum rechts oder links?
+    const l=band(false,.03,.2), r=band(false,.8,.97);
+    return (l>=2&&r<2)?90:-90;                       // Saum nach unten drehen
+  }
+  const top=band(true,.03,.15), bot=band(true,.85,.97);
+  return (top>=2&&bot<2)?180:0;                      // Beine oben, Bund unten: auf dem Kopf
+}
+function rotateCanvas(cv,deg){
+  const c=document.createElement("canvas"), q=Math.abs(deg)===90;
+  c.width=q?cv.height:cv.width; c.height=q?cv.width:cv.height;
+  const x=c.getContext("2d",{willReadFrequently:true});
+  x.translate(c.width/2,c.height/2); x.rotate(deg*Math.PI/180); x.drawImage(cv,-cv.width/2,-cv.height/2);
+  return c;
+}
+/* Dünnes, das oben aus dem Bund oder unten aus dem Saum ragt, gehört nicht zur Hose: Zeilen abschneiden.
+   Gemessen an der ungeglätteten Maske, Breite je Zeile von der ersten bis zur letzten Hosenstelle. */
+function trimMask(S){
+  const W=y=>{ let a=-1,b=-1; const o=y*S.w; for(let x=S.x0;x<S.x1;x++) if(S.m[o+x]){ if(a<0)a=x; b=x; } return a<0?0:b-a+1; };
+  const h=S.y1-S.y0, wr=[]; for(let y=S.y0;y<S.y1;y++) wr.push(W(y));
+  const maxU=Math.max(...wr.slice(0,Math.round(h*.45))), low=wr.slice(Math.round(h*.6)).sort((a,b)=>a-b), medL=low[low.length>>1]||0;
+  let t=0; while(t<h*.5&&wr[t]<.5*maxU) t++;
+  let b=h-1; while(b>h*.6&&wr[b]<.4*medL) b--;
+  if(t===0&&b===h-1) return {S,cut:false};
+  const m=S.m.slice();
+  for(let y=S.y0;y<S.y0+t;y++) m.fill(0,y*S.w,(y+1)*S.w);
+  for(let y=S.y0+b+1;y<S.y1;y++) m.fill(0,y*S.w,(y+1)*S.w);
+  return {S:{...S,m,y0:S.y0+t,y1:S.y0+b+1},cut:(t+h-1-b)/h>.02};       // ein paar Randzeilen am Saum sind normal
+}
+/* Foto laden, freistellen, bei Bedarf drehen und noch einmal freistellen */
+async function loadGarmentPhoto(file,say){
+  let cv=await fileToCanvas(file,900,say), S=segGarment(cv), turned=0;
+  for(let k=0;k<2;k++){                              // quer: erst drehen, dann noch einmal oben/unten prüfen
+    const t=garmentTurn(S); if(!t) break;
+    cv=rotateCanvas(cv,t); S=segGarment(cv); turned=(turned+t)%360;
+  }
+  const tm=trimMask(S);
+  return {cv,S:tm.S,turned,cut:tm.cut};
+}
+/* 2D-Ersatzform und Hüftbreite aus dem Modell ableiten (nach dem Normalisieren neu) */
+function garmentProf(M,aspect){
+  return {bund:{y:.015,w:M.wf*aspect,c:.5},huefte:{y:.2,w:2*M.hw[Math.round(M.nr*.2)]*aspect,c:.5}};
+}
 async function buildGarment(frontFile,backFile,say=()=>{}){
   const {CW,CH,NR}=GEN;
-  const fcv=await fileToCanvas(frontFile,900,say), F=cropGarment(fcv,segGarment(fcv),false);
-  let B;
-  if(backFile){ const bcv=await fileToCanvas(backFile,900,say); B=cropGarment(bcv,segGarment(bcv),false); }
-  else B=cropGarment(fcv,segGarment(fcv),true);            // ohne Rückenfoto: Vorderseite gespiegelt
+  const fp=await loadGarmentPhoto(frontFile,say), F=cropGarment(fp.cv,fp.S,false);
+  let B, bp=null;
+  if(backFile){ bp=await loadGarmentPhoto(backFile,say); B=cropGarment(bp.cv,bp.S,false); }
+  else B=cropGarment(fp.cv,fp.S,true);                      // ohne Rückenfoto: Vorderseite gespiegelt
   let VC=null;
   for(const R of F.rows){ const v=(R.y-F.top)/(F.bot-F.top); if(v>.2&&v<.7&&R.runs.length>=2){ VC=v-.008; break; } }
   const split=VC!=null; if(!split) VC=.39;
@@ -1441,15 +1555,15 @@ async function buildGarment(frontFile,backFile,say=()=>{}){
   const at=document.createElement("canvas"); at.width=2*CW; at.height=CH;
   const ax=at.getContext("2d"); ax.drawImage(F.c,0,0); ax.drawImage(B.c,CW,0);
   const r4=a=>a.map(x=>+x.toFixed(4));
-  const m3={nr:NR,vc:+VC.toFixed(3),wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),
+  const raw={nr:NR,vc:+VC.toFixed(3),wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),
             f:pf.uv,b:pb.uv,atlas:at.toDataURL("image/jpeg",.85)};
+  const nz=normalizeProfile(raw), m3=nz.M;
   const th=document.createElement("canvas"); th.width=120; th.height=240; th.getContext("2d").drawImage(F.c,0,0,120,240);
-  const cw=CW*F.sx, hip=2*pf.hw[Math.round(NR*.2)];
+  const cw=CW*F.sx, aspect=pf.H*nz.span/cw;
   const base={...F.base,lum:.2126*F.base.r+.7152*F.base.g+.0722*F.base.b};
-  return {G:{label:"Eigene Hose",size:"–",kind:"pants",aspect:pf.H/cw,
-             prof:{bund:{y:.015,w:m3.wf*pf.H/cw,c:.5},huefte:{y:.2,w:hip*pf.H/cw,c:.5}},
-             elastic:false,estFlat:40,waist:null,base,src:th.toDataURL("image/jpeg",.8),m3,own:true},
-          info:{split,hasBack:!!backFile,outline:F}};
+  return {G:{label:"Eigene Hose",size:"–",kind:"pants",aspect,prof:garmentProf(m3,aspect),
+             elastic:false,estFlat:40,waist:null,len:null,hem:null,base,src:th.toDataURL("image/jpeg",.8),m3,own:true,bad:nz.bad},
+          info:{split,hasBack:!!backFile,outline:F,trimmed:nz.changed||fp.cut||!!(bp&&bp.cut),turned:fp.turned||(bp&&bp.turned)||0}};
 }
 /* Eigene Hosen: Liste im Gerät merken */
 const OWN="massScanHosen";
@@ -1458,49 +1572,118 @@ function saveOwn(){
   catch(_){ return false; }
 }
 function loadOwn(){
+  let fixed=false;
   try{
     const a=JSON.parse(localStorage.getItem(OWN)||"[]");
     for(const o of a) if(o&&o.key&&o.G&&o.G.m3) GARMENTS[o.key]=o.G;
     const old=JSON.parse(localStorage.getItem("massScanEigen")||"null");          // Stand vom 7.10.
     if(old&&old.G&&old.G.m3&&!Object.keys(GARMENTS).length){ old.G.waist=old.waist||null; GARMENTS.h1=old.G; }
   }catch(_){}
+  // Gespeicherte Hosen mit dem heutigen Generator nachprüfen: abstehende Zeilen weg, Größe neu normalisieren
+  for(const G of Object.values(GARMENTS)){
+    try{
+      const nz=normalizeProfile(G.m3);
+      if(nz.changed){ G.m3=nz.M; G.aspect=(G.aspect||1)*nz.span; G.repaired=true; fixed=true; }
+      G.prof=garmentProf(G.m3,G.aspect||1); G.bad=nz.bad;
+      if(G.waist!=null&&!(G.waist>=20&&G.waist<=80)) G.waist=null;
+      if(G.len===undefined) G.len=null;
+    }catch(_){ G.bad="Modell beschädigt"; }
+  }
+  if(fixed) saveOwn();
 }
 function addOwnGarment(G){
   const key="h"+Date.now().toString(36);
   GARMENTS[key]=G; buildPicker(); pickGarment(key,false);
   return saveOwn();
 }
+/* Nächster freier Name „Hose n“: nach dem Löschen nicht zweimal derselbe */
+function nextName(){
+  let n=1; const used=new Set(Object.values(GARMENTS).map(G=>G.label));
+  while(used.has("Hose "+n)) n++;
+  return "Hose "+n;
+}
+/* Hose löschen: aus Liste, Anzeige und Speicher. War sie ausgewählt, kommt die nächste (oder keine). */
+function deleteGarment(k){
+  if(!GARMENTS[k]) return;
+  const keys=Object.keys(GARMENTS), pos=keys.indexOf(k), wasOn=g.key===k;
+  if(wasOn) clearGarment();
+  if(g3.key===k) free3d();
+  delete GARMENTS[k];
+  saveOwn(); buildPicker();
+  const rest=Object.keys(GARMENTS).filter(x=>!GARMENTS[x].bad);
+  if(wasOn&&rest.length) pickGarment(rest[Math.min(pos,rest.length-1)],false);
+  markGarment();
+}
 
 /* ---------- Kleidungsstücke ---------- */
 function buildPicker(){
   const E=Object.entries(GARMENTS), esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   $("gwrap").innerHTML=E.length?E.map(([k,v])=>
-    `<button class="gbtn" data-g="${k}" aria-pressed="false"><img src="${v.src}" alt=""><span>${esc(v.label)}<br>${v.waist?"Bund "+v.waist+" cm":"Bund geschätzt"}</span></button>`).join("")
+    `<div class="gitem"><button class="gbtn" data-g="${k}" aria-pressed="false"><img src="${v.src}" alt=""><span>${esc(v.label)}<br>`
+    +(v.bad?`<b class="warnb">⚠ bitte neu erstellen</b>`:(v.waist?"Bund "+v.waist+" cm":"Bund geschätzt"))+`</span></button>`
+    +`<button class="gdel" data-del="${k}" aria-label="${esc(v.label)} löschen" title="Löschen">✕</button></div>`).join("")
     :`<div style="color:var(--chalk-faint);font-size:13.5px">Noch keine Hose. Oben zwei Fotos wählen und „3D-Hose erstellen“ drücken.</div>`;
   $("gwrap").querySelectorAll(".gbtn").forEach(b=>b.addEventListener("click",()=>pickGarment(b.dataset.g)));
-  $("gchips").innerHTML=E.length?E.map(([k,v])=>
+  $("gwrap").querySelectorAll(".gdel").forEach(b=>b.addEventListener("click",e=>{ e.stopPropagation();
+    const G=GARMENTS[b.dataset.del]; if(G&&confirm(`„${G.label}“ löschen?`)) deleteGarment(b.dataset.del); }));
+  $("gchips").innerHTML=E.length?E.filter(([,v])=>!v.bad).map(([k,v])=>
     `<button class="chip" data-g="${k}" aria-pressed="false">${esc(v.label.slice(0,12))}</button>`).join("")
     +`<button class="chip" data-g="" aria-pressed="false">Aus</button>`:"";
   $("gchips").querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>
     b.dataset.g?pickGarment(b.dataset.g,false):clearGarment()));
-  $("own-del").disabled=!g.key;
+  markGarment();
+}
+/* Maße einer Hose: eingetragen oder aus dem Foto abgeleitet */
+function garmentDims(G){
+  const M=G.m3, waist=G.waist||G.estFlat, cmW=waist/M.wf;
+  return {waist, len:G.len||cmW, hem:G.hem||M.hw[M.nr-1]*cmW, lenAuto:!G.len, hemAuto:!G.hem, est:!G.waist};
+}
+const DIM={len:[30,150],waist:[20,80],hem:[5,60]};
+/* Felder mit den Werten der ausgewählten Hose füllen (das Feld, in dem gerade getippt wird, bleibt in Ruhe) */
+function fillDims(){
+  const on=g.key&&GARMENTS[g.key];
+  for(const [id,k] of [["g-len","len"],["g-waist","waist"],["g-hemw","hem"]]){
+    const el=$(id); el.disabled=!on; el.classList.remove("bad");
+    if(!on){ el.value=""; continue; }
+    if(document.activeElement!==el) el.value=(Math.round(garmentDims(GARMENTS[g.key])[k]*2)/2).toString();
+  }
+}
+/* Eingabe prüfen: leer, negativ oder unrealistisch ändert nichts an der Hose */
+function setDim(k,el){
+  if(!g.key) return;
+  const G=GARMENTS[g.key], v=Math.round(parseFloat(String(el.value).replace(",","."))*10)/10, [lo,hi]=DIM[k], d=garmentDims(G);
+  let why=null;
+  if(!isFinite(v)) why="Bitte eine Zahl eintragen.";
+  else if(v<lo||v>hi) why=`Bitte zwischen ${lo} und ${hi} cm.`;
+  else if(k==="hem"&&v>d.waist*1.2) why="Saum breiter als der Bund? Bitte prüfen.";
+  else if(k==="waist"&&d.hem>v*1.2&&!d.hemAuto) why="Bund schmaler als der Saum? Bitte prüfen.";
+  else if(k==="len"&&(v<d.waist*1.2||v>d.waist*5)) why="Länge passt nicht zum Bund. Bitte prüfen.";
+  el.classList.toggle("bad",!!why); $("g-msg").textContent=why?why+" Die Hose bleibt wie sie war.":"";
+  if(why) return;
+  G.repaired=false;
+  if(k==="waist"){ G.waist=v; g.flat=v; g.est=false; }
+  else if(k==="len") G.len=v;
+  else G.hem=v;
+  fillDims(); updateFit(); saveOwn();
+  if(k==="waist"){ const sp=$("gwrap").querySelector(`.gbtn[data-g="${g.key}"] span`); if(sp) sp.innerHTML=sp.innerHTML.replace(/<br>.*$/,"<br>Bund "+v+" cm"); }
 }
 function pickGarment(k,scroll=true){
   if(g.key===k){ clearGarment(); return; }
   const G=GARMENTS[k];
-  g.key=k;
-  const im=new Image(); im.onload=()=>{g.img=im;}; im.src=G.src;
-  // Startwert, damit sofort etwas zu sehen ist. Echte Zahl überschreibt ihn.
+  if(!G) return;
+  if(G.bad){ $("g-msg").textContent=`„${G.label}“: ${G.bad}. Bitte neu fotografieren und neu erstellen.`; return; }
+  g.key=k; g.img=null;
+  const im=new Image(); im.onload=()=>{ if(g.key===k) g.img=im; }; im.src=G.src;
   g.flat=G.waist||G.estFlat; g.len=null; g.est=!G.waist;
-  $("g-waist").value=G.waist||""; $("g-waist").disabled=false; $("own-del").disabled=false;
-  $("g-hemw").value=G.hem||""; $("g-hemw").disabled=false;
-  markGarment(); $("fitRead").hidden=false; updateFit();
+  $("g-msg").textContent=G.repaired?"Diese Hose wurde automatisch repariert (oben ragte etwas aus dem Foto). Bitte Länge und Bund mit dem Maßband prüfen und hier eintragen."
+    :g.est?"Bundweite ist geschätzt. Mit dem Maßband nachmessen und eintragen.":"";
+  fillDims(); markGarment(); $("fitRead").hidden=false; updateFit();
   if(scroll) stage.scrollIntoView({behavior:"smooth",block:"center"});
   cue("Hose liegt auf.",true);
 }
 function clearGarment(){
   g.key=null; g.img=null; g.flat=null; g.len=null; g.est=false;
-  markGarment(); $("fitRead").hidden=true; $("own-del").disabled=true; $("g-waist").value=""; $("g-waist").disabled=true; $("g-hemw").value=""; $("g-hemw").disabled=true;
+  markGarment(); $("fitRead").hidden=true; $("g-msg").textContent=""; fillDims();
 }
 function markGarment(){
   $("gwrap").querySelectorAll(".gbtn").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.g===g.key)));
@@ -1525,7 +1708,7 @@ function updateFit(){
   }else $("f-ease").textContent="–";
   $("f-hem").textContent=(g.hem!=null)?(g.hem>0?fmt(g.hem):"reicht bis auf den Boden"):"–";
   if(G.m3&&g.flat){ const M=G.m3, cmH=g.flat/M.wf, ic=M.v.findIndex(v=>v>=M.vc);
-    $("f-leg").textContent=`${(M.hw[ic+1]*cmH).toFixed(0)} / ${(G.hem||M.hw[M.nr-1]*cmH).toFixed(0)} cm`+(G.hem?"":" (aus dem Foto)"); }
+    $("f-leg").textContent=`${(M.hw[ic+1]*cmH).toFixed(0)} / ${garmentDims(G).hem.toFixed(0)} cm`+(G.hem?"":" (aus dem Foto)"); }
   $("f-yaw").textContent=Math.round(g.yaw*180/Math.PI)+"°";
 }
 
@@ -1642,21 +1825,11 @@ $("reset").addEventListener("click",()=>{
   $("resultCard").hidden=$("compareCard").hidden=true;
   coach("","",null,true);
 });
-// Bundweite lässt sich jederzeit nachtragen: die ausgewählte Hose wird sofort neu skaliert
-$("g-waist").addEventListener("input",()=>{
-  if(!g.key) return;
-  const v=parseFloat($("g-waist").value), G=GARMENTS[g.key];
-  G.waist=isFinite(v)&&v>=10?v:null; g.flat=G.waist||G.estFlat; g.est=!G.waist; updateFit(); saveOwn(); buildPicker(); markGarment();
-});
-$("g-hemw").addEventListener("input",()=>{
-  if(!g.key) return;
-  const v=parseFloat($("g-hemw").value); GARMENTS[g.key].hem=isFinite(v)&&v>=5?v:null; updateFit(); saveOwn();
-});
-$("own-del").addEventListener("click",()=>{
-  if(!g.key) return;
-  delete GARMENTS[g.key]; clearGarment(); buildPicker(); saveOwn();
-  $("own-msg").textContent="Hose gelöscht.";
-});
+// Maße der ausgewählten Hose: jede gültige Änderung wirkt sofort auf die angezeigte Hose
+for(const [id,k] of [["g-len","len"],["g-waist","waist"],["g-hemw","hem"]]){
+  $(id).addEventListener("input",e=>setDim(k,e.target));
+  $(id).addEventListener("blur",()=>{ $(id).classList.remove("bad"); fillDims(); });   // ungültig verlassen: alter Wert zurück
+}
 $("g-clear").addEventListener("click",clearGarment);
 $("g-off").addEventListener("input",e=>{ g.off=+e.target.value; $("g-offv").textContent=(g.off>0?"+":"")+g.off+" cm"; updateFit(); });
 $("g-opa").addEventListener("input",e=>{ g.opa=+e.target.value/100; $("g-opav").textContent=e.target.value+" %"; });
@@ -1685,9 +1858,11 @@ $("own-go").addEventListener("click",async()=>{
   try{
     const {G,info}=await buildGarment(f,b,t=>{ msg.textContent=t; });
     const waist=parseFloat($("own-waist").value);
-    G.waist=isFinite(waist)&&waist>=10?waist:null;
-    const hemw=parseFloat($("own-hem").value); G.hem=isFinite(hemw)&&hemw>=5?hemw:null;
-    G.label=($("own-name").value||"").trim()||("Hose "+(Object.keys(GARMENTS).length+1));
+    G.waist=isFinite(waist)&&waist>=DIM.waist[0]&&waist<=DIM.waist[1]?waist:null;
+    const hemw=parseFloat($("own-hem").value); G.hem=isFinite(hemw)&&hemw>=DIM.hem[0]&&hemw<=DIM.hem[1]?hemw:null;
+    G.label=($("own-name").value||"").trim()||nextName();
+    // Unbrauchbares Modell gar nicht erst anlegen: lieber sagen, woran es liegt
+    if(G.bad){ msg.textContent=`Aus diesem Foto ließ sich keine Hose bauen: ${G.bad}. Bitte die Hose ganz und gerade von oben fotografieren, ohne etwas daneben, auf einem Untergrund in anderer Farbe.`; return; }
     const pv=$("own-prev"), px=pv.getContext("2d"); pv.hidden=false;
     px.fillStyle="#1b1e22"; px.fillRect(0,0,320,320);
     const im=new Image(); im.onload=()=>{ px.drawImage(im,0,0,320,320);
@@ -1701,7 +1876,10 @@ $("own-go").addEventListener("click",async()=>{
     msg.textContent=`Fertig in ${((performance.now()-t0)/1000).toFixed(1)} s. Aus dem Foto gelesen: Länge ${cmH.toFixed(0)} cm, Leibhöhe ${(G.m3.vc*cmH).toFixed(0)} cm, `
       +`ein Hosenbein flach oben ${(G.m3.hw[icr+1]*cmH).toFixed(0)} cm und unten ${(G.m3.hw[G.m3.nr-1]*cmH).toFixed(0)} cm`
       +(G.waist?"":" (Bund geschätzt, bitte nachtragen)")+(info.hasBack?"":". Ohne Rückenfoto: Rückseite ist die gespiegelte Vorderseite")
-      +(info.split?"":". Schritt nicht erkannt, Standardwert benutzt")+". Die Linien zeigen den erkannten Umriss."
+      +(info.split?"":". Schritt nicht erkannt, Standardwert benutzt")
+      +(info.turned?". Foto lag "+(Math.abs(info.turned)===90?"quer":"auf dem Kopf")+" und wurde gedreht":"")
+      +". Die Linien zeigen den erkannten Umriss."
+      +(info.trimmed?" ACHTUNG: Oben oder unten war der Umriss unsauber (etwas ragte heraus oder der Untergrund ist der Hose zu ähnlich) und wurde begradigt. Prüfe die gelben Linien und trag die Länge mit dem Maßband ein.":"")
       // Lange Hosen sind flach 2,2- bis 3,4-mal so lang wie der Bund breit. Weit darüber: Bund im Foto nicht ganz erkannt.
       +((G.m3.wf<.27||G.m3.wf>.48)?" ACHTUNG: Die Maße wirken unplausibel, vermutlich hebt sich die Hose nicht genug vom Untergrund ab. Prüfe die gelben Linien und fotografiere sie sonst auf einem helleren oder andersfarbigen Untergrund.":"")
       +(saved?"":" Speicher im Gerät voll: diese Hose ist nach dem Neuladen weg.");
