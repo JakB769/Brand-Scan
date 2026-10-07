@@ -32,3 +32,4 @@ await p.evaluate(()=>{const m=window.__mc; m.style.cssText='position:absolute;in
 await p.waitForTimeout(1500); await (await p.$('#stage')).screenshot({path:out+'g_stage.png'});
 console.log(errs.length?'FEHLER: '+[...new Set(errs)].slice(0,5).join(' | '):'keine Skriptfehler');
 await b.close();
+if(errs.length) process.exit(1);

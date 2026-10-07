@@ -23,3 +23,4 @@ await p.reload(); await p.waitForTimeout(500);
 console.log('nach Neuladen:',await p.evaluate(()=>document.getElementById('person').value+' '+document.getElementById('height').value));
 console.log(errs.length?'FEHLER: '+[...new Set(errs)].slice(0,5).join(' | '):'keine Skriptfehler');
 await b.close();
+if(errs.length) process.exit(1);

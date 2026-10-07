@@ -27,3 +27,4 @@ for(const zk of [1,0,-1]){
 console.log(res.join('\n'));
 console.log(errs.length?'FEHLER: '+[...new Set(errs)].slice(0,5).join(' | '):'keine Skriptfehler');
 await b.close();
+if(errs.length) process.exit(1);

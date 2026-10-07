@@ -3,9 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node werkzeuge/tests/th.mjs && node werkzeuge/tests/tg.mjs && node werkzeuge/tests/tf.mjs"
+    "pretest": "node werkzeuge/tests/baue-testseite.mjs",
+    "test": "node werkzeuge/tests/th.mjs && node werkzeuge/tests/tg.mjs && node werkzeuge/tests/tf.mjs && node werkzeuge/tests/tbreite.mjs && node werkzeuge/tests/tgenerator.mjs && node werkzeuge/tests/theic.mjs",
+    "diagnose": "node werkzeuge/tests/baue-testseite.mjs && node werkzeuge/tests/tfreistellung.mjs; node werkzeuge/tests/tknie.mjs"
   },
   "devDependencies": {
+    "heic-to": "^1.6.5",
+    "heic2any": "^0.0.4",
     "playwright": "1.56.1"
   }
 }

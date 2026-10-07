@@ -25,7 +25,7 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 | `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 94 KB, kein Build-Schritt. |
 | `prototypen/` | Sieben ältere Stände, nummeriert und datiert. Nur zum Nachschlagen. |
 | `werkzeuge/tests/testseite-mit-simulierter-person.html` | Aktuelle Seite mit Attrappe statt MediaPipe (siehe „Testen“). |
-| `werkzeuge/tests/t*.mjs` | Playwright-Skripte. `th`, `tg`, `tf` sind auf relative Pfade umgestellt und laufen mit `npm test`; die älteren haben noch harte Pfade der alten Umgebung. |
+| `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“. Die nicht in `npm test` genannten (`t.mjs` bis `te.mjs`) sind alt und haben noch harte Pfade. |
 | `werkzeuge/python/` | Der ursprüngliche Python-Weg vom Foto zum Modell. Inzwischen nach JavaScript portiert, als Referenz nützlich. |
 | `werkzeuge/bausteine/` | `g3d.js` (3D-Darstellung) und `gen.js` (Generator, Blickrichtung) als Einzelstücke, bevor sie in die Seite kamen. **Nicht mehr ganz aktuell**, die Wahrheit steht in `app/index.html`. |
 | `material/produktfotos/` | `front.jpg`, `back.jpg` (Bershka Super Baggy Jeans, 702×900), der fertige Atlas und das Modell als JSON. Gute Testdaten. |
@@ -88,17 +88,25 @@ Darstellung: orthografische Lage plus Perspektive im Vertex-Shader (`foc`, `pc`)
 
 **Nie mit echter Kamera von mir geprüft.** Alle Rückmeldungen zum echten Verhalten kommen vom Nutzer (iPhone 13 und Laptop).
 
-Offene Punkte, nach Dringlichkeit:
+Offene Punkte, nach Dringlichkeit (Stand 7.10. nachts, nach der ersten Claude-Code-Sitzung):
 
-1. **Hose wird nach unten zu breit** (Rückmeldung vom 7.10. abends, mit eigenen Handyfotos). Zwei Verdächtige wurden behoben, aber nicht bestätigt: falsch geeichte Drehung und zu breit gelesene Beine. In der Passform-Liste stehen dafür jetzt zwei Kontrollwerte: „Hosenbein flach, oben / unten“ und „Erkannte Drehung“. **Zuerst den Nutzer um das Kontrollbild mit den gelben Linien und diese zwei Werte bitten.**
-2. **Freistellung echter Handyfotos.** `segGarment` setzt hellen, einfarbigen Grund voraus (Regel: deutlich dunkler als der Hintergrund oder farbig). Parkett, Teppich, Bettdecke, weiße Hose auf Weiß gehen nicht zuverlässig. Die Fotos des Nutzers (IMG_7260/7261.HEIC) habe ich nie gesehen. Sinnvoller nächster Schritt: ein Segmentierungsmodell im Browser (z. B. MediaPipe Image Segmenter oder ein kleines ONNX-Modell).
-3. **HEIC-Umwandlung ungetestet.** Chrome kann HEIC nicht lesen; der Nachlade-Weg ist eingebaut, aber nur die Fehlermeldung wurde geprüft. Safari liest HEIC selbst.
-4. **Schräg aufgenommene Fotos** (Trapezverzerrung) werden nicht korrigiert. Das zweite Maß am Saum gleicht es nur grob aus.
-5. **Knie zur Kamera**: kleiner Darstellungsfehler an der Innennaht.
-6. **Links/rechts-Verwechslung** der Pose-Erkennung bei Rückenansicht: kurze Aussetzer werden abgefangen (350 ms), längere nicht.
-7. **Stimme**: Der Nutzer fand sie zweimal schlecht („hört sich nicht gut an“, „extrem nervig“). Jetzt gibt es eine Auswahl aller deutschen Systemstimmen. Wenn das nicht reicht: vorab aufgenommene Ansagen als Audiodateien.
-8. **Alter 2D-Weg** (`drawRigged`, `tinted`, `g.rig`) ist noch im Code, wird aber ohne Bershka-Teile nicht mehr erreicht. Kann entfernt werden.
-9. Nur Hosen mit zwei Beinen. Röcke, Shorts mit geschlossenem Bein und Oberteile brauchen eine eigene Form.
+1. **Hose wird nach unten zu breit**: Ursache gefunden und behoben, mit echter Kamera **nicht bestätigt**. Die Tiefe von Knie und Knöchel
+   kam direkt aus der unruhigen Tiefenschätzung; lagen die Knöchel scheinbar 0,2–0,4 näher an der Kamera, wurde der Saum 16–35 % zu breit
+   (nachgestellt in `tbreite.mjs`). Jetzt kommt der Betrag der Tiefe aus der Verkürzung der Beine im Bild (`segLen` in `analyse`),
+   von der Tiefenschätzung nur die Richtung. Zweite mögliche Ursache bleibt: schräg fotografierte Hose (Punkt 4).
+2. **Freistellung echter Handyfotos**: neues Farbmodell (`segColor`): Untergrundfarben vom Bildrand per k-Means, Schatten als abgedunkelte
+   Untergrundfarbe, Hosenfarben nachgelernt, Kante mit feiner Farbe nachgeschärft. Auf hellem Grund gilt weiter die alte Regel (`segBright`),
+   wenn beide übereinstimmen. Getestet auf künstlichen Untergründen (Parkett, Teppich, Bettdecke, Fliesen: Maße ±5 %).
+   **Grenze:** dunkle Nähte auf fast schwarzem Boden. Dort warnt die Seite (Plausibilitätsprüfung über `wf`). Echte Handyfotos fehlen weiter.
+3. **HEIC**: geprüft in Chromium mit beiden Umwandlern (`theic.mjs`, Umwandler lokal aus node_modules). Nicht geprüft: echte iPhone-Datei
+   mit Kachelaufbau und Drehung.
+4. **Schräg aufgenommene Fotos** (Trapezverzerrung) werden nicht korrigiert. Nur ein Hinweis in der Oberfläche („Handy senkrecht über die Mitte“).
+5. Knie zur Kamera: das schwarze Loch an der Innennaht ist weg (Innenwand heller schattiert). Bei angehobenem Knie und stark verrauschter
+   Tiefe kann der Unterschenkel noch in die falsche Richtung kippen.
+6. **Links/rechts-Verwechslung** bei Rückenansicht: unverändert, ohne echte Kameradaten nicht sinnvoll zu lösen.
+7. **Stimme**: unverändert (Auswahl der Systemstimmen). Nächster Schritt wären aufgenommene Ansagen.
+8. Alter 2D-Weg: entfernt. Ohne WebGL wird nur noch das flache Vorschaubild gezeigt.
+9. Nur Hosen mit zwei Beinen.
 
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
 
@@ -123,25 +131,30 @@ Offene Punkte, nach Dringlichkeit:
 
 ## Testen
 
-Die Testseite ersetzt MediaPipe durch eine Attrappe: `window.__stub` liefert Landmarken und Maske einer künstlichen Person.
-Steuerung über `window.__mode` (`yaw`, `knee`, `wide`, `sway`, `zk` für Tiefe an/aus/verkehrt), Einblick über `window.__dbg`.
+```sh
+npm install
+npm test          # baut die Testseite neu und prüft alles
+npm run diagnose  # Freistellung im Detail und Bildserie mit Knie, Ausgabe in werkzeuge/tests/ausgabe/
+```
 
-So ist sie gebaut (aus `app/index.html`, falls sie neu erzeugt werden soll):
-1. Google-Fonts-Link entfernen.
-2. Die Zeile mit `await import(".../vision_bundle.mjs")` durch `const M=window.__stub;` ersetzen.
-3. Den Attrappen-Block vor das Modul-Skript setzen (steht in der Testseite, beginnt mit `window.__mode=`).
-4. In `sceneTint` das Abgreifen des Videobilds durch eine feste graue Farbe ersetzen, sonst färbt das grüne Testvideo die Hose.
+Die Testseite `werkzeuge/tests/testseite-mit-simulierter-person.html` wird von `baue-testseite.mjs` aus `app/index.html` erzeugt
+(Attrappe aus `attrappe.js` statt MediaPipe, feste Umgebungsfarbe, Einblick über `window.__dbg`). **Nie von Hand ändern.**
+Steuerung der Attrappe über `window.__mode`: `yaw`, `knee`, `wide`, `sway`, `zk` (Tiefe an/aus/verkehrt), `zn` (Knöchel scheinbar näher),
+`zr` (Tiefe zittert).
 
-Playwright starten mit `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream --use-gl=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist`.
-`npm install && npm test` startet die drei neuesten Skripte (Ausgabe nach `werkzeuge/tests/ausgabe/`): `th.mjs` (Schnellstart, Saum, Drehung), `tg.mjs` (Anlegen, Speichern, Löschen), `tf.mjs` (Drehung bei kaputter Tiefe).
-
-Syntaxprüfung ohne Browser: Inhalt des Modul-Skripts in eine `.mjs`-Datei schreiben und `node --check` laufen lassen.
+| Test | prüft |
+|---|---|
+| `th.mjs` | Schnellstart, Saum, Drehung |
+| `tg.mjs` | Anlegen, Speichern, Löschen, HEIC ohne Netz |
+| `tf.mjs` | Drehung bei kaputter Tiefe |
+| `tbreite.mjs` | Saumbreite im Bild bei verrauschter Tiefe |
+| `tgenerator.mjs` | Maße aus Fotos auf fünf Untergründen (Testbilder aus `werkzeuge/python/testhintergruende.py`) |
+| `theic.mjs` | HEIC-Umwandlung mit heic-to und heic2any |
 
 ## Vorschlag für die nächsten Schritte
 
-1. Echte Handyfotos des Nutzers besorgen und daran die Freistellung reparieren (Punkt 1 und 2 oben). Das ist der Engpass.
+1. Echte Handyfotos des Nutzers besorgen und daran die neue Freistellung prüfen; mit echter Kamera bestätigen, dass die Hose nicht mehr nach unten breiter wird.
 2. Die eine Datei in Module zerlegen (Kamera, Pose, Messung, Generator, Darstellung, Oberfläche), mit einem einfachen Build. Erst danach wird es in Claude Code angenehm zu ändern.
-3. Automatische Tests mit der Attrappe fest einrichten.
 4. Passform sichtbar machen: Hose dort einfärben, wo ihr Umfang kleiner ist als der gemessene Körperumfang. Die Körpermaße liegen aus dem Scan schon vor.
 5. Shopify-Gerüst: App-Vorlage, Theme App Extension, Modell als Datei am Produkt speichern.
 6. Messgenauigkeit mit 20–30 Personen gegen das Maßband prüfen (die Messreihe in der Seite ist dafür da).

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Maß-Scan</title>
 
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
 
 <style>
 /* Layout: Kamerabild als Hauptfläche. Rückmeldung auf drei Ebenen, damit sie aus drei
@@ -209,8 +209,8 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
   <section class="card">
     <h2>3 · Anprobe</h2>
     <div class="note" id="ownBox">
-      <strong>Neue Hose aus zwei Fotos.</strong> Hose flach hinlegen, glatt streichen, gerade von oben fotografieren.
-      Am besten auf einem hellen, einfarbigen Untergrund. Das 3D-Modell entsteht hier im Browser, es wird nichts hochgeladen.
+      <strong>Neue Hose aus zwei Fotos.</strong> Hose flach hinlegen, glatt streichen, das Handy genau senkrecht über die Mitte halten
+      (schräg fotografiert wird die Hose unten oder oben zu breit). Untergrund egal, er muss sich nur farblich von der Hose abheben. Das 3D-Modell entsteht hier im Browser, es wird nichts hochgeladen.
       <div class="row" style="margin-top:10px">
         <label>Foto Vorderseite<input type="file" id="own-front" accept="image/*,.heic,.heif"></label>
         <label>Foto Rückseite <span style="color:var(--chalk-faint)">(optional)</span><input type="file" id="own-back" accept="image/*,.heic,.heif"></label>
@@ -300,6 +300,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0};
     L[23]=P(9,95); L[24]=P(-9,95);
     const kl=md.knee?P(11,95-20,36):P(9+md.wide*14,50), al=md.knee?P(10,95-58,22):P(9+md.wide*30,8);
     L[25]=kl; L[27]=al; L[26]=P(-9-md.wide*14,50); L[28]=P(-9-md.wide*30,8);
+    // zn: Tiefenfehler wie bei echter Pose-Erkennung (Knie und Knöchel scheinbar näher an der Kamera), zr: zusätzlich zittern
+    if(md.zn||md.zr){ for(const [i,k] of [[25,.5],[26,.5],[27,1],[28,1],[29,1],[30,1],[31,1],[32,1]]){
+      L[i]={...L[i],z:L[i].z-(md.zn||0)*k+(md.zr||0)*(Math.random()-.5)}; } }
     L[29]=P(9+md.wide*30,3,-4); L[30]=P(-9-md.wide*30,3,-4); L[31]=P(9+md.wide*30,2,14); L[32]=P(-9-md.wide*30,2,14);
     // Silhouette
     mx.fillStyle='#000'; mx.fillRect(0,0,256,144); mx.strokeStyle='#fff'; mx.fillStyle='#fff'; mx.lineCap='round';
@@ -339,7 +342,8 @@ const HOLD_MS=1800, STABLE_CM=2.6, WIN_MS=900;
 const caps={cal:null, side:null};
 const STORE="massScanSerie";
 const cam={fk:.8};
-const g={key:null,img:null,flat:null,len:null,off:0,opa:.8,est:false,hem:null,rig:true,d3:true,yaw:0};
+const g={key:null,img:null,flat:null,len:null,off:0,opa:.8,est:false,hem:null,d3:true,yaw:0};
+const segLen=[];                              // volle Länge von Oberschenkel und Unterschenkel je Seite, in cm
 
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const fmt=(v,u="cm")=>v==null||!isFinite(v)?"–":v.toFixed(1)+" "+u;
@@ -367,7 +371,7 @@ function emaBand(k,b){
   const l=oe[k+".l"], r=oe[k+".r"]; if(!l||!r) return null;
   return {l:l.x,r:r.x,w:r.x-l.x,age:performance.now()-(bt[k]?bt[k].t:0),unsure:!!(bt[k]&&bt[k].u)};
 }
-function clearSm(){ for(const k in oe) delete oe[k]; for(const k in bt) delete bt[k]; hist.length=0; stableSince=0; badSince=0; nearScale=null; }
+function clearSm(){ for(const k in oe) delete oe[k]; for(const k in bt) delete bt[k]; hist.length=0; segLen.length=0; stableSince=0; badSince=0; nearScale=null; }
 
 /* Ruhe in Zentimetern prüfen, nicht in Prozent der Pixelbreite */
 function stability(hipCm,shCm){
@@ -740,10 +744,22 @@ function analyse(res){
   }
 
   // Knochen in Bildpunkten: Hüfte, Knie, Knöchel je Seite
-  // Tiefe der Gelenke nur relativ zum Hüftgelenk derselben Seite; die Lage der Hüfte selbst kommt aus der Drehung
+  // Tiefe der Gelenke relativ zum Hüftgelenk derselben Seite; die Lage der Hüfte selbst kommt aus der Drehung.
+  // Die Tiefenschätzung setzt Knie und Knöchel oft weit vor oder hinter die Hüfte, dann wird die Hose nach
+  // unten breiter oder schmaler. Darum kommt der Betrag aus der Verkürzung im Bild (ein gestrecktes Bein hat
+  // volle Länge, also keine Tiefe), von der Tiefenschätzung nur die Richtung.
   const zOf=i=>hold("pz"+i,L[i].z||0,V(i));
-  const bone=[[23,25,27],[24,26,28]].map((ix,s)=>ix.map((i,j)=>({
-    x:hold(`bx${s}${j}`,L[i].x,V(i))*vw, y:hold(`by${s}${j}`,L[i].y,V(i))*vh, zr:j?(zOf(i)-zOf(ix[0]))*vw*.5:0 })));
+  const bone=[[23,25,27],[24,26,28]].map((ix,s)=>{
+    const P=ix.map((i,j)=>({x:hold(`bx${s}${j}`,L[i].x,V(i))*vw, y:hold(`by${s}${j}`,L[i].y,V(i))*vh, zr:0}));
+    for(let j=1;j<3;j++){
+      const l=Math.hypot(P[j].x-P[j-1].x,P[j].y-P[j-1].y)/pxPerCm, k=s*2+j-1;
+      segLen[k]=Math.max(l,segLen[k]?segLen[k]-(segLen[k]-l)*.0005:l);    // volle Länge: größte gesehene, vergisst sehr langsam
+      const r=l/segLen[k], dep=segLen[k]*Math.sqrt(Math.max(0,1-r*r))*sstep(.93,.8,r);
+      const sgn=(zOf(ix[j])-zOf(ix[j-1]))>.03?1:-1;                       // im Zweifel zur Kamera: Knie gehen nach vorn
+      P[j].zr=P[j-1].zr+sgn*dep*pxPerCm;
+    }
+    return P;
+  });
   const yaw=bodyYaw(L,V,vw,vh,pxPerCm);
   // Schritt am Körper: aus der Silhouette, sonst das Hüftgelenk — das liegt ohnehin fast dort
   const yCrotch=(crotchFresh?crotchY:hipY)*vh;
@@ -860,21 +876,13 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
   if(!(wPx>4&&hPx>4&&wPx<vw*8)) return;
   topY=anchorY*vh - G.prof.bund.y*hPx + g.off*pxPerCm;
 
-  const img=tinted(G,scene);
+  // Ausweichweg ohne WebGL: das flache Vorschaubild der Hose
+  const img=g.img;
   const box={x:cx-wPx*G.prof.bund.c, y:topY, w:wPx, h:hPx};
   ctx.save();
   ctx.globalAlpha=g.opa*fade;
   ctx.shadowColor="rgba(0,0,0,.4)"; ctx.shadowBlur=Math.max(6,vw/90); ctx.shadowOffsetY=Math.max(2,vw/400);
-  if(G.rig&&g.rig&&bone){
-    // Erst voll deckend auf eine Zwischenfläche, dann als Ganzes einblenden.
-    // Sonst addieren sich die Beine dort, wo sie sich überlappen.
-    if(!rc.c){ rc.c=document.createElement("canvas"); rc.x=rc.c.getContext("2d"); }
-    if(rc.c.width!==vw||rc.c.height!==vh){ rc.c.width=vw; rc.c.height=vh; }
-    rc.x.clearRect(0,0,vw,vh);
-    drawRigged(G,img,box,bone,wPx/(img.naturalWidth||300),yCrotch,rc.x);
-    ctx.drawImage(rc.c,0,0);
-  }
-  else ctx.drawImage(img, box.x, box.y, box.w, box.h);
+  ctx.drawImage(img, box.x, box.y, box.w, box.h);
   ctx.restore();
   }
   if(clean) return;                          // nur die Kleidung, keine Beschriftung
@@ -896,69 +904,6 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
 }
 
 
-/* ---------- Skelett: Beine entlang der Knochen verbiegen ---------- */
-function chainWalk(pts,dist){
-  let acc=0;
-  for(let i=0;i<pts.length-1;i++){
-    const a=pts[i],b=pts[i+1],L=Math.hypot(b.x-a.x,b.y-a.y);
-    if(acc+L>=dist||i===pts.length-2){
-      const t=L>1e-6?(dist-acc)/L:0;
-      return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,ang:Math.atan2(b.y-a.y,b.x-a.x)};
-    }
-    acc+=L;
-  }
-  return {x:pts[0].x,y:pts[0].y,ang:Math.PI/2};
-}
-function distToY(a,b,y){                       // Wegstrecke bis zur Höhe y auf a→b
-  const L=Math.hypot(b.x-a.x,b.y-a.y), dy=b.y-a.y;
-  if(Math.abs(dy)<1e-6) return 0;
-  return clamp((y-a.y)/dy,0,1)*L;
-}
-const BANDS=26;
-/* Jeder Streifen übernimmt die Unterkante des vorherigen — so bleiben keine Lücken */
-const rc={c:null,x:null};
-function drawRigged(G,img,box,bone,scale,yCrotch,ctx){
-  const IW=img.naturalWidth||300, IH=img.naturalHeight||300;
-  const R=G.rig, rise=R.rise, E=R.ext;
-  // Leibhöhe auf den Körper dehnen: die flach gemessene Leibhöhe der Hose ist
-  // länger als der senkrechte Weg vom Bund zum Schritt, weil sie untenherum läuft.
-  const riseH=clamp(yCrotch-box.y, rise*box.h*.55, box.h*.55);
-  const yLeg=box.y+riseH;                    // hier beginnen die Hosenbeine
-  ctx.drawImage(img,0,0,IW,rise*IH, box.x,box.y,box.w,riseH*1.03);
-  const legLen=(1-rise)*box.h, sh=((1-rise)*IH)/BANDS;
-  // Hälften nach Bildposition zuordnen, nicht nach links/rechts des Modells.
-  // MediaPipe vertauscht die Seiten gelegentlich, und die Kamera spiegelt je nach Linse.
-  const ord = bone[0][0].x<=bone[1][0].x ? [0,1] : [1,0];
-  for(let s=0;s<2;s++){
-    const chain=bone[ord[s]];
-    let L0=1,R0=0;
-    for(const row of E){ L0=Math.min(L0,row[s][0]); R0=Math.max(R0,row[s][1]); }
-    const sx=L0*IW, sw=(R0-L0)*IW, ref=R.ctr[0][s]*IW;
-    if(sw<1) continue;
-    // Kette direkt benutzen: das Hosenbein liegt mittig um den Knochen, nicht daneben
-    const startD=Math.max(0,distToY(chain[0],chain[1],yLeg));
-    const raw=[],ed=[];
-    for(let i=0;i<=BANDS;i++) raw.push(chainWalk(chain,startD+legLen*i/BANDS));
-    const o0=(sx-ref)*scale, o1=(sx+sw-ref)*scale;
-    for(let i=0;i<=BANDS;i++){
-      let a=0,n=0;
-      for(let j=Math.max(0,i-2);j<=Math.min(BANDS,i+2);j++){ a+=raw[j].ang; n++; }
-      a/=n;
-      const nx=Math.sin(a), ny=-Math.cos(a), p=raw[i];
-      ed.push({lx:p.x+nx*o0, ly:p.y+ny*o0, rx:p.x+nx*o1, ry:p.y+ny*o1});
-    }
-    for(let i=0;i<BANDS;i++){
-      const t=ed[i], b2=ed[i+1], sy=(rise+(1-rise)*(i/BANDS))*IH;
-      const ux=(t.rx-t.lx)/sw, uy=(t.ry-t.ly)/sw;
-      const vx=(b2.lx-t.lx)/sh, vy=(b2.ly-t.ly)/sh;
-      ctx.save();
-      ctx.setTransform(ux,uy,vx,vy, t.lx-ux*sx-vx*sy, t.ly-uy*sx-vy*sy);
-      ctx.drawImage(img, sx,sy,sw,sh+0.75, sx,sy,sw,sh+0.75);
-      ctx.restore();
-    }
-  }
-}
-
 /* ---------- Licht der Umgebung aufnehmen ---------- */
 const scn={c:null,x:null,at:0,v:null};
 function sceneTint(vw,vh){
@@ -974,38 +919,6 @@ function sceneTint(vw,vh){
   scn.v={r,g:gg,b,lum:.2126*r+.7152*gg+.0722*b}; scn.at=now;
   return scn.v;
 }
-/* Freisteller auf das Umgebungslicht einfärben, Ergebnis zwischenspeichern */
-const gt={c:null,x:null,key:null,sig:null};
-function tinted(G,s){
-  if(!s||!g.img) return g.img;
-  // Helligkeit angleichen, aber nur zu drei Vierteln — sonst kippt es ins Unkenntliche
-  let m=clamp(1+.68*(s.lum/Math.max(20,G.base.lum)-1),.35,1.45);
-  // Farbstich der Umgebung, abgeschwächt
-  const mx=Math.max(s.r,s.g,s.b)||1;
-  const cast=[s.r/mx,s.g/mx,s.b/mx].map(v=>1-(1-v)*.45);
-  const sig=g.key+"|"+m.toFixed(2)+"|"+cast.map(v=>v.toFixed(2)).join(",");
-  if(gt.sig===sig&&gt.c) return gt.c;
-  const W=g.img.naturalWidth||300, H=g.img.naturalHeight||300;
-  if(!gt.c){ gt.c=document.createElement("canvas"); gt.x=gt.c.getContext("2d"); }
-  if(gt.c.width!==W||gt.c.height!==H){ gt.c.width=W; gt.c.height=H; }
-  const x=gt.x; x.clearRect(0,0,W,H);
-  x.globalCompositeOperation="source-over"; x.globalAlpha=1;
-  x.drawImage(g.img,0,0);
-  // Abdunkeln und einfärben: multiplizieren ist immer ≤ 1, danach Alpha zurückholen
-  const dark=Math.min(m,1);
-  const col=cast.map(v=>Math.round(clamp(v*dark,0,1)*255));
-  if(col[0]<254||col[1]<254||col[2]<254){
-    x.globalCompositeOperation="multiply";
-    x.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`; x.fillRect(0,0,W,H);
-    x.globalCompositeOperation="destination-in"; x.drawImage(g.img,0,0);
-  }
-  // Aufhellen: dasselbe Bild additiv darüber, das entspricht einer Multiplikation
-  if(m>1){ x.globalCompositeOperation="lighter"; x.globalAlpha=clamp(m-1,0,1);
-           x.drawImage(gt.c,0,0); x.globalAlpha=1; }
-  x.globalCompositeOperation="source-over";
-  gt.sig=sig; return gt.c;
-}
-
 /* ---------- 3D-Hose: aus den Maßen aufgeblasen, live am Skelett ---------- */
 const K3=12, BAND3=16;                         // Punkte je Viertelbogen, Übergang Schritt→Bein in cm
 const g3={c:null,gl:null,ok:null,prog:null,loc:null,tex:null,texKey:null,texReady:false,
@@ -1065,7 +978,7 @@ function mesh3d(key,M){
       // innen am Oberschenkel etwas dunkler, am Bund ein Hauch Schatten
       ao[k]=(below?1-.22*Math.max(0,1-t/.3)*Math.min(1,dcm*14):1)*(i<1?.9:1);
     }
-    for(let f=0;f<2;f++){ const k=wid(s,i,f); uv[k*2]=fr[0]; uv[k*2+1]=M.tv[i]; ao[k]=.42; }
+    for(let f=0;f<2;f++){ const k=wid(s,i,f); uv[k*2]=fr[0]; uv[k*2+1]=M.tv[i]; ao[k]=.78; }      // Innenwand: nur leicht dunkler, sonst ein schwarzes Loch am angehobenen Knie
     if(i<NR-1){
       for(let f=0;f<2;f++) for(let j=0;j<K3;j++){
         const a=id(s,i,f,j),b=id(s,i,f,j+1),c=id(s,i+1,f,j+1),d=id(s,i+1,f,j);
@@ -1199,6 +1112,7 @@ function pose3d(M,P){
     const n=v3.norm([-sg*P.h[0],-sg*P.h[1],-sg*P.h[2]-.35]);
     nor[w]=n[0]; nor[w+1]=n[1]; nor[w+2]=n[2];
   }
+  g3.S=S;
   return {top,S,rs};
 }
 /* Zeichnen: in eine eigene WebGL-Fläche, die dann wie ein Bild aufgelegt wird */
@@ -1311,25 +1225,103 @@ function morph(m,w,h,erode,n){
   }
   return a;
 }
-/* Kleidungsstück vom Hintergrund trennen. Schatten sind hintergrundfarben und nur etwas dunkler: die bleiben draußen. */
-function segGarment(cv){
-  const w=cv.width,h=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
-  let m=new Uint8Array(w*h), tr=0;
-  for(let i=0;i<w*h;i+=7) if(d[i*4+3]<200) tr++;
-  if(tr>w*h/7*.04){ for(let i=0;i<w*h;i++) m[i]=d[i*4+3]>128?1:0; }      // schon freigestellt
-  else{
-    const br=[[],[],[]], push=i=>{ br[0].push(d[i*4]); br[1].push(d[i*4+1]); br[2].push(d[i*4+2]); };
-    for(let x=0;x<w;x+=3){ push(x); push(w+x); push((h-1)*w+x); push((h-2)*w+x); }
-    for(let y=0;y<h;y+=3){ push(y*w); push(y*w+1); push(y*w+w-1); push(y*w+w-2); }
-    const bg=br.map(a=>{ a.sort((p,q)=>p-q); return a[a.length>>1]; });
-    const bl=.2126*bg[0]+.7152*bg[1]+.0722*bg[2];
-    for(let i=0;i<w*h;i++){
-      const r=d[i*4],g2=d[i*4+1],b=d[i*4+2], l=.2126*r+.7152*g2+.0722*b;
-      const cd=Math.max(Math.abs((r-l)-(bg[0]-bl)),Math.abs((g2-l)-(bg[1]-bl)),Math.abs((b-l)-(bg[2]-bl)));
-      m[i]= bl>140 ? ((l<bl*.63||cd>17)?1:0)
-                   : ((Math.max(Math.abs(r-bg[0]),Math.abs(g2-bg[1]),Math.abs(b-bg[2]))>42)?1:0);
-    }
+/* Typische Farben einer Bildfläche finden (k-Means) */
+function kmeans(px,n,K,it=8){
+  // px: Float32Array mit n Farben (r,g,b); Start mit weit auseinanderliegenden Farben
+  const C=[]; let far=new Float32Array(n).fill(1e9);
+  C.push([px[0],px[1],px[2]]);
+  while(C.length<K){
+    let bi=0,bd=-1; const c=C[C.length-1];
+    for(let i=0;i<n;i++){ const d=(px[i*3]-c[0])**2+(px[i*3+1]-c[1])**2+(px[i*3+2]-c[2])**2; if(d<far[i]) far[i]=d; if(far[i]>bd){bd=far[i];bi=i;} }
+    if(bd<4) break; C.push([px[bi*3],px[bi*3+1],px[bi*3+2]]);
   }
+  for(let t=0;t<it;t++){
+    const S=C.map(()=>[0,0,0,0]);
+    for(let i=0;i<n;i++){ let bk=0,bd=1e9; for(let k=0;k<C.length;k++){ const c=C[k], d=(px[i*3]-c[0])**2+(px[i*3+1]-c[1])**2+(px[i*3+2]-c[2])**2; if(d<bd){bd=d;bk=k;} }
+      const s=S[bk]; s[0]+=px[i*3]; s[1]+=px[i*3+1]; s[2]+=px[i*3+2]; s[3]++; }
+    for(let k=0;k<C.length;k++) if(S[k][3]) C[k]=[S[k][0]/S[k][3],S[k][1]/S[k][3],S[k][2]/S[k][3]];
+  }
+  return C;
+}
+function boxBlur(d,w,h,r){
+  // Farbe mitteln: Holzmaserung, Teppichflor und Bildrauschen verschwinden, Kanten bleiben ungefähr
+  const a=new Float32Array(w*h*3), b=new Float32Array(w*h*3);
+  for(let i=0;i<w*h;i++){ a[i*3]=d[i*4]; a[i*3+1]=d[i*4+1]; a[i*3+2]=d[i*4+2]; }
+  const pass=(src,dst,hor)=>{ const L=hor?w:h, M=hor?h:w;
+    for(let o=0;o<M;o++) for(let c=0;c<3;c++){ let s=0,n=0;
+      const at=k=>((hor?o*w+k:k*w+o)*3+c);
+      for(let k=0;k<Math.min(r,L);k++){ s+=src[at(k)]; n++; }
+      for(let k=0;k<L;k++){ if(k+r<L){ s+=src[at(k+r)]; n++; } if(k-r-1>=0){ s-=src[at(k-r-1)]; n--; } dst[at(k)]=s/n; } } };
+  pass(a,b,true); pass(b,a,false);
+  // Farbton zählt mehr als Helligkeit: Jeans auf grauem Boden unterscheiden sich vor allem im Ton.
+  // Lineare Umrechnung, damit Schatten (alle Kanäle gleich abgedunkelt) weiter auf einer Geraden liegen.
+  for(let i=0;i<w*h;i++){ const r=a[i*3],g2=a[i*3+1],bb=a[i*3+2];
+    a[i*3]=(r+g2+bb)/3; a[i*3+1]=2.2*(r-g2); a[i*3+2]=2.2*((r+g2)/2-bb); }
+  return a;
+}
+/* Heller, einfarbiger Grund (Papier, Laken): einfache Regel, dort sehr genau.
+   Teil = deutlich dunkler als der Grund oder farbig. Schatten sind grundfarben und nur etwas dunkler: die bleiben draußen. */
+function segBright(d,w,h){
+  const br=[[],[],[]], push=i=>{ br[0].push(d[i*4]); br[1].push(d[i*4+1]); br[2].push(d[i*4+2]); };
+  for(let x=0;x<w;x+=3){ push(x); push(w+x); push((h-1)*w+x); push((h-2)*w+x); }
+  for(let y=0;y<h;y+=3){ push(y*w); push(y*w+1); push(y*w+w-1); push(y*w+w-2); }
+  const bg=br.map(a=>{ a.sort((p,q)=>p-q); return a[a.length>>1]; });
+  const bl=.2126*bg[0]+.7152*bg[1]+.0722*bg[2];
+  if(bl<=140) return null;
+  const m=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){
+    const r=d[i*4],g2=d[i*4+1],b=d[i*4+2], l=.2126*r+.7152*g2+.0722*b;
+    const cd=Math.max(Math.abs((r-l)-(bg[0]-bl)),Math.abs((g2-l)-(bg[1]-bl)),Math.abs((b-l)-(bg[2]-bl)));
+    m[i]=(l<bl*.63||cd>17)?1:0;
+  }
+  return m;
+}
+/* Jeder Untergrund, auch Parkett, Teppich, Fliesen oder dunkler Boden.
+   Die Farben des Untergrunds lernt die Seite vom Bildrand (dort liegt keine Hose), die Farben der Hose aus dem,
+   was eindeutig nicht Untergrund ist. Jeder Bildpunkt gehört dann zum Modell, dem er näher ist.
+   Schatten sind Untergrundfarbe, nur dunkler: der Abstand zum Untergrund wird darum entlang der Helligkeit gemessen. */
+function segColor(d,w,h){
+  const m=new Uint8Array(w*h);
+    const R=Math.max(1,Math.round(Math.min(w,h)/220));
+    let f=boxBlur(d,w,h,R);
+    // Abstand zum Untergrund: zur nächsten Untergrundfarbe, die auch abgedunkelt (Schatten) oder leicht aufgehellt sein darf
+    const dBg=(C,i)=>{ let bd=1e9; const r=f[i*3],g2=f[i*3+1],b=f[i*3+2];
+      for(const c of C){ const cc=c[0]*c[0]+c[1]*c[1]+c[2]*c[2]||1, s=clamp((r*c[0]+g2*c[1]+b*c[2])/cc,.5,1.08);
+        const dd=(r-s*c[0])**2+(g2-s*c[1])**2+(b-s*c[2])**2; if(dd<bd) bd=dd; } return Math.sqrt(bd); };
+    const dFg=(C,i)=>{ let bd=1e9; for(const c of C){ const dd=(f[i*3]-c[0])**2+(f[i*3+1]-c[1])**2+(f[i*3+2]-c[2])**2; if(dd<bd) bd=dd; } return Math.sqrt(bd); };
+    const sample=(test,max)=>{ let n=0; for(let i=0;i<w*h;i++) if(test(i)) n++;
+      const st=Math.max(1,Math.floor(n/max)), out=new Float32Array(Math.ceil(n/st)*3+3); let k=0,j=0;
+      for(let i=0;i<w*h;i++) if(test(i)){ if(j++%st===0){ out[k*3]=f[i*3]; out[k*3+1]=f[i*3+1]; out[k*3+2]=f[i*3+2]; k++; } }
+      return [out,k]; };
+    // 1. Untergrund vom Rand: ein Streifen von 3 % rundherum
+    const bw=Math.max(3,Math.round(Math.min(w,h)*.03));
+    const edge=i=>{ const x=i%w,y=(i/w)|0; return x<bw||y<bw||x>=w-bw||y>=h-bw; };
+    let [px,n]=sample(edge,6000); const BG=kmeans(px,n,10);
+    // Wie gut erklärt das Modell den Rand selbst? Daraus die Schwelle für „sicher nicht Untergrund“
+    const ed=[]; for(let i=0;i<w*h;i+=3) if(edge(i)) ed.push(dBg(BG,i)); ed.sort((p,q)=>p-q);
+    const T=Math.max(14,2.2*ed[Math.floor(ed.length*.97)]);
+    const db=new Float32Array(w*h); for(let i=0;i<w*h;i++) db[i]=dBg(BG,i);
+    // 2. Hose: was sicher nicht Untergrund ist, abseits vom Rand
+    let FG=null;
+    [px,n]=sample(i=>db[i]>T&&!edge(i),5000);
+    if(n>50) FG=kmeans(px,n,8);
+    // 3. Zuordnung: weit weg vom Untergrund ist immer Hose; im Zwischenbereich entscheidet, welches Modell näher liegt
+    for(let it=0;it<3;it++){
+      for(let i=0;i<w*h;i++) m[i]=(db[i]>T||(FG&&db[i]>T*.4&&dFg(FG,i)<db[i]))?1:0;
+      // Hosenfarben aus der neuen Einteilung nachlernen: so kommen auch dunkle Stellen wie der Bund dazu
+      if(!FG) break; [px,n]=sample(i=>m[i]&&!edge(i),6000); if(n>50) FG=kmeans(px,n,10);
+    }
+    // 4. Kante nachschärfen: die Glättung verschmiert Hose und Untergrund am Rand. Dort mit der feinen Farbe neu entscheiden.
+    if(FG&&R>1){
+      const f1=boxBlur(d,w,h,1), near=morph(m,w,h,false,R+1), core=morph(m,w,h,true,R+1);
+      const keep=f; f=f1;
+      for(let i=0;i<w*h;i++) if(near[i]&&!core[i]){ const b0=dBg(BG,i); m[i]=(b0>T||(b0>T*.4&&dFg(FG,i)<b0))?1:0; }
+      f=keep;
+    }
+  return m;
+}
+/* Aufräumen: Krümel weg, größte Fläche behalten, Löcher schließen */
+function finishMask(m,w,h){
   m=morph(morph(m,w,h,true,2),w,h,false,2);
   // größte zusammenhängende Fläche
   const lab=new Int32Array(w*h), st=new Int32Array(w*h); let best=0,bestN=0,cur=0;
@@ -1341,7 +1333,7 @@ function segGarment(cv){
       if(i>=w&&m[i-w]&&!lab[i-w]){lab[i-w]=cur;st[sp++]=i-w;} if(i<w*h-w&&m[i+w]&&!lab[i+w]){lab[i+w]=cur;st[sp++]=i+w;} }
     if(n>bestN){ bestN=n; best=cur; }
   }
-  if(bestN<w*h*.03||bestN>w*h*.9) throw new Error("Hose nicht klar vom Hintergrund zu trennen. Bitte ein Foto auf hellem, einfarbigem Grund.");
+  if(bestN<w*h*.03||bestN>w*h*.9) throw new Error("Hose nicht klar vom Untergrund zu trennen. Bitte die Hose auf einen Untergrund in deutlich anderer Farbe legen und von oben fotografieren.");
   // Löcher schließen: alles, was vom Rand aus nicht erreichbar ist, gehört zum Teil
   const out=new Uint8Array(w*h); let sp=0;
   const seed=i=>{ if(lab[i]!==best&&!out[i]){ out[i]=1; st[sp++]=i; } };
@@ -1350,6 +1342,21 @@ function segGarment(cv){
   let x0=w,x1=0,y0=h,y1=0;
   for(let i=0;i<w*h;i++){ m[i]=out[i]?0:1; if(m[i]){ const x=i%w,y=(i/w)|0; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
   return {m,w,h,x0,x1:x1+1,y0,y1:y1+1};
+}
+/* Kleidungsstück vom Hintergrund trennen */
+function segGarment(cv){
+  const w=cv.width,h=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
+  let tr=0;
+  for(let i=0;i<w*h;i+=7) if(d[i*4+3]<200) tr++;
+  if(tr>w*h/7*.04){ const m=new Uint8Array(w*h); for(let i=0;i<w*h;i++) m[i]=d[i*4+3]>128?1:0; return finishMask(m,w,h); }   // schon freigestellt
+  const C=finishMask(segColor(d,w,h),w,h);
+  // Auf hellem Grund ist die einfache Regel genauer. Sie gilt, wenn beide Wege fast dasselbe finden;
+  // sonst (Fugen, Muster, Falten) hat sie sich vertan und das Farbmodell gewinnt.
+  const mb=segBright(d,w,h);
+  if(mb){ try{ const B=finishMask(mb,w,h); let i0=0,u0=0;
+    for(let i=0;i<w*h;i++){ if(B.m[i]&&C.m[i]) i0++; if(B.m[i]||C.m[i]) u0++; }
+    if(u0&&i0/u0>.93) return B; }catch(_){} }
+  return C;
 }
 /* Auf einheitliche Größe zuschneiden, Rand mit Stofffarbe auffüllen, Umriss Zeile für Zeile ablesen */
 function cropGarment(cv,S,flip){
@@ -1402,7 +1409,11 @@ function garmentProfile(A,VC,off){
   const lum=(y,x)=>{ let s=0; for(let k=-1;k<=1;k++){ const i=(y*CW+clamp(x+k,0,CW-1))*4; s+=.2126*A.d[i]+.7152*A.d[i+1]+.0722*A.d[i+2]; } return s; };
   for(const R of A.rows){
     const v=(R.y-A.top)/(A.bot-A.top), a=R.runs[0][0], b=R.runs[R.runs.length-1][1]; let li,ri;
-    if(R.runs.length>=2&&v>VC-.03){ li=R.runs[0][1]; ri=R.runs[R.runs.length-1][0]; }
+    if(R.runs.length>=2&&v>VC-.03){
+      // Beinspalt: die breiteste Lücke nahe der Mitte. Kleine Kerben im Umriss zählen nicht.
+      const c=(a+b)/2; let bs=-1e9;
+      for(let k=0;k<R.runs.length-1;k++){ const g0=R.runs[k][1], g1=R.runs[k+1][0];
+        const sc=(g1-g0)-.5*Math.abs((g0+g1)/2-c); if(sc>bs){ bs=sc; li=g0; ri=g1; } } }
     else{ const c=(a+b)/2;
       if(v<VC) li=ri=c;
       else{ const lo=Math.round((px==null?c:px)-7); let bx=lo,bl=1e9;       // dunkle Schattenlinie zwischen den Beinen
@@ -1437,7 +1448,7 @@ async function buildGarment(frontFile,backFile,say=()=>{}){
   const base={...F.base,lum:.2126*F.base.r+.7152*F.base.g+.0722*F.base.b};
   return {G:{label:"Eigene Hose",size:"–",kind:"pants",aspect:pf.H/cw,
              prof:{bund:{y:.015,w:m3.wf*pf.H/cw,c:.5},huefte:{y:.2,w:hip*pf.H/cw,c:.5}},
-             elastic:false,estFlat:40,waist:null,base,rig:null,src:th.toDataURL("image/jpeg",.8),m3,own:true},
+             elastic:false,estFlat:40,waist:null,base,src:th.toDataURL("image/jpeg",.8),m3,own:true},
           info:{split,hasBack:!!backFile,outline:F}};
 }
 /* Eigene Hosen: Liste im Gerät merken */
@@ -1691,11 +1702,13 @@ $("own-go").addEventListener("click",async()=>{
       +`ein Hosenbein flach oben ${(G.m3.hw[icr+1]*cmH).toFixed(0)} cm und unten ${(G.m3.hw[G.m3.nr-1]*cmH).toFixed(0)} cm`
       +(G.waist?"":" (Bund geschätzt, bitte nachtragen)")+(info.hasBack?"":". Ohne Rückenfoto: Rückseite ist die gespiegelte Vorderseite")
       +(info.split?"":". Schritt nicht erkannt, Standardwert benutzt")+". Die Linien zeigen den erkannten Umriss."
+      // Lange Hosen sind flach 2,2- bis 3,4-mal so lang wie der Bund breit. Weit darüber: Bund im Foto nicht ganz erkannt.
+      +((G.m3.wf<.27||G.m3.wf>.48)?" ACHTUNG: Die Maße wirken unplausibel, vermutlich hebt sich die Hose nicht genug vom Untergrund ab. Prüfe die gelben Linien und fotografiere sie sonst auf einem helleren oder andersfarbigen Untergrund.":"")
       +(saved?"":" Speicher im Gerät voll: diese Hose ist nach dem Neuladen weg.");
     $("own-name").value=""; $("own-waist").value=""; $("own-hem").value="";
   }catch(e){ msg.textContent=e&&e.message?e.message:"Das hat nicht geklappt."; }
 });
-loadOwn(); window.__dbg={fc,g,GARMENTS}; buildPicker(); renderSeries();
+loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam}; buildPicker(); renderSeries();
 </script>
 </body>
 </html>
