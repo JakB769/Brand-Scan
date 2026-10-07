@@ -6,7 +6,7 @@ const dir=hier+'../../material/testbilder/freistellung/';
 const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});
 const p=await (await b.newContext()).newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
 await p.goto('file://'+hier+'testseite-mit-simulierter-person.html'); await p.waitForTimeout(500);
-const zahlen=t=>{ const m=t.match(/Länge (\d+) cm, Leibhöhe (\d+) cm, ein Hosenbein flach oben (\d+) cm und unten (\d+) cm/); return m?m.slice(1).map(Number):null; };
+const zahlen=t=>{ const m=t.match(/Länge (\d+) cm \([^)]*\), Bund \d+ cm, Leibhöhe (\d+) cm, ein Hosenbein flach oben (\d+) cm und unten (\d+) cm/); return m?m.slice(1).map(Number):null; };
 let basis=null, schlecht=0;
 for(const [n,f] of [['weiß',hier+'../../material/produktfotos/front.jpg'],...['parkett','teppich','bettdecke','dunkel','fliesen'].map(x=>[x,dir+x+'.jpg'])]){
   await p.setInputFiles('#own-front',f); await p.setInputFiles('#own-back',[]);
