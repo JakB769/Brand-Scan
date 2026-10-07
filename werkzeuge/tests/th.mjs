@@ -1,0 +1,25 @@
+import { chromium } from 'playwright';
+import { fileURLToPath } from 'url';
+const hier=fileURLToPath(new URL('.',import.meta.url));
+const fotos=hier+'../../material/produktfotos/';
+const out=hier+'ausgabe/'; (await import('fs')).mkdirSync(out,{recursive:true});
+const b=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
+const ctx=await b.newContext({permissions:['camera'],viewport:{width:1100,height:900}});
+const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{if(m.type()==='error'&&!/GL Driver|ERR_|Failed to load/.test(m.text()))errs.push(m.text())});
+await p.goto('file://'+hier+'testseite-mit-simulierter-person.html'); await p.waitForTimeout(500);
+await p.setInputFiles('#own-front',fotos+'front.jpg'); await p.setInputFiles('#own-back',fotos+'back.jpg');
+await p.fill('#own-name','Test'); await p.fill('#own-waist','40'); await p.click('#own-go'); await p.waitForTimeout(1500);
+console.log(await p.evaluate(()=>document.getElementById('own-msg').textContent));
+await p.click('#quick'); await p.waitForTimeout(3000);
+console.log('Person:',await p.evaluate(()=>document.getElementById('person').value+' '+document.getElementById('height').value+' | '+document.getElementById('statusText').textContent));
+await p.evaluate(()=>{const m=window.__mc; m.style.cssText='position:absolute;inset:0;width:100%;height:100%;opacity:.5;mix-blend-mode:multiply;filter:invert(1)'; const v=document.getElementById('video'); v.parentNode.insertBefore(m,v.nextSibling);});
+await p.click('#clean'); await p.waitForTimeout(2800);
+const shot=async n=>{ await p.waitForTimeout(1400); await (await p.$('#stage')).screenshot({path:out+'h_'+n+'.png'}); return await p.evaluate(()=>document.getElementById('f-yaw').textContent+' Bein '+document.getElementById('f-leg').textContent+' cal='+window.__dbg.fc.cal+' ks='+window.__dbg.fc.ks.toFixed(2)); };
+console.log('frontal',await shot('a'));
+await p.fill('#g-hemw','18'); console.log('Saum 18',await shot('b'));
+await p.fill('#g-hemw','');
+for(const y of [.8,1.5,3.1,-1.5,0]){ await p.evaluate(v=>{window.__mode.yaw=v;window.__mode.zk=0},y); console.log('soll',Math.round(y*57.3),await shot('y'+y)); }
+await p.reload(); await p.waitForTimeout(500);
+console.log('nach Neuladen:',await p.evaluate(()=>document.getElementById('person').value+' '+document.getElementById('height').value));
+console.log(errs.length?'FEHLER: '+[...new Set(errs)].slice(0,5).join(' | '):'keine Skriptfehler');
+await b.close();

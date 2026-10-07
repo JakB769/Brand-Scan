@@ -1,0 +1,1604 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maß-Scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: Kamerabild als Hauptfläche. Rückmeldung auf drei Ebenen, damit sie aus drei
+   Metern ankommt: farbiger Rahmen, riesige Ziffer, Sprachausgabe.
+   Farbwelt: Indigo-Denim als Grund, Kreideweiß für Messlinien, Messing als Akzent. */
+:root{
+  --ground:#0c1119; --surface:#131c28; --surface-2:#1a2534; --line:#243245;
+  --chalk:#eef3f8; --chalk-dim:#8a9db5; --chalk-faint:#5d7191;
+  --brass:#d49a3f; --ok:#4fc281; --warn:#e5b449; --bad:#e2625a;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.hud-read:empty{display:none}
+html,body{margin:0;padding:0}
+body{background:var(--ground);color:var(--chalk);font-family:var(--sans);font-size:15px;line-height:1.5;padding:0 16px;padding-block:22px 48px;-webkit-text-size-adjust:100%}
+body.locked{overflow:hidden}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-direction:column;gap:5px}
+h1{font-size:clamp(26px,6vw,34px);font-weight:800;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.sub{color:var(--chalk-dim);font-size:14px;margin:0;max-width:52ch}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:13px}
+.card h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--chalk-dim);margin:0}
+label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--chalk-dim);min-width:0}
+input[type=number],input[type=text]{background:var(--surface-2);border:1px solid var(--line);border-radius:7px;color:var(--chalk);font-family:var(--mono);font-size:16px;padding:10px 11px;width:100%;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brass)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>*{flex:1 1 140px;min-width:0}
+button{font-family:var(--sans);font-size:15px;font-weight:600;border-radius:7px;border:1px solid var(--line);background:var(--surface-2);color:var(--chalk);padding:11px 16px;cursor:pointer;min-height:44px}
+button:hover:not(:disabled){border-color:var(--brass)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--brass);border-color:var(--brass);color:#1a1205}
+.toggle{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--chalk-dim)}
+.toggle input{width:20px;height:20px;accent-color:var(--brass);flex:none}
+
+/* ---- Bühne ---- */
+.stage{position:relative;width:100%;aspect-ratio:3/4;max-height:76vh;background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stage.full{position:fixed;inset:0;width:100vw;height:100dvh;max-height:none;aspect-ratio:auto;border:none;border-radius:0;z-index:900}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.stage.mirror video,.stage.mirror canvas{transform:scaleX(-1)}
+.stage .placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--chalk-dim);font-size:14px}
+
+/* Ampelrahmen — Farbe liest man quer durchs Zimmer, Text nicht */
+.frame{position:absolute;inset:0;pointer-events:none;border:0 solid transparent;transition:border-color .18s linear;z-index:2}
+.stage.lit .frame{border-width:clamp(10px,3.2vw,22px)}
+.frame.bad{border-color:var(--bad)}
+.frame.warn{border-color:var(--warn)}
+.frame.ok{border-color:var(--ok)}
+
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;z-index:3}
+.hud>*{pointer-events:auto}
+.hud-top{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:clamp(14px,4vw,22px);padding-top:calc(clamp(14px,4vw,22px) + env(safe-area-inset-top,0px))}
+.pill{background:rgba(12,17,25,.85);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:8px;backdrop-filter:blur(8px);max-width:62%}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--chalk-dim);flex:none}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+.iconbtn{background:rgba(12,17,25,.85);border:1px solid var(--line);color:var(--chalk);border-radius:999px;width:46px;height:46px;min-height:46px;padding:0;display:grid;place-items:center;backdrop-filter:blur(8px)}
+.stage.clean .hud,.stage.clean .frame{display:none!important}
+.cleanhint{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:4;background:rgba(12,17,25,.85);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;white-space:nowrap;pointer-events:none}
+.nearhint{align-self:flex-start;background:rgba(12,17,25,.85);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:13px;color:var(--chalk);backdrop-filter:blur(8px)}
+
+/* Anweisung in der Bildmitte, auf Lesbarkeit aus drei Metern ausgelegt */
+.coach{align-self:center;text-align:center;pointer-events:none;padding:0 14px;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:100%}
+.coach .big{font-size:clamp(30px,11vw,86px);font-weight:900;letter-spacing:-.025em;line-height:1.02;text-transform:uppercase;text-wrap:balance;text-shadow:0 3px 22px #000,0 0 6px #000,0 1px 2px #000}
+.coach .small{font-size:clamp(15px,4.6vw,30px);font-weight:600;opacity:.92;text-shadow:0 2px 14px #000,0 0 4px #000}
+.coach .count{font-size:clamp(90px,34vw,240px);font-weight:900;line-height:.86;font-variant-numeric:tabular-nums;color:var(--ok);text-shadow:0 4px 30px #000,0 0 8px #000}
+.coach .turn{font-size:clamp(54px,20vw,150px);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 4px 26px #000,0 0 8px #000}
+
+.hud-bottom{display:flex;flex-direction:column;gap:9px;padding:clamp(12px,3.5vw,20px);padding-bottom:calc(clamp(12px,3.5vw,20px) + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,rgba(12,17,25,.92),rgba(12,17,25,0))}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{background:rgba(12,17,25,.85);border:1px solid var(--line);color:var(--chalk-dim);border-radius:999px;padding:8px 13px;font-size:13px;min-height:42px;font-weight:500}
+.chip[aria-pressed=true]{background:var(--brass);border-color:var(--brass);color:#1a1205;font-weight:600}
+.chip:disabled{opacity:.35}
+.hud-read{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;background:rgba(12,17,25,.85);border:1px solid var(--line);border-radius:8px;padding:8px 11px;backdrop-filter:blur(8px)}
+.hud-read span{white-space:nowrap;font-variant-numeric:tabular-nums}
+.hud-read b{color:var(--brass);font-weight:500}
+
+.readout{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:14px}
+.readout dt{color:var(--chalk-dim);min-width:0}
+.readout dd{margin:0;font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.steps{display:flex;gap:8px;flex-wrap:wrap}
+.step{flex:1 1 150px;min-width:0;border:1px solid var(--line);border-radius:7px;padding:10px 12px;background:var(--surface-2);display:flex;flex-direction:column;gap:3px}
+.step.done{border-color:var(--ok)}
+.step .n{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--brass)}
+.step .t{font-size:13.5px;font-weight:600}
+.step .v{font-family:var(--mono);font-size:12px;color:var(--chalk-dim);font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:right;padding:7px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--chalk-dim);font-weight:500;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase}
+td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.diff.ok{color:var(--ok)}.diff.warn{color:var(--warn)}.diff.bad{color:var(--bad)}
+.hint{font-size:13px;color:var(--chalk-dim);margin:0}
+.hint strong{color:var(--chalk)}
+ul.tips{margin:0;padding-left:18px;color:var(--chalk-dim);font-size:13px;display:flex;flex-direction:column;gap:4px}
+.err{background:#2a1512;border:1px solid var(--bad);color:#f3c4bf;border-radius:7px;padding:11px;font-size:13px;font-family:var(--mono)}
+.note{background:var(--surface-2);border-left:3px solid var(--warn);border-radius:0 7px 7px 0;padding:11px 13px;font-size:13px;color:var(--chalk-dim)}
+.note strong{color:var(--chalk)}
+.gwrap{display:flex;gap:8px;flex-wrap:wrap}
+.gbtn{flex:1 1 110px;min-width:0;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;min-height:auto}
+.gbtn[aria-pressed=true]{border-color:var(--brass);background:#20293a}
+.gbtn img{height:62px;width:auto;max-width:100%;object-fit:contain}
+.gbtn span{font-size:11.5px;font-weight:500;color:var(--chalk-dim);text-align:center;line-height:1.25}
+.gbtn[aria-pressed=true] span{color:var(--chalk)}
+footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+@media (prefers-reduced-motion:reduce){.frame{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">Prototyp · Experiment 1 + 2</span>
+    <h1>Maß-Scan</h1>
+    <p class="sub">Handy aufstellen, ins Bild stellen, zuhören. Der Rahmen wird grün, dann zählt es herunter. Alles läuft von selbst.</p>
+  </header>
+
+  <div id="error" class="err" hidden></div>
+
+  <section class="card">
+    <h2>1 · Person</h2>
+    <div class="row">
+      <label>Größe in cm<input type="number" id="height" min="120" max="230" step="0.5" placeholder="z. B. 178" inputmode="decimal"></label>
+      <label>Name oder Kürzel<input type="text" id="person" placeholder="z. B. Flo"></label>
+    </div>
+    <div class="toggle"><input type="checkbox" id="voice" checked><span>Sprachansagen und Töne</span></div>
+    <div class="row"><button id="start" class="primary">Kamera starten</button></div>
+    <p class="hint">Die Größe ist der Maßstab. <strong>Ohne Schuhe messen.</strong> Ton anlassen, dann musst du den Bildschirm nicht lesen.</p>
+  </section>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="overlay"></canvas>
+    <div class="frame" id="frame"></div>
+    <div class="placeholder" id="placeholder">Kamera noch nicht gestartet</div>
+    <div class="cleanhint" id="cleanHint" hidden>Tippen blendet alles wieder ein</div>
+    <div class="hud" id="hud" hidden>
+      <div class="hud-top">
+        <div class="pill"><span class="dot" id="dot"></span><span id="statusText">Bereit</span></div>
+        <div style="display:flex;gap:7px;flex:none">
+          <button class="iconbtn" id="flip" aria-label="Kamera wechseln" title="Kamera wechseln" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a8 8 0 0 1 14-4.5L20 9"/><path d="M20 4v5h-5"/><path d="M20 13a8 8 0 0 1-14 4.5L4 15"/><path d="M4 20v-5h5"/></svg></button>
+          <button class="iconbtn" id="clean" aria-label="Anzeigen ausblenden" title="Nur die Kleidung zeigen"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg></button>
+          <button class="iconbtn" id="full" aria-label="Vollbild" title="Vollbild"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-7 7"/><path d="M10 20H4v-6"/><path d="M4 20l7-7"/></svg></button>
+        </div>
+      </div>
+      <div class="coach" id="coach">
+        <div class="count" id="coachCount" hidden></div>
+        <div class="turn" id="coachTurn" hidden></div>
+        <div class="big" id="coachBig"></div>
+        <div class="small" id="coachSmall"></div>
+      </div>
+      <div class="hud-bottom">
+        <div class="nearhint" id="nearHint" hidden>Du kannst jetzt auch näher an die Kamera kommen</div>
+        <div class="hud-read" id="hudRead"></div>
+        <div class="chips" id="gchips"></div>
+        <div class="chips">
+          <button class="chip" id="m-cal" aria-pressed="true">Ganzkörper</button>
+          <button class="chip" id="m-leg" aria-pressed="false" disabled>Hose</button>
+          <button class="chip" id="m-top" aria-pressed="false" disabled>Oberteil</button>
+          <button class="chip" id="hold" style="margin-left:auto">Halten</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="hint">Tippe ins Bild, um die letzte Ansage zu wiederholen.</p>
+
+  <section class="card">
+    <h2>2 · Messwerte</h2>
+    <dl class="readout">
+      <dt>Maßstab aus</dt><dd id="r-scale">–</dd>
+      <dt>Schulterbreite</dt><dd id="r-shoulder">–</dd>
+      <dt>Taillenbreite</dt><dd id="r-waist">–</dd>
+      <dt>Hüftbreite</dt><dd id="r-hip">–</dd>
+      <dt>Oberschenkel, links / rechts</dt><dd id="r-thigh">–</dd>
+      <dt>Knie, links / rechts</dt><dd id="r-knee">–</dd>
+      <dt>Schrittlänge, Schritt bis Boden</dt><dd id="r-inseam">–</dd>
+      <dt>Hüfte bis Boden</dt><dd id="r-leg">–</dd>
+    </dl>
+    <div class="steps">
+      <div class="step" id="step-cal"><span class="n">AUTOMATISCH</span><span class="t">Kalibrierung</span><span class="v" id="v-cal">offen</span></div>
+      <div class="step" id="step-side"><span class="n">AUTOMATISCH</span><span class="t">Seitlich</span><span class="v" id="v-side">offen</span></div>
+    </div>
+    <div class="row"><button id="reset" disabled>Alles zurücksetzen</button></div>
+    <ul class="tips">
+      <li>Handy aufstellen, etwa auf Hüfthöhe, und so weit weggehen, bis du ganz im Bild bist.</li>
+      <li>Der Rahmen zeigt den Zustand: <strong>rot</strong> geht nicht, <strong>gelb</strong> fast, <strong>grün</strong> zählt herunter.</li>
+      <li>Nach der Kalibrierung <strong>um 90 Grad drehen, Arme vor der Brust</strong>. Die große Zahl zeigt, wie weit du gedreht bist.</li>
+      <li>Die Schrittlänge braucht Füße etwa 20 cm auseinander, blockiert die Kalibrierung aber nicht mehr.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>3 · Anprobe</h2>
+    <div class="note" id="ownBox">
+      <strong>Neue Hose aus zwei Fotos.</strong> Hose flach hinlegen, glatt streichen, gerade von oben fotografieren.
+      Am besten auf einem hellen, einfarbigen Untergrund. Das 3D-Modell entsteht hier im Browser, es wird nichts hochgeladen.
+      <div class="row" style="margin-top:10px">
+        <label>Foto Vorderseite<input type="file" id="own-front" accept="image/*,.heic,.heif"></label>
+        <label>Foto Rückseite <span style="color:var(--chalk-faint)">(optional)</span><input type="file" id="own-back" accept="image/*,.heic,.heif"></label>
+      </div>
+      <div class="row">
+        <label>Name <input type="text" id="own-name" maxlength="24" placeholder="z. B. Blaue Baggy"></label>
+        <label>Bund in cm <span style="color:var(--chalk-faint)">(oben quer von Kante zu Kante)</span>
+          <input type="number" id="own-waist" step="0.5" min="10" max="90" inputmode="decimal" placeholder="leer = geschätzt"></label>
+      </div>
+      <div class="row"><button id="own-go">3D-Hose erstellen</button></div>
+      <canvas id="own-prev" width="320" height="320" hidden style="width:100%;max-width:320px;border-radius:8px;margin-top:8px"></canvas>
+      <div id="own-msg" style="margin-top:6px"></div>
+    </div>
+    <div class="gwrap" id="gwrap"></div>
+    <label>Bund der ausgewählten Hose, cm <span style="color:var(--chalk-faint)">(lässt sich jederzeit nachtragen)</span>
+      <input type="number" id="g-waist" step="0.5" min="10" max="90" inputmode="decimal" placeholder="leer = geschätzt" disabled></label>
+    <div class="row">
+      <button id="g-clear">Anprobe aus</button>
+      <button id="own-del">Ausgewählte Hose löschen</button>
+    </div>
+    <label>Höhe verschieben <span id="g-offv" style="color:var(--chalk)">0 cm</span>
+      <input type="range" id="g-off" min="-25" max="25" step="0.5" value="0"></label>
+    <label>Deckkraft <span id="g-opav" style="color:var(--chalk)">80 %</span>
+      <input type="range" id="g-opa" min="20" max="100" step="5" value="80"></label>
+    <dl class="readout" id="fitRead" hidden>
+      <dt>Teil, Hüftumfang gerechnet</dt><dd id="f-gc">–</dd>
+      <dt>Du, Hüftumfang gemessen</dt><dd id="f-bc">–</dd>
+      <dt>Bewegungsweite an der Hüfte</dt><dd id="f-ease">–</dd>
+      <dt>Saum endet über dem Boden</dt><dd id="f-hem">–</dd>
+    </dl>
+  </section>
+
+  <section class="card" id="resultCard" hidden>
+    <h2>4 · Umfänge</h2>
+    <dl class="readout">
+      <dt>Taille, Umfang geschätzt</dt><dd id="o-waist">–</dd>
+      <dt>Hüfte, Umfang geschätzt</dt><dd id="o-hip">–</dd>
+    </dl>
+    <p class="hint">Aus Breite (frontal) und Tiefe (seitlich) als Ellipse genähert. Schätzung, kein Maßband.</p>
+  </section>
+
+  <section class="card" id="compareCard" hidden>
+    <h2>5 · Gegen das Maßband prüfen</h2>
+    <div class="row">
+      <label>Taille gemessen, cm<input type="number" id="t-waist" step="0.5" inputmode="decimal"></label>
+      <label>Hüfte gemessen, cm<input type="number" id="t-hip" step="0.5" inputmode="decimal"></label>
+      <label>Schrittlänge gemessen, cm<input type="number" id="t-inseam" step="0.5" inputmode="decimal"></label>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr><th>Maß</th><th>Scan</th><th>Band</th><th>Abweichung</th></tr></thead>
+      <tbody id="diffBody"></tbody></table></div>
+    <button id="save">Messung zur Testreihe hinzufügen</button>
+  </section>
+
+  <section class="card" id="seriesCard" hidden>
+    <h2>Testreihe</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Person</th><th>Größe</th><th>Taille S/B</th><th>Hüfte S/B</th><th>Schritt S/B</th></tr></thead>
+      <tbody id="seriesBody"></tbody></table></div>
+    <p class="hint" id="verdict"></p>
+    <div class="row"><button id="copy">Als CSV kopieren</button><button id="clear">Testreihe löschen</button></div>
+  </section>
+
+  <footer>Alles läuft im Browser. Es wird kein Bild und kein Video gesendet. Fotos und 3D-Modelle bleiben auf diesem Gerät.</footer>
+</div>
+
+<script type="module">
+/* Erst beim Kamerastart laden: fällt das CDN aus, bleibt die übrige Seite bedienbar */
+let PoseLandmarker=null, FilesetResolver=null;
+async function loadVision(){
+  if(PoseLandmarker) return;
+  const M=await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs");
+  PoseLandmarker=M.PoseLandmarker; FilesetResolver=M.FilesetResolver;
+}
+const GARMENTS = {};
+
+const $=id=>document.getElementById(id);
+const video=$("video"), cv=$("overlay"), ctx=cv.getContext("2d"), stage=$("stage");
+let landmarker=null, stream=null, running=false, starting=false;
+let facing="environment", lastTime=-1, held=false;
+let mode="cal", phase="cal";
+let live=null, ref=null, stableSince=0, badSince=0, camCount=1, nearScale=null, clean=false;
+const HOLD_MS=1800, STABLE_CM=2.6, WIN_MS=900;
+const caps={cal:null, side:null};
+const STORE="massScanSerie";
+const cam={fk:.8};
+const g={key:null,img:null,flat:null,len:null,off:0,opa:.8,est:false,hem:null,rig:true,d3:true,yaw:0};
+
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const fmt=(v,u="cm")=>v==null||!isFinite(v)?"–":v.toFixed(1)+" "+u;
+const ellipse=(w,d)=>{const a=w/2,b=d/2;return Math.PI*(3*(a+b)-Math.sqrt((3*a+b)*(a+3*b)));};
+const showError=m=>{$("error").hidden=false;$("error").textContent=m;};
+
+/* ---------- Glättung: Linien gleiten, statt zu springen ---------- */
+const oe={}, bt={}; const hist=[];
+/* One-Euro-Filter: im Stand sehr träge, bei echter Bewegung schnell. Dazu eine Sperre gegen
+   Sprünge — ein Punkt wandert nicht in einem einzigen Bild um ein Zehntel des Bildes. */
+function emaV(k,v){
+  if(v==null||!isFinite(v)) return oe[k]?oe[k].x:null;
+  const now=performance.now(), s=oe[k];
+  if(!s){ oe[k]={x:v,dx:0,t:now,out:0}; return v; }
+  let dt=(now-s.t)/1000; if(!(dt>0)) return s.x; if(dt>.25) dt=.25; s.t=now;
+  if(Math.abs(v-s.x)>.09&&++s.out<8){ s.x+=(v-s.x)*.04; return s.x; }   // Ausreißer: erst nach 8 Bildern glauben
+  if(Math.abs(v-s.x)<=.09) s.out=0;
+  const aD=dt/(dt+1/(2*Math.PI*1.0));
+  s.dx+=aD*((v-s.x)/dt-s.dx);
+  const fc=.45+1.6*Math.abs(s.dx), a=dt/(dt+1/(2*Math.PI*fc));
+  s.x+=a*(v-s.x); return s.x;
+}
+function emaBand(k,b){
+  if(b&&isFinite(b.l)&&isFinite(b.r)){ emaV(k+".l",b.l); emaV(k+".r",b.r); bt[k]={t:performance.now(),u:!!b.unsure}; }
+  const l=oe[k+".l"], r=oe[k+".r"]; if(!l||!r) return null;
+  return {l:l.x,r:r.x,w:r.x-l.x,age:performance.now()-(bt[k]?bt[k].t:0),unsure:!!(bt[k]&&bt[k].u)};
+}
+function clearSm(){ for(const k in oe) delete oe[k]; for(const k in bt) delete bt[k]; hist.length=0; stableSince=0; badSince=0; nearScale=null; }
+
+/* Ruhe in Zentimetern prüfen, nicht in Prozent der Pixelbreite */
+function stability(hipCm,shCm){
+  const t=performance.now();
+  if(hipCm!=null) hist.push({t,h:hipCm,s:shCm});
+  while(hist.length&&t-hist[0].t>WIN_MS+400) hist.shift();
+  const w=hist.filter(x=>t-x.t<=WIN_MS);
+  if(w.length<6||t-w[0].t<WIN_MS*.7) return null;
+  const hs=w.map(x=>x.h), ss=w.map(x=>x.s).filter(x=>x!=null);
+  return Math.max(Math.max(...hs)-Math.min(...hs),
+                  ss.length?Math.max(...ss)-Math.min(...ss):0);
+}
+
+/* ---------- Ton und Sprache ---------- */
+let actx=null, spoken="", spokeAt=0;
+const voiceOn=()=>$("voice").checked;
+function beep(f=880,ms=160,vol=.32){
+  if(!voiceOn()) return;
+  try{ actx||=new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==="suspended") actx.resume();
+    const o=actx.createOscillator(),gn=actx.createGain();
+    o.frequency.value=f;o.connect(gn);gn.connect(actx.destination);
+    gn.gain.setValueAtTime(.0001,actx.currentTime);
+    gn.gain.exponentialRampToValueAtTime(vol,actx.currentTime+.012);
+    gn.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+ms/1000);
+    o.start();o.stop(actx.currentTime+ms/1000);
+  }catch(_){}
+}
+let deVoice=null;
+function pickVoice(){
+  try{
+    const vs=(speechSynthesis.getVoices()||[]).filter(v=>/^de/i.test(v.lang));
+    if(!vs.length) return;
+    const fem=/anna|helena|petra|marlene|vicki|katja|hedda|amala|sandy|shelley|flo\b|google deutsch|female|frau/i;
+    const male=/\b(markus|martin|yannick|viktor|stefan|conrad|hans|daniel|reed|rocko|eddy|grandpa|male|mann)\b/i;
+    deVoice=vs.find(v=>fem.test(v.name)&&!male.test(v.name))||vs.find(v=>!male.test(v.name))||vs[0];
+  }catch(_){}
+}
+try{ speechSynthesis.onvoiceschanged=pickVoice; pickVoice(); }catch(_){}
+function say(t){
+  if(!voiceOn()||!t) return;
+  try{ speechSynthesis.cancel();
+    if(!deVoice) pickVoice();
+    const u=new SpeechSynthesisUtterance(t); u.lang="de-DE"; u.rate=1.0; u.pitch=1.05;
+    if(deVoice) u.voice=deVoice;
+    speechSynthesis.speak(u);
+  }catch(_){}
+}
+function cue(t,force=false){
+  if(!t) return;
+  const now=performance.now();
+  if(!force&&now-spokeAt<(t===spoken?7000:3500)) return;
+  spoken=t; spokeAt=now; say(t);
+}
+/* Text wechselt erst, wenn der neue 0,5 s ansteht und der alte mindestens 1,2 s stand */
+const cs={big:null,at:0,pBig:null,pAt:0};
+function coach(big,small,level,force=false,voice=""){
+  const now=performance.now(); big=big||"";
+  if(big!==cs.big&&!force){
+    if(cs.pBig!==big){ cs.pBig=big; cs.pAt=now; }
+    if(now-cs.pAt<500||now-cs.at<1200) return;
+  }
+  if(big!==cs.big){ cs.big=big; cs.at=now; }
+  cs.pBig=null;
+  $("coachBig").textContent=big;
+  $("coachSmall").textContent=small||"";
+  $("frame").className="frame"+(level?" "+level:"");
+  stage.classList.toggle("lit",!!level);
+  if(voice) cue(voice);
+}
+const setStatus=(t,k)=>{$("statusText").textContent=t;$("dot").className="dot"+(k?" "+k:"");};
+
+/* ---------- Modell und Kamera ---------- */
+async function loadModel(){
+  setStatus("Modell wird geladen …");
+  await loadVision();
+  const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
+  const o={baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",delegate:"GPU"},
+    runningMode:"VIDEO",numPoses:1,outputSegmentationMasks:true};
+  try{ landmarker=await PoseLandmarker.createFromOptions(vision,o); }
+  catch(_){ o.baseOptions.delegate="CPU"; landmarker=await PoseLandmarker.createFromOptions(vision,o); }
+}
+async function openStream(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  const size={width:{ideal:1280},height:{ideal:720}}; let wide=false;
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},...size},audio:false});
+  // Gerätenamen sind erst nach der Freigabe lesbar: jetzt die Ultraweitwinkel-Linse suchen
+  try{
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="videoinput");
+    camCount=devs.length;
+    if(facing==="environment"){
+      const uw=devs.find(d=>/ultra|0[.,]5/i.test(d.label)&&!/front|vorder|face/i.test(d.label));
+      const cur=stream.getVideoTracks()[0].getSettings().deviceId;
+      if(uw&&uw.deviceId&&uw.deviceId!==cur){
+        const s2=await navigator.mediaDevices.getUserMedia({video:{deviceId:{exact:uw.deviceId},...size},audio:false});
+        stream.getTracks().forEach(t=>t.stop()); stream=s2; wide=true;
+      }
+    }
+  }catch(_){}
+  // Wo die Kamera einen Zoom anbietet: ganz herausfahren
+  try{
+    const t=stream.getVideoTracks()[0], caps=t.getCapabilities?t.getCapabilities():{};
+    if(caps.zoom&&typeof caps.zoom.min==="number") await t.applyConstraints({advanced:[{zoom:caps.zoom.min}]});
+  }catch(_){}
+  try{ wide=wide||/ultra|0[.,]5/i.test(stream.getVideoTracks()[0].label||""); }catch(_){}
+  cam.fk=wide?.42:.8;                          // Ultraweitwinkel hat etwa die halbe Brennweite
+  video.srcObject=stream; await video.play();
+  stage.classList.toggle("mirror",facing==="user");
+  $("flip").hidden=!(camCount>1&&matchMedia("(pointer:coarse)").matches);
+}
+async function startCamera(){
+  if(starting) return;
+  const h=parseFloat($("height").value);
+  if(!(h>=120&&h<=230)){ showError("Bitte zuerst eine Körpergröße zwischen 120 und 230 cm eintragen.");
+    $("height").focus(); $("height").scrollIntoView({block:"center"}); return; }
+  starting=true; $("error").hidden=true; $("start").disabled=true;
+  // Ton und Sprache brauchen auf iOS eine echte Nutzeraktion zum Freischalten
+  try{ actx=new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(_){}
+  try{ if(voiceOn()){ const u=new SpeechSynthesisUtterance("Bereit"); u.lang="de-DE"; speechSynthesis.speak(u); } }catch(_){}
+  // Kamera zuerst: die Freigabe-Frage kommt sofort beim Tippen, nicht erst nach dem Modell
+  try{ await openStream(); }
+  catch(e){
+    showError("Kamera nicht verfügbar: "+e.message+" — die Seite muss über https:// laufen und die Kamera muss im Browser erlaubt sein.");
+    $("start").disabled=false; starting=false; return;
+  }
+  $("placeholder").hidden=true; $("hud").hidden=false;
+  stage.scrollIntoView({behavior:"smooth",block:"center"});
+  try{ if(!landmarker){ coach("Einen Moment","Erkennung wird geladen","warn",true); await loadModel(); } }
+  catch(e){
+    showError("Die Erkennung konnte nicht geladen werden: "+e.message+" — Internetverbindung prüfen und neu starten.");
+    $("start").disabled=false; starting=false; return;
+  }
+  $("reset").disabled=false; $("start").textContent="Kamera neu starten"; $("start").disabled=false;
+  starting=false; clearSm();
+  coach("Geh ein paar Schritte zurück","","warn",true); cue("Geh ein paar Schritte zurück",true);
+  if(!running){ running=true; requestAnimationFrame(loop); }
+}
+
+/* ---------- Silhouette ---------- */
+function maskBounds(d,w,h){
+  const sx=Math.max(1,Math.floor(w/150)); let t=-1,b=-1;
+  for(let y=0;y<h&&t<0;y++){const r=y*w;for(let x=0;x<w;x+=sx){if(d[r+x]>.5){t=y;break;}}}
+  for(let y=h-1;y>=0&&b<0;y--){const r=y*w;for(let x=0;x<w;x+=sx){if(d[r+x]>.5){b=y;break;}}}
+  return t<0?null:{top:t/h,bottom:b/h};
+}
+function runsAt(m,ny,minW=.012){
+  const y=clamp(Math.round(ny*m.h),0,m.h-1), r=y*m.w, out=[]; let s=-1;
+  for(let x=0;x<m.w;x++){
+    const on=m.d[r+x]>.5;
+    if(on&&s<0) s=x;
+    if((!on||x===m.w-1)&&s>=0){ const e=on?x:x-1;
+      if((e-s)/m.w>=minW) out.push({l:s/m.w,r:(e+1)/m.w,w:(e+1-s)/m.w,c:(s+e+1)/2/m.w}); s=-1; }
+  }
+  return out;
+}
+const runNear=(m,ny,cx)=>{const r=runsAt(m,ny); return r.length?r.reduce((a,b)=>Math.abs(b.c-cx)<Math.abs(a.c-cx)?b:a):null;};
+function armXAt(L,side,ny){
+  const p=(side==="l"?[11,13,15]:[12,14,16]).map(i=>L[i]);
+  for(let i=0;i<p.length-1;i++){
+    const a=p[i],b=p[i+1],lo=Math.min(a.y,b.y),hi=Math.max(a.y,b.y);
+    if(ny>=lo&&ny<=hi&&Math.abs(b.y-a.y)>1e-4) return a.x+((ny-a.y)/(b.y-a.y))*(b.x-a.x);
+  }
+  return ny<Math.min(...p.map(q=>q.y))?p[0].x:p[p.length-1].x;
+}
+/* Vom Rumpf nach außen laufen: fällt der Maskenwert ab und steigt wieder, liegt dort die
+   Lücke zum Arm — auch wenn sie zu schmal ist, um die Silhouette ganz zu trennen. */
+function valleyEdge(m,y,c0,dir,limit){
+  const W=m.w, off=y*W;
+  const v=x=>(m.d[off+Math.max(0,x-1)]+m.d[off+x]+m.d[off+Math.min(W-1,x+1)])/3;
+  let minV=2,minX=-1;
+  for(let x=c0;dir<0?x>=limit:x<=limit;x+=dir){
+    const val=v(x);
+    if(val<minV){ minV=val; minX=x; }
+    else if(minV<.9&&val>minV+.07){
+      const half=(minV+1)/2; let e=minX;
+      while(e!==c0&&v(e)<half) e-=dir;
+      return e;
+    }
+  }
+  return -1;
+}
+function torsoSpan(m,ny,L,armHalfN,cutArms=true){
+  const cx=(L[23].x+L[24].x)/2, rs=runsAt(m,ny);
+  if(!rs.length) return null;
+  const run=rs.find(r=>cx>=r.l&&cx<=r.r)||rs.reduce((a,b)=>Math.abs(b.c-cx)<Math.abs(a.c-cx)?b:a);
+  const w0=run.r-run.l;
+  if(!cutArms) return {l:run.l,r:run.r,w:w0,unsure:false};
+  let l=run.l,r=run.r;
+  { const W=m.w, y=clamp(Math.round(ny*m.h),0,m.h-1);
+    const lp=Math.round(run.l*W), rp=Math.round(run.r*W), c0=clamp(Math.round(cx*W),lp+1,rp-1);
+    const vl=valleyEdge(m,y,c0,-1,lp), vr=valleyEdge(m,y,c0,1,rp);
+    if(vl>=0&&(c0-vl)>(c0-lp)*.3) l=vl/W;
+    if(vr>=0&&(vr-c0)>(rp-c0)*.3) r=(vr+1)/W; }
+  for(const side of ["l","r"]){
+    const ax=armXAt(L,side,ny);
+    if(ax==null||!isFinite(ax)) continue;
+    if(ax>=l&&ax<l+w0*.42){ const nl=ax+armHalfN; if(nl>l&&nl<cx) l=nl; }
+    else if(ax<=r&&ax>r-w0*.42){ const nr=ax-armHalfN; if(nr<r&&nr>cx) r=nr; }
+  }
+  // Zu viel weggeschnitten: ganzen Umriss nehmen und als unsicher kennzeichnen, nicht blockieren
+  if(r-l<w0*.42) return {l:run.l,r:run.r,w:w0,unsure:true};
+  return {l,r,w:r-l,unsure:false};
+}
+function findCrotch(m,hipY,kneeY){
+  for(let i=0;i<=44;i++){ const ny=hipY+(kneeY-hipY)*(i/44);
+    if(runsAt(m,ny,.02).length>=2) return ny; }
+  return null;
+}
+function angleAt(a,b,c){
+  const v1={x:a.x-b.x,y:a.y-b.y},v2={x:c.x-b.x,y:c.y-b.y};
+  const d=(v1.x*v2.x+v1.y*v2.y)/((Math.hypot(v1.x,v1.y)*Math.hypot(v2.x,v2.y))||1);
+  return Math.acos(clamp(d,-1,1))*180/Math.PI;
+}
+
+function loop(){
+  if(!running) return;
+  if(video.videoWidth&&video.currentTime!==lastTime){
+    lastTime=video.currentTime;
+    let res=null;
+    try{ res=landmarker.detectForVideo(video,performance.now()); analyse(res); }
+    catch(_){ setStatus("Fehler bei der Erkennung","bad"); }
+    finally{ try{ res&&res.close&&res.close(); }catch(_){} }
+  }
+  requestAnimationFrame(loop);
+}
+
+function analyse(res){
+  const vw=video.videoWidth, vh=video.videoHeight;
+  if(cv.width!==vw){ cv.width=vw; cv.height=vh; }
+  ctx.clearRect(0,0,vw,vh);
+  const L=res.landmarks&&res.landmarks[0];
+  if(!L){ setStatus("Keine Person erkannt","bad"); coach("Stell dich ins Bild","","bad",false,"Stell dich ins Bild"); stableSince=0; return; }
+  const mk=res.segmentationMasks&&res.segmentationMasks[0];
+  if(!mk){ setStatus("Silhouette fehlt","warn"); stableSince=0; return; }
+  const m={d:mk.getAsFloat32Array(),w:mk.width,h:mk.height};
+  const bounds=maskBounds(m.d,m.w,m.h);
+
+  const aspect=vw/vh, isSide=(phase==="side");
+  // Ist ein Punkt verdeckt (Hand vor der Hüfte), bleibt seine letzte gute Position stehen
+  const V=i=>(L[i].visibility??1)>=.4;
+  const hold=(k,v,good)=>{ const r=emaV(k,good?v:null); return r==null?emaV(k,v):r; };
+  const hipY =hold("hipY",(L[23].y+L[24].y)/2,V(23)&&V(24));
+  const shY  =hold("shY",(L[11].y+L[12].y)/2,V(11)&&V(12));
+  const kneeY=hold("kneeY",(L[25].y+L[26].y)/2,V(25)||V(26));
+  const waistY=hipY-.28*(hipY-shY);          // anatomische Taille, nur zum Messen
+  const beltY =hipY-.15*(hipY-shY);          // Bund auf den Hüftknochen, nicht in der Taille
+  const shoulderN=emaV("shN",Math.abs(L[11].x-L[12].x),.25);
+  const topN=emaV("topN",bounds?bounds.top:null,.3);
+  const botN=emaV("botN",bounds?bounds.bottom:null,.3);
+
+  let cmPerUnit=null, scaleSrc="";
+  const span=(topN!=null&&botN!=null)?botN-topN:0;
+  if(phase!=="near"){
+    if(!(span>.1)){ setStatus("Ganzer Körper muss ins Bild","warn");
+      coach("Geh ein paar Schritte zurück","","bad",false,"Geh ein paar Schritte zurück"); stableSince=0; return; }
+    cmPerUnit=parseFloat($("height").value)/span; scaleSrc="Körpergröße";
+  }else if(ref){
+    // Maßstab zuerst aus der Rumpflänge: die ändert sich weder beim Drehen noch durch Hände
+    // an der Hüfte. Hüft- und Schulterbreite nur als Ersatz, wenn die Schultern nicht im Bild sind.
+    let cand=null;
+    const shIn=V(11)&&V(12)&&L[11].y>.02&&L[12].y>.02;
+    if(ref.torso&&shIn&&V(23)&&V(24)&&hipY-shY>.04){ cand=ref.torso/(hipY-shY); scaleSrc="Rumpflänge"; }
+    else{
+      const c=[];
+      if(mode!=="top"){ const t0=torsoSpan(m,hipY,L,0); if(t0&&t0.w>.02) c.push(ref.hip/(t0.w*aspect)); }
+      if(shoulderN>.02&&shIn) c.push(ref.shoulder/(shoulderN*aspect));
+      if(c.length){ cand=Math.min(...c); scaleSrc="Körperbreite"; }
+    }
+    // höchstens 1,5 % Änderung pro Bild: die Hose pumpt nicht mehr
+    if(cand) nearScale=nearScale?nearScale*clamp(cand/nearScale,.985,1.015):cand;
+    cmPerUnit=nearScale;
+  }
+  if(!cmPerUnit){ setStatus("Referenz nicht sichtbar","warn"); stableSince=0; return; }
+
+  const toCm=n=>n*aspect*cmPerUnit;
+  const pxPerCm=vw/(aspect*cmPerUnit);
+  const armHalfN=5/(aspect*cmPerUnit);
+  const hipBand  =emaBand("hip",  torsoSpan(m,hipY,L,armHalfN,!isSide));
+  const waistBand=emaBand("waist",torsoSpan(m,waistY,L,armHalfN,!isSide));
+  const crotchRaw=isSide?null:findCrotch(m,hipY,kneeY);
+  const crotchY=emaV("crotchY",crotchRaw,.3);
+  const crotchFresh=crotchRaw!=null;
+
+  const legs=[[23,25,27],[24,26,28]].map(([h,k,a],i)=>{
+    const straight=angleAt(L[h],L[k],L[a])>=150;
+    const kY=emaV("kY"+i,L[k].y,.35);
+    const kn=emaBand("knee"+i,runNear(m,kY,L[k].x));
+    const base=crotchY!=null?crotchY:L[h].y;
+    const tY=emaV("tY"+i,base+.35*(kY-base),.35);
+    const f=clamp((tY-L[h].y)/((kY-L[h].y)||1),0,1);
+    const th=emaBand("thigh"+i,runNear(m,tY,L[h].x+f*(L[k].x-L[h].x)));
+    return {straight,knee:kn,thigh:th,thighY:tY,kneeY:kY};
+  });
+  const bothStraight=legs[0].straight&&legs[1].straight;
+  const legsOk=isSide?(legs[0].straight||legs[1].straight):bothStraight;
+
+  const hipCm=hipBand?toCm(hipBand.w):null, shCm=toCm(shoulderN);
+  const s=held?live:{
+    cmPerUnit,scaleSrc,shoulder:shCm,
+    waist:waistBand?toCm(waistBand.w):null,
+    hip:hipCm,
+    thighL:!isSide&&bothStraight&&legs[0].thigh?toCm(legs[0].thigh.w):null,
+    thighR:!isSide&&bothStraight&&legs[1].thigh?toCm(legs[1].thigh.w):null,
+    kneeL:!isSide&&bothStraight&&legs[0].knee?toCm(legs[0].knee.w):null,
+    kneeR:!isSide&&bothStraight&&legs[1].knee?toCm(legs[1].knee.w):null,
+    inseam:(crotchFresh&&botN!=null&&bothStraight)?(botN-crotchY)*cmPerUnit:null,
+    leg:botN!=null?(botN-hipY)*cmPerUnit:null,
+    shoulderN, torso:(hipY-shY)*cmPerUnit
+  };
+  if(!held) live=s;
+
+  const sRat=(ref&&ref.shoulderN>.01)?shoulderN/ref.shoulderN:1;
+  const hRat=(ref&&ref.hip>1&&hipCm!=null)?hipCm/ref.hip:1;
+  const tr=clamp(Math.max((.75-sRat)/.35,(1.02-hRat)/.22),0,1);
+  const turned=tr>=.8, frontal=tr<.35;
+
+  const vis=isSide?Math.max(L[23].visibility??1,L[24].visibility??1)
+                  :Math.min(L[23].visibility??1,L[24].visibility??1);
+  const drift=stability(hipCm,shCm);
+
+  let ok=false,big="",small="",lvl="warn",voice="";
+  if(held){ setStatus("Messwert eingefroren","ok"); lvl=null; }
+  else if(phase!=="near"&&topN!=null&&(topN<.008||botN>.992)){
+    setStatus("Körper angeschnitten","warn"); big="Geh ein paar Schritte zurück"; lvl="bad"; voice=big; }
+  else if(!legsOk&&phase!=="near"){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
+  else if(vis<.5){ setStatus("Hüfte schlecht sichtbar","warn"); big="Bleib so stehen"; }
+  else if(phase==="cal"&&!frontal){ setStatus("Zur Kamera drehen","warn"); big="Dreh dich zur Kamera"; voice=big; }
+  else if(phase==="side"&&!turned){ setStatus(`Drehung ${Math.round(tr*100)} %`,"warn");
+    big="Dreh dich zur Seite"; small="Arme vor der Brust"; voice=big; }
+  else if(phase==="near"&&turned){ setStatus("Maßstab unsicher","warn"); }
+  else if(drift==null||drift>STABLE_CM){
+    setStatus(drift==null?"Messe …":`In Bewegung, ${drift.toFixed(1)} cm`,"warn"); big="Bleib so stehen"; voice=big; }
+  else ok=true;
+
+  // Kurze Aussetzer brechen den Scan nicht ab: erst nach 0,45 s ohne Ruhe von vorn
+  const nowT=performance.now();
+  if(ok) badSince=0; else if(!badSince) badSince=nowT;
+  const counting=!held&&phase!=="near"&&(ok||(stableSince>0&&nowT-badSince<450));
+  const showTurn=(phase==="side"&&!turned&&!counting&&!held);
+  $("coachTurn").hidden=!showTurn;
+  if(showTurn) $("coachTurn").textContent=Math.round(tr*100)+" %";
+
+  if(counting){
+    if(!stableSince){ stableSince=nowT; beep(760,90,.25); }
+    const el=nowT-stableSince;
+    $("coachCount").hidden=false;
+    $("coachCount").textContent=Math.max(1,Math.ceil((HOLD_MS-el)/600));
+    coach("Scan läuft","Nicht bewegen","ok",true);
+    setStatus("Stabil","ok");
+    if(el>=HOLD_MS&&ok){ $("coachCount").hidden=true; phase==="cal"?captureCal():captureSide(); }
+  }else{
+    $("coachCount").hidden=true; stableSince=0;
+    if(ok&&phase==="near"){ setStatus("Stabil","ok"); coach("","","ok"); }
+    else coach(big,small,lvl,false,voice);
+  }
+
+  // Knochen in Bildpunkten: Hüfte, Knie, Knöchel je Seite
+  // Tiefe der Gelenke nur relativ zum Hüftgelenk derselben Seite; die Lage der Hüfte selbst kommt aus der Drehung
+  const zOf=i=>hold("pz"+i,L[i].z||0,V(i));
+  const bone=[[23,25,27],[24,26,28]].map((ix,s)=>ix.map((i,j)=>({
+    x:hold(`bx${s}${j}`,L[i].x,V(i))*vw, y:hold(`by${s}${j}`,L[i].y,V(i))*vh, zr:j?(zOf(i)-zOf(ix[0]))*vw*.5:0 })));
+  const yaw=bodyYaw(L,V,vw,pxPerCm);
+  // Schritt am Körper: aus der Silhouette, sonst das Hüftgelenk — das liegt ohnehin fast dort
+  const yCrotch=(crotchFresh?crotchY:hipY)*vh;
+  drawGarment(hipBand,beltY,pxPerCm,botN,ref?tr:0,bone,yCrotch,vw,vh,{yaw,half:fc.kh*pxPerCm/2});
+  if(!clean) draw(L,{topN,botN},{hipY,waistY,crotchY,crotchFresh},{hipBand,waistBand},legs,cmPerUnit,vw,vh);
+  render(s);
+  if(g.key) updateFit();
+}
+
+function render(s){
+  $("r-scale").textContent=s.scaleSrc||"–";
+  $("r-shoulder").textContent=fmt(s.shoulder);
+  $("r-waist").textContent=fmt(s.waist);
+  $("r-hip").textContent=fmt(s.hip);
+  $("r-thigh").textContent=(s.thighL||s.thighR)?`${fmt(s.thighL,"")} / ${fmt(s.thighR)}`:"–";
+  $("r-knee").textContent=(s.kneeL||s.kneeR)?`${fmt(s.kneeL,"")} / ${fmt(s.kneeR)}`:"–";
+  $("r-inseam").textContent=fmt(s.inseam);
+  $("r-leg").textContent=fmt(s.leg);
+  const pick=mode==="top"?[["Schulter",s.shoulder],["Taille",s.waist],["Hüfte",s.hip]]
+                         :[["Hüfte",s.hip],["Schritt",s.inseam],["Oberschenkel",s.thighL]];
+  $("hudRead").innerHTML=pick.map(([k,v])=>`<span><b>${k}</b> ${v!=null?v.toFixed(1):"–"}</span>`).join("");
+}
+
+/* ---------- Zeichnen ---------- */
+function draw(L,b,ys,bands,legs,cmPerUnit,vw,vh){
+  const X=n=>n*vw, Y=n=>n*vh, chalk="#eef3f8", brass="#d49a3f";
+  const F=Math.round(vw/46);
+  ctx.font=`600 ${F}px "IBM Plex Mono", monospace`; ctx.textBaseline="middle"; ctx.lineJoin="round";
+
+  if(b.topN!=null&&phase!=="near"){
+    const tx=vw*.045;
+    ctx.strokeStyle="rgba(238,243,248,.35)"; ctx.lineWidth=Math.max(1.5,vw/700);
+    ctx.beginPath(); ctx.moveTo(tx,Y(b.topN)); ctx.lineTo(tx,Y(b.botN)); ctx.stroke();
+    const per10=10/cmPerUnit; ctx.fillStyle="rgba(238,243,248,.5)";
+    for(let cm=0,n=b.botN;n>=b.topN;cm+=10,n-=per10){
+      const lg=cm%50===0;
+      ctx.beginPath(); ctx.moveTo(tx,Y(n)); ctx.lineTo(tx+(lg?vw*.035:vw*.018),Y(n)); ctx.stroke();
+      if(lg&&cm>0) ctx.fillText(cm+"",tx+vw*.045,Y(n));
+    }
+    ctx.strokeStyle=brass; ctx.lineWidth=Math.max(2.5,vw/400); ctx.fillStyle=brass;
+    [[b.topN,"KOPF",-1],[b.botN,"BODEN",1]].forEach(([n,t,d])=>{
+      ctx.beginPath(); ctx.moveTo(vw*.12,Y(n)); ctx.lineTo(vw*.94,Y(n)); ctx.stroke();
+      ctx.fillText(t,vw*.12,Y(n)+d*F*1.1);
+    });
+  }
+
+  // Messlinien immer zeichnen, notfalls blass und gestrichelt
+  const lines=[];
+  if(mode!=="leg") lines.push([bands.waistBand,ys.waistY,"TAILLE",false]);
+  lines.push([bands.hipBand,ys.hipY,"HÜFTE",false]);
+  if(mode!=="top") legs.forEach((lg,i)=>{
+    lines.push([lg.thigh,lg.thighY,i?"OBERSCHENKEL":"",!lg.straight],
+               [lg.knee,lg.kneeY,i?"KNIE":"",!lg.straight]); });
+  lines.forEach(([band,ny,label,weak])=>{
+    if(!band||ny==null) return;
+    const stale=band.age>400||weak||band.unsure;
+    ctx.save(); ctx.globalAlpha=stale?.45:1;
+    ctx.strokeStyle=chalk; ctx.lineWidth=Math.max(2.5,vw/400);
+    if(stale) ctx.setLineDash([vw/120,vw/120]);
+    ctx.beginPath(); ctx.moveTo(X(band.l),Y(ny)); ctx.lineTo(X(band.r),Y(ny)); ctx.stroke();
+    ctx.setLineDash([]);
+    [band.l,band.r].forEach(nx=>{ ctx.beginPath(); ctx.moveTo(X(nx),Y(ny)-vh*.015); ctx.lineTo(X(nx),Y(ny)+vh*.015); ctx.stroke(); });
+    if(label){ ctx.fillStyle=chalk; ctx.fillText(label,X(band.r)+vw*.012,Y(ny)); }
+    ctx.restore();
+  });
+
+  if(ys.crotchY!=null&&mode!=="top"&&phase!=="side"){
+    ctx.save(); ctx.globalAlpha=ys.crotchFresh?1:.45;
+    ctx.strokeStyle=brass; ctx.lineWidth=Math.max(2.5,vw/400); ctx.setLineDash([vw/90,vw/90]);
+    ctx.beginPath(); ctx.moveTo(vw*.2,Y(ys.crotchY)); ctx.lineTo(vw*.8,Y(ys.crotchY)); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle=brass; ctx.fillText("SCHRITT",vw*.2,Y(ys.crotchY)-F*1.1);
+    ctx.restore();
+  }
+  ctx.fillStyle="rgba(212,154,63,.75)";
+  (mode==="top"?[11,12,23,24]:[23,24,25,26,27,28]).forEach(i=>{
+    ctx.beginPath(); ctx.arc(X(L[i].x),Y(L[i].y),Math.max(3,vw/300),0,Math.PI*2); ctx.fill(); });
+}
+
+function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
+  if(!g.key||!g.img) return;
+  const G=GARMENTS[g.key], Wcm=garmentWidthCm();
+  if(!Wcm) return;
+  const cx=bone?(bone[0][0].x+bone[1][0].x)/2:(hipBand?hipBand.l+hipBand.w/2:.5)*vw;
+  const scene=sceneTint(vw,vh);
+  const use3=!!(G.m3&&g.d3&&bone&&ext&&init3d());
+  let wPx,hPx,topY,done3=false;
+  if(use3){
+    // Echte 3D-Form: Umfang aus den Maßen, Lage aus dem Skelett, Drehung aus Hüfte und Schultern
+    mesh3d(g.key,G.m3);
+    const M=G.m3, cmH=g.flat?g.flat/M.wf:g.len;
+    if(g3.texReady&&cmH){
+      // Kamera: Brennweite grob aus dem Bildwinkel, Blickachse durch die Bildmitte
+      const foc=cam.fk*Math.max(vw,vh), pc=[vw/2,vh/2], yw=ext.yaw, sy=Math.sin(yw);
+      const h=v3.norm([Math.cos(yw),clamp((bone[0][0].y-bone[1][0].y)/(2*ext.half||1),-.3,.3)*Math.abs(Math.cos(yw)),sy]);
+      // Gelenke liegen im Bild schon perspektivisch richtig: zurückrechnen, damit sie nach der Projektion wieder dort landen
+      const B=bone.map((c,s)=>c.map(p=>{ const z=(s?-1:1)*ext.half*sy+(p.zr||0), k=(foc+z)/foc;
+        return [pc[0]+(p.x-pc[0])*k, pc[1]+(p.y-pc[1])*k, z]; }));
+      const m=clamp(1+.68*(scene.lum/Math.max(20,G.base.lum)-1),.35,1.45);
+      const mx=Math.max(scene.r,scene.g,scene.b)||1;
+      const tint=[scene.r,scene.g,scene.b].map(v=>(1-(1-v/mx)*.45)*m);
+      const info=draw3d(M,{ppc:pxPerCm,cmH,h,belt:[cx,anchorY*vh+g.off*pxPerCm,0],yCrotch,bone:B,foc,pc},vw,vh,tint);
+      ctx.save();
+      ctx.globalAlpha=g.opa;
+      ctx.shadowColor="rgba(0,0,0,.4)"; ctx.shadowBlur=Math.max(6,vw/90); ctx.shadowOffsetY=Math.max(2,vw/400);
+      ctx.drawImage(g3.c,0,0);
+      ctx.restore();
+      topY=info.top[1]; hPx=info.S; wPx=2*M.hw[Math.min(M.nr-1,g3.ic)]*info.S; done3=true; g.yaw=yw;
+    }
+  }
+  if(!done3){
+  // Seitlich wird eine Hose schmaler. Grobe Verkürzung, damit es nicht albern wirkt.
+  const squash=1-.45*turn, fade=1-.55*turn;
+  wPx=Wcm*pxPerCm*squash; hPx=Wcm*pxPerCm*G.aspect;
+  if(!(wPx>4&&hPx>4&&wPx<vw*8)) return;
+  topY=anchorY*vh - G.prof.bund.y*hPx + g.off*pxPerCm;
+
+  const img=tinted(G,scene);
+  const box={x:cx-wPx*G.prof.bund.c, y:topY, w:wPx, h:hPx};
+  ctx.save();
+  ctx.globalAlpha=g.opa*fade;
+  ctx.shadowColor="rgba(0,0,0,.4)"; ctx.shadowBlur=Math.max(6,vw/90); ctx.shadowOffsetY=Math.max(2,vw/400);
+  if(G.rig&&g.rig&&bone){
+    // Erst voll deckend auf eine Zwischenfläche, dann als Ganzes einblenden.
+    // Sonst addieren sich die Beine dort, wo sie sich überlappen.
+    if(!rc.c){ rc.c=document.createElement("canvas"); rc.x=rc.c.getContext("2d"); }
+    if(rc.c.width!==vw||rc.c.height!==vh){ rc.c.width=vw; rc.c.height=vh; }
+    rc.x.clearRect(0,0,vw,vh);
+    drawRigged(G,img,box,bone,wPx/(img.naturalWidth||300),yCrotch,rc.x);
+    ctx.drawImage(rc.c,0,0);
+  }
+  else ctx.drawImage(img, box.x, box.y, box.w, box.h);
+  ctx.restore();
+  }
+  if(clean) return;                          // nur die Kleidung, keine Beschriftung
+
+  ctx.strokeStyle="rgba(212,154,63,.95)"; ctx.lineWidth=Math.max(2.5,vw/400);
+  ctx.setLineDash([vw/70,vw/70]);
+  ctx.beginPath(); ctx.moveTo(cx-wPx*.6,topY+hPx); ctx.lineTo(cx+wPx*.6,topY+hPx); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font=`600 ${Math.round(vw/46)}px "IBM Plex Mono", monospace`; ctx.textBaseline="middle";
+  if(botN!=null){
+    g.hem=(botN*vh-(topY+hPx))/pxPerCm;
+    ctx.fillStyle="rgba(212,154,63,.95)";
+    ctx.fillText(`SAUM ${g.hem>0?g.hem.toFixed(0)+" cm über Boden":"am Boden"}`, cx-wPx*.6, topY+hPx-vw/32);
+    if(g.est){ ctx.fillStyle="rgba(229,180,73,.95)";
+      ctx.fillText("MASSSTAB GESCHÄTZT — BUND NACHMESSEN", cx-wPx*.6, topY+hPx-vw/32-vw/26); }
+  }
+  if(turn>.3&&!done3){ ctx.fillStyle="rgba(229,180,73,.9)";
+    ctx.fillText("NUR FRONTALANSICHT VORHANDEN", cx-wPx*.6, topY+vw/26); }
+}
+
+
+/* ---------- Skelett: Beine entlang der Knochen verbiegen ---------- */
+function chainWalk(pts,dist){
+  let acc=0;
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i],b=pts[i+1],L=Math.hypot(b.x-a.x,b.y-a.y);
+    if(acc+L>=dist||i===pts.length-2){
+      const t=L>1e-6?(dist-acc)/L:0;
+      return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,ang:Math.atan2(b.y-a.y,b.x-a.x)};
+    }
+    acc+=L;
+  }
+  return {x:pts[0].x,y:pts[0].y,ang:Math.PI/2};
+}
+function distToY(a,b,y){                       // Wegstrecke bis zur Höhe y auf a→b
+  const L=Math.hypot(b.x-a.x,b.y-a.y), dy=b.y-a.y;
+  if(Math.abs(dy)<1e-6) return 0;
+  return clamp((y-a.y)/dy,0,1)*L;
+}
+const BANDS=26;
+/* Jeder Streifen übernimmt die Unterkante des vorherigen — so bleiben keine Lücken */
+const rc={c:null,x:null};
+function drawRigged(G,img,box,bone,scale,yCrotch,ctx){
+  const IW=img.naturalWidth||300, IH=img.naturalHeight||300;
+  const R=G.rig, rise=R.rise, E=R.ext;
+  // Leibhöhe auf den Körper dehnen: die flach gemessene Leibhöhe der Hose ist
+  // länger als der senkrechte Weg vom Bund zum Schritt, weil sie untenherum läuft.
+  const riseH=clamp(yCrotch-box.y, rise*box.h*.55, box.h*.55);
+  const yLeg=box.y+riseH;                    // hier beginnen die Hosenbeine
+  ctx.drawImage(img,0,0,IW,rise*IH, box.x,box.y,box.w,riseH*1.03);
+  const legLen=(1-rise)*box.h, sh=((1-rise)*IH)/BANDS;
+  // Hälften nach Bildposition zuordnen, nicht nach links/rechts des Modells.
+  // MediaPipe vertauscht die Seiten gelegentlich, und die Kamera spiegelt je nach Linse.
+  const ord = bone[0][0].x<=bone[1][0].x ? [0,1] : [1,0];
+  for(let s=0;s<2;s++){
+    const chain=bone[ord[s]];
+    let L0=1,R0=0;
+    for(const row of E){ L0=Math.min(L0,row[s][0]); R0=Math.max(R0,row[s][1]); }
+    const sx=L0*IW, sw=(R0-L0)*IW, ref=R.ctr[0][s]*IW;
+    if(sw<1) continue;
+    // Kette direkt benutzen: das Hosenbein liegt mittig um den Knochen, nicht daneben
+    const startD=Math.max(0,distToY(chain[0],chain[1],yLeg));
+    const raw=[],ed=[];
+    for(let i=0;i<=BANDS;i++) raw.push(chainWalk(chain,startD+legLen*i/BANDS));
+    const o0=(sx-ref)*scale, o1=(sx+sw-ref)*scale;
+    for(let i=0;i<=BANDS;i++){
+      let a=0,n=0;
+      for(let j=Math.max(0,i-2);j<=Math.min(BANDS,i+2);j++){ a+=raw[j].ang; n++; }
+      a/=n;
+      const nx=Math.sin(a), ny=-Math.cos(a), p=raw[i];
+      ed.push({lx:p.x+nx*o0, ly:p.y+ny*o0, rx:p.x+nx*o1, ry:p.y+ny*o1});
+    }
+    for(let i=0;i<BANDS;i++){
+      const t=ed[i], b2=ed[i+1], sy=(rise+(1-rise)*(i/BANDS))*IH;
+      const ux=(t.rx-t.lx)/sw, uy=(t.ry-t.ly)/sw;
+      const vx=(b2.lx-t.lx)/sh, vy=(b2.ly-t.ly)/sh;
+      ctx.save();
+      ctx.setTransform(ux,uy,vx,vy, t.lx-ux*sx-vx*sy, t.ly-uy*sx-vy*sy);
+      ctx.drawImage(img, sx,sy,sw,sh+0.75, sx,sy,sw,sh+0.75);
+      ctx.restore();
+    }
+  }
+}
+
+/* ---------- Licht der Umgebung aufnehmen ---------- */
+const scn={c:null,x:null,at:0,v:null};
+function sceneTint(vw,vh){
+  const now=performance.now();
+  if(scn.v&&now-scn.at<250) return scn.v;
+  if(!scn.c){ scn.c=document.createElement("canvas"); scn.c.width=scn.c.height=24;
+              scn.x=scn.c.getContext("2d",{willReadFrequently:true}); }
+  try{ scn.x.drawImage(video,0,0,24,24); }catch(_){ return scn.v||{r:1,g:1,b:1,m:1}; }
+  const d=scn.x.getImageData(0,0,24,24).data;
+  let r=0,gg=0,b=0,n=0;
+  for(let i=0;i<d.length;i+=4){ r+=d[i]; gg+=d[i+1]; b+=d[i+2]; n++; }
+  r/=n; gg/=n; b/=n;
+  scn.v={r,g:gg,b,lum:.2126*r+.7152*gg+.0722*b}; scn.at=now;
+  return scn.v;
+}
+/* Freisteller auf das Umgebungslicht einfärben, Ergebnis zwischenspeichern */
+const gt={c:null,x:null,key:null,sig:null};
+function tinted(G,s){
+  if(!s||!g.img) return g.img;
+  // Helligkeit angleichen, aber nur zu drei Vierteln — sonst kippt es ins Unkenntliche
+  let m=clamp(1+.68*(s.lum/Math.max(20,G.base.lum)-1),.35,1.45);
+  // Farbstich der Umgebung, abgeschwächt
+  const mx=Math.max(s.r,s.g,s.b)||1;
+  const cast=[s.r/mx,s.g/mx,s.b/mx].map(v=>1-(1-v)*.45);
+  const sig=g.key+"|"+m.toFixed(2)+"|"+cast.map(v=>v.toFixed(2)).join(",");
+  if(gt.sig===sig&&gt.c) return gt.c;
+  const W=g.img.naturalWidth||300, H=g.img.naturalHeight||300;
+  if(!gt.c){ gt.c=document.createElement("canvas"); gt.x=gt.c.getContext("2d"); }
+  if(gt.c.width!==W||gt.c.height!==H){ gt.c.width=W; gt.c.height=H; }
+  const x=gt.x; x.clearRect(0,0,W,H);
+  x.globalCompositeOperation="source-over"; x.globalAlpha=1;
+  x.drawImage(g.img,0,0);
+  // Abdunkeln und einfärben: multiplizieren ist immer ≤ 1, danach Alpha zurückholen
+  const dark=Math.min(m,1);
+  const col=cast.map(v=>Math.round(clamp(v*dark,0,1)*255));
+  if(col[0]<254||col[1]<254||col[2]<254){
+    x.globalCompositeOperation="multiply";
+    x.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`; x.fillRect(0,0,W,H);
+    x.globalCompositeOperation="destination-in"; x.drawImage(g.img,0,0);
+  }
+  // Aufhellen: dasselbe Bild additiv darüber, das entspricht einer Multiplikation
+  if(m>1){ x.globalCompositeOperation="lighter"; x.globalAlpha=clamp(m-1,0,1);
+           x.drawImage(gt.c,0,0); x.globalAlpha=1; }
+  x.globalCompositeOperation="source-over";
+  gt.sig=sig; return gt.c;
+}
+
+/* ---------- 3D-Hose: aus den Maßen aufgeblasen, live am Skelett ---------- */
+const K3=12, BAND3=16;                         // Punkte je Viertelbogen, Übergang Schritt→Bein in cm
+const g3={c:null,gl:null,ok:null,prog:null,loc:null,tex:null,texKey:null,texReady:false,
+          key:null,nv:0,ni:0,pos:null,nor:null,vb:null,nb:null,row:{},last:0};
+const VS3=`attribute vec3 p;attribute vec3 n;attribute vec2 uv;attribute float ao;
+uniform vec2 vp;uniform vec2 pc;uniform float foc;varying vec3 vn;varying vec3 vv;varying vec2 vu;varying float va;
+void main(){vn=n;vu=uv;va=ao;
+// näher an der Kamera erscheint größer: Bund und Saum bekommen so ihre Rundung
+vec2 q=pc+(p.xy-pc)*foc/(foc+p.z);
+vv=vec3((q-pc)/foc,1.);
+gl_Position=vec4(q.x/vp.x*2.-1.,1.-q.y/vp.y*2.,clamp(p.z/vp.x,-.95,.95),1.);}`;
+const FS3=`precision mediump float;uniform sampler2D t;uniform vec3 tint;varying vec3 vn;varying vec3 vv;varying vec2 vu;varying float va;
+void main(){vec3 n=normalize(vn);float fz=dot(n,normalize(vv));
+// nur was zur Kamera zeigt, wird gezeichnet: die abgewandte Seite der Hose bleibt unsichtbar
+if(fz>.06)discard;
+float d=max(dot(n,normalize(vec3(-.28,-.5,-.82))),0.);
+float rim=smoothstep(.06,-.35,fz);
+vec3 c=texture2D(t,vu).rgb*tint*(.5+.62*d)*va*mix(.72,1.,rim);
+gl_FragColor=vec4(c,1.);}`;
+function init3d(){
+  if(g3.ok!==null) return g3.ok;
+  try{
+    g3.c=document.createElement("canvas");
+    const o={alpha:true,premultipliedAlpha:true,antialias:true,depth:true};
+    const gl=g3.c.getContext("webgl2",o)||g3.c.getContext("webgl",o);
+    if(!gl){ g3.ok=false; return false; }
+    g3.v2=(typeof WebGL2RenderingContext!=="undefined")&&(gl instanceof WebGL2RenderingContext);
+    const sh=(ty,src)=>{ const s=gl.createShader(ty); gl.shaderSource(s,src); gl.compileShader(s);
+      if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    const pr=gl.createProgram();
+    gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS3)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS3));
+    gl.linkProgram(pr);
+    if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+    g3.gl=gl; g3.prog=pr;
+    g3.loc={p:gl.getAttribLocation(pr,"p"),n:gl.getAttribLocation(pr,"n"),uv:gl.getAttribLocation(pr,"uv"),
+            ao:gl.getAttribLocation(pr,"ao"),vp:gl.getUniformLocation(pr,"vp"),pc:gl.getUniformLocation(pr,"pc"),foc:gl.getUniformLocation(pr,"foc"),tint:gl.getUniformLocation(pr,"tint"),
+            t:gl.getUniformLocation(pr,"t")};
+    g3.ok=true;
+  }catch(e){ console.warn("3D nicht verfügbar",e); g3.ok=false; }
+  return g3.ok;
+}
+/* Feste Teile des Netzes: Dreiecke, Texturkoordinaten, Schattierung zwischen den Beinen */
+function mesh3d(key,M){
+  if(g3.key===key) return;
+  const gl=g3.gl, NR=M.nr, C=K3+1, ic=M.v.findIndex(v=>v>=M.vc);
+  const nRing=2*NR*2*C, nWall=2*NR*2;
+  const nv=nRing+nWall, uv=new Float32Array(nv*2), ao=new Float32Array(nv), idx=[];
+  const id=(s,i,f,j)=>((s*NR+i)*2+f)*C+j, wid=(s,i,f)=>nRing+(s*NR+i)*2+f;
+  for(let s=0;s<2;s++) for(let i=0;i<NR;i++){
+    // s=0 ist das linke Bein der Person: im Frontfoto rechts, im Rückenfoto links
+    const F=M.f[i], B=M.b[i];
+    const fr=s===0?[F[2],F[3]]:[F[1],F[0]], bk=s===0?[B[1],B[0]]:[B[2],B[3]];
+    const below=i>=ic, dcm=below?(M.v[i]-M.vc):0;
+    for(let f=0;f<2;f++) for(let j=0;j<C;j++){
+      const t=j/K3, e=f?bk:fr, k=id(s,i,f,j);
+      uv[k*2]=e[0]+(e[1]-e[0])*t; uv[k*2+1]=(f&&M.tvb?M.tvb:M.tv)[i];
+      // innen am Oberschenkel etwas dunkler, am Bund ein Hauch Schatten
+      ao[k]=(below?1-.22*Math.max(0,1-t/.3)*Math.min(1,dcm*14):1)*(i<1?.9:1);
+    }
+    for(let f=0;f<2;f++){ const k=wid(s,i,f); uv[k*2]=fr[0]; uv[k*2+1]=M.tv[i]; ao[k]=.42; }
+    if(i<NR-1){
+      for(let f=0;f<2;f++) for(let j=0;j<K3;j++){
+        const a=id(s,i,f,j),b=id(s,i,f,j+1),c=id(s,i+1,f,j+1),d=id(s,i+1,f,j);
+        idx.push(a,b,c,a,c,d);
+      }
+      if(below){ const a=wid(s,i,0),b=wid(s,i,1),c=wid(s,i+1,1),d=wid(s,i+1,0); idx.push(a,b,c,a,c,d); }
+    }
+  }
+  g3.key=key; g3.nv=nv; g3.nRing=nRing; g3.ic=ic; g3.ni=idx.length;
+  g3.pos=new Float32Array(nv*3); g3.nor=new Float32Array(nv*3);
+  const buf=(data,loc,size)=>{ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
+    gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW); return b; };
+  g3.ub=buf(uv); g3.ab=buf(ao);
+  g3.vb=gl.createBuffer(); g3.nb=gl.createBuffer();
+  g3.ib=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g3.ib);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+  g3.row={};
+  // Textur
+  g3.texReady=false;
+  const im=new Image();
+  im.onload=()=>{
+    const tx=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tx);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,im);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    if(g3.v2){ gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR); }
+    else gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    g3.tex=tx; g3.texReady=true;
+  };
+  im.src=M.atlas;
+}
+const v3={
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+  mul:(a,k)=>[a[0]*k,a[1]*k,a[2]*k], dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+  len:a=>Math.hypot(a[0],a[1],a[2]),
+  norm:a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];}
+};
+/* Punkt auf der Kette Hüfte→Knie→Knöchel, über beide Enden hinaus geradeaus weiter */
+function walk3(ch,d){
+  let acc=0;
+  for(let i=0;i<ch.length-1;i++){
+    const a=ch[i],b=ch[i+1],L=v3.len(v3.sub(b,a))||1e-6;
+    if(d<acc+L||i===ch.length-2){ const t=(d-acc)/L; return v3.add(a,v3.mul(v3.sub(b,a),t)); }
+    acc+=L;
+  }
+  return ch[0];
+}
+const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+/* Alle Punkte der Hose für dieses Bild berechnen */
+function pose3d(M,P){
+  const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos, ppc=P.ppc;
+  const S=P.cmH*ppc;                                   // Länge der Hose in Bildpunkten
+  const h=P.h, up=v3.norm(v3.sub([0,-1,0],v3.mul(h,v3.dot([0,-1,0],h)))), fw=v3.cross(h,up), dn=v3.mul(up,-1);
+  const top=v3.add(P.belt,v3.mul(up,.015*S));
+  // Leibhöhe: reicht die Hose nicht bis in den Schritt, wird sie leicht gedehnt statt eingeschnitten
+  const riseG=M.vc*S, riseB=v3.dot(v3.sub([P.belt[0],P.yCrotch,P.belt[2]],top),dn);
+  const rs=clamp(riseB/riseG,1,1.22);
+  const cr=v3.add(top,v3.mul(dn,riseG*rs));            // Schrittpunkt der Hose
+  const q=.62, ek=Math.PI*(3*(1+q)-Math.sqrt((3+q)*(1+3*q)));
+  const ell=hw=>{ const a=4*hw/ek; return [a,a*q]; };
+  const now=performance.now(), dt=clamp((now-(g3.last||now))/1000,0,.1); g3.last=now;
+  const delta=5*ppc;
+  const Rc=M.hw[ic]*S/Math.PI;                         // Radius des Hosenbeins direkt unter dem Schritt
+  for(let s=0;s<2;s++){
+    const sg=s===0?1:-1, ch=P.bone[s];
+    const cl=v3.len(v3.sub(ch[1],ch[0]))+v3.len(v3.sub(ch[2],ch[1]));
+    const d0=cl+1*ppc, tau=5*ppc;
+    for(let i=0;i<NR;i++){
+      const below=i>=ic, hwPx=M.hw[i]*S;
+      let cT,a,b,sCm=0;
+      if(!below){ cT=v3.add(top,v3.mul(dn,M.v[i]*S*rs)); [a,b]=ell(hwPx); }
+      else { const sPx=(M.v[i]-M.vc)*S; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); [a,b]=ell(M.hw[ic-1]*S); }
+      // Dieselbe Höhe am Bein: so viele Bildpunkte unter dem Hüftgelenk, entlang der Knochen
+      let d=v3.dot(v3.sub(cT,ch[0]),dn), cL=null,r=null,fl=null,R=0,wdev=0,wband=below?sstep(0,BAND3,sCm):0;
+      const onLeg=d>0;
+      if(onLeg){
+        if(d>d0) d=d0+tau*(1-Math.exp(-(d-d0)/tau));        // zu lange Beine stauchen sich am Schuh
+        const pa=walk3(ch,d-delta), pb=walk3(ch,d+delta);
+        cL=v3.mul(v3.add(pa,pb),.5);
+        const tg=v3.norm(v3.sub(pb,pa));
+        r=v3.norm(v3.sub(h,v3.mul(tg,v3.dot(h,tg)))); fl=v3.cross(tg,r);
+        R=below?hwPx/Math.PI:Rc;
+        // Steht das Bein, bleibt oben die Beckenform. Hebt oder spreizt es sich, zieht es den Stoff mit.
+        const stand=v3.add(ch[0],v3.mul(dn,d));
+        wdev=sstep(.15,1,v3.len(v3.sub(cL,stand))/Rc);
+        // Stoff schwingt nach: je weiter unten, desto träger folgt er dem Bein
+        const key=s*100+i, lag=.11*sstep(0,70,sCm), st=g3.row[key];
+        if(st&&lag>0&&dt>0){ const k=1-Math.exp(-dt/lag);
+          for(let c=0;c<3;c++) st[c]+=(cL[c]-st[c])*k; cL=[st[0],st[1],st[2]]; }
+        else g3.row[key]=[cL[0],cL[1],cL[2]];
+      }
+      for(let f=0;f<2;f++){ const fs=f?-1:1;
+        for(let j=0;j<C;j++){
+          const t=j/K3, k=(((s*NR+i)*2+f)*C+j)*3;
+          const ps=Math.PI/2*t, ca=a*Math.sin(ps)*sg, cb=b*Math.cos(ps)*fs;
+          let x=cT[0]+h[0]*ca+fw[0]*cb, y=cT[1]+h[1]*ca+fw[1]*cb, z=cT[2]+h[2]*ca+fw[2]*cb;
+          if(onLeg){
+            const wL=Math.max(wband,wdev*sstep(0,.45,t));
+            if(wL>0){
+              const ph=Math.PI*t, cr_=-Math.cos(ph)*sg*R, cf=Math.sin(ph)*fs*R;
+              x+=(cL[0]+r[0]*cr_+fl[0]*cf-x)*wL; y+=(cL[1]+r[1]*cr_+fl[1]*cf-y)*wL; z+=(cL[2]+r[2]*cr_+fl[2]*cf-z)*wL;
+            }
+          }
+          pos[k]=x; pos[k+1]=y; pos[k+2]=z;
+        }
+        const w=(g3.nRing+(s*NR+i)*2+f)*3, src=(((s*NR+i)*2+f)*C)*3;
+        pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2];
+      }
+    }
+  }
+  // Normalen aus den Nachbarn im Raster
+  const nor=g3.nor;
+  for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){
+    const flip=(s===0)!==(f===1)?1:-1;
+    for(let j=0;j<C;j++){
+      const k=(((s*NR+i)*2+f)*C+j)*3;
+      const j0=Math.max(0,j-1), j1=Math.min(K3,j+1), i0=Math.max(0,i-1), i1=Math.min(NR-1,i+1);
+      const a=(((s*NR+i)*2+f)*C+j0)*3, b=(((s*NR+i)*2+f)*C+j1)*3;
+      const c=(((s*NR+i0)*2+f)*C+j)*3, d=(((s*NR+i1)*2+f)*C+j)*3;
+      const tj=[pos[b]-pos[a],pos[b+1]-pos[a+1],pos[b+2]-pos[a+2]];
+      const ti=[pos[d]-pos[c],pos[d+1]-pos[c+1],pos[d+2]-pos[c+2]];
+      let n=v3.cross(ti,tj); const l=v3.len(n)||1;
+      nor[k]=n[0]/l*flip; nor[k+1]=n[1]/l*flip; nor[k+2]=n[2]/l*flip;
+    }
+    // Innenwand zeigt zum anderen Bein, leicht zur Kamera, damit sie nicht wegfällt
+    const sg=s===0?1:-1, w=(g3.nRing+(s*NR+i)*2+f)*3;
+    const n=v3.norm([-sg*P.h[0],-sg*P.h[1],-sg*P.h[2]-.35]);
+    nor[w]=n[0]; nor[w+1]=n[1]; nor[w+2]=n[2];
+  }
+  return {top,S,rs};
+}
+/* Zeichnen: in eine eigene WebGL-Fläche, die dann wie ein Bild aufgelegt wird */
+function draw3d(M,P,vw,vh,tint){
+  const gl=g3.gl;
+  if(g3.c.width!==vw||g3.c.height!==vh){ g3.c.width=vw; g3.c.height=vh; }
+  const info=pose3d(M,P);
+  gl.viewport(0,0,vw,vh); gl.clearColor(0,0,0,0); gl.clearDepth(1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND);
+  gl.useProgram(g3.prog);
+  const at=(b,loc,size,data)=>{ if(loc<0) return; gl.bindBuffer(gl.ARRAY_BUFFER,b);
+    if(data) gl.bufferData(gl.ARRAY_BUFFER,data,gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,size,gl.FLOAT,false,0,0); };
+  at(g3.vb,g3.loc.p,3,g3.pos); at(g3.nb,g3.loc.n,3,g3.nor); at(g3.ub,g3.loc.uv,2); at(g3.ab,g3.loc.ao,1);
+  gl.uniform2f(g3.loc.vp,vw,vh); gl.uniform2f(g3.loc.pc,P.pc[0],P.pc[1]); gl.uniform1f(g3.loc.foc,P.foc); gl.uniform3f(g3.loc.tint,tint[0],tint[1],tint[2]);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,g3.tex); gl.uniform1i(g3.loc.t,0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g3.ib);
+  gl.drawElements(gl.TRIANGLES,g3.ni,gl.UNSIGNED_SHORT,0);
+  return info;
+}
+/* ---------- Blickrichtung: wohin zeigt die Vorderseite der Person? ---------- */
+/* Betrag der Drehung aus der sichtbaren Schulter- und Hüftbreite, die Richtung aus Füßen, Nase und Tiefe.
+   So hängt nichts allein an der unruhigen Tiefenschätzung. */
+const fc={yaw:0,ks:36,kh:18,sgn:1,pend:0,t:0};
+const wrapA=a=>{ while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a; };
+function bodyYaw(L,V,vw,ppc){
+  const X=i=>L[i].x*vw, shOk=V(11)&&V(12), hipOk=V(23)&&V(24);
+  let c=null;
+  if(shOk){ const r=(X(11)-X(12))/ppc; fc.ks=clamp(Math.max(fc.ks*.9997,Math.abs(r)),28,50); c=clamp(r/fc.ks,-1,1); }
+  if(hipOk){ const r=(X(23)-X(24))/ppc; fc.kh=clamp(Math.max(fc.kh*.9997,Math.abs(r)),13,27);
+    const ch=clamp(r/fc.kh,-1,1); c=c==null?ch:.65*c+.35*ch; }
+  const now=performance.now(), dt=clamp((now-(fc.t||now))/1000,0,.1); fc.t=now;
+  if(c==null) return fc.yaw;
+  let e=0,w=0;
+  const foot=(h,t)=>{ if(V(h)&&V(t)){ e+=clamp((X(t)-X(h))/(17*ppc),-1,1)*1.3; w+=1.3; } };
+  foot(29,31); foot(30,32);
+  if(shOk&&(L[0].visibility??1)>.6&&c>.1){ e+=clamp((X(0)-(X(11)+X(12))/2)/(9*ppc),-1,1)*.8; w+=.8; }
+  const dz=((L[23].z||0)-(L[24].z||0))+(shOk?(L[11].z||0)-(L[12].z||0):0);
+  e+=clamp(dz*vw/(45*ppc),-1,1)*.5; w+=.5;
+  const es=e/w;
+  if(es>.12) fc.sgn=1; else if(es<-.12) fc.sgn=-1;
+  let m=Math.atan2(fc.sgn*Math.sqrt(1-c*c),c);
+  // Ruhezone: steht jemand fast frontal oder fast mit dem Rücken, bleibt die Hose gerade
+  const am=Math.abs(m);
+  if(am<Math.PI/2) m*=sstep(.15,.5,am); else m=Math.sign(m||1)*(Math.PI-(Math.PI-am)*sstep(.15,.5,Math.PI-am));
+  let d=wrapA(m-fc.yaw);
+  // Ein Sprung um fast eine halbe Drehung ist meist eine Verwechslung von links und rechts: erst glauben, wenn er anhält
+  if(Math.abs(d)>2.2){ if(!fc.pend) fc.pend=now; if(now-fc.pend<350) d=0; } else fc.pend=0;
+  const step=clamp(d*(1-Math.exp(-dt/.09)),-8*dt,8*dt);
+  fc.yaw=wrapA(fc.yaw+step);
+  return fc.yaw;
+}
+
+/* ---------- Eigene Hose: aus zwei Produktfotos direkt im Browser ein 3D-Modell bauen ---------- */
+const GEN={CW:320,CH:640,NR:56};
+/* iPhone-Fotos (HEIC) kann nur Safari selbst lesen. Überall sonst wird der Umwandler bei Bedarf nachgeladen. */
+let heicLib=null;
+async function heicToJpeg(file){
+  if(!heicLib){
+    try{ const M=await import("https://cdn.jsdelivr.net/npm/heic-to@1.6.5/dist/heic-to.min.js");
+      heicLib=b=>M.heicTo({blob:b,type:"image/jpeg",quality:.92}); }
+    catch(_){
+      await new Promise((ok,no)=>{ const sc=document.createElement("script");
+        sc.src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"; sc.onload=ok; sc.onerror=()=>no(new Error("x")); document.head.appendChild(sc); });
+      heicLib=async b=>{ const r=await window.heic2any({blob:b,toType:"image/jpeg",quality:.92}); return Array.isArray(r)?r[0]:r; };
+    }
+  }
+  return heicLib(file);
+}
+async function decodeImage(blob){
+  if(self.createImageBitmap){ try{ return await createImageBitmap(blob); }catch(_){} }
+  return new Promise((ok,no)=>{ const im=new Image(), u=URL.createObjectURL(blob);
+    im.onload=()=>{ URL.revokeObjectURL(u); ok(im); }; im.onerror=()=>{ URL.revokeObjectURL(u); no(new Error("nicht lesbar")); }; im.src=u; });
+}
+async function fileToCanvas(file,maxH=900,say=()=>{}){
+  const heic=/hei[cf]/i.test(file.type||"")||/\.hei[cf]$/i.test(file.name||"");
+  let src=null;
+  try{ src=await decodeImage(file); }catch(_){}
+  if(!src&&heic){
+    say("iPhone-Format (HEIC) wird umgewandelt …");
+    try{ src=await decodeImage(await heicToJpeg(file)); }
+    catch(_){ throw new Error("Das HEIC-Foto ließ sich nicht umwandeln. Bitte als JPG speichern oder die Seite in Safari öffnen."); }
+  }
+  if(!src) throw new Error("Bild nicht lesbar. Bitte JPG, PNG oder HEIC.");
+  let w0=src.width||src.naturalWidth, h0=src.height||src.naturalHeight;
+  const k=Math.min(1,maxH/h0);
+  const c=document.createElement("canvas"); c.width=Math.max(8,Math.round(w0*k)); c.height=Math.max(8,Math.round(h0*k));
+  c.getContext("2d",{willReadFrequently:true}).drawImage(src,0,0,c.width,c.height);
+  return c;
+}
+function morph(m,w,h,erode,n){
+  let a=m;
+  for(let it=0;it<n;it++){
+    const b=new Uint8Array(w*h);
+    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+      const i=y*w+x; let s=a[i]+a[i-1]+a[i+1]+a[i-w]+a[i+w]+a[i-w-1]+a[i-w+1]+a[i+w-1]+a[i+w+1];
+      b[i]=erode?(s===9?1:0):(s>0?1:0);
+    }
+    a=b;
+  }
+  return a;
+}
+/* Kleidungsstück vom Hintergrund trennen. Schatten sind hintergrundfarben und nur etwas dunkler: die bleiben draußen. */
+function segGarment(cv){
+  const w=cv.width,h=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
+  let m=new Uint8Array(w*h), tr=0;
+  for(let i=0;i<w*h;i+=7) if(d[i*4+3]<200) tr++;
+  if(tr>w*h/7*.04){ for(let i=0;i<w*h;i++) m[i]=d[i*4+3]>128?1:0; }      // schon freigestellt
+  else{
+    const br=[[],[],[]], push=i=>{ br[0].push(d[i*4]); br[1].push(d[i*4+1]); br[2].push(d[i*4+2]); };
+    for(let x=0;x<w;x+=3){ push(x); push(w+x); push((h-1)*w+x); push((h-2)*w+x); }
+    for(let y=0;y<h;y+=3){ push(y*w); push(y*w+1); push(y*w+w-1); push(y*w+w-2); }
+    const bg=br.map(a=>{ a.sort((p,q)=>p-q); return a[a.length>>1]; });
+    const bl=.2126*bg[0]+.7152*bg[1]+.0722*bg[2];
+    for(let i=0;i<w*h;i++){
+      const r=d[i*4],g2=d[i*4+1],b=d[i*4+2], l=.2126*r+.7152*g2+.0722*b;
+      const cd=Math.max(Math.abs((r-l)-(bg[0]-bl)),Math.abs((g2-l)-(bg[1]-bl)),Math.abs((b-l)-(bg[2]-bl)));
+      m[i]= bl>140 ? ((l<bl*.63||cd>17)?1:0)
+                   : ((Math.max(Math.abs(r-bg[0]),Math.abs(g2-bg[1]),Math.abs(b-bg[2]))>42)?1:0);
+    }
+  }
+  m=morph(morph(m,w,h,true,2),w,h,false,2);
+  // größte zusammenhängende Fläche
+  const lab=new Int32Array(w*h), st=new Int32Array(w*h); let best=0,bestN=0,cur=0;
+  for(let s0=0;s0<w*h;s0++){
+    if(!m[s0]||lab[s0]) continue;
+    cur++; let n=0,sp=0; st[sp++]=s0; lab[s0]=cur;
+    while(sp){ const i=st[--sp]; n++; const x=i%w;
+      if(x>0&&m[i-1]&&!lab[i-1]){lab[i-1]=cur;st[sp++]=i-1;} if(x<w-1&&m[i+1]&&!lab[i+1]){lab[i+1]=cur;st[sp++]=i+1;}
+      if(i>=w&&m[i-w]&&!lab[i-w]){lab[i-w]=cur;st[sp++]=i-w;} if(i<w*h-w&&m[i+w]&&!lab[i+w]){lab[i+w]=cur;st[sp++]=i+w;} }
+    if(n>bestN){ bestN=n; best=cur; }
+  }
+  if(bestN<w*h*.03||bestN>w*h*.9) throw new Error("Hose nicht klar vom Hintergrund zu trennen. Bitte ein Foto auf hellem, einfarbigem Grund.");
+  // Löcher schließen: alles, was vom Rand aus nicht erreichbar ist, gehört zum Teil
+  const out=new Uint8Array(w*h); let sp=0;
+  const seed=i=>{ if(lab[i]!==best&&!out[i]){ out[i]=1; st[sp++]=i; } };
+  for(let x=0;x<w;x++){ seed(x); seed((h-1)*w+x); } for(let y=0;y<h;y++){ seed(y*w); seed(y*w+w-1); }
+  while(sp){ const i=st[--sp], x=i%w; if(x>0) seed(i-1); if(x<w-1) seed(i+1); if(i>=w) seed(i-w); if(i<w*h-w) seed(i+w); }
+  let x0=w,x1=0,y0=h,y1=0;
+  for(let i=0;i<w*h;i++){ m[i]=out[i]?0:1; if(m[i]){ const x=i%w,y=(i/w)|0; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+  return {m,w,h,x0,x1:x1+1,y0,y1:y1+1};
+}
+/* Auf einheitliche Größe zuschneiden, Rand mit Stofffarbe auffüllen, Umriss Zeile für Zeile ablesen */
+function cropGarment(cv,S,flip){
+  const {CW,CH,NR}=GEN, pad=4;
+  const bx=S.x0-pad, by=S.y0-pad, bw=S.x1-S.x0+2*pad, bh=S.y1-S.y0+2*pad;
+  const c=document.createElement("canvas"); c.width=CW; c.height=CH;
+  const x=c.getContext("2d",{willReadFrequently:true});
+  x.fillStyle="#888"; x.fillRect(0,0,CW,CH);
+  if(flip){ x.translate(CW,0); x.scale(-1,1); }
+  x.drawImage(cv,bx,by,bw,bh,0,0,CW,CH); x.setTransform(1,0,0,1,0,0);
+  let mm=new Uint8Array(CW*CH);
+  for(let y=0;y<CH;y++){ const sy=Math.min(S.h-1,Math.max(0,Math.round(by+(y+.5)*bh/CH-.5)));
+    for(let xx=0;xx<CW;xx++){ const u=flip?CW-1-xx:xx, sx=Math.round(bx+(u+.5)*bw/CW-.5);
+      mm[y*CW+xx]=(sx>=0&&sx<S.w)?S.m[sy*S.w+sx]:0; } }
+  const core=morph(mm,CW,CH,true,3), id=x.getImageData(0,0,CW,CH), d=id.data;
+  let sr=0,sg=0,sb=0,sn=0, lastRow=-1;
+  for(let y=0;y<CH;y++){
+    let any=false; for(let xx=0;xx<CW;xx++) if(core[y*CW+xx]){ any=true; break; }
+    if(!any){ if(lastRow>=0) d.copyWithin(y*CW*4,lastRow*CW*4,(lastRow+1)*CW*4); continue; }
+    // links und rechts jeweils die nächste Stofffarbe derselben Zeile
+    const near=new Int16Array(CW); let last=-1;
+    for(let xx=0;xx<CW;xx++){ if(core[y*CW+xx]) last=xx; near[xx]=last; }
+    last=-1;
+    for(let xx=CW-1;xx>=0;xx--){ if(core[y*CW+xx]) last=xx;
+      if(last>=0&&(near[xx]<0||last-xx<xx-near[xx])) near[xx]=last; }
+    for(let xx=0;xx<CW;xx++){ const i=(y*CW+xx)*4, j=(y*CW+near[xx])*4;
+      if(near[xx]!==xx){ d[i]=d[j]; d[i+1]=d[j+1]; d[i+2]=d[j+2]; }
+      else if((xx&3)===0){ sr+=d[i]; sg+=d[i+1]; sb+=d[i+2]; sn++; } d[i+3]=255; }
+    lastRow=y;
+  }
+  for(let y=0;y<CH;y++){ let any=false; for(let xx=0;xx<CW;xx++) if(core[y*CW+xx]){ any=true; break; }
+    if(any){ for(let y2=0;y2<y;y2++) d.copyWithin(y2*CW*4,y*CW*4,(y+1)*CW*4); break; } }
+  x.putImageData(id,0,0);
+  // Zeilenprofil
+  let top=CH,bot=0; for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<top)top=y; if(y>bot)bot=y; }
+  const rows=[];
+  for(let i=0;i<NR;i++){
+    const y=Math.round(top+(bot-top)*(.004+.985*i/(NR-1))), runs=[]; let s=-1;
+    for(let xx=0;xx<=CW;xx++){
+      const on=xx<CW&&((mm[Math.max(0,y-1)*CW+xx]+mm[y*CW+xx]+mm[Math.min(CH-1,y+1)*CW+xx])>=2);
+      if(on&&s<0) s=xx; if(!on&&s>=0){ if(xx-s>4) runs.push([s,xx-1]); s=-1; }
+    }
+    if(!runs.length) runs.push([CW*.3,CW*.7]);
+    rows.push({y,runs});
+  }
+  return {c,d,rows,top,bot,sx:bw/CW,sy:bh/CH,base:sn?{r:sr/sn,g:sg/sn,b:sb/sn}:{r:120,g:120,b:120}};
+}
+function garmentProfile(A,VC,off){
+  const {CW,CH,NR}=GEN, H=(A.bot-A.top)*A.sy, arr=[], vv=[], tv=[]; let px=null;
+  const lum=(y,x)=>{ let s=0; for(let k=-1;k<=1;k++){ const i=(y*CW+clamp(x+k,0,CW-1))*4; s+=.2126*A.d[i]+.7152*A.d[i+1]+.0722*A.d[i+2]; } return s; };
+  for(const R of A.rows){
+    const v=(R.y-A.top)/(A.bot-A.top), a=R.runs[0][0], b=R.runs[R.runs.length-1][1]; let li,ri;
+    if(R.runs.length>=2&&v>VC-.03){ li=R.runs[0][1]; ri=R.runs[R.runs.length-1][0]; }
+    else{ const c=(a+b)/2;
+      if(v<VC) li=ri=c;
+      else{ const lo=Math.round((px==null?c:px)-7); let bx=lo,bl=1e9;       // dunkle Schattenlinie zwischen den Beinen
+        for(let xx=lo;xx<lo+15;xx++){ const l=lum(R.y,xx); if(l<bl){bl=l;bx=xx;} } li=ri=bx; }
+      px=(li+ri)/2; }
+    arr.push([a,li,ri,b]); vv.push(v); tv.push(R.y/CH);
+  }
+  for(let pass=0;pass<2;pass++) for(let k=0;k<4;k++){ const col=arr.map(r=>r[k]);
+    for(let i=0;i<NR;i++) arr[i][k]=.25*col[Math.max(0,i-1)]+.5*col[i]+.25*col[Math.min(NR-1,i+1)]; }
+  const hw=arr.map((r,i)=>(vv[i]<VC?(r[3]-r[0])/2:((r[1]-r[0])+(r[3]-r[2]))/2)*A.sx/H);
+  const uv=arr.map((r,i)=>{ const e=vv[i]>VC?1.5:0; return [r[0]+3,r[1]-e,r[2]+e,r[3]-3].map(u=>+((u+off)/(2*CW)).toFixed(4)); });
+  return {hw,vv,tv,uv,H};
+}
+async function buildGarment(frontFile,backFile,say=()=>{}){
+  const {CW,CH,NR}=GEN;
+  const fcv=await fileToCanvas(frontFile,900,say), F=cropGarment(fcv,segGarment(fcv),false);
+  let B;
+  if(backFile){ const bcv=await fileToCanvas(backFile,900,say); B=cropGarment(bcv,segGarment(bcv),false); }
+  else B=cropGarment(fcv,segGarment(fcv),true);            // ohne Rückenfoto: Vorderseite gespiegelt
+  let VC=null;
+  for(const R of F.rows){ const v=(R.y-F.top)/(F.bot-F.top); if(v>.2&&v<.7&&R.runs.length>=2){ VC=v-.008; break; } }
+  const split=VC!=null; if(!split) VC=.39;
+  const pf=garmentProfile(F,VC,0), pb=garmentProfile(B,VC,CW);
+  for(let i=NR-3;i<NR;i++) pf.hw[i]=pf.hw[NR-4];
+  const at=document.createElement("canvas"); at.width=2*CW; at.height=CH;
+  const ax=at.getContext("2d"); ax.drawImage(F.c,0,0); ax.drawImage(B.c,CW,0);
+  const r4=a=>a.map(x=>+x.toFixed(4));
+  const m3={nr:NR,vc:+VC.toFixed(3),wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),
+            f:pf.uv,b:pb.uv,atlas:at.toDataURL("image/jpeg",.85)};
+  const th=document.createElement("canvas"); th.width=120; th.height=240; th.getContext("2d").drawImage(F.c,0,0,120,240);
+  const cw=CW*F.sx, hip=2*pf.hw[Math.round(NR*.2)];
+  const base={...F.base,lum:.2126*F.base.r+.7152*F.base.g+.0722*F.base.b};
+  return {G:{label:"Eigene Hose",size:"–",kind:"pants",aspect:pf.H/cw,
+             prof:{bund:{y:.015,w:m3.wf*pf.H/cw,c:.5},huefte:{y:.2,w:hip*pf.H/cw,c:.5}},
+             elastic:false,estFlat:40,waist:null,base,rig:null,src:th.toDataURL("image/jpeg",.8),m3,own:true},
+          info:{split,hasBack:!!backFile,outline:F}};
+}
+/* Eigene Hosen: Liste im Gerät merken */
+const OWN="massScanHosen";
+function saveOwn(){
+  try{ localStorage.setItem(OWN,JSON.stringify(Object.entries(GARMENTS).map(([key,G])=>({key,G})))); return true; }
+  catch(_){ return false; }
+}
+function loadOwn(){
+  try{
+    const a=JSON.parse(localStorage.getItem(OWN)||"[]");
+    for(const o of a) if(o&&o.key&&o.G&&o.G.m3) GARMENTS[o.key]=o.G;
+    const old=JSON.parse(localStorage.getItem("massScanEigen")||"null");          // Stand vom 7.10.
+    if(old&&old.G&&old.G.m3&&!Object.keys(GARMENTS).length){ old.G.waist=old.waist||null; GARMENTS.h1=old.G; }
+  }catch(_){}
+}
+function addOwnGarment(G){
+  const key="h"+Date.now().toString(36);
+  GARMENTS[key]=G; buildPicker(); pickGarment(key,false);
+  return saveOwn();
+}
+
+/* ---------- Kleidungsstücke ---------- */
+function buildPicker(){
+  const E=Object.entries(GARMENTS), esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  $("gwrap").innerHTML=E.length?E.map(([k,v])=>
+    `<button class="gbtn" data-g="${k}" aria-pressed="false"><img src="${v.src}" alt=""><span>${esc(v.label)}<br>${v.waist?"Bund "+v.waist+" cm":"Bund geschätzt"}</span></button>`).join("")
+    :`<div style="color:var(--chalk-faint);font-size:13.5px">Noch keine Hose. Oben zwei Fotos wählen und „3D-Hose erstellen“ drücken.</div>`;
+  $("gwrap").querySelectorAll(".gbtn").forEach(b=>b.addEventListener("click",()=>pickGarment(b.dataset.g)));
+  $("gchips").innerHTML=E.length?E.map(([k,v])=>
+    `<button class="chip" data-g="${k}" aria-pressed="false">${esc(v.label.slice(0,12))}</button>`).join("")
+    +`<button class="chip" data-g="" aria-pressed="false">Aus</button>`:"";
+  $("gchips").querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>
+    b.dataset.g?pickGarment(b.dataset.g,false):clearGarment()));
+  $("own-del").disabled=!g.key;
+}
+function pickGarment(k,scroll=true){
+  if(g.key===k){ clearGarment(); return; }
+  const G=GARMENTS[k];
+  g.key=k;
+  const im=new Image(); im.onload=()=>{g.img=im;}; im.src=G.src;
+  // Startwert, damit sofort etwas zu sehen ist. Echte Zahl überschreibt ihn.
+  g.flat=G.waist||G.estFlat; g.len=null; g.est=!G.waist;
+  $("g-waist").value=G.waist||""; $("g-waist").disabled=false; $("own-del").disabled=false;
+  markGarment(); $("fitRead").hidden=false; updateFit();
+  if(scroll) stage.scrollIntoView({behavior:"smooth",block:"center"});
+  cue("Hose liegt auf.",true);
+}
+function clearGarment(){
+  g.key=null; g.img=null; g.flat=null; g.len=null; g.est=false;
+  markGarment(); $("fitRead").hidden=true; $("own-del").disabled=true; $("g-waist").value=""; $("g-waist").disabled=true;
+}
+function markGarment(){
+  $("gwrap").querySelectorAll(".gbtn").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.g===g.key)));
+  $("gchips").querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.g===g.key)));
+}
+function garmentWidthCm(){
+  if(!g.key) return null;
+  const p=GARMENTS[g.key].prof;
+  if(g.flat) return g.flat/p.bund.w;
+  if(g.len)  return g.len/GARMENTS[g.key].aspect;
+  return null;
+}
+function updateFit(){
+  if(!g.key) return;
+  const G=GARMENTS[g.key], W=garmentWidthCm();
+  const gc=W?W*G.prof.huefte.w*2:null;
+  const bc=scanValues().hip ?? (live&&live.hip?ellipse(live.hip,live.hip/1.4):null);
+  $("f-gc").textContent=gc!=null?fmt(gc)+(g.est?" (geschätzt)":""):"–";
+  $("f-bc").textContent=bc!=null?fmt(bc):"–";
+  if(gc!=null&&bc!=null){ const e=gc-bc, c=e<0?"bad":e<3?"warn":"ok";
+    $("f-ease").innerHTML=`<span class="diff ${c}">${e>0?"+":""}${e.toFixed(1)} cm</span>`;
+  }else $("f-ease").textContent="–";
+  $("f-hem").textContent=(g.hem!=null)?(g.hem>0?fmt(g.hem):"reicht bis auf den Boden"):"–";
+}
+
+/* ---------- Ablauf ---------- */
+function setMode(n){
+  mode=n; held=false; $("hold").textContent="Halten";
+  [["cal","m-cal"],["leg","m-leg"],["top","m-top"]].forEach(([k,id])=>$(id).setAttribute("aria-pressed",String(k===mode)));
+}
+function captureCal(){
+  if(!live||live.hip==null||live.shoulder==null) return;
+  ref={hip:live.hip,shoulder:live.shoulder,shoulderN:live.shoulderN,torso:live.torso};
+  caps.cal={...live};
+  $("step-cal").classList.add("done");
+  $("v-cal").textContent=`Hüfte ${fmt(live.hip)} · Schritt ${fmt(live.inseam)}`;
+  $("m-leg").disabled=false; $("m-top").disabled=false;
+  phase="side"; hist.length=0; stableSince=0;
+  beep(1040,180); setTimeout(()=>beep(1320,220),190);
+  cue("Gescannt. Dreh dich jetzt zur Seite, Arme vor der Brust.",true);
+  coach("Dreh dich zur Seite","Arme vor der Brust","warn",true);
+}
+function captureSide(){
+  if(!live) return;
+  caps.side={...live};
+  $("step-side").classList.add("done");
+  $("v-side").textContent=`Tiefe Hüfte ${fmt(live.hip)}`;
+  phase="near"; setMode("leg"); hist.length=0; stableSince=0;
+  beep(1320,200); setTimeout(()=>beep(1660,280),210);
+  cue("Fertig. Du kannst jetzt näher kommen.",true);
+  coach("Fertig","","ok",true);
+  setTimeout(()=>coach("","",null,true),2500);
+  $("nearHint").hidden=false; setTimeout(()=>{ $("nearHint").hidden=true; },10000);
+  buildResult();
+}
+function buildResult(){
+  const c=caps.cal,s=caps.side; if(!c) return;
+  $("resultCard").hidden=false;
+  if(c.waist!=null&&s&&s.waist!=null) $("o-waist").textContent=fmt(ellipse(c.waist,s.waist));
+  if(c.hip!=null&&s&&s.hip!=null) $("o-hip").textContent=fmt(ellipse(c.hip,s.hip));
+  if(s){ $("compareCard").hidden=false; renderDiff(); }
+}
+const scanValues=()=>{const c=caps.cal,s=caps.side;return{
+  waist:(c&&s&&c.waist!=null&&s.waist!=null)?ellipse(c.waist,s.waist):null,
+  hip:(c&&s&&c.hip!=null&&s.hip!=null)?ellipse(c.hip,s.hip):null,
+  inseam:c?c.inseam:null};};
+function renderDiff(){
+  const v=scanValues();
+  const rows=[["Taille",v.waist,parseFloat($("t-waist").value)],["Hüfte",v.hip,parseFloat($("t-hip").value)],["Schrittlänge",v.inseam,parseFloat($("t-inseam").value)]];
+  $("diffBody").innerHTML=rows.map(([n,sc,tp])=>{
+    let d="–";
+    if(sc!=null&&isFinite(tp)){ const x=sc-tp,a=Math.abs(x);
+      d=`<span class="diff ${a<=3?"ok":a<=6?"warn":"bad"}">${x>0?"+":""}${x.toFixed(1)} cm</span>`; }
+    return `<tr><td>${n}</td><td>${sc!=null?sc.toFixed(1):"–"}</td><td>${isFinite(tp)?tp.toFixed(1):"–"}</td><td>${d}</td></tr>`;
+  }).join("");
+}
+
+const loadSeries=()=>{try{return JSON.parse(localStorage.getItem(STORE)||"[]");}catch(_){return[];}};
+const saveSeries=a=>{try{localStorage.setItem(STORE,JSON.stringify(a));}catch(_){}};
+function renderSeries(){
+  const rows=loadSeries();
+  $("seriesCard").hidden=rows.length===0;
+  $("seriesBody").innerHTML=rows.map(r=>`<tr><td>${r.person||"–"}</td><td>${r.height}</td><td>${r.scanWaist??"–"} / ${r.tapeWaist??"–"}</td><td>${r.scanHip??"–"} / ${r.tapeHip??"–"}</td><td>${r.scanInseam??"–"} / ${r.tapeInseam??"–"}</td></tr>`).join("");
+  const d=[];
+  rows.forEach(r=>[["scanWaist","tapeWaist"],["scanHip","tapeHip"],["scanInseam","tapeInseam"]].forEach(([a,b])=>{ if(r[a]!=null&&r[b]!=null) d.push(Math.abs(r[a]-r[b])); }));
+  $("verdict").textContent=d.length
+    ? `${rows.length} Messungen, ${d.length} Vergleichswerte. Mittlere Abweichung ${(d.reduce((x,y)=>x+y,0)/d.length).toFixed(1)} cm, größte ${Math.max(...d).toFixed(1)} cm. Abbruchkriterium war ±3 cm.`
+    : "Noch keine Vergleichswerte eingetragen.";
+}
+
+/* ---------- Ereignisse ---------- */
+$("start").addEventListener("click",startCamera);
+function setClean(on){
+  clean=on; stage.classList.toggle("clean",on);
+  $("cleanHint").hidden=!on; if(on) setTimeout(()=>{ $("cleanHint").hidden=true; },2500);
+}
+$("clean").addEventListener("click",e=>{ e.stopPropagation(); setClean(true); });
+stage.addEventListener("click",e=>{
+  if(clean){ setClean(false); return; }
+  if(e.target.closest("button")) return; cue(spoken||"Stell dich ins Bild",true); });
+$("flip").addEventListener("click",async()=>{
+  facing=facing==="user"?"environment":"user";
+  try{ await openStream(); clearSm(); }catch(e){ showError("Kamerawechsel fehlgeschlagen: "+e.message); }
+});
+$("full").addEventListener("click",()=>{
+  const on=stage.classList.toggle("full");
+  document.body.classList.toggle("locked",on);
+  $("full").innerHTML=on?'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 11h-6V5"/><path d="M13 11l7-7"/><path d="M5 13h6v6"/><path d="M11 13l-7 7"/></svg>':'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-7 7"/><path d="M10 20H4v-6"/><path d="M4 20l7-7"/></svg>'; $("full").setAttribute("aria-label",on?"Vollbild beenden":"Vollbild");
+  if(on&&stage.requestFullscreen) stage.requestFullscreen().catch(()=>{});
+  else if(!on&&document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+});
+$("hold").addEventListener("click",()=>{ held=!held; $("hold").textContent=held?"Weiter":"Halten"; });
+$("m-cal").addEventListener("click",()=>{ setMode("cal"); phase="cal"; clearSm(); });
+$("m-leg").addEventListener("click",()=>setMode("leg"));
+$("m-top").addEventListener("click",()=>setMode("top"));
+$("reset").addEventListener("click",()=>{
+  caps.cal=caps.side=null; ref=null; held=false; phase="cal"; clearSm(); setMode("cal");
+  ["step-cal","step-side"].forEach(i=>$(i).classList.remove("done"));
+  $("v-cal").textContent=$("v-side").textContent="offen";
+  $("m-leg").disabled=$("m-top").disabled=true;
+  $("resultCard").hidden=$("compareCard").hidden=true;
+  coach("","",null,true);
+});
+// Bundweite lässt sich jederzeit nachtragen: die ausgewählte Hose wird sofort neu skaliert
+$("g-waist").addEventListener("input",()=>{
+  if(!g.key) return;
+  const v=parseFloat($("g-waist").value), G=GARMENTS[g.key];
+  G.waist=isFinite(v)&&v>=10?v:null; g.flat=G.waist||G.estFlat; g.est=!G.waist; updateFit(); saveOwn(); buildPicker(); markGarment();
+});
+$("own-del").addEventListener("click",()=>{
+  if(!g.key) return;
+  delete GARMENTS[g.key]; clearGarment(); buildPicker(); saveOwn();
+  $("own-msg").textContent="Hose gelöscht.";
+});
+$("g-clear").addEventListener("click",clearGarment);
+$("g-off").addEventListener("input",e=>{ g.off=+e.target.value; $("g-offv").textContent=(g.off>0?"+":"")+g.off+" cm"; updateFit(); });
+$("g-opa").addEventListener("input",e=>{ g.opa=+e.target.value/100; $("g-opav").textContent=e.target.value+" %"; });
+["t-waist","t-hip","t-inseam"].forEach(id=>$(id).addEventListener("input",renderDiff));
+$("save").addEventListener("click",()=>{
+  const v=scanValues(), n=x=>isFinite(x)?+x.toFixed(1):null, rows=loadSeries();
+  rows.push({person:$("person").value.trim(),height:parseFloat($("height").value),
+    scanWaist:n(v.waist),tapeWaist:n(parseFloat($("t-waist").value)),
+    scanHip:n(v.hip),tapeHip:n(parseFloat($("t-hip").value)),
+    scanInseam:n(v.inseam),tapeInseam:n(parseFloat($("t-inseam").value))});
+  saveSeries(rows); renderSeries();
+});
+$("copy").addEventListener("click",async()=>{
+  const csv=["Person;Groesse;Taille_Scan;Taille_Band;Huefte_Scan;Huefte_Band;Schritt_Scan;Schritt_Band"]
+    .concat(loadSeries().map(r=>[r.person,r.height,r.scanWaist,r.tapeWaist,r.scanHip,r.tapeHip,r.scanInseam,r.tapeInseam].join(";"))).join("\n");
+  try{ await navigator.clipboard.writeText(csv); $("copy").textContent="Kopiert"; }
+  catch(_){ $("copy").textContent="Kopieren nicht erlaubt"; }
+  setTimeout(()=>$("copy").textContent="Als CSV kopieren",1800);
+});
+$("clear").addEventListener("click",()=>{ saveSeries([]); renderSeries(); });
+/* Eigene Hose: erzeugen, Umriss zur Kontrolle zeigen, im Gerät merken */
+$("own-go").addEventListener("click",async()=>{
+  const f=$("own-front").files[0], b=$("own-back").files[0], msg=$("own-msg");
+  if(!f){ msg.textContent="Bitte zuerst das Foto der Vorderseite wählen."; return; }
+  msg.textContent="Modell wird berechnet …"; const t0=performance.now();
+  try{
+    const {G,info}=await buildGarment(f,b,t=>{ msg.textContent=t; });
+    const waist=parseFloat($("own-waist").value);
+    G.waist=isFinite(waist)&&waist>=10?waist:null;
+    G.label=($("own-name").value||"").trim()||("Hose "+(Object.keys(GARMENTS).length+1));
+    const pv=$("own-prev"), px=pv.getContext("2d"); pv.hidden=false;
+    px.fillStyle="#1b1e22"; px.fillRect(0,0,320,320);
+    const im=new Image(); im.onload=()=>{ px.drawImage(im,0,0,320,320);
+      px.strokeStyle="rgba(229,180,73,.9)"; px.lineWidth=1;
+      [G.m3.f,G.m3.b].forEach((uv,k)=>uv.forEach((r,i)=>{ if(i%3) return; const y=(k&&G.m3.tvb?G.m3.tvb:G.m3.tv)[i]*320;
+        px.beginPath(); px.moveTo(r[0]*320,y); px.lineTo(r[1]*320,y); px.moveTo(r[2]*320,y); px.lineTo(r[3]*320,y); px.stroke(); })); };
+    im.src=G.m3.atlas;
+    const saved=addOwnGarment(G);
+    const cmH=(G.waist||G.estFlat)/G.m3.wf;
+    msg.textContent=`Fertig in ${((performance.now()-t0)/1000).toFixed(1)} s. Länge ${cmH.toFixed(0)} cm, Leibhöhe ${(G.m3.vc*cmH).toFixed(0)} cm`
+      +(G.waist?"":" (Bund geschätzt, bitte nachtragen)")+(info.hasBack?"":". Ohne Rückenfoto: Rückseite ist die gespiegelte Vorderseite")
+      +(info.split?"":". Schritt nicht erkannt, Standardwert benutzt")+". Die Linien zeigen den erkannten Umriss."
+      +(saved?"":" Speicher im Gerät voll: diese Hose ist nach dem Neuladen weg.");
+    $("own-name").value=""; $("own-waist").value="";
+  }catch(e){ msg.textContent=e&&e.message?e.message:"Das hat nicht geklappt."; }
+});
+loadOwn();
+buildPicker(); renderSeries();
+</script>
+</body>
+</html>

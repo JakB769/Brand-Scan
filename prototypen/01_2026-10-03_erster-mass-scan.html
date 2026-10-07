@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maß-Scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: Kamerabild als Hauptfläche, Vollbild per Klasse. Steuerung liegt im Bild.
+   Farbwelt: Indigo-Denim als Grund, Kreideweiß für Messlinien, Messing als Akzent. */
+:root{
+  --ground:#0c1119;
+  --surface:#131c28;
+  --surface-2:#1a2534;
+  --line:#243245;
+  --chalk:#eef3f8;
+  --chalk-dim:#8a9db5;
+  --chalk-faint:#5d7191;
+  --brass:#d49a3f;
+  --ok:#5ec48a;
+  --warn:#dfb152;
+  --bad:#e06a60;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ground); color:var(--chalk);
+  font-family:var(--sans); font-size:15px; line-height:1.5;
+  padding:0 16px; padding-block:22px 48px;
+}
+body.locked{overflow:hidden}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+header{display:flex;flex-direction:column;gap:5px}
+h1{font-size:clamp(26px,6vw,34px);font-weight:800;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.sub{color:var(--chalk-dim);font-size:14px;margin:0;max-width:52ch}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:13px}
+.card h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--chalk-dim);margin:0}
+
+label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--chalk-dim);min-width:0}
+input[type=number],input[type=text]{
+  background:var(--surface-2);border:1px solid var(--line);border-radius:7px;color:var(--chalk);
+  font-family:var(--mono);font-size:16px;padding:10px 11px;width:100%;font-variant-numeric:tabular-nums;
+}
+input:focus-visible,button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>*{flex:1 1 140px;min-width:0}
+
+button{
+  font-family:var(--sans);font-size:15px;font-weight:600;border-radius:7px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--chalk);
+  padding:11px 16px;cursor:pointer;min-height:44px;
+}
+button:hover:not(:disabled){border-color:var(--brass)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--brass);border-color:var(--brass);color:#1a1205}
+button.primary:hover:not(:disabled){filter:brightness(1.08)}
+
+/* ---- Bühne ---- */
+.stage{
+  position:relative;width:100%;aspect-ratio:3/4;max-height:74vh;
+  background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+}
+.stage.full{
+  position:fixed;inset:0;width:100vw;height:100dvh;
+  max-height:none;aspect-ratio:auto;border:none;border-radius:0;z-index:900;
+}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.stage.mirror video,.stage.mirror canvas{transform:scaleX(-1)}
+.stage .placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--chalk-dim);font-size:14px}
+
+/* Steuerung im Bild */
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between}
+.hud>*{pointer-events:auto}
+.hud-top{
+  display:flex;gap:8px;align-items:flex-start;justify-content:space-between;
+  padding:10px;padding-top:calc(10px + env(safe-area-inset-top,0px));
+}
+.pill{
+  background:rgba(12,17,25,.82);border:1px solid var(--line);border-radius:999px;
+  padding:7px 12px;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:8px;
+  backdrop-filter:blur(8px);max-width:72%;
+}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--chalk-dim);flex:none}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+.iconbtn{
+  background:rgba(12,17,25,.82);border:1px solid var(--line);color:var(--chalk);
+  border-radius:999px;min-height:40px;padding:8px 13px;font-size:13px;backdrop-filter:blur(8px);
+}
+.hud-bottom{
+  display:flex;flex-direction:column;gap:9px;
+  padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,rgba(12,17,25,.9),rgba(12,17,25,0));
+}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{
+  background:rgba(12,17,25,.8);border:1px solid var(--line);color:var(--chalk-dim);
+  border-radius:999px;padding:8px 13px;font-size:13px;min-height:40px;font-weight:500;
+}
+.chip[aria-pressed=true]{background:var(--brass);border-color:var(--brass);color:#1a1205;font-weight:600}
+.chip:disabled{opacity:.35}
+.hud-read{
+  display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;
+  color:var(--chalk);background:rgba(12,17,25,.8);border:1px solid var(--line);
+  border-radius:8px;padding:8px 11px;backdrop-filter:blur(8px);
+}
+.hud-read span{white-space:nowrap;font-variant-numeric:tabular-nums}
+.hud-read b{color:var(--brass);font-weight:500}
+
+.readout{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:14px}
+.readout dt{color:var(--chalk-dim);min-width:0}
+.readout dd{margin:0;font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+
+.steps{display:flex;gap:8px;flex-wrap:wrap}
+.step{flex:1 1 150px;min-width:0;border:1px solid var(--line);border-radius:7px;padding:10px 12px;background:var(--surface-2);display:flex;flex-direction:column;gap:3px}
+.step.done{border-color:var(--ok)}
+.step .n{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--brass)}
+.step .t{font-size:13.5px;font-weight:600}
+.step .v{font-family:var(--mono);font-size:12px;color:var(--chalk-dim);font-variant-numeric:tabular-nums}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:right;padding:7px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--chalk-dim);font-weight:500;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase}
+td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.diff.ok{color:var(--ok)}.diff.warn{color:var(--warn)}.diff.bad{color:var(--bad)}
+
+.hint{font-size:13px;color:var(--chalk-dim);margin:0}
+.hint strong{color:var(--chalk);font-weight:600}
+ul.tips{margin:0;padding-left:18px;color:var(--chalk-dim);font-size:13px;display:flex;flex-direction:column;gap:4px}
+.err{background:#2a1512;border:1px solid var(--bad);color:#f3c4bf;border-radius:7px;padding:11px;font-size:13px;font-family:var(--mono)}
+footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">Prototyp · Experiment 1</span>
+    <h1>Maß-Scan</h1>
+    <p class="sub">Einmal ganz ins Bild stellen und kalibrieren. Danach näher rangehen und nur den Teil messen, um den es geht.</p>
+  </header>
+
+  <div id="error" class="err" hidden></div>
+
+  <section class="card">
+    <h2>1 · Person</h2>
+    <div class="row">
+      <label>Größe in cm<input type="number" id="height" min="120" max="230" step="0.5" placeholder="z. B. 178" inputmode="decimal"></label>
+      <label>Name oder Kürzel<input type="text" id="person" placeholder="z. B. Flo"></label>
+    </div>
+    <div class="row">
+      <button id="start" class="primary">Kamera starten</button>
+    </div>
+    <p class="hint">Die Größe ist der Maßstab für die Kalibrierung. <strong>Ohne Schuhe messen.</strong></p>
+  </section>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="overlay"></canvas>
+    <div class="placeholder" id="placeholder">Kamera noch nicht gestartet</div>
+    <div class="hud" id="hud" hidden>
+      <div class="hud-top">
+        <div class="pill"><span class="dot" id="dot"></span><span id="statusText">Bereit</span></div>
+        <div style="display:flex;gap:7px;flex:none">
+          <button class="iconbtn" id="flip" title="Kamera wechseln">Kamera</button>
+          <button class="iconbtn" id="full" title="Vollbild">Vollbild</button>
+        </div>
+      </div>
+      <div class="hud-bottom">
+        <div class="hud-read" id="hudRead"></div>
+        <div class="chips">
+          <button class="chip" id="m-cal" aria-pressed="true">Kalibrieren</button>
+          <button class="chip" id="m-leg" aria-pressed="false" disabled>Hose</button>
+          <button class="chip" id="m-top" aria-pressed="false" disabled>Oberteil</button>
+          <button class="chip" id="hold" style="margin-left:auto">Messwert halten</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="card">
+    <h2>2 · Messwerte</h2>
+    <dl class="readout">
+      <dt>Maßstab</dt><dd id="r-scale">–</dd>
+      <dt>Schulterbreite</dt><dd id="r-shoulder">–</dd>
+      <dt>Taillenbreite</dt><dd id="r-waist">–</dd>
+      <dt>Hüftbreite</dt><dd id="r-hip">–</dd>
+      <dt>Oberschenkel, links / rechts</dt><dd id="r-thigh">–</dd>
+      <dt>Knie, links / rechts</dt><dd id="r-knee">–</dd>
+      <dt>Schrittlänge, Schritt bis Boden</dt><dd id="r-inseam">–</dd>
+      <dt>Hüfte bis Boden</dt><dd id="r-leg">–</dd>
+    </dl>
+    <div class="steps">
+      <div class="step" id="step-cal"><span class="n">SCHRITT 1</span><span class="t">Kalibrierung</span><span class="v" id="v-cal">offen</span></div>
+      <div class="step" id="step-side"><span class="n">SCHRITT 2</span><span class="t">Seitlich, für Umfänge</span><span class="v" id="v-side">offen</span></div>
+    </div>
+    <div class="row">
+      <button id="capCal" disabled>Kalibrierung festhalten</button>
+      <button id="capSide" disabled>Seite erfassen</button>
+      <button id="reset" disabled>Zurücksetzen</button>
+    </div>
+    <ul class="tips">
+      <li><strong>Kalibrieren:</strong> ganzer Körper im Bild, Kopf und Füße mit etwas Luft am Rand.</li>
+      <li><strong>Füße etwa 20 cm auseinander</strong>, sonst findet die Seite den Schritt nicht.</li>
+      <li>Arme leicht vom Körper weg, sonst zählt der Arm zur Hüftbreite.</li>
+      <li>Handy aufstellen, etwa auf Hüfthöhe, nicht schräg von oben.</li>
+      <li>Nach dem Kalibrieren kannst du näher rangehen und auf „Hose" oder „Oberteil" wechseln.</li>
+    </ul>
+  </section>
+
+  <section class="card" id="resultCard" hidden>
+    <h2>3 · Umfänge</h2>
+    <dl class="readout">
+      <dt>Taille, Umfang geschätzt</dt><dd id="o-waist">–</dd>
+      <dt>Hüfte, Umfang geschätzt</dt><dd id="o-hip">–</dd>
+    </dl>
+    <p class="hint">Aus Breite (frontal) und Tiefe (seitlich) als Ellipse genähert. Schätzung, kein Maßband.</p>
+  </section>
+
+  <section class="card" id="compareCard" hidden>
+    <h2>4 · Gegen das Maßband prüfen</h2>
+    <div class="row">
+      <label>Taille gemessen, cm<input type="number" id="t-waist" step="0.5" inputmode="decimal"></label>
+      <label>Hüfte gemessen, cm<input type="number" id="t-hip" step="0.5" inputmode="decimal"></label>
+      <label>Schrittlänge gemessen, cm<input type="number" id="t-inseam" step="0.5" inputmode="decimal"></label>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Maß</th><th>Scan</th><th>Band</th><th>Abweichung</th></tr></thead>
+        <tbody id="diffBody"></tbody>
+      </table>
+    </div>
+    <button id="save">Messung zur Testreihe hinzufügen</button>
+  </section>
+
+  <section class="card" id="seriesCard" hidden>
+    <h2>Testreihe</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Person</th><th>Größe</th><th>Taille S/B</th><th>Hüfte S/B</th><th>Schritt S/B</th></tr></thead>
+        <tbody id="seriesBody"></tbody>
+      </table>
+    </div>
+    <p class="hint" id="verdict"></p>
+    <div class="row">
+      <button id="copy">Als CSV kopieren</button>
+      <button id="clear">Testreihe löschen</button>
+    </div>
+  </section>
+
+  <footer>Alles läuft im Browser. Es wird kein Bild und kein Video gesendet. Die Testreihe liegt nur in diesem Browser.</footer>
+</div>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs";
+
+const $ = id => document.getElementById(id);
+const video=$("video"), cv=$("overlay"), ctx=cv.getContext("2d"), stage=$("stage");
+
+let landmarker=null, stream=null, running=false, starting=false;
+let facing="environment", lastTime=-1, held=false;
+let mode="cal";                 // cal | leg | top
+let live=null;
+let ref=null;                   // Kalibrierung: bekannte Maße in cm als Lineal
+const caps={cal:null, side:null};
+const buf={};
+const STORE="massScanSerie";
+
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const median=a=>{const s=[...a].sort((x,y)=>x-y);return s[Math.floor(s.length/2)];};
+function push(k,v){ if(v==null||!isFinite(v)) return null;
+  (buf[k] ||= []).push(v); if(buf[k].length>9) buf[k].shift(); return median(buf[k]); }
+function resetBuf(){ for(const k in buf) delete buf[k]; }
+const fmt=(v,u="cm")=>v==null||!isFinite(v)?"–":v.toFixed(1)+" "+u;
+const ellipse=(w,d)=>{const a=w/2,b=d/2;return Math.PI*(3*(a+b)-Math.sqrt((3*a+b)*(a+3*b)));};
+function showError(m){ $("error").hidden=false; $("error").textContent=m; }
+function setStatus(t,k){ $("statusText").textContent=t; $("dot").className="dot"+(k?" "+k:""); }
+
+/* ---------- Modell ---------- */
+async function loadModel(){
+  setStatus("Modell wird geladen …");
+  const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
+  const opts={baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",delegate:"GPU"},
+    runningMode:"VIDEO",numPoses:1,outputSegmentationMasks:true};
+  try{ landmarker=await PoseLandmarker.createFromOptions(vision,opts); }
+  catch(_){ opts.baseOptions.delegate="CPU"; landmarker=await PoseLandmarker.createFromOptions(vision,opts); }
+}
+
+/* ---------- Kamera ---------- */
+async function openStream(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},audio:false});
+  video.srcObject=stream;
+  await video.play();
+  stage.classList.toggle("mirror", facing==="user");
+}
+async function startCamera(){
+  if(starting) return;
+  const h=parseFloat($("height").value);
+  if(!(h>=120&&h<=230)){ showError("Bitte zuerst eine Körpergröße zwischen 120 und 230 cm eintragen."); return; }
+  starting=true; $("error").hidden=true; $("start").disabled=true;
+  try{
+    if(!landmarker) await loadModel();
+    setStatus("Kamera wird geöffnet …");
+    await openStream();
+  }catch(e){
+    showError("Start fehlgeschlagen: "+e.message+" — die Seite muss über https:// laufen und die Kamera muss erlaubt sein.");
+    $("start").disabled=false; starting=false; return;
+  }
+  $("placeholder").hidden=true; $("hud").hidden=false;
+  $("reset").disabled=false; $("start").textContent="Kamera neu starten"; $("start").disabled=false;
+  starting=false;
+  if(!running){ running=true; requestAnimationFrame(loop); }
+}
+
+/* ---------- Maske ---------- */
+function maskBounds(d,w,h){
+  const sx=Math.max(1,Math.floor(w/150)); let top=-1,bot=-1;
+  for(let y=0;y<h&&top<0;y++){const r=y*w;for(let x=0;x<w;x+=sx){if(d[r+x]>0.5){top=y;break;}}}
+  for(let y=h-1;y>=0&&bot<0;y--){const r=y*w;for(let x=0;x<w;x+=sx){if(d[r+x]>0.5){bot=y;break;}}}
+  return top<0?null:{top:top/h,bottom:bot/h};
+}
+// alle zusammenhängenden Abschnitte einer Zeile, damit linkes und rechtes Bein getrennt bleiben
+function runsAt(m,ny,minW=0.012){
+  const y=clamp(Math.round(ny*m.h),0,m.h-1), r=y*m.w, out=[]; let s=-1;
+  for(let x=0;x<m.w;x++){
+    const on=m.d[r+x]>0.5;
+    if(on&&s<0) s=x;
+    if((!on||x===m.w-1)&&s>=0){
+      const e=on?x:x-1;
+      if((e-s)/m.w>=minW) out.push({l:s/m.w,r:e/m.w,w:(e-s)/m.w,c:(s+e)/2/m.w});
+      s=-1;
+    }
+  }
+  return out;
+}
+const spanAt=(m,ny)=>{const r=runsAt(m,ny); if(!r.length) return null;
+  const l=Math.min(...r.map(x=>x.l)), rr=Math.max(...r.map(x=>x.r)); return {l,r:rr,w:rr-l};};
+const runNear=(m,ny,cx)=>{const r=runsAt(m,ny); if(!r.length) return null;
+  return r.reduce((a,b)=>Math.abs(b.c-cx)<Math.abs(a.c-cx)?b:a);};
+// Schritt: erste Höhe unter der Hüfte, auf der die Silhouette in zwei Beine zerfällt
+function findCrotch(m,hipY,kneeY){
+  for(let i=0;i<=44;i++){
+    const ny=hipY+(kneeY-hipY)*(i/44);
+    if(runsAt(m,ny,0.02).length>=2) return ny;
+  }
+  return null;
+}
+
+/* ---------- Schleife ---------- */
+function loop(){
+  if(!running) return;
+  if(video.videoWidth && video.currentTime!==lastTime){
+    lastTime=video.currentTime;
+    let res=null;
+    try{ res=landmarker.detectForVideo(video,performance.now()); analyse(res); }
+    catch(_){ setStatus("Fehler bei der Erkennung","bad"); }
+    finally{ try{ res&&res.close&&res.close(); }catch(_){} }
+  }
+  requestAnimationFrame(loop);
+}
+
+function analyse(res){
+  const vw=video.videoWidth, vh=video.videoHeight;
+  if(cv.width!==vw){ cv.width=vw; cv.height=vh; }
+  ctx.clearRect(0,0,vw,vh);
+
+  const L=res.landmarks&&res.landmarks[0];
+  if(!L){ setStatus("Keine Person erkannt","bad"); return; }
+
+  let m=null, bounds=null;
+  const mk=res.segmentationMasks&&res.segmentationMasks[0];
+  if(mk){ m={d:mk.getAsFloat32Array(),w:mk.width,h:mk.height}; bounds=maskBounds(m.d,m.w,m.h); }
+  if(!m){ setStatus("Silhouette fehlt","warn"); return; }
+
+  const aspect=vw/vh;
+  const hipY=(L[23].y+L[24].y)/2, shY=(L[11].y+L[12].y)/2;
+  const kneeY=(L[25].y+L[26].y)/2, ankY=(L[27].y+L[28].y)/2;
+  const waistY=hipY-0.28*(hipY-shY);
+
+  const hipBand=spanAt(m,hipY), waistBand=spanAt(m,waistY);
+  const shoulderN=Math.abs(L[11].x-L[12].x);
+
+  /* Maßstab: beim Kalibrieren aus der Körpergröße, danach aus einem bekannten Körpermaß */
+  let cmPerUnit=null, scaleSrc="";
+  if(mode==="cal"){
+    if(!bounds){ setStatus("Silhouette unvollständig","warn"); return; }
+    const span=bounds.bottom-bounds.top;
+    if(!(span>0.1)){ setStatus("Person zu klein im Bild","warn"); return; }
+    cmPerUnit=parseFloat($("height").value)/span; scaleSrc="Körpergröße";
+  }else if(ref){
+    if(mode==="leg"&&hipBand&&hipBand.w>0.02){ cmPerUnit=ref.hip/(hipBand.w*aspect); scaleSrc="Hüftbreite"; }
+    else if(shoulderN>0.02){ cmPerUnit=ref.shoulder/(shoulderN*aspect); scaleSrc="Schulterbreite"; }
+  }
+  if(!cmPerUnit){ setStatus("Referenz nicht sichtbar","warn"); return; }
+
+  const toCm=n=>n*aspect*cmPerUnit;
+  const crotchY=findCrotch(m,hipY,kneeY);
+  const thighY=crotchY!=null?crotchY+0.35*(kneeY-crotchY):null;
+  const thighL=thighY!=null?runNear(m,thighY,L[25].x):null;
+  const thighR=thighY!=null?runNear(m,thighY,L[26].x):null;
+  const kneeL=runNear(m,kneeY,L[25].x), kneeR=runNear(m,kneeY,L[26].x);
+
+  const s=held?live:{
+    cmPerUnit, scaleSrc,
+    shoulder:push("shoulder",toCm(shoulderN)),
+    waist:waistBand?push("waist",toCm(waistBand.w)):null,
+    hip:hipBand?push("hip",toCm(hipBand.w)):null,
+    thighL:thighL?push("thighL",toCm(thighL.w)):null,
+    thighR:thighR?push("thighR",toCm(thighR.w)):null,
+    kneeL:kneeL?push("kneeL",toCm(kneeL.w)):null,
+    kneeR:kneeR?push("kneeR",toCm(kneeR.w)):null,
+    inseam:(crotchY!=null&&bounds)?push("inseam",(bounds.bottom-crotchY)*cmPerUnit):null,
+    leg:bounds?push("leg",(bounds.bottom-hipY)*cmPerUnit):null
+  };
+  if(!held) live=s;
+
+  /* Qualität */
+  const vis=Math.min(L[23].visibility??1,L[24].visibility??1);
+  const sb=buf.hip||buf.shoulder||[];
+  const spread=sb.length>5?(Math.max(...sb)-Math.min(...sb))/median(sb):1;
+  const turned=ref&&hipBand?Math.abs((toCm(hipBand.w)/ref.hip)-1)>0.22:false;
+  let ok=false;
+
+  if(held) setStatus("Messwert eingefroren","ok");
+  else if(mode==="cal"&&bounds&&(bounds.top<0.015||bounds.bottom>0.985)) setStatus("Körper angeschnitten — weiter weg","warn");
+  else if(vis<0.6) setStatus("Hüfte schlecht sichtbar","warn");
+  else if(turned) setStatus("Zur Kamera drehen — Maßstab unsicher","warn");
+  else if(crotchY==null&&mode!=="top") setStatus("Schritt nicht gefunden — Füße weiter auseinander","warn");
+  else if(spread>0.035) setStatus("Noch in Bewegung — kurz still stehen","warn");
+  else { setStatus(mode==="cal"?"Stabil — Kalibrierung möglich":"Stabil","ok"); ok=true; }
+
+  $("capCal").disabled=!(ok&&mode==="cal");
+  $("capSide").disabled=!(ok&&!!ref);
+
+  draw(L,m,bounds,{hipY,waistY,kneeY,ankY,crotchY,thighY},{hipBand,waistBand,thighL,thighR,kneeL,kneeR},cmPerUnit,vw,vh);
+  render(s);
+}
+
+function render(s){
+  $("r-scale").textContent    = s.cmPerUnit?`${s.scaleSrc}`:"–";
+  $("r-shoulder").textContent = fmt(s.shoulder);
+  $("r-waist").textContent    = fmt(s.waist);
+  $("r-hip").textContent      = fmt(s.hip);
+  $("r-thigh").textContent    = (s.thighL||s.thighR)?`${fmt(s.thighL,"")} / ${fmt(s.thighR)}`:"–";
+  $("r-knee").textContent     = (s.kneeL||s.kneeR)?`${fmt(s.kneeL,"")} / ${fmt(s.kneeR)}`:"–";
+  $("r-inseam").textContent   = fmt(s.inseam);
+  $("r-leg").textContent      = fmt(s.leg);
+  const pick = mode==="top"
+    ? [["Schulter",s.shoulder],["Taille",s.waist],["Hüfte",s.hip]]
+    : [["Hüfte",s.hip],["Schritt",s.inseam],["Oberschenkel",s.thighL]];
+  $("hudRead").innerHTML = pick.map(([k,v])=>`<span><b>${k}</b> ${v!=null?v.toFixed(1):"–"}</span>`).join("");
+}
+
+/* ---------- Zeichnen ---------- */
+function draw(L,m,b,ys,bands,cmPerUnit,vw,vh){
+  const X=n=>n*vw, Y=n=>n*vh;
+  const chalk="#eef3f8", brass="#d49a3f";
+  ctx.font=`${Math.round(vw/54)}px "IBM Plex Mono", monospace`;
+  ctx.textBaseline="middle";
+
+  if(b&&mode==="cal"){
+    const tapeX=vw*0.05;
+    ctx.strokeStyle="rgba(238,243,248,.4)"; ctx.lineWidth=Math.max(1.5,vw/700);
+    ctx.beginPath(); ctx.moveTo(tapeX,Y(b.top)); ctx.lineTo(tapeX,Y(b.bottom)); ctx.stroke();
+    const per10=10/cmPerUnit;
+    ctx.fillStyle="rgba(238,243,248,.55)";
+    for(let cm=0,n=b.bottom;n>=b.top;cm+=10,n-=per10){
+      const long=cm%50===0;
+      ctx.beginPath(); ctx.moveTo(tapeX,Y(n)); ctx.lineTo(tapeX+(long?vw*0.04:vw*0.02),Y(n)); ctx.stroke();
+      if(long&&cm>0) ctx.fillText(cm+"",tapeX+vw*0.05,Y(n));
+    }
+    ctx.strokeStyle=brass; ctx.lineWidth=Math.max(2,vw/460); ctx.fillStyle=brass;
+    [[b.top,"KOPF",-1],[b.bottom,"BODEN",1]].forEach(([n,t,d])=>{
+      ctx.beginPath(); ctx.moveTo(vw*0.13,Y(n)); ctx.lineTo(vw*0.93,Y(n)); ctx.stroke();
+      ctx.fillText(t,vw*0.13,Y(n)+d*vw/34);
+    });
+  }
+
+  // Messlinien aus der Silhouette
+  ctx.lineWidth=Math.max(2,vw/420); ctx.strokeStyle=chalk; ctx.fillStyle=chalk;
+  const lines=[];
+  if(mode!=="leg"){ lines.push([bands.waistBand,ys.waistY,"TAILLE"]); }
+  lines.push([bands.hipBand,ys.hipY,"HÜFTE"]);
+  if(mode!=="top"){
+    lines.push([bands.thighL,ys.thighY,""],[bands.thighR,ys.thighY,"OBERSCHENKEL"]);
+    lines.push([bands.kneeL,ys.kneeY,""],[bands.kneeR,ys.kneeY,"KNIE"]);
+  }
+  lines.forEach(([band,ny,label])=>{
+    if(!band||ny==null) return;
+    ctx.beginPath(); ctx.moveTo(X(band.l),Y(ny)); ctx.lineTo(X(band.r),Y(ny)); ctx.stroke();
+    [band.l,band.r].forEach(nx=>{ ctx.beginPath(); ctx.moveTo(X(nx),Y(ny)-vh*0.014); ctx.lineTo(X(nx),Y(ny)+vh*0.014); ctx.stroke(); });
+    if(label) ctx.fillText(label,X(band.r)+vw*0.012,Y(ny));
+  });
+
+  // Schrittlinie
+  if(ys.crotchY!=null&&mode!=="top"){
+    ctx.strokeStyle=brass; ctx.setLineDash([vw/90,vw/90]);
+    ctx.beginPath(); ctx.moveTo(vw*0.2,Y(ys.crotchY)); ctx.lineTo(vw*0.8,Y(ys.crotchY)); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle=brass;
+    ctx.fillText("SCHRITT",vw*0.2,Y(ys.crotchY)-vw/34);
+  }
+
+  // Gelenke: klein und beschriftet, damit sie nicht mit den Maßlinien verwechselt werden
+  ctx.fillStyle="rgba(212,154,63,.85)";
+  const joints = mode==="top" ? [11,12,23,24] : [23,24,25,26,27,28];
+  joints.forEach(i=>{ ctx.beginPath(); ctx.arc(X(L[i].x),Y(L[i].y),Math.max(3,vw/260),0,Math.PI*2); ctx.fill(); });
+  ctx.fillStyle="rgba(212,154,63,.75)";
+  ctx.font=`${Math.round(vw/72)}px "IBM Plex Mono", monospace`;
+  ctx.fillText("Gelenk",X(L[24].x)+vw*0.015,Y(L[24].y));
+}
+
+/* ---------- Modus ---------- */
+function setMode(next){
+  mode=next; held=false; resetBuf();
+  [["cal","m-cal"],["leg","m-leg"],["top","m-top"]].forEach(([k,id])=>$(id).setAttribute("aria-pressed",String(k===mode)));
+  $("hold").textContent="Messwert halten";
+}
+
+/* ---------- Erfassen ---------- */
+function captureCal(){
+  if(!live||live.hip==null) return;
+  ref={hip:live.hip, shoulder:live.shoulder};
+  caps.cal={...live};
+  $("step-cal").classList.add("done");
+  $("v-cal").textContent=`Hüfte ${fmt(live.hip)} · Schritt ${fmt(live.inseam)}`;
+  $("m-leg").disabled=false; $("m-top").disabled=false;
+  setStatus("Kalibriert — du kannst jetzt näher rangehen","ok");
+  buildResult();
+}
+function captureSide(){
+  if(!live) return;
+  caps.side={...live};
+  $("step-side").classList.add("done");
+  $("v-side").textContent=`Tiefe Hüfte ${fmt(live.hip)}`;
+  buildResult();
+}
+function buildResult(){
+  const c=caps.cal, s=caps.side; if(!c) return;
+  $("resultCard").hidden=false;
+  if(c.waist!=null&&s&&s.waist!=null) $("o-waist").textContent=fmt(ellipse(c.waist,s.waist));
+  if(c.hip!=null&&s&&s.hip!=null)     $("o-hip").textContent=fmt(ellipse(c.hip,s.hip));
+  if(s){ $("compareCard").hidden=false; renderDiff(); }
+}
+const scanValues=()=>{
+  const c=caps.cal,s=caps.side;
+  return {
+    waist:(c&&s&&c.waist!=null&&s.waist!=null)?ellipse(c.waist,s.waist):null,
+    hip:(c&&s&&c.hip!=null&&s.hip!=null)?ellipse(c.hip,s.hip):null,
+    inseam:c?c.inseam:null
+  };
+};
+function renderDiff(){
+  const v=scanValues();
+  const rows=[["Taille",v.waist,parseFloat($("t-waist").value)],
+              ["Hüfte",v.hip,parseFloat($("t-hip").value)],
+              ["Schrittlänge",v.inseam,parseFloat($("t-inseam").value)]];
+  $("diffBody").innerHTML=rows.map(([n,sc,tp])=>{
+    let d="–";
+    if(sc!=null&&isFinite(tp)){
+      const x=sc-tp,a=Math.abs(x);
+      d=`<span class="diff ${a<=3?"ok":a<=6?"warn":"bad"}">${x>0?"+":""}${x.toFixed(1)} cm</span>`;
+    }
+    return `<tr><td>${n}</td><td>${sc!=null?sc.toFixed(1):"–"}</td><td>${isFinite(tp)?tp.toFixed(1):"–"}</td><td>${d}</td></tr>`;
+  }).join("");
+}
+
+/* ---------- Testreihe ---------- */
+const loadSeries=()=>{try{return JSON.parse(localStorage.getItem(STORE)||"[]");}catch(_){return[];}};
+const saveSeries=a=>{try{localStorage.setItem(STORE,JSON.stringify(a));}catch(_){}};
+function renderSeries(){
+  const rows=loadSeries();
+  $("seriesCard").hidden=rows.length===0;
+  $("seriesBody").innerHTML=rows.map(r=>`<tr><td>${r.person||"–"}</td><td>${r.height}</td>
+    <td>${r.scanWaist??"–"} / ${r.tapeWaist??"–"}</td><td>${r.scanHip??"–"} / ${r.tapeHip??"–"}</td>
+    <td>${r.scanInseam??"–"} / ${r.tapeInseam??"–"}</td></tr>`).join("");
+  const devs=[];
+  rows.forEach(r=>[["scanWaist","tapeWaist"],["scanHip","tapeHip"],["scanInseam","tapeInseam"]]
+    .forEach(([a,b])=>{ if(r[a]!=null&&r[b]!=null) devs.push(Math.abs(r[a]-r[b])); }));
+  $("verdict").textContent=devs.length
+    ? `${rows.length} Messungen, ${devs.length} Vergleichswerte. Mittlere Abweichung ${(devs.reduce((x,y)=>x+y,0)/devs.length).toFixed(1)} cm, größte ${Math.max(...devs).toFixed(1)} cm. Abbruchkriterium war ±3 cm.`
+    : "Noch keine Vergleichswerte eingetragen.";
+}
+
+/* ---------- Ereignisse ---------- */
+$("start").addEventListener("click",startCamera);
+$("flip").addEventListener("click",async()=>{
+  facing=facing==="user"?"environment":"user";
+  try{ await openStream(); }catch(e){ showError("Kamerawechsel fehlgeschlagen: "+e.message); }
+});
+$("full").addEventListener("click",()=>{
+  const on=stage.classList.toggle("full");
+  document.body.classList.toggle("locked",on);
+  $("full").textContent=on?"Schließen":"Vollbild";
+  if(on&&stage.requestFullscreen) stage.requestFullscreen().catch(()=>{});
+  else if(!on&&document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+});
+$("hold").addEventListener("click",()=>{ held=!held; $("hold").textContent=held?"Weiter messen":"Messwert halten"; });
+$("m-cal").addEventListener("click",()=>setMode("cal"));
+$("m-leg").addEventListener("click",()=>setMode("leg"));
+$("m-top").addEventListener("click",()=>setMode("top"));
+$("capCal").addEventListener("click",captureCal);
+$("capSide").addEventListener("click",captureSide);
+$("reset").addEventListener("click",()=>{
+  caps.cal=caps.side=null; ref=null; held=false; resetBuf(); setMode("cal");
+  ["step-cal","step-side"].forEach(i=>$(i).classList.remove("done"));
+  $("v-cal").textContent=$("v-side").textContent="offen";
+  $("m-leg").disabled=$("m-top").disabled=true;
+  $("resultCard").hidden=$("compareCard").hidden=true;
+});
+["t-waist","t-hip","t-inseam"].forEach(id=>$(id).addEventListener("input",renderDiff));
+$("save").addEventListener("click",()=>{
+  const v=scanValues(), n=x=>isFinite(x)?+x.toFixed(1):null, rows=loadSeries();
+  rows.push({person:$("person").value.trim(),height:parseFloat($("height").value),
+    scanWaist:n(v.waist),tapeWaist:n(parseFloat($("t-waist").value)),
+    scanHip:n(v.hip),tapeHip:n(parseFloat($("t-hip").value)),
+    scanInseam:n(v.inseam),tapeInseam:n(parseFloat($("t-inseam").value))});
+  saveSeries(rows); renderSeries();
+});
+$("copy").addEventListener("click",async()=>{
+  const csv=["Person;Groesse;Taille_Scan;Taille_Band;Huefte_Scan;Huefte_Band;Schritt_Scan;Schritt_Band"]
+    .concat(loadSeries().map(r=>[r.person,r.height,r.scanWaist,r.tapeWaist,r.scanHip,r.tapeHip,r.scanInseam,r.tapeInseam].join(";"))).join("\n");
+  try{ await navigator.clipboard.writeText(csv); $("copy").textContent="Kopiert"; }
+  catch(_){ $("copy").textContent="Kopieren nicht erlaubt"; }
+  setTimeout(()=>$("copy").textContent="Als CSV kopieren",1800);
+});
+$("clear").addEventListener("click",()=>{ saveSeries([]); renderSeries(); });
+
+renderSeries();
+</script>
+</body>
+</html>
