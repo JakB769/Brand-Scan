@@ -57,7 +57,10 @@ Ablauf für den Anwender: Größe eingeben → Kamera → Frontal-Scan → Seite
 | `buildGarment`, `segGarment`, `cropGarment`, `garmentProfile` | **Generator**: zwei Fotos → Modell, komplett im Browser, etwa 0,5 s. |
 | `loadGarmentPhoto`, `garmentTurn`, `trimMask` | Foto gerade rechnen, drehen (quer/auf dem Kopf), Dünnes, das oben/unten herausragt, abschneiden. |
 | `readPhotoMeta`, `levelBySensor` | Liest aus iPhone-Fotos (JPEG und HEIC) Brennweite und Schwerkraftvektor (Apple-Herstellerdaten, Eintrag 8) und rechnet das Foto auf „senkrecht von oben“ um. Nur Hochformat, bis 40° Neigung. |
-| `findReference`, `levelByReference` | Maßstab im Foto: A4-Blatt oder Bankkarte als eigener rechteckiger Fleck. A4 richtet ohne Neigungsdaten auch gerade aus (Homographie), die Karte liefert nur den Maßstab. |
+| `photoWithReference`, `askCorners`, `refineReference`, `snapQuadToEdges` | Maßstab im Foto (A4 oder Bankkarte ID-1, 85,60 × 53,98 mm): Foto in 2400 px laden und gerade rechnen, Objekt grob suchen, im großen Bild fein vermessen, **Fenster zum Bestätigen oder Antippen der vier Ecken** (ungefähr tippen → Ecken rasten ein, Kreuze verschiebbar), Kanten von außen auf den Farbsprung einrasten. Ohne Neigungsdaten Homographie aus den vier Ecken. Warnungen: Karte verzogen (Seitenverhältnis > 6 %, Winkel > 6°), weit von der Hose, Vorder-/Rückseite > 4 % auseinander. |
+| `drawDebug3d` (Schalter „Debug-Ansicht“) | Achsen der Hose (X rot, Y grün, Z blau, Ursprung Bundmitte), Box, Maße B × H × T in cm, Neigung der Hauptachse (PCA), Tiefe jedes Gelenks. |
+| `uprightProfile` | Beim Laden: Beinspalt oben statt unten → Modell umdrehen. |
+| Knöpfe „↻ X/Y/Z 90°“, „Umdrehen“ (`G.rot`) | Notlösung pro Hose, Drehung um die Mitte der Hose. |
 | `findGaps` | Beinspalt je Zeile aus Umriss oder Farbe (heller Boden zwischen den Beinen, den die Freistellung als Hose zählt); daraus der Schritt. |
 | `normalizeProfile` | Prüft jedes Modell (neu und beim Laden): schmale Zeilen am Bund/Saum weg, neu auf 0..1 verteilen, Plausibilität (`G.bad`). |
 | `mesh3d`, `pose3d`, `draw3d` | 3D-Netz, Lage je Bild, WebGL-Darstellung in eine eigene Fläche, die dann auf das 2D-Overlay gelegt wird. |
@@ -83,7 +86,7 @@ tv, tvb  senkrechte Texturkoordinate je Zeile (vorne, hinten)
 atlas    JPEG 640×640 als Data-URI: links Vorderseite, rechts Rückseite, Rand mit Stofffarbe aufgefüllt
 ```
 
-Dazu am Kleidungsstück: `waist` (Bund flach in cm), `len` (Außenlänge in cm; das Modell ist dann vom Bund bis zum Saum genau so lang, die Beine füllen auf, was nach der Leibhöhe übrig ist), `meas` (Länge aus Maßstab im Foto), `hem` (ein Bein unten in cm, optional, korrigiert die Weite linear vom Schritt zum Saum), `estFlat` (40 cm, Notwert), `bad` (Grund, warum das Modell nicht gezeigt wird), `repaired` (beim Laden repariert).
+Dazu am Kleidungsstück: `waist` (Bund flach in cm), `len` (Außenlänge in cm, entlang der Außennaht; `m3.lo` = Außenlänge / senkrechte Länge im Foto; das Modell ist dann vom Bund bis zum Saum genau so lang, die Beine füllen auf, was nach der Leibhöhe übrig ist), `meas` (Länge aus Maßstab im Foto), `hem` (ein Bein unten in cm, optional, korrigiert die Weite linear vom Schritt zum Saum), `estFlat` (40 cm, Notwert), `bad` (Grund, warum das Modell nicht gezeigt wird), `repaired` (beim Laden repariert).
 
 Geometrie: flach gemessene Breite wird in **Umfang** umgerechnet. Über dem Schritt eine Ellipse mit Umfang 4·hw und Tiefe/Breite 0,62. Darunter je Bein ein Kreis mit Umfang 2·hw entlang der Knochenkette Hüfte→Knie→Knöchel, so weit nach außen versetzt (`off`), dass der Stoff gerade von der Hüfte fällt (vorher gab es eine Beule an der Hüfte). In den ersten 16 cm unter dem Schritt wird zwischen beidem übergeblendet. Hebt oder spreizt sich ein Bein, zieht es den Stoff oberhalb des Schritts mit (`wdev`). Untere Zeilen folgen träger (Nachschwingen), zu lange Beine stauchen sich am Knöchel.
 
@@ -114,6 +117,17 @@ Offene Punkte, nach Dringlichkeit (Stand 7.10. nachts, nach der ersten Claude-Co
 7. **Stimme**: unverändert (Auswahl der Systemstimmen). Nächster Schritt wären aufgenommene Ansagen.
 8. Alter 2D-Weg: entfernt. Ohne WebGL wird nur noch das flache Vorschaubild gezeigt.
 9. Nur Hosen mit zwei Beinen.
+12. **Hose falsch orientiert, Beinöffnungen zur Kamera** (8.10.): Ursache in `analyse()` beim Anlegen, nicht bei der Erzeugung.
+    Die Tiefe von Knie/Knöchel kam aus der Verkürzung gegenüber einer gemerkten Beinlänge in cm (von mir in der ersten Sitzung
+    eingebaut). In der Nahphase stimmt der cm-Maßstab nicht und die Füße sind aus dem Bild → Beine galten als bis 82 cm zur
+    Kamera gerichtet. Jetzt: Verkürzung gegenüber dem anderen Bein im selben Bild, Gelenke außerhalb des Bildes ohne Tiefe und
+    gerade fortgesetzt, Tiefe begrenzt. Nachgestellt in `tnah.mjs` (Attrappe kann jetzt `zoom` und `rand`). Mit echter Kamera ungeprüft.
+13. **Länge mit Bankkarte** (Fotos IMG_7267/7268, 105 cm): Vorderseite 108–109, Rückseite 106 (Ecken von Hand), beide 107 cm (+2).
+    Gefundene Ursachen unterwegs: Länge war senkrechte Ausdehnung statt Außennaht (jetzt `Hout`, entlang beider Außenkanten,
+    je Bein bis zu dessen Ende); Kartenecken auf der Rundung statt auf der gedachten Ecke; Kanten an inneren Mustern statt am Rand;
+    zweifarbige Karte auf der Rückseite nicht automatisch gefunden (grauer Teil ähnelt dem Jeansstoff). Restfehler: 1 Bildpunkt
+    an der Karte ≈ 1,3 %. **Die Originalfotos zeigen die Kartennummer und liegen NICHT im Repo**; Testkopien mit unkenntlichem
+    Karteninneren in `material/testbilder/echt/karte_*.jpg` (mit Neigungsdaten).
 11. **Länge zu kurz geschätzt (89 statt 105 cm, Fotos IMG_7264/7265)** (8.10.): Ursachen: (a) Vorderseiten-Foto ~11° schräg,
     Bund näher an der Kamera und darum ~20 % zu breit → Länge zu kurz; (b) Foto lag auf dem Kopf; (c) Säume berühren sich, die
     Lücke zwischen den Beinen wurde als Loch gefüllt, Schritt nicht gefunden; (d) helle Dielen zwischen den Beinen als Stoff erkannt.
@@ -172,6 +186,8 @@ Steuerung der Attrappe über `window.__mode`: `yaw`, `knee`, `wide`, `sway`, `zk
 | `theic.mjs` | HEIC-Umwandlung mit heic-to und heic2any |
 | `thosen.mjs` | Maßfelder live und mit ungültigen Eingaben, eigene Werte je Hose, Löschen der angezeigten Hose, Grafikspeicher frei |
 | `tblob.mjs` | Problemfotos (quer, etwas ragt heraus, Fuß) und alter Speicherstand mit Blob-Hose |
+| `tnah.mjs` | Nahphase wie mit echter Kamera (näher kommen, Füße/Knie aus dem Bild, Knie hoch), Debug-Werte, Drehknöpfe, Aufrichten beim Laden |
+| `tkarte.mjs` | Bankkarte mit den echten Fotos: automatisch, von Hand, Warnung bei verzogener Karte, Vorrang der eingetragenen Länge |
 | `tlaenge.mjs` | Länge mit A4/Bankkarte (Testbilder aus `werkzeuge/python/testmassstab.py`, echt 105 cm, gerade und 15° schräg), echte iPhone-Fotos des Nutzers, Vorrang der eingetragenen Länge |
 
 ## Vorschlag für die nächsten Schritte

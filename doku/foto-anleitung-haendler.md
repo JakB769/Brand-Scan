@@ -22,14 +22,19 @@ Schräg fotografiert erscheint das nahe Ende der Hose größer als das ferne. Sc
 
 ## Mit Maßstab im Bild (ohne Maßband)
 
-Ein **A4-Blatt** (21 × 29,7 cm) neben der Hose liefert den Maßstab und richtet das Foto auch ohne Neigungsdaten gerade aus. Eine **Bankkarte** (8,56 × 5,4 cm) geht auch, ist aber kleiner und darum etwas ungenauer (Maßstab ja, Geraderichten nein).
+Eine **Bankkarte** (Normformat ID-1: 85,60 × 53,98 mm, jede EC-, Kredit- oder Kundenkarte) oder ein **A4-Blatt** (21 × 29,7 cm) liefert den Maßstab.
 
-- Flach und vollständig sichtbar neben die Hose legen, etwa auf Höhe der Hosenmitte.
-- Mit Abstand zur Hose (nicht berühren) und mit Abstand zum Bildrand.
-- Weißes Blatt nur auf einem dunkleren oder farbigen Untergrund; auf weißem Laken ist es unsichtbar.
-- Beim Anlegen der Hose unter „Maßstab im Foto“ A4-Blatt oder Bankkarte wählen.
+So sieht das Foto aus:
+- Hose flach, Kamera möglichst senkrecht darüber, ganze Hose im Bild.
+- Karte **flach auf denselben Boden** wie die Hose, **direkt daneben** (zum Beispiel neben den Saum oder zwischen die Beine), ohne sie zu berühren, nicht am Bildrand, ganz sichtbar.
+- Kartenseite mit möglichst wenig Glanz nach oben; die Kartennummer muss nicht lesbar sein (Daumen drauf oder Rückseite nach oben ist in Ordnung, solange die vier Ecken frei sind).
+- Weißes A4-Blatt nur auf dunklerem Untergrund.
 
-Gemessen an Testbildern mit bekannter Länge (105 cm): A4-Blatt 1 % Abweichung, auch bei 15° schräg; Bankkarte 3 %.
+Ablauf in der App: unter „Maßstab im Foto“ Bankkarte oder A4 wählen. Nach dem Hochladen zeigt die App die Karte vergrößert mit vier Kreuzen an den Ecken. Liegen sie richtig, „Passt“. Sonst ungefähr auf die Karte tippen (die Ecken rasten ein) oder die Kreuze verschieben; bei runden Ecken auf den Punkt, an dem sich die Kanten treffen würden. Die gemessenen Werte stehen danach als „gemessen“ in den Feldern. Eine eingetragene Länge hat immer Vorrang.
+
+Genauigkeit: an Testbildern mit bekannter Länge 1 % (A4 und Karte); an echten iPhone-Fotos einer 105-cm-Hose 107 cm mit Vorder- und Rückseite. Eine Karte ist klein: ein Bildpunkt an ihren Ecken macht etwa 1 % aus. Darum möglichst nah fotografieren (Hose füllt das Bild) und beide Seiten mit Karte.
+
+Die App warnt, wenn die Karte verzogen wirkt (nicht flach oder Ecken falsch), weit von der Hose liegt oder Vorder- und Rückseite verschiedene Längen ergeben.
 
 ## Was die App prüft und meldet
 

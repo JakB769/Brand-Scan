@@ -5,7 +5,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0};
     const md=window.__mode, t=performance.now()/1000;
     const A=1280/720, ph=.8, top=.1, cmN=ph/180;            // 1 cm in Höhen-Einheiten
     const yaw=md.yaw, c=Math.cos(yaw), s=Math.sin(yaw), cx=.5+(md.sway?Math.sin(t*2.2)*.03:0);
-    const P=(lat,hgt,fwd=0)=>({x:cx+(lat*c+fwd*s)*cmN/A, y:top+ph-hgt*cmN, z:(md.zk==null?1:md.zk)*(lat*s-fwd*c)*cmN/A, visibility:1});
+    // zoom: Person kommt näher (Nahphase); um die Hüfte (95 cm hoch) vergrößert, Hüfte bei hueftY im Bild
+    const zm=md.zoom||1, hy0=top+ph-95*cmN, ty=zm!==1?(md.hueftY??.42):hy0;
+    const P=(lat,hgt,fwd=0)=>({x:cx+(lat*c+fwd*s)*cmN/A*zm, y:ty+(top+ph-hgt*cmN-hy0)*zm, z:(md.zk==null?1:md.zk)*(lat*s-fwd*c)*cmN/A*zm, visibility:1});
     const L=Array.from({length:33},()=>({x:cx,y:.5,z:0,visibility:1}));
     L[0]=P(0,170,8);
     L[11]=P(20,148); L[12]=P(-20,148); L[13]=P(26,118); L[14]=P(-26,118); L[15]=P(30,92); L[16]=P(-30,92);
@@ -16,9 +18,13 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0};
     if(md.zn||md.zr){ for(const [i,k] of [[25,.5],[26,.5],[27,1],[28,1],[29,1],[30,1],[31,1],[32,1]]){
       L[i]={...L[i],z:L[i].z-(md.zn||0)*k+(md.zr||0)*(Math.random()-.5)}; } }
     L[29]=P(9+md.wide*30,3,-4); L[30]=P(-9-md.wide*30,3,-4); L[31]=P(9+md.wide*30,2,14); L[32]=P(-9-md.wide*30,2,14);
+    // Gelenke außerhalb des Bildes wie bei MediaPipe: Lage geraten, Sicherheit gering (rand:'raten'),
+    // oder an den unteren Bildrand geklebt mit mittlerer Sicherheit (rand:'kleben')
+    for(let i=0;i<33;i++){ const q=L[i]; if(q.y<=1) continue;
+      L[i]=md.rand==='kleben'?{...q,y:.97+Math.random()*.02,visibility:.55}:{...q,visibility:.08}; }
     // Silhouette
     mx.fillStyle='#000'; mx.fillRect(0,0,256,144); mx.strokeStyle='#fff'; mx.fillStyle='#fff'; mx.lineCap='round';
-    const X=p=>p.x*256, Y=p=>p.y*144, W=cm=>cm*cmN*144;
+    const X=p=>p.x*256, Y=p=>p.y*144, W=cm=>cm*cmN*144*(md.zoom||1);
     const seg=(a,b,w)=>{ mx.lineWidth=W(w); mx.beginPath(); mx.moveTo(X(a),Y(a)); mx.lineTo(X(b),Y(b)); mx.stroke(); };
     const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
     const tw=Math.max(.55,Math.abs(c));

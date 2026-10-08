@@ -12,6 +12,9 @@ await p.goto('file://'+hier+'testseite-mit-simulierter-person.html'); await p.wa
 const bau=async(front,back,{waist='',len='',ref=''}={})=>{
   await p.setInputFiles('#own-front',front); await p.setInputFiles('#own-back',back?[back]:[]);
   await p.fill('#own-waist',waist); await p.fill('#own-len',len); await p.selectOption('#own-ref',ref); await p.click('#own-go');
+  // Mit Maßstab fragt die Seite nach: vorgeschlagene Ecken bestätigen (je Foto)
+  if(ref) for(let n=0;n<(back?2:1);n++){ await p.waitForSelector('#refDlg:not([hidden])',{timeout:120000}); await p.waitForTimeout(200);
+    if(!(await p.evaluate(()=>window.__refDlg.Q.length===4))) break; await p.click('#refOk'); await p.waitForTimeout(100); }
   await p.waitForFunction(()=>/Fertig|nicht|ließ/.test(document.getElementById('own-msg').textContent),null,{timeout:90000});
   const t=await p.evaluate(()=>document.getElementById('own-msg').textContent), m=t.match(/Länge (\d+) cm/);
   return {t,L:m?+m[1]:null};
