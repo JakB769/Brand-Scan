@@ -35,7 +35,7 @@ const r3=await bau(tb+'echt/vorne_IMG_7264.HEIC',tb+'echt/hinten_IMG_7265.heic',
 pruefe(r3.L===105&&/eingetragen/.test(r3.t),'Länge beim Anlegen eingetragen: '+r3.t.slice(0,90));
 await p.click('#quick'); await p.waitForTimeout(3000); await p.click('#clean'); await p.waitForTimeout(800);
 const zu=()=>p.evaluate(()=>{ const {g3,g,GARMENTS}=window.__dbg, G=GARMENTS[g.key], M=G.m3;
-  return {lenPx:g3.lastLen, ppc:g3.lastPpc, felder:['g-len','g-waist','g-hemw'].map(i=>document.getElementById(i).value), tags:['t-len','t-waist','t-hem'].map(i=>document.getElementById(i).textContent)}; });
+  return {lenPx:g3.lastLen, ppc:g3.lastPpc, felder:['g-len','g-waist','g-hemw'].map(i=>document.getElementById(i).value.replace(',','.')), tags:['tag-len','tag-waist','tag-hem'].map(i=>document.getElementById(i).textContent)}; });
 let z=await zu();
 pruefe(z.tags.join()==='manuell,geschätzt,geschätzt','Kennzeichnung: '+z.tags.join(', '));
 pruefe(Math.abs(z.lenPx/z.ppc-105)<1,`gezeichnete Länge ${(z.lenPx/z.ppc).toFixed(1)} cm bei eingetragenen 105 cm`);

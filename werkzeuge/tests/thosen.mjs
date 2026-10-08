@@ -6,7 +6,6 @@ const fotos=hier+'../../material/produktfotos/';
 const b=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
 const ctx=await b.newContext({permissions:['camera'],viewport:{width:1100,height:900}});
 const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{if(m.type()==='error'&&!/GL Driver|ERR_|Failed to load/.test(m.text()))errs.push(m.text())});
-p.on('dialog',d=>d.accept());
 let fehler=0; const pruefe=(ok,text)=>{ console.log((ok?'ok    ':'FEHLER')+' '+text); if(!ok) fehler++; };
 await p.goto('file://'+hier+'testseite-mit-simulierter-person.html'); await p.waitForTimeout(500);
 for(const [n,w] of [['Erste','40'],['Zweite','44'],['Dritte','38']]){
@@ -20,7 +19,7 @@ const form=()=>p.evaluate(()=>{ const {g3,g,GARMENTS}=window.__dbg, M=GARMENTS[g
   let lo=1e9,hi=-1e9; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const x=pt(0,NR-1,f,j)[0]; lo=Math.min(lo,x); hi=Math.max(hi,x); }
   return {len:pt(0,NR-1,0,0)[1]-pt(0,0,0,6)[1], saum:hi-lo, bund:Math.abs(pt(0,0,0,C-1)[0]-pt(1,0,0,C-1)[0]), key:g.key};
 });
-const felder=()=>p.evaluate(()=>['g-len','g-waist','g-hemw'].map(i=>document.getElementById(i).value));
+const felder=()=>p.evaluate(()=>['g-len','g-waist','g-hemw'].map(i=>document.getElementById(i).value.replace(',','.')));
 const f0=await felder(); pruefe(f0.every(v=>+v>0),'Felder vorbelegt: Länge '+f0[0]+', Bund '+f0[1]+', Saum '+f0[2]+' cm');
 const a=await form();
 // Beide Längen enden über dem Boden (bodenlange Hosen stauchen sich absichtlich am Knöchel). Länge ändert nur die Beine:
@@ -50,10 +49,18 @@ pruefe(nach[2][2]===70,'Werte bleiben nach Neuladen: '+JSON.stringify(nach));
 await p.click('#quick'); await p.waitForTimeout(2500); await p.click('#clean');
 await p.click('#gwrap .gbtn >> nth=1'); await p.waitForTimeout(1200);
 const k1=await p.evaluate(()=>window.__dbg.g.key);
-await p.click(`#gwrap .gdel[data-del="${k1}"]`); await p.waitForTimeout(1200);
+// Erster Tipp fragt nur nach, Verlassen setzt zurück; erst der zweite Tipp löscht
+await p.click(`#gwrap .gdel[data-del="${k1}"]`); await p.waitForTimeout(200);
+const frage=await p.evaluate(k=>({n:Object.keys(window.__dbg.GARMENTS).length,txt:document.querySelector(`#gwrap .gdel[data-del="${k}"]`).textContent}),k1);
+await p.focus('#own-name'); await p.waitForTimeout(100);
+const zurueck=await p.evaluate(k=>document.querySelector(`#gwrap .gdel[data-del="${k}"]`).textContent,k1);
+pruefe(frage.n===3&&frage.txt==='Löschen?'&&zurueck==='✕','Löschen fragt erst nach und lässt sich abbrechen: '+JSON.stringify(frage)+' danach '+zurueck);
+await p.click(`#gwrap .gdel[data-del="${k1}"]`); await p.click(`#gwrap .gdel[data-del="${k1}"]`); await p.waitForTimeout(1200);
+const fokus=await p.evaluate(()=>document.activeElement.className);
+pruefe(fokus.includes('gdel'),'Fokus bleibt nach dem Löschen in der Liste: '+fokus);
 const s1=await p.evaluate(()=>({key:window.__dbg.g.key,n:Object.keys(window.__dbg.GARMENTS).length,g3:window.__dbg.g3.key,liste:document.querySelectorAll('#gwrap .gitem').length,chips:document.querySelectorAll('#gchips .chip').length}));
 pruefe(s1.n===2&&s1.liste===2&&s1.chips===3&&s1.key&&s1.key!==k1&&s1.g3===s1.key,'Angezeigte Hose gelöscht: andere wird angezeigt '+JSON.stringify(s1));
-await p.click('#gwrap .gdel >> nth=0'); await p.waitForTimeout(600); await p.click('#gwrap .gdel >> nth=0'); await p.waitForTimeout(800);
+for(let n=0;n<2;n++){ await p.click('#gwrap .gdel >> nth=0'); await p.click('#gwrap .gdel >> nth=0'); await p.waitForTimeout(700); }
 const s2=await p.evaluate(()=>({key:window.__dbg.g.key,n:Object.keys(window.__dbg.GARMENTS).length,vb:window.__dbg.g3.vb,tex:window.__dbg.g3.tex,speicher:localStorage.getItem('massScanHosen'),felder:document.getElementById('g-len').disabled}));
 pruefe(s2.n===0&&!s2.key&&!s2.vb&&!s2.tex&&s2.speicher==='[]'&&s2.felder,'Alle gelöscht: nichts angezeigt, Grafikspeicher frei, Gerätespeicher leer');
 await (await p.$('#stage')).screenshot({path:hier+'ausgabe/hosen_leer.png'});

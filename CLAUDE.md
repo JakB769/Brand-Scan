@@ -22,7 +22,7 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 
 | Pfad | Inhalt |
 |---|---|
-| `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 94 KB, kein Build-Schritt. |
+| `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 165 KB, kein Build-Schritt. |
 | `prototypen/` | Sieben ältere Stände, nummeriert und datiert. Nur zum Nachschlagen. |
 | `werkzeuge/tests/testseite-mit-simulierter-person.html` | Aktuelle Seite mit Attrappe statt MediaPipe (siehe „Testen“). |
 | `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“. Die nicht in `npm test` genannten (`t.mjs` bis `te.mjs`) sind alt und haben noch harte Pfade. |
@@ -57,19 +57,22 @@ Ablauf für den Anwender: Größe eingeben → Kamera → Frontal-Scan → Seite
 | `buildGarment`, `segGarment`, `cropGarment`, `garmentProfile` | **Generator**: zwei Fotos → Modell, komplett im Browser, etwa 0,5 s. |
 | `loadGarmentPhoto`, `garmentTurn`, `trimMask` | Foto gerade rechnen, drehen (quer/auf dem Kopf), Dünnes, das oben/unten herausragt, abschneiden. |
 | `readPhotoMeta`, `levelBySensor` | Liest aus iPhone-Fotos (JPEG und HEIC) Brennweite und Schwerkraftvektor (Apple-Herstellerdaten, Eintrag 8) und rechnet das Foto auf „senkrecht von oben“ um. Nur Hochformat, bis 40° Neigung. |
-| `photoWithReference`, `askCorners`, `refineReference`, `snapQuadToEdges` | Maßstab im Foto (A4 oder Bankkarte ID-1, 85,60 × 53,98 mm): Foto in 2400 px laden und gerade rechnen, Objekt grob suchen, im großen Bild fein vermessen, **Fenster zum Bestätigen oder Antippen der vier Ecken** (ungefähr tippen → Ecken rasten ein, Kreuze verschiebbar), Kanten von außen auf den Farbsprung einrasten. Ohne Neigungsdaten Homographie aus den vier Ecken. Warnungen: Karte verzogen (Seitenverhältnis > 6 %, Winkel > 6°), weit von der Hose, Vorder-/Rückseite > 4 % auseinander. |
+| `photoWithReference`, `askCorners`, `refineReference`, `snapQuadToEdges` | Maßstab im Foto (A4 oder Bankkarte ID-1, 85,60 × 53,98 mm): Foto in 2400 px laden und gerade rechnen, Objekt grob suchen, im großen Bild fein vermessen, **Fenster zum Bestätigen oder Antippen der vier Ecken** (ungefähr tippen → Ecken rasten ein, sonst vergrößern und vier Ecken antippen; Kreuze verschiebbar, bleiben im Ausschnitt; Einrasten nach der 4. Ecke sichtbar, nach „Passt“ nichts Unsichtbares mehr). `refineReference` vereinigt aneinandergrenzende Flecken und sucht zusätzlich in einer geschlossenen Maske (zweifarbige oder fleckige Karte). Escape bricht ab (keine Hose), Tab bleibt im Fenster, Fenster passt sich beim Drehen an, `quadOK` sperrt „Passt“ bei Punkten, die kein Viereck bilden. Ohne Neigungsdaten Homographie aus den vier Ecken, vorher Prüfung des rohen Vierecks (Seitenverhältnis > 20 % oder Winkel > 15° → Warnung). Warnungen: Karte verzogen (Seitenverhältnis > 6 %, Winkel > 6°), weit von der Hose, Vorder-/Rückseite > 6 % auseinander, Länge außerhalb 20–200 cm → Maßstab verworfen. Artikel für Meldungen in `REFS` (nom/akk/dat/gen/pro). |
 | `drawDebug3d` (Schalter „Debug-Ansicht“) | Achsen der Hose (X rot, Y grün, Z blau, Ursprung Bundmitte), Box, Maße B × H × T in cm, Neigung der Hauptachse (PCA), Tiefe jedes Gelenks. |
-| `uprightProfile` | Beim Laden: Beinspalt oben statt unten → Modell umdrehen. |
-| Knöpfe „↻ X/Y/Z 90°“, „Umdrehen“ (`G.rot`) | Notlösung pro Hose, Drehung um die Mitte der Hose. |
+| `uprightProfile` | Beim Laden: Beinspalt oben statt unten → Modell um 180° drehen (Zeilen umkehren und `M.mir`: links/rechts tauschen, siehe `mesh3d`). |
+| Knöpfe „↻ X/Y/Z 90°“, „Umdrehen“ (`G.rot`) | Notlösung pro Hose, Drehung um die Mitte der Hose. Z dreht im Uhrzeigersinn; wieder gerade → `G.rot=null`. |
+| `garmentTurn`, `buildGarment` | Foto quer → um ±90° drehen (Saumseite hat zwei Beine; +90 im Canvas dreht links nach oben). Kein Schritt gefunden → beide Fotos um 180° gedreht noch einmal suchen (auf dem Kopf mit sich berührenden Säumen). Quer und sich berührende Säume bleibt geraten: Hinweis „Prüfe, ob der Bund oben ist“. |
 | `findGaps` | Beinspalt je Zeile aus Umriss oder Farbe (heller Boden zwischen den Beinen, den die Freistellung als Hose zählt); daraus der Schritt. |
 | `normalizeProfile` | Prüft jedes Modell (neu und beim Laden): schmale Zeilen am Bund/Saum weg, neu auf 0..1 verteilen, Plausibilität (`G.bad`). |
 | `mesh3d`, `pose3d`, `draw3d` | 3D-Netz, Lage je Bild, WebGL-Darstellung in eine eigene Fläche, die dann auf das 2D-Overlay gelegt wird. |
 | `drawGarment` | Entscheidet 3D oder alter 2D-Weg, rechnet Gelenke perspektivisch zurück, Lichtanpassung. |
 | `coach`, `cue`, `say`, `pickVoice` | Ansagen: große Texte mit Trägheit, Sprachausgabe, Stimmenauswahl. |
-| `saveOwn`, `loadOwn`, `addOwnGarment`, `deleteGarment` | Eigene Hosen in `localStorage` (Schlüssel `massScanHosen`); Löschen gibt mit `free3d` Geometrie und Textur frei. |
-| `garmentDims`, `fillDims`, `setDim`, `resetDim` | Maße je Hose: Länge (`G.len`), Bund (`G.waist`), Saum (`G.hem`); `null` heißt „geschätzt“. **Eingetragene Länge hat immer Vorrang**, Bund und Saum gehen dann im Verhältnis des Fotos mit. Schätzung sonst aus Bund, Maßstab (`G.meas`) oder Normbund 40 cm. Felder zeigen „manuell“/„geschätzt“, ↺ setzt zurück. |
+| `saveOwn`, `saveSoon`, `loadOwn`, `addOwnGarment`, `deleteGarment` | Eigene Hosen in `localStorage` (Schlüssel `massScanHosen`). Löschen: erster Tipp auf ✕ zeigt „Löschen?“, zweiter löscht (kein `confirm()`, das in eingebetteten Seiten gesperrt sein kann); gibt mit `free3d` Geometrie und Textur frei, Fokus bleibt in der Liste. Passt eine neue Hose nicht mehr in den Speicher, wird sie als `unsaved` ausgelassen, die anderen werden weiter gespeichert; jeder Fehlschlag wird gemeldet. Maßfelder speichern 0,8 s nach dem Tippen, beim Verlassen und beim Schließen der Seite. `loadOwn` übernimmt `massScanEigen` (Stand 7.10.) einmal und löscht den Schlüssel, und setzt beschädigte Felder zurück. |
+| `garmentDims`, `fillDims`, `setDim`, `dimWhy`, `resetDim`, `num` | Maße je Hose: Länge (`G.len`), Bund (`G.waist`), Saum (`G.hem`); `null` heißt „geschätzt“. Länge: **eingetragen > gemessen (Maßstab, `G.meas`) > aus Bund > Normbund 40 cm**; ohne eingetragenen Bund gehen Bund und Saum im Verhältnis des Fotos mit. Felder sind `type="text"` mit Dezimaltastatur, Komma und Punkt gehen (`num`), Anzeige auf 0,1 mit Komma. `dimWhy` prüft Bereich und Verhältnis in beide Richtungen, auch beim Anlegen (ungültig → Meldung, nichts still verworfen). Kennzeichnungen `tag-len`/`tag-waist`/`tag-hem` („manuell“/„gemessen“/„geschätzt“; `t-waist` usw. sind die Maßband-Felder der Messreihe). `pose3d` zeichnet auch sehr kurze eingetragene Längen genau (Leibhöhe wird dann gekürzt). |
 
-Weitere `localStorage`-Schlüssel: `massScanSerie` (Messreihe), `massScanPerson`, `massScanStimme`.
+Weitere `localStorage`-Schlüssel: `massScanSerie` (Messreihe), `massScanPerson`, `massScanStimme`, `massScanDebug`.
+
+Sonst noch: `fillT` schreibt Text auf die Überlagerung und spiegelt ihn bei der Selfie-Kamera zurück; `drawDebug3d` passt die Schrift an den sichtbaren Ausschnitt an. Geht der WebGL-Kontext verloren (`webglcontextlost`), wird beim nächsten Bild alles neu angelegt. Lädt die Erkennung nicht, steht das auch auf der Bühne. `fileToCanvas` begrenzt die Fläche auf 6 MP und gibt das dekodierte Bild frei.
 
 ### Das Hosenmodell (`G.m3`)
 
@@ -142,6 +145,33 @@ Offene Punkte, nach Dringlichkeit (Stand 7.10. nachts, nach der ersten Claude-Co
     zum Nachmessen); quer erzeugte lassen sich nicht reparieren und sind als „bitte neu erstellen“ markiert. Die echte Hose 2 des Nutzers
     habe ich nie gesehen; nachgestellt in `tblob.mjs` mit einem Speicherstand des alten Generators.
 
+### Gesamtprüfung 8.10. (sieben Bereiche, Prüfer-Agenten, Gegenprüfung nur für Bereich 1 vollständig)
+
+Behoben und in `tpruefung.mjs` bzw. den bestehenden Tests abgesichert: doppelte id `t-waist` (Maßband-Taille kam nie an, Rückschritt
+vom 7.10.), Absturz beim Speichern der Messreihe ohne Scan, Reihenfolge Maßstab/Bund bei der Länge, Komma in allen Zahlenfeldern,
+Prüfung beim Anlegen, Kreuzprüfung Bund↔Länge, Speichern erst nach dem Tippen, kurze Hosen mit eingetragenem Bund, Vorzeichen in
+`garmentTurn` (quer → erst Saum nach oben, Meldung „auf dem Kopf“), Kopfstand mit sich berührenden Säumen, Spiegelung links/rechts in
+`uprightProfile` (Schwelle 0,008 statt 0,004), Löschen ohne `confirm()`, Fokus nach dem Löschen, einsamer „Aus“-Knopf, Vorschau der
+gelöschten Hose, alter Schlüssel `massScanEigen` holte gelöschte Hosen zurück, voller Speicher, Textur-Leck beim schnellen Umschalten,
+Kartenfenster (Teilfleck beim Antippen, Neu antippen, Kreuze aus dem Bild, Drehen, Escape, Doppelstart, kein Viereck, Länge 82 m,
+rohes Viereck ohne Neigungsdaten, Grammatik), Z-Drehung und Einheitsmatrix, Maßstab in der Nahphase beim Drehen, Erkennung lädt nicht,
+Freistellung bei jeansfarbenem Gegenstand am Rand (`segBright` als Rückfall), eigene Meldung für zu kleine Hose, Debug-Text abgeschnitten
+und gespiegelt, flaches Bild blitzt beim Umschalten auf, WebGL-Kontextverlust, AudioContext je Neustart, große Bilder, tote Funktion
+`levelByReference` und ungenutzte Felder.
+
+Offen (gefunden, nicht behoben):
+- Rückseite `karte_hinten_IMG_7268.jpg`: Karte wird weder automatisch noch durch ungefähres Tippen gefunden (Maske zerfällt am
+  unkenntlich gemachten Inneren); Vergrößern und vier Ecken antippen geht. Ob das an der echten, nicht verwischten Karte auch so ist: ungeprüft.
+- Gegenstand seitlich an der Hose (Schuh am Bein) wird Teil der Hose; Hand auf der Hose zählt als Beinspalt; Hose in der Bildebene
+  5–30° schräg gelegt → Saum −18 bis −46 % (nur 90°-Schritte werden gerade gerechnet).
+- Quer fotografiert UND Säume berühren sich: Drehrichtung geraten (Hinweis erscheint). Gleiches gilt aufrecht/auf dem Kopf, wenn auch
+  gedreht kein Schritt zu finden ist.
+- Ohne Neigungsdaten kosten 1–2 px an den Kartenecken ±15 % Länge (kleine Karte bestimmt die Perspektive der ganzen Hose).
+- Nahphase: `findCrotch` zählt frei hängende Arme als Beine (Schritt auf Hüfthöhe), Schritt- und Beinlänge zu kurz, wenn die Füße aus dem Bild sind.
+- Querformat: untere Knopfreihe der Bühne wird bei großen Ansagen abgeschnitten (Schriftgrößen hängen an vw statt an der Bühne).
+- Google Fonts wird von Google geladen (DSGVO-Frage für die EU, vor dem Verkauf selbst hosten).
+- Doppelte Logik (Flutfüllung dreimal, Geraden-Schnitt zweimal), Test-Einblick `window.__refDlg` im Produktcode (nur solange das Fenster offen ist).
+
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
 
 - **3D-Modell statt Gaussian Splat.** Ein Splat braucht viele Ansichten und Training auf einer Grafikkarte; aus zwei Fotos im Browser geht das nicht. Splats auf bewegten Körpern sind Forschungsstand. Das Splat-Wissen im Team taugt später für drehbare Produktansichten.
@@ -188,6 +218,7 @@ Steuerung der Attrappe über `window.__mode`: `yaw`, `knee`, `wide`, `sway`, `zk
 | `tblob.mjs` | Problemfotos (quer, etwas ragt heraus, Fuß) und alter Speicherstand mit Blob-Hose |
 | `tnah.mjs` | Nahphase wie mit echter Kamera (näher kommen, Füße/Knie aus dem Bild, Knie hoch), Debug-Werte, Drehknöpfe, Aufrichten beim Laden |
 | `tkarte.mjs` | Bankkarte mit den echten Fotos: automatisch, von Hand, Warnung bei verzogener Karte, Vorrang der eingetragenen Länge |
+| `tpruefung.mjs` | Rückschritte der Gesamtprüfung: Maßband-Taille, Komma, Prüfung beim Anlegen, quer/Kopfstand mit sich berührenden Säumen (`material/testbilder/orientierung/`), links/rechts beim Aufrichten (roter Fleck), kurze Hose, Drehknöpfe, WebGL-Kontextverlust, Kartenfenster (Escape, kein Viereck), alter Speicherschlüssel, voller Speicher |
 | `tlaenge.mjs` | Länge mit A4/Bankkarte (Testbilder aus `werkzeuge/python/testmassstab.py`, echt 105 cm, gerade und 15° schräg), echte iPhone-Fotos des Nutzers, Vorrang der eingetragenen Länge |
 
 ## Vorschlag für die nächsten Schritte

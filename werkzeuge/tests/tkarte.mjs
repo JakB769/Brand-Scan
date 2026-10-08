@@ -33,11 +33,11 @@ pruefe(Math.abs(v.L-105)<=4,`nur Vorderseite: ${v.L} cm (echt 105)`);
 const z=await bau('karte_vorne_IMG_7267.jpg','karte_hinten_IMG_7268.jpg');
 pruefe(Math.abs(z.L-105)<=3,`Vorder- und Rückseite: ${z.L} cm (echt 105, Abweichung ${z.L-105} cm)`);
 pruefe(/auf dem Kopf/.test(z.t),'Rückenfoto lag auf dem Kopf und wurde gedreht');
-const tags=await p.evaluate(()=>['t-len','t-waist','t-hem'].map(i=>document.getElementById(i).textContent).join());
+const tags=await p.evaluate(()=>['tag-len','tag-waist','tag-hem'].map(i=>document.getElementById(i).textContent).join());
 pruefe(tags==='gemessen,gemessen,gemessen','Felder als gemessen gekennzeichnet: '+tags);
 // eingetragene Länge hat Vorrang vor der gemessenen
 await p.fill('#g-len','105'); await p.waitForTimeout(400);
-const t2=await p.evaluate(()=>['t-len','t-waist','t-hem'].map(i=>document.getElementById(i).textContent).join()+' | '+['g-len','g-waist','g-hemw'].map(i=>document.getElementById(i).value).join(', '));
+const t2=await p.evaluate(()=>['tag-len','tag-waist','tag-hem'].map(i=>document.getElementById(i).textContent).join()+' | '+['g-len','g-waist','g-hemw'].map(i=>document.getElementById(i).value).join(', '));
 pruefe(/^manuell,geschätzt,geschätzt/.test(t2),'Länge eingetragen: Vorrang, Bund und Saum gehen mit: '+t2);
 // Warnung bei verzogener Karte: absichtlich falsche Ecken (nur die gelbe Hälfte)
 await p.setInputFiles('#own-front',tb+'karte_hinten_IMG_7268.jpg'); await p.setInputFiles('#own-back',[]); await p.fill('#own-len','');

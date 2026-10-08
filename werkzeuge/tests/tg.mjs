@@ -22,7 +22,7 @@ console.log('Liste:',await p.evaluate(()=>[...document.querySelectorAll('#gwrap 
 await p.fill('#g-waist','44'); await p.waitForTimeout(200);
 await p.reload(); await p.waitForTimeout(600);
 console.log('nach Neuladen:',await p.evaluate(()=>Object.values(window.__dbg.GARMENTS).map(G=>G.label+' '+G.waist)));
-p.on('dialog',d=>d.accept()); await p.click('#gwrap .gdel >> nth=1'); await p.waitForTimeout(200);
+await p.click('#gwrap .gdel >> nth=1'); await p.click('#gwrap .gdel >> nth=1'); await p.waitForTimeout(200);
 console.log('nach Löschen:',await p.evaluate(()=>Object.values(window.__dbg.GARMENTS).map(G=>G.label)));
 await (await p.$('section.card:has(#ownBox)')).screenshot({path:out+'g_ui.png'});
 await p.fill('#height','180'); await p.click('#start'); await p.waitForTimeout(3000);

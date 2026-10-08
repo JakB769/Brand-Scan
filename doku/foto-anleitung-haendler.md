@@ -30,7 +30,7 @@ So sieht das Foto aus:
 - Kartenseite mit möglichst wenig Glanz nach oben; die Kartennummer muss nicht lesbar sein (Daumen drauf oder Rückseite nach oben ist in Ordnung, solange die vier Ecken frei sind).
 - Weißes A4-Blatt nur auf dunklerem Untergrund.
 
-Ablauf in der App: unter „Maßstab im Foto“ Bankkarte oder A4 wählen. Nach dem Hochladen zeigt die App die Karte vergrößert mit vier Kreuzen an den Ecken. Liegen sie richtig, „Passt“. Sonst ungefähr auf die Karte tippen (die Ecken rasten ein) oder die Kreuze verschieben; bei runden Ecken auf den Punkt, an dem sich die Kanten treffen würden. Die gemessenen Werte stehen danach als „gemessen“ in den Feldern. Eine eingetragene Länge hat immer Vorrang.
+Ablauf in der App: unter „Maßstab im Foto“ Bankkarte oder A4 wählen. Nach dem Hochladen zeigt die App die Karte vergrößert mit vier Kreuzen an den Ecken. Liegen sie richtig, „Passt“. Sonst die Kreuze verschieben, oder „Neu antippen“ und die vier Ecken nacheinander antippen (nach der vierten rasten sie auf die Kartenkanten ein, das sieht man sofort). Findet die App die Karte gar nicht, zeigt sie das ganze Foto: ungefähr auf die Karte tippen, dann wird vergrößert. Bei runden Ecken auf den Punkt tippen, an dem sich die Kanten treffen würden. „Ohne Maßstab“ macht ohne Karte weiter, Escape bricht ab. Die gemessenen Werte stehen danach als „gemessen“ in den Feldern. Eine eingetragene Länge hat immer Vorrang.
 
 Genauigkeit: an Testbildern mit bekannter Länge 1 % (A4 und Karte); an echten iPhone-Fotos einer 105-cm-Hose 107 cm mit Vorder- und Rückseite. Eine Karte ist klein: ein Bildpunkt an ihren Ecken macht etwa 1 % aus. Darum möglichst nah fotografieren (Hose füllt das Bild) und beide Seiten mit Karte.
 
