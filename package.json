@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "pretest": "node werkzeuge/tests/baue-testseite.mjs",
-    "test": "node werkzeuge/tests/th.mjs && node werkzeuge/tests/tg.mjs && node werkzeuge/tests/tf.mjs && node werkzeuge/tests/tbreite.mjs && node werkzeuge/tests/tgenerator.mjs && node werkzeuge/tests/theic.mjs && node werkzeuge/tests/thosen.mjs && node werkzeuge/tests/tblob.mjs && node werkzeuge/tests/tlaenge.mjs && node werkzeuge/tests/tnah.mjs && node werkzeuge/tests/tkarte.mjs && node werkzeuge/tests/tpruefung.mjs",
+    "test": "node werkzeuge/tests/th.mjs && node werkzeuge/tests/tg.mjs && node werkzeuge/tests/tf.mjs && node werkzeuge/tests/tbreite.mjs && node werkzeuge/tests/tgenerator.mjs && node werkzeuge/tests/theic.mjs && node werkzeuge/tests/thosen.mjs && node werkzeuge/tests/tblob.mjs && node werkzeuge/tests/tlaenge.mjs && node werkzeuge/tests/tnah.mjs && node werkzeuge/tests/tkarte.mjs && node werkzeuge/tests/tpruefung.mjs && node werkzeuge/tests/tstoff.mjs",
     "diagnose": "node werkzeuge/tests/baue-testseite.mjs && node werkzeuge/tests/tfreistellung.mjs; node werkzeuge/tests/tknie.mjs"
   },
   "devDependencies": {
