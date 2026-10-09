@@ -36,6 +36,20 @@ Genauigkeit: an Testbildern mit bekannter Länge 1 % (A4 und Karte); an echten i
 
 Die App warnt, wenn die Karte verzogen wirkt (nicht flach oder Ecken falsch), weit von der Hose liegt oder Vorder- und Rückseite verschiedene Längen ergeben.
 
+## Umriss prüfen (wie die Objektauswahl in Photoshop)
+
+Die App trennt die Hose auf zwei Wegen vom Untergrund: nach Farbe und mit einer KI (MediaPipe „magic_touch“, läuft im Browser, kein Foto verlässt das Gerät). Sind sich beide uneinig, öffnet sich das Fenster **„Umriss prüfen“**; mit dem Häkchen „Umriss immer prüfen“ kommt es bei jedem Foto.
+
+- Hell und gelb umrandet ist, was als Hose zählt.
+- **－ weg**, dann auf etwas tippen, das nicht zur Hose gehört (Schuh, Karte, Kabel, Teppichkante): es verschwindet.
+- **＋ dazu**, dann auf ein fehlendes Stück der Hose tippen.
+- **↶** nimmt den letzten Schritt zurück, **Passt** übernimmt.
+- Was **auf** der Hose liegt (z. B. eine Hand), lässt sich nicht herausrechnen: der Stoff darunter fehlt im Foto. Bitte neu fotografieren.
+
+## Material angeben
+
+Unter „Material“ die Angabe vom Etikett oder aus der Produktbeschreibung eintragen, z. B. „98 % Baumwolle, 2 % Elasthan“. Daraus wählt die App die Stoffart (fester Denim, Stretch, Chino, Anzugstoff, Sweat, Leinen, fließend) und damit, wie die Hose fällt, schwingt, Falten wirft und glänzt. Die Stoffart lässt sich auch direkt wählen und später an der Hose ändern.
+
 ## Was die App prüft und meldet
 
 - Liegt die Hose quer oder auf dem Kopf, dreht die App das Foto.

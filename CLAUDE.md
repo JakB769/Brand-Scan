@@ -22,7 +22,7 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 
 | Pfad | Inhalt |
 |---|---|
-| `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 165 KB, kein Build-Schritt. |
+| `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 200 KB, kein Build-Schritt. |
 | `prototypen/` | Sieben ältere Stände, nummeriert und datiert. Nur zum Nachschlagen. |
 | `werkzeuge/tests/testseite-mit-simulierter-person.html` | Aktuelle Seite mit Attrappe statt MediaPipe (siehe „Testen“). |
 | `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“. Die nicht in `npm test` genannten (`t.mjs` bis `te.mjs`) sind alt und haben noch harte Pfade. |
@@ -54,7 +54,9 @@ Ablauf für den Anwender: Größe eingeben → Kamera → Frontal-Scan → Seite
 | `analyse(res)` | Herzstück je Bild: Landmarken glätten, Maßstab, Messwerte, Coaching, Knochen, Aufruf von `drawGarment`. |
 | `emaV`, `emaBand` | One-Euro-Filter mit Ausreißer-Sperre (Sprung > 0,09 wird bis zu 8 Bilder ignoriert). **Nicht für Winkel benutzen**, dafür ist er zu träge. |
 | `bodyYaw` | Drehung der Person. Betrag aus Schulter- und Hüftbreite relativ zur Rumpflänge, Vorzeichen aus Fußspitzen, Nase und Tiefe. Wird beim Frontal-Scan geeicht (`fc.cal`). |
-| `buildGarment`, `segGarment`, `cropGarment`, `garmentProfile` | **Generator**: zwei Fotos → Modell, komplett im Browser, etwa 0,5 s. |
+| `buildGarment`, `segGarment`, `cropGarment`, `garmentProfile` | **Generator**: zwei Fotos → Modell, komplett im Browser, etwa 0,5 s (mit KI-Freistellung etwa 1 s mehr). |
+| `segGarment`, `segClassic`, `loadAiSeg`, `aiMask`, `seedPoints` | **Freistellung**: Farbweg (`segClassic`: Farbmodell + helle Regel) und, wenn geladen, **KI-Freistellung** MediaPipe Interactive Segmenter v1 „magic_touch“ (Apache 2.0, 6 MB, `storage.googleapis.com`, mit tasks-vision 0.10.18 wie die Pose-Erkennung; lädt beim Wählen eines Fotos, höchstens 9 s gewartet). Saatpunkte aus der Farbmaske (Bundmitte, beide Beine). IoU > 0,92 → Farbkante (pixelgenau), sonst KI-Maske (`S.ki`). Ohne Netz: nur Farbweg. |
+| `askOutline`, `wandMask` | Fenster **„Umriss prüfen“**: öffnet sich, wenn Farbe und KI uneinig sind (IoU < 0,85) oder „Umriss immer prüfen“ (`#own-check`) gesetzt ist. Teil antippen, ＋ dazu / － weg; KI-Umriss des angetippten Teils, sonst Zauberstab nach Farbe. Schutzregeln: kein Löschen von > 40 % der Hose, nichts, was ganz innen liegt (Hand auf der Hose: Loch ginge wieder zu, neu fotografieren). Escape: automatischer Umriss bleibt. |
 | `loadGarmentPhoto`, `garmentTurn`, `trimMask` | Foto gerade rechnen, drehen (quer/auf dem Kopf), Dünnes, das oben/unten herausragt, abschneiden. |
 | `readPhotoMeta`, `levelBySensor` | Liest aus iPhone-Fotos (JPEG und HEIC) Brennweite und Schwerkraftvektor (Apple-Herstellerdaten, Eintrag 8) und rechnet das Foto auf „senkrecht von oben“ um. Nur Hochformat, bis 40° Neigung. |
 | `photoWithReference`, `askCorners`, `refineReference`, `snapQuadToEdges` | Maßstab im Foto (A4 oder Bankkarte ID-1, 85,60 × 53,98 mm): Foto in 2400 px laden und gerade rechnen, Objekt grob suchen, im großen Bild fein vermessen, **Fenster zum Bestätigen oder Antippen der vier Ecken** (ungefähr tippen → Ecken rasten ein, sonst vergrößern und vier Ecken antippen; Kreuze verschiebbar, bleiben im Ausschnitt; Einrasten nach der 4. Ecke sichtbar, nach „Passt“ nichts Unsichtbares mehr). `refineReference` vereinigt aneinandergrenzende Flecken und sucht zusätzlich in einer geschlossenen Maske (zweifarbige oder fleckige Karte). Escape bricht ab (keine Hose), Tab bleibt im Fenster, Fenster passt sich beim Drehen an, `quadOK` sperrt „Passt“ bei Punkten, die kein Viereck bilden. Ohne Neigungsdaten Homographie aus den vier Ecken, vorher Prüfung des rohen Vierecks (Seitenverhältnis > 20 % oder Winkel > 15° → Warnung). Warnungen: Karte verzogen (Seitenverhältnis > 6 %, Winkel > 6°), weit von der Hose, Vorder-/Rückseite > 6 % auseinander, Länge außerhalb 20–200 cm → Maßstab verworfen. Artikel für Meldungen in `REFS` (nom/akk/dat/gen/pro). |
@@ -65,6 +67,11 @@ Ablauf für den Anwender: Größe eingeben → Kamera → Frontal-Scan → Seite
 | `findGaps` | Beinspalt je Zeile aus Umriss oder Farbe (heller Boden zwischen den Beinen, den die Freistellung als Hose zählt); daraus der Schritt. |
 | `normalizeProfile` | Prüft jedes Modell (neu und beim Laden): schmale Zeilen am Bund/Saum weg, neu auf 0..1 verteilen, Plausibilität (`G.bad`). |
 | `mesh3d`, `pose3d`, `draw3d` | 3D-Netz, Lage je Bild, WebGL-Darstellung in eine eigene Fläche, die dann auf das 2D-Overlay gelegt wird. |
+| `skin3d`, `rotFT` | **Skinning**: Hose wird in Ruhepose (Beine gerade nach unten, Knochenlängen von jetzt) gebaut, dann drehen Oberschenkel (Gewicht ab 0,2·Lt über bis 0,45·Lt unter dem Hüftgelenk) und Unterschenkel (0,8–1,15·Lt) sie in die Haltung. Mittelnaht vorne/hinten bleibt am Becken (sonst Riss, wenn nur ein Bein sich hebt). |
+| `cloth3d`, `closestOnChain`, `STOFFE`, `stoffAusText`, `stoffVon` | **Stoffphysik**: je Punkt eine Feder zur Form vom Skelett (Eigenfrequenz am Saum `hz`, zum Bund bis 6× steifer, Dämpfung `zeta` relativ zur Bewegung der Form), **implizit** gerechnet (bei jeder Bildrate stabil; die alte explizite Fassung schaukelte sich bei 10 Bildern/s auf). Loser Stoff mit Unterseite nach unten hängt um `hang`·Abstand zum Bein durch, höchstens `dev` cm; Beine als Kapseln (Radien aus Körpergröße); Sprung im Tracking → neu ansetzen. Stoffarten jeans/stretch/chino/cord/anzug/sweat/leinen/fliessend mit Fall, Nachschwingen, Faltenlänge `fold`, Relief `bump`, Glanz `gloss` (Werte 9.10. aus der Stoff-Recherche: Flächengewicht, Biegelänge, Pendel- und Luftdämpfung; Herleitung im Kommentar). Seit 9.10.: Spiel je Punkt = min(`dev`, Abstand zum Bein + 1 cm), Geschwindigkeit nach außen fällt beim Begrenzen weg, Länge je Spalte höchstens +3 %, Umfang je Ring ±2 % (vorher dehnte sich fließender Stoff bis 112 %), Pause > 0,25 s → neu ansetzen. Erkennung `stoffAusText` aus Material **und Name** (`stoffText`): liest „98% cotton“, „cotton 98%“, „Baumwolle (CO) 97“, „46/38/16% Cotton/T400/Polyester“, zählt Futter/Besatz nicht, Stretch ab 1 % Elasthan oder 5 % T400, Bauart (Denim, Cord, Chino, Sweat, Satin) vor Faser; an 52 + 18 echten Angaben geprüft (mit Name 0 falsch). Nur „100 % Baumwolle“ → Jeans, „geraten“. Auswahl `#own-fab`/`#g-fab`, Material `#own-mat`, gespeichert als `G.fabric`/`G.material`. |
+| `normals3d`, Stauchfalten in `pose3d` | Normalen und Relief-Richtungen (`tu`, `tw`). Stauchfalten: Stauchung c der Zeilen (jetzt/Ruhe) → Faltentiefe a = λ/π·√(c(1−c)) entlang der Normale, λ = `fold` des Stoffs; erscheinen an Knöchel (zu lange Hose), Kniekehle, Leiste. Seit 9.10.: zu lange Hose wird gleichmäßig auf die untersten 10 cm über dem Schuh verteilt (vorher lagen die letzten 8 Zeilen auf 1,6 cm übereinander), jede Zeile ≥ 0,3 cm unter der vorigen; Faltenwinkel rundherum stetig (vorher klafften die Falten an den Nähten), Tiefe und Lage schwanken um das Bein (keine gleichmäßigen Ringe). |
+| `rim3d`, `occl3d`, `draw3d`, `shadow3d`, `psiArc` (9.10.) | **Bund und Saum mit Dicke** (Lippe 0,45 cm, innen Bundbeleg 4 cm, Saumumschlag 3 cm). **Körper als unsichtbarer Tiefenverdecker** (Becken aus der oberen Hose auf 93 %, Beine als Kegelstümpfe, Füße) statt Wegwerfen abgewandter Flächen: vier Durchgänge (Arme nur Tiefe → Außenseite → Körper nur Tiefe → Innenseite), man sieht ins Hosenbein und in den Bund. **Arme/Hände** (Landmarken 11–20) schneiden die Hose aus, wenn sicher erkannt und vor dem Becken (Tiefe relativ zur Hüftmitte ≤ 0,02, aus erst ab > 0,06: Hysterese gegen Flackern). **Schatten** nur auf der Person (Maske der Erkennung): weiche Hosenform 0,6 cm tiefer plus Kontaktschatten unter jedem Saum, kein Schleier mehr auf dem Hintergrund. Querschnitt über dem Schritt mit Gesäß (hinten tiefer, vorne flacher, Umfang bleibt 4·hw), Punkte nach Bogenlänge (`psiArc`, Textur nicht mehr verzerrt), hinterer Bund 2 cm höher, vorderer 0,8 cm tiefer. |
+| `matchHalves`, Shader `VS3`/`FS3` | Rückseite farblich an die Vorderseite angeglichen (80 % Mittelwert, 50 % Kontrast). Shader: Relief aus dem Helligkeitsgefälle des Fotos in zwei Größen, Hauptlicht oben vorn links (umhüllend), Gegenlicht, Himmel oben heller, Kantenabdunklung, Glanz; an der Seitennaht halb Vorder-, halb Rückseite (`uv2`, `sd`). |
 | `drawGarment` | Entscheidet 3D oder alter 2D-Weg, rechnet Gelenke perspektivisch zurück, Lichtanpassung. |
 | `coach`, `cue`, `say`, `pickVoice` | Ansagen: große Texte mit Trägheit, Sprachausgabe, Stimmenauswahl. |
 | `saveOwn`, `saveSoon`, `loadOwn`, `addOwnGarment`, `deleteGarment` | Eigene Hosen in `localStorage` (Schlüssel `massScanHosen`). Löschen: erster Tipp auf ✕ zeigt „Löschen?“, zweiter löscht (kein `confirm()`, das in eingebetteten Seiten gesperrt sein kann); gibt mit `free3d` Geometrie und Textur frei, Fokus bleibt in der Liste. Passt eine neue Hose nicht mehr in den Speicher, wird sie als `unsaved` ausgelassen, die anderen werden weiter gespeichert; jeder Fehlschlag wird gemeldet. Maßfelder speichern 0,8 s nach dem Tippen, beim Verlassen und beim Schließen der Seite. `loadOwn` übernimmt `massScanEigen` (Stand 7.10.) einmal und löscht den Schlüssel, und setzt beschädigte Felder zurück. |
@@ -91,9 +98,9 @@ atlas    JPEG 640×640 als Data-URI: links Vorderseite, rechts Rückseite, Rand 
 
 Dazu am Kleidungsstück: `waist` (Bund flach in cm), `len` (Außenlänge in cm, entlang der Außennaht; `m3.lo` = Außenlänge / senkrechte Länge im Foto; das Modell ist dann vom Bund bis zum Saum genau so lang, die Beine füllen auf, was nach der Leibhöhe übrig ist), `meas` (Länge aus Maßstab im Foto), `hem` (ein Bein unten in cm, optional, korrigiert die Weite linear vom Schritt zum Saum), `estFlat` (40 cm, Notwert), `bad` (Grund, warum das Modell nicht gezeigt wird), `repaired` (beim Laden repariert).
 
-Geometrie: flach gemessene Breite wird in **Umfang** umgerechnet. Über dem Schritt eine Ellipse mit Umfang 4·hw und Tiefe/Breite 0,62. Darunter je Bein ein Kreis mit Umfang 2·hw entlang der Knochenkette Hüfte→Knie→Knöchel, so weit nach außen versetzt (`off`), dass der Stoff gerade von der Hüfte fällt (vorher gab es eine Beule an der Hüfte). In den ersten 16 cm unter dem Schritt wird zwischen beidem übergeblendet. Hebt oder spreizt sich ein Bein, zieht es den Stoff oberhalb des Schritts mit (`wdev`). Untere Zeilen folgen träger (Nachschwingen), zu lange Beine stauchen sich am Knöchel.
+Geometrie: flach gemessene Breite wird in **Umfang** umgerechnet. Über dem Schritt eine Ellipse mit Umfang 4·hw und Tiefe/Breite 0,62. Darunter je Bein ein Kreis mit Umfang 2·hw entlang der Knochenkette Hüfte→Knie→Knöchel, so weit nach außen versetzt (`off`), dass der Stoff gerade von der Hüfte fällt (vorher gab es eine Beule an der Hüfte). In den ersten 16 cm unter dem Schritt wird zwischen beidem übergeblendet. Das alles in der **Ruhepose** (Beine gerade); in die Haltung kommt die Hose per Skinning (`skin3d`), Nachschwingen und Durchhängen macht die Stoffphysik (`cloth3d`), zu lange Beine stauchen sich am Knöchel und werfen dort Falten.
 
-Darstellung: orthografische Lage plus Perspektive im Vertex-Shader (`foc`, `pc`), Tiefenpuffer, und im Fragment-Shader wird alles verworfen, was von der Kamera wegzeigt. Dadurch sieht man nie die abgewandte Seite.
+Darstellung: orthografische Lage plus Perspektive im Vertex-Shader (`foc`, `pc`), Tiefenpuffer. Seit 9.10. zwei Seiten: Außenseite (`upass` 0) und Innenseite (`upass` 1, abgewandte Flächen und Innenbeleg, eigen schattiert), dazwischen der Körper als unsichtbarer Tiefenverdecker. So sieht man die abgewandte Seite nur dort, wo sie wirklich zu sehen wäre (durch Bund- und Saumöffnung), und eine Hand vor der Hose schneidet sie aus. WebGL1: genau 8 Punkt-Attribute (`ao` ist jetzt vec2: Verdeckung, Offenheit innen).
 
 ## Stand der Dinge, ehrlich
 
@@ -172,6 +179,23 @@ Offen (gefunden, nicht behoben):
 - Google Fonts wird von Google geladen (DSGVO-Frage für die EU, vor dem Verkauf selbst hosten).
 - Doppelte Logik (Flutfüllung dreimal, Geraden-Schnitt zweimal), Test-Einblick `window.__refDlg` im Produktcode (nur solange das Fenster offen ist).
 
+### 3D, Physik, KI-Freistellung (8.10. abends, Sprachnachricht des Nutzers)
+
+Wunsch: Freistellung wie Photoshop, „echtes“ 3D statt Foto auf Röhre, Skelett und Physik, Stoffart bestimmt den Fall.
+Umgesetzt und gemessen (Testseite, Chromium/swiftshader): siehe Tabelle oben (Licht/Relief, Seitennaht, Stauchfalten, Skinning,
+Stoffphysik, Stoffarten, KI-Freistellung, „Umriss prüfen“). Rechenzeit `pose3d` ≈ 3 ms je Bild (vorher 1,6 ms), Bildzeit im
+Software-Grafiktreiber 50–60 ms statt 36 ms (echte GPU deutlich schneller, ungeprüft). Dunkle Hose auf dunklem Boden: Farbweg 80 cm,
+mit KI 113 cm (richtig etwa 111). Schuh am Bein: ein Tipp im Fenster → 111 cm statt 102. Die echten Fotos des Nutzers: Farbe und KI
+einig, Ergebnis unverändert. Tests: `tstoff.mjs`, `tki.mjs` (KI mit MediaPipe aus node_modules und dem Modell von Google).
+Offen: Hand AUF der Hose (Textur verdeckt, nur neues Foto hilft); Hose in der Bildebene schräg; KI nur v1 (v2 und MobileSAM
+genauer, aber 30 MB bzw. eigene Bibliothek); echte Kamera, echte Handys und iPhone-Safari weiter ungeprüft.
+
+9.10. (Recherche-Agenten: 3D-Aussehen, Stoffphysik): Innenseite und Körper als Verdecker, Hände vor der Hose, Bund/Saum mit Dicke,
+Gesäß-Querschnitt, Bogenlänge, Schatten nur auf der Person, Saumstauchung ohne übereinanderliegende Zeilen, Stoffphysik mit Längen- und
+Umfangsschutz, neue Stoffwerte und Stofferkennung. Gemessen in `tdarstellung.mjs` und `tstoff.mjs`; Gegenprobe mit dem alten Stand: 5 Prüfungen
+schlagen dort fehl. Nicht gelöst: echte Stoffsimulation (XPBD, im Node-Prototyp 3–10 ms je Bild, nicht eingebaut); in der Attrappe fehlt der
+Arm im Kamerabild, daher sehen die Ausschnitte für Hände/Arme dort wie Löcher aus (mit echter Kamera ist dort der Arm).
+
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
 
 - **3D-Modell statt Gaussian Splat.** Ein Splat braucht viele Ansichten und Training auf einer Grafikkarte; aus zwei Fotos im Browser geht das nicht. Splats auf bewegten Körpern sind Forschungsstand. Das Splat-Wissen im Team taugt später für drehbare Produktansichten.
@@ -204,7 +228,8 @@ npm run diagnose  # Freistellung im Detail und Bildserie mit Knie, Ausgabe in we
 Die Testseite `werkzeuge/tests/testseite-mit-simulierter-person.html` wird von `baue-testseite.mjs` aus `app/index.html` erzeugt
 (Attrappe aus `attrappe.js` statt MediaPipe, feste Umgebungsfarbe, Einblick über `window.__dbg`). **Nie von Hand ändern.**
 Steuerung der Attrappe über `window.__mode`: `yaw`, `knee`, `wide`, `sway`, `zk` (Tiefe an/aus/verkehrt), `zn` (Knöchel scheinbar näher),
-`zr` (Tiefe zittert).
+`zr` (Tiefe zittert), `hand` (linke Hand vor dem Oberschenkel). Die Attrappe setzt die Handpunkte 17–22 an die Handgelenke wie MediaPipe.
+Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt ist (nur `tki.mjs`); sonst gäbe fehlendes Netz Fehlermeldungen.
 
 | Test | prüft |
 |---|---|
@@ -218,6 +243,9 @@ Steuerung der Attrappe über `window.__mode`: `yaw`, `knee`, `wide`, `sway`, `zk
 | `tblob.mjs` | Problemfotos (quer, etwas ragt heraus, Fuß) und alter Speicherstand mit Blob-Hose |
 | `tnah.mjs` | Nahphase wie mit echter Kamera (näher kommen, Füße/Knie aus dem Bild, Knie hoch), Debug-Werte, Drehknöpfe, Aufrichten beim Laden |
 | `tkarte.mjs` | Bankkarte mit den echten Fotos: automatisch, von Hand, Warnung bei verzogener Karte, Vorrang der eingetragenen Länge |
+| `tstoff.mjs` | Stoff aus Materialangabe (DE/EN), Auswahl bleibt, Physik ohne NaN, fließender Stoff schwingt und hängt mehr, Bund bleibt am Platz, stabil bei 10 Bildern/s, Stauchfalten |
+| `tdarstellung.mjs` | Hand vor der Hose schneidet sie aus und schließt sich wieder, kein Schatten-Schleier am Rand zum Hintergrund, Kontaktschatten unter dem Saum, Saumzeilen monoton, Bund hinten höher, Randpunkte, keine WebGL-Fehler/ungültigen Werte in vier Lagen |
+| `tki.mjs` | KI-Freistellung (dunkel auf dunkel, weißer Grund einig, quer), Fenster „Umriss prüfen“ (öffnet bei Uneinigkeit, Schuh weggetippt → Maße stimmen, Schutz gegen Löschen der Hose, Escape) |
 | `tpruefung.mjs` | Rückschritte der Gesamtprüfung: Maßband-Taille, Komma, Prüfung beim Anlegen, quer/Kopfstand mit sich berührenden Säumen (`material/testbilder/orientierung/`), links/rechts beim Aufrichten (roter Fleck), kurze Hose, Drehknöpfe, WebGL-Kontextverlust, Kartenfenster (Escape, kein Viereck), alter Speicherschlüssel, voller Speicher |
 | `tlaenge.mjs` | Länge mit A4/Bankkarte (Testbilder aus `werkzeuge/python/testmassstab.py`, echt 105 cm, gerade und 15° schräg), echte iPhone-Fotos des Nutzers, Vorrang der eingetragenen Länge |
 

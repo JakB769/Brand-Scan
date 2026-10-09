@@ -14,9 +14,17 @@ await p.evaluate(()=>{ localStorage.clear(); localStorage.setItem('massScanDebug
 // 1) Stoffart aus Text (Deutsch und Englisch)
 const faelle=[['98 % Baumwolle, 2 % Elasthan, Denim','stretch'],['100% cotton denim','jeans'],['100 % Leinen','leinen'],['55% linen 45% viscose','leinen'],
   ['100 % Viskose','fliessend'],['Satin, 97% Polyester 3% Elastane',''],['80% Baumwolle 20% Polyester, Sweat','sweat'],['Jogger fleece','sweat'],
-  ['Schurwolle 70 %, Polyester 30 %','anzug'],['Cord, 100 % Baumwolle','chino'],['100 % Baumwolle','chino'],['','jeans']];
+  ['Schurwolle 70 %, Polyester 30 %','anzug'],['Cord, 100 % Baumwolle','cord'],['','jeans'],
+  // aus echten Produktseiten (Recherche 8.10.): Schreibweisen, 1 % Elasthan, Futter nicht mitzählen, Viskose-Anteil
+  ['Cotton 98%, Elastane 2% · Slim Jeans','stretch'],['94% Baumwolle, 5% Polyester, 1% Elasthan · 511 Slim Jeans','stretch'],
+  ['Baumwolle (CO) 97 | Elasthan (EL) 3','stretch'],['Außenmaterial: 100% Schurwolle, Futter: 100% Viskose','anzug'],
+  ['41% Baumwolle, 37% Polyester, 20% Viskose · Stoffhose','anzug'],['Linen 59%, Viscose 41%','leinen'],
+  ['53% Elastomultiester, 47% recycled polyester · ABC Jogger Warpstreme','anzug'],['Texas Straight Medium Stretch Jean','stretch']];
 const erkannt=await p.evaluate(f=>f.map(([t])=>window.__dbg.stoffAusText(t)),faelle);
 faelle.forEach(([t,soll],i)=>{ if(soll) pruefe(erkannt[i].key===soll,`„${t||'(leer)'}“ → ${erkannt[i].key} (${erkannt[i].grund})`); });
+// Nur „100 % Baumwolle“: Jeans ist am häufigsten, aber nur geraten (Formular zeigt „geraten“, Chino von Hand wählbar)
+{ const r=await p.evaluate(()=>window.__dbg.stoffAusText('100 % Baumwolle'));
+  pruefe(r.key==='jeans'&&r.sicher===false,`„100 % Baumwolle“ → ${r.key}, ${r.sicher?'sicher':'geraten'}`); }
 
 // 2) Hose mit Material anlegen: automatisch erkannt, von Hand änderbar, bleibt nach Neuladen
 await p.setInputFiles('#own-front',fotos+'front.jpg'); await p.setInputFiles('#own-back',fotos+'back.jpg'); await p.fill('#own-waist','40');
