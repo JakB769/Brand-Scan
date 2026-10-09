@@ -71,10 +71,14 @@ pruefe(fest.bund<1.5&&leicht.bund<1.5,`Bund bleibt am Platz (größte Abweichung
 // 4) Langsames Gerät: 10 Bilder pro Sekunde dürfen die Physik nicht aufschaukeln (früher: Bund löste sich)
 await p.evaluate(()=>{ const raf=window.requestAnimationFrame.bind(window); window.requestAnimationFrame=cb=>setTimeout(()=>raf(cb),90); });
 await p.selectOption('#g-fab','jeans'); await p.evaluate(()=>Object.assign(window.__mode,{sway:0,knee:0,yaw:.8})); await p.waitForTimeout(3000);
-const ab=await p.evaluate(()=>{ const g3=window.__dbg.g3, X=g3.cx, T=g3.tg; let m=0; for(let q=0;q<g3.nRing*3;q+=3) m=Math.max(m,Math.hypot(X[q]-T[q],X[q+1]-T[q+1],X[q+2]-T[q+2])); return m/window.__dbg.g3.lastPpc; });
-// Steht die Person still, weicht der Stoff nur dort ab, wo die Beinkapseln ihn an der Leiste nach außen schieben (~0,5 cm).
-// Die alte, explizite Rechnung schaukelte sich hier bis zur Grenze (3 cm) oder zu ungültigen Werten auf.
-pruefe(ab<1,`10 Bilder/s, Person steht still: Stoff liegt ruhig (größte Abweichung ${ab.toFixed(2)} cm)`);
+const abw=()=>p.evaluate(()=>{ const g3=window.__dbg.g3, X=g3.cx, T=g3.tg, out=new Float32Array(g3.nRing); let m=0;
+  for(let q=0;q<g3.nRing*3;q+=3){ out[q/3]=Math.hypot(X[q]-T[q],X[q+1]-T[q+1],X[q+2]-T[q+2])/g3.lastPpc; m=Math.max(m,out[q/3]); } return {m,v:Array.from(out)}; });
+const ab1=await abw(); await p.waitForTimeout(2000); const ab2=await abw();
+let wackel=0; for(let k=0;k<ab1.v.length;k++) wackel=Math.max(wackel,Math.abs(ab1.v[k]-ab2.v[k]));
+// Steht die Person still, weicht der Stoff nur dort ab, wo die Beinkapseln ihn nach außen schieben (Leiste, und seit dem
+// Schrittbogen auch im Schritt zwischen den Oberschenkeln, bis ~2 cm), und das bleibt gleich. Die alte, explizite Rechnung
+// schaukelte sich hier bis zur Grenze (3 cm) oder zu ungültigen Werten auf.
+pruefe(ab2.m<2.5&&wackel<.2,`10 Bilder/s, Person steht still: Stoff liegt ruhig (größte Abweichung ${ab2.m.toFixed(2)} cm, ändert sich in 2 s um ${wackel.toFixed(3)} cm)`);
 
 // 5) Falten beim Stauchen: Hose länger als das Bein → Falten am Saum (Normalen wechseln die Richtung)
 const falten=await p.evaluate(()=>{ const g3=window.__dbg.g3; return g3.amp?Array.from(g3.amp).filter(a=>Math.abs(a)>.5).length:0; });

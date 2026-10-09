@@ -34,8 +34,9 @@ const a2=await alpha(10,86);
 pruefe(a2>200,`Hand wieder weg: Hose wieder geschlossen (${a2})`);
 
 // 2) Rand der Hose zum Hintergrund: harter Übergang, kein Schatten-Schleier daneben (Hintergrund liegt außerhalb der Person)
+//    Von der Mitte eines Beins nach außen (die Bildmitte ist auf 70 cm Höhe der Spalt zwischen den Beinen)
 const rand=await p.evaluate(()=>{ const c=document.getElementById('overlay'), d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;
-  const y=Math.round((.9-70*.8/180)*c.height); let x=Math.round(c.width/2), e1=-1, e2=-1, voll=d[(y*c.width+x)*4+3];
+  const y=Math.round((.9-70*.8/180)*c.height); let x=Math.round((.5+9*.8/180/(1280/720))*c.width), e1=-1, e2=-1, voll=d[(y*c.width+x)*4+3];
   for(;x<c.width;x++){ const a=d[(y*c.width+x)*4+3]; if(e1<0&&a<.9*voll) e1=x; if(e1>=0&&a===0){ e2=x; break; } }
   return {e1,e2,w:e2-e1,voll}; });
 pruefe(rand.voll>150&&rand.e1>0&&rand.w<=4,`Rand zum Hintergrund: ${rand.w} Bildpunkte Übergang (früher Schatten-Schleier über ~15)`);
