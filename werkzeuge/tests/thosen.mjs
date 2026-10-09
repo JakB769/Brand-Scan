@@ -23,11 +23,12 @@ const felder=()=>p.evaluate(()=>['g-len','g-waist','g-hemw'].map(i=>document.get
 const f0=await felder(); pruefe(f0.every(v=>+v>0),'Felder vorbelegt: Länge '+f0[0]+', Bund '+f0[1]+', Saum '+f0[2]+' cm');
 const a=await form();
 // Beide Längen enden über dem Boden (bodenlange Hosen stauchen sich absichtlich am Knöchel). Länge ändert nur die Beine:
-// erwartet ist also, dass die Strecke vom Schritt zum Saum im selben Verhältnis wächst wie die Beinlänge laut Zahlen.
+// erwartet ist also, dass die Strecke vom Schritt zum Saum im selben Verhältnis wächst wie Länge minus Leibhöhe.
 const beinS=()=>p.evaluate(()=>{ const {g3,g,GARMENTS}=window.__dbg, M=GARMENTS[g.key].m3, C=13, NR=M.nr, ic=g3.ic, k=i=>(((0*NR+i)*2+0)*C)*3+1; return g3.pos[k(NR-1)]-g3.pos[k(ic)]; });
 await p.fill('#g-len','80'); await p.waitForTimeout(600); const l80=await beinS();
 await p.fill('#g-len','70'); await p.waitForTimeout(600); const l70=await beinS(); const bL=await form();
-const soll=await p.evaluate(()=>{ const {g,GARMENTS}=window.__dbg, G=GARMENTS[g.key], M=G.m3, ic=M.v.findIndex(v=>v>=M.vc), cmW=g.flat/M.wf, crow=M.v[ic]*cmW; return (70-crow)/(80-crow); });
+// Schritt sitzt am Körper (Leibhöhe wie gezeichnet, g3.form.leib), nicht bei der flachen Leibhöhe aus dem Foto
+const soll=await p.evaluate(()=>{ const crow=window.__dbg.g3.form.leib; return (70-crow)/(80-crow); });
 pruefe(Math.abs(l70/l80/soll-1)<.03&&Math.abs(bL.saum/a.saum-1)<.03,`Länge 80 → 70 cm: Bein ${(l70/l80*100).toFixed(0)} % (soll ${(soll*100).toFixed(0)} %), Saum bleibt ${(bL.saum/a.saum*100).toFixed(0)} %`);
 await p.fill('#g-hemw',String(+f0[2]*1.25)); await p.waitForTimeout(600); const bS=await form();
 pruefe(Math.abs(bS.saum/a.saum-1.25)<.06,`Saum +25 %: gezeichnet ${(bS.saum/a.saum*100).toFixed(0)} %`);
