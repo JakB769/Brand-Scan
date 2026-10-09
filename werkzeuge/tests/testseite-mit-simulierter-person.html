@@ -43,11 +43,22 @@ button:hover:not(:disabled){border-color:var(--brass)}
 button:disabled{opacity:.4;cursor:not-allowed}
 button.primary{background:var(--brass);border-color:var(--brass);color:#1a1205}
 .toggle{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--chalk-dim)}
+.g3dbox{margin:10px 0;text-align:center}
+.g3dbox canvas{width:100%;max-width:360px;aspect-ratio:360/460;border-radius:10px;background:radial-gradient(ellipse at 50% 35%,#4a4339,#211d18);touch-action:none;cursor:grab}
+.g3dbox .sub{font-size:12.5px;color:var(--chalk-faint);margin:4px 0 8px}
 .toggle input{width:20px;height:20px;accent-color:var(--brass);flex:none}
 
 /* ---- Bühne ---- */
 .stage{position:relative;width:100%;aspect-ratio:3/4;max-height:76vh;background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .stage.full{position:fixed;inset:0;width:100vw;height:100dvh;max-height:none;aspect-ratio:auto;border:none;border-radius:0;z-index:900}
+/* Anprobe wie im Shop: Vollbild, nur die Hose, ein ✕ oben rechts (frei von Kerbe und abgerundeten Ecken) */
+.shopx{display:none;position:absolute;z-index:30;top:calc(env(safe-area-inset-top,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);
+  width:52px;height:52px;min-height:0;padding:0;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:26px;line-height:52px;text-align:center}
+.stage.shop .shopx{display:block}
+.stage.shop .cleanhint{display:none!important}
+/* im Shop nur die Ansagen (Geh zurück, Dreh dich), keine Messwerte und Knöpfe */
+.stage.shop.clean .hud:not([hidden]){display:flex!important;justify-content:flex-start;padding-top:calc(env(safe-area-inset-top,0px) + 76px)}
+.stage.shop .hud-top,.stage.shop .hud-bottom{display:none!important}
 .stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .stage.mirror video,.stage.mirror canvas{transform:scaleX(-1)}
 .stage .placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--chalk-dim);font-size:14px}
@@ -189,6 +200,7 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
     <div class="frame" id="frame"></div>
     <div class="placeholder" id="placeholder">Kamera noch nicht gestartet</div>
     <div class="cleanhint" id="cleanHint" hidden>Tippen blendet alles wieder ein</div>
+    <button class="shopx" id="shopClose" aria-label="Anprobe schließen" title="Schließen">✕</button>
     <div class="hud" id="hud" hidden>
       <div class="hud-top">
         <div class="pill"><span class="dot" id="dot"></span><span id="statusText">Bereit</span></div>
@@ -290,6 +302,19 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
       <div id="own-msg" style="margin-top:6px"></div>
     </div>
     <div class="gwrap" id="gwrap"></div>
+    <div class="row" id="gsammel">
+      <button id="g-export" title="Alle Hosen als Datei hosen.json sichern: auf ein anderes Gerät mitnehmen oder neben index.html legen">⇩ Alle Hosen als Datei</button>
+      <button id="g-importbtn" title="Hosen aus einer Datei hosen.json dazuladen">⇧ Hosen aus Datei laden</button>
+      <input type="file" id="g-import" accept=".json,application/json" hidden>
+    </div>
+    <div id="g3dbox" class="g3dbox" hidden>
+      <canvas id="g3dview" width="360" height="460" aria-label="3D-Modell der gewählten Hose, mit dem Finger oder der Maus drehbar"></canvas>
+      <div class="sub">3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen</div>
+      <div class="row">
+        <button id="tryon" class="primary" title="So würde es im Shop aussehen: Kamera im Vollbild, nur die Hose, ✕ schließt">▶ Anprobieren wie im Shop</button>
+        <button id="g-glb" title="3D-Datei (glTF/GLB) der Hose sichern: für Shopify (3D-Modell am Produkt), Blender oder jeden 3D-Betrachter">⇩ 3D-Datei (.glb)</button>
+      </div>
+    </div>
     <div class="gdims" id="gdims">
       <div class="dim"><label for="g-len">Hosenlänge, cm <span class="sub">außen, vom Bund bis zum Saum</span></label>
         <input type="text" autocomplete="off" id="g-len" inputmode="decimal" disabled>
@@ -627,7 +652,7 @@ async function startCamera(){
   $("reset").disabled=false; $("start").textContent="Kamera neu starten"; $("start").disabled=false;
   starting=false; clearSm();
   coach("Geh ein paar Schritte zurück","","warn",true); cue("Geh ein paar Schritte zurück",true);
-  if(!running){ running=true; requestAnimationFrame(loop); }
+  if(!running){ running=true; $("g3dbox").hidden=true; requestAnimationFrame(loop); }   // 3D-Ansicht teilt sich die Grafik mit der Anprobe
 }
 
 /* ---------- Silhouette ---------- */
@@ -707,7 +732,7 @@ function angleAt(a,b,c){
 }
 
 function loop(){
-  if(!running) return;
+  if(!running){ view3dKick(); return; }
   if(video.videoWidth&&video.currentTime!==lastTime){
     lastTime=video.currentTime;
     let res=null;
@@ -982,7 +1007,7 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
       const mx=Math.max(scene.r,scene.g,scene.b)||1;
       const tint=[scene.r,scene.g,scene.b].map(v=>(1-(1-v/mx)*.45)*m);
       const fab=stoffVon(G);
-      const info=draw3d(M,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:num($("height").value)||175,rot:G.rot||null,ppc:pxPerCm,cmH,cmL,kHem:D.hem/(M.hw[M.nr-1]*cmH),h,belt:[cx,anchorY*vh+g.off*pxPerCm,0],yCrotch,bone:B,foc,pc,arms:ext.arms},vw,vh,tint);
+      const info=draw3d(M,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:num($("height").value)||175,rot:G.rot||null,ppc:pxPerCm,cmH,cmL,kHem:D.hem/(M.hw[M.nr-1]*cmH),h,belt:[cx,anchorY*vh+g.off*pxPerCm,0],yCrotch,bone:B,foc,pc,arms:ext.arms,zs:vw},vw,vh,tint);
       ctx.save();
       ctx.globalAlpha=g.opa;
       shadow3d(ext.mask,vw,vh,pxPerCm,foc,pc);
@@ -1297,7 +1322,7 @@ function mesh3d(key,M){
     q(id(s,NR-1,f,j),id(s,NR-1,f,j+1),rid(s,f,3,j+1),rid(s,f,3,j));    // Saumkante
     q(rid(s,f,4,j),rid(s,f,4,j+1),rid(s,f,5,j+1),rid(s,f,5,j));        // Umschlag innen
   }
-  g3.key=key; g3.nv=nv; g3.nRing=nRing; g3.nWall=nWall; g3.oN=0; g3.ic=ic; g3.ni=idx.length; g3.duj=duj; g3.uvs=uv; g3.nr=NR; g3.amp=null;
+  g3.key=key; g3.nv=nv; g3.nRing=nRing; g3.nWall=nWall; g3.oN=0; g3.ic=ic; g3.idxArr=new Uint16Array(idx); g3.aoArr=ao; g3.ni=idx.length; g3.duj=duj; g3.uvs=uv; g3.nr=NR; g3.amp=null;
   g3.pos=new Float32Array(nv*3); g3.nor=new Float32Array(nv*3); g3.tu=new Float32Array(nv*3); g3.tw=new Float32Array(nv*3);
   const buf=(data,loc,size)=>{ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
     gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW); return b; };
@@ -1558,31 +1583,40 @@ function cloth3d(M,P,dt){
   }
   Tp.set(Tg); T.set(X);
 }
-/* Drehung, die Richtung a auf Richtung b bringt (kürzester Weg), als Funktion auf Vektoren */
-function rotFT(a,b){
+/* Drehachse und Winkel, die Richtung a auf Richtung b bringen (kürzester Weg); fb: Achse bei genau entgegengesetzt */
+function axisAngle(a,b,fb){
   const c=clamp(v3.dot(a,b),-1,1), ax=v3.cross(a,b), sn=v3.len(ax);
-  if(sn<1e-6) return c>0?(v=>v):(v=>[-v[0],-v[1],v[2]]);
-  const k=v3.mul(ax,1/sn);
-  return v=>{ const kv=v3.dot(k,v), x=v3.cross(k,v); return [v[0]*c+x[0]*sn+k[0]*kv*(1-c),v[1]*c+x[1]*sn+k[1]*kv*(1-c),v[2]*c+x[2]*sn+k[2]*kv*(1-c)]; };
+  if(sn<1e-6) return c>0?{k:[1,0,0],a:0}:{k:fb,a:Math.PI};
+  return {k:v3.mul(ax,1/sn),a:Math.atan2(sn,c)};
+}
+/* Punkt (x,y,z) um den Drehpunkt o drehen (Achse k, Winkel a); Ergebnis nach out */
+function rotAbout(o,k,a,x,y,z,out){
+  const px=x-o[0], py=y-o[1], pz=z-o[2], c=Math.cos(a), s=Math.sin(a), kv=k[0]*px+k[1]*py+k[2]*pz;
+  const cx=k[1]*pz-k[2]*py, cy=k[2]*px-k[0]*pz, cz=k[0]*py-k[1]*px;
+  out[0]=o[0]+px*c+cx*s+k[0]*kv*(1-c); out[1]=o[1]+py*c+cy*s+k[1]*kv*(1-c); out[2]=o[2]+pz*c+cz*s+k[2]*kv*(1-c);
 }
 /* Skinning: jeder Punkt hängt mit einem Gewicht am Becken, am Oberschenkel und am Unterschenkel seiner Seite.
    Oberschenkel ab knapp über dem Hüftgelenk, Unterschenkel um das Knie herum überblendet. Am Becken bleibt die
-   Mittelnaht (vorne Hosenschlitz, hinten Gesäßnaht) beim Becken, sonst würde sie aufreißen, wenn nur ein Bein sich hebt. */
+   Mittelnaht (vorne Hosenschlitz, hinten Gesäßnaht) beim Becken, sonst würde sie aufreißen, wenn nur ein Bein sich hebt.
+   Überblendet wird der Drehwinkel, nicht die Lage (wie Dual-Quaternion-Skinning bei einem Gelenk): ein Punkt mit halbem
+   Gewicht dreht sich um den halben Winkel und behält seinen Abstand zum Gelenk. Lineares Mischen der Lagen ließ den Stoff an
+   Leiste und Kniekehle einfallen und warf beim angehobenen Knie einen Lappen. */
 function skin3d(M,P,rest,dn){
-  const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos;
+  const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos, o=[0,0,0];
   for(let s=0;s<2;s++){
-    const ch=P.bone[s], J=ch[0], K=ch[1], A=ch[2], Kr=rest[s][1];
-    const Lt=v3.len(v3.sub(K,J))||1, Rt=rotFT(dn,v3.norm(v3.sub(K,J))), Rs=rotFT(dn,v3.norm(v3.sub(A,K)));
+    const ch=P.bone[s], J=ch[0], K=ch[1], A=ch[2];
+    const Lt=v3.len(v3.sub(K,J))||1, tD=v3.norm(v3.sub(K,J)), T=axisAngle(dn,tD,P.h), S=axisAngle(tD,v3.norm(v3.sub(A,K)),P.h);
     for(let i=0;i<NR;i++){
       const ib=clamp((i-(ic-4))/4,0,1);                 // ab kurz über dem Schritt gehören auch die Mittelpunkte zum Bein
       for(let f=0;f<2;f++) for(let j=0;j<C;j++){
-        const q=(((s*NR+i)*2+f)*C+j)*3, v=[pos[q],pos[q+1],pos[q+2]], y=v3.dot(v3.sub(v,J),dn);
+        const q=(((s*NR+i)*2+f)*C+j)*3, x=pos[q], y0=pos[q+1], z=pos[q+2];
+        const y=(x-J[0])*dn[0]+(y0-J[1])*dn[1]+(z-J[2])*dn[2];
         const lat=i<ic?ib+(1-ib)*sstep(0,.6,j/K3):1, wt=sstep(-.2*Lt,.45*Lt,y)*lat;
         if(wt<=0) continue;
-        let b=v3.add(J,Rt(v3.sub(v,J)));
+        rotAbout(J,T.k,T.a*wt,x,y0,z,o);
         const ws=sstep(.8*Lt,1.15*Lt,y);
-        if(ws>0){ const vs=v3.add(K,Rs(v3.sub(v,Kr))); b=[b[0]+(vs[0]-b[0])*ws,b[1]+(vs[1]-b[1])*ws,b[2]+(vs[2]-b[2])*ws]; }
-        pos[q]=v[0]+(b[0]-v[0])*wt; pos[q+1]=v[1]+(b[1]-v[1])*wt; pos[q+2]=v[2]+(b[2]-v[2])*wt;
+        if(ws>0) rotAbout(K,S.k,S.a*ws,o[0],o[1],o[2],o);
+        pos[q]=o[0]; pos[q+1]=o[1]; pos[q+2]=o[2];
       }
       for(let f=0;f<2;f++){ const w=(g3.nRing+(s*NR+i)*2+f)*3, src=(((s*NR+i)*2+f)*C)*3;
         pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2]; }
@@ -1717,7 +1751,9 @@ function occl3d(M,P){
   for(const ch of P.bone){ caps.push([ch[0],ch[1],rb(0),rb(.5)],[ch[1],ch[2],rb(.5),rb(1)]);
     caps.push([ch[2],v3.add(v3.add(ch[2],v3.mul(F.up,-6*ppc)),v3.mul(F.fw,12*ppc)),4.5*ppc,4*ppc]); }
   // Arme: Oberarm, Unterarm, Hand. Nur sicher erkannt und nicht hinter dem Becken (Tiefe der Erkennung relativ zur
-  // Hüftmitte; kleiner heißt näher). Mit Hysterese, damit eine Hand an der Hüfte nicht flackert.
+  // Hüftmitte; kleiner heißt näher). Mit Hysterese, damit eine Hand an der Hüfte nicht flackert. Tiefe des Arms aus der
+  // Erkennung (gleicher Maßstab wie die Bildbreite) und 5 cm zur Kamera hin, höchstens vor der vordersten Hosenstelle:
+  // so liegt eine Hand vor dem Oberschenkel, ein seitlich hängender Arm aber hinter einem angehobenen Knie.
   let zF=1e9; for(let i=0;i<g3.nRing;i++) zF=Math.min(zF,pos[i*3+2]);
   const un=(p,z)=>{ const k=(P.foc+z)/P.foc; return [P.pc[0]+(p.x-P.pc[0])*k,P.pc[1]+(p.y-P.pc[1])*k,z]; };
   const on=g3.armOn||(g3.armOn=[[0,0,0],[0,0,0]]);
@@ -1726,7 +1762,8 @@ function occl3d(M,P){
     [[A[0],A[1],5*ppc,4.2*ppc],[A[1],A[2],4.2*ppc,3.2*ppc],[A[2],hand,3.6*ppc,4*ppc]].forEach(([p,q,ra,rq],k)=>{
       const v=Math.min(p.v,q.v), zr=Math.max(p.zr,q.zr);
       if(v>=.5&&zr<=.02) on[ai][k]=1; else if(v<.4||zr>.06) on[ai][k]=0;
-      caps.push(on[ai][k]?[un(p,zF-ra),un(q,zF-rq),ra,rq]:null); });
+      const zA=(pt,r)=>Math.max(zF-r,pt.zr*(P.zs||0)-5*ppc);
+      caps.push(on[ai][k]?[un(p,zA(p,ra)),un(q,zA(q,rq)),ra,rq]:null); });
   });
   while(caps.length<nCap) caps.push(null);
   for(let c=0;c<nCap;c++){
@@ -1806,6 +1843,98 @@ function shadow3d(mask,vw,vh,ppc,foc,pc){
   x.globalCompositeOperation="source-over";
   ctx.save(); ctx.globalAlpha*=.35; ctx.imageSmoothingEnabled=true; ctx.drawImage(shd.c,0,.6*ppc,vw,vh); ctx.restore();
 }
+/* ---------- Drehbare 3D-Ansicht ohne Kamera: die gewählte Hose an einer Puppe in der eingegebenen Körpergröße ----------
+   Dasselbe Modell, dieselbe Physik wie bei der Anprobe, nur mit einem festen Skelett (Durchschnittsmaße als Anteil der Größe).
+   Läuft nur, solange die Kamera aus ist und die Ansicht zu sehen ist (die Grafik wird mit der Live-Anprobe geteilt). */
+const v3d={yaw:.45,drag:null,idle:0,raf:0,vis:true,last:0};
+function view3dKick(){ if(!v3d.raf) v3d.raf=requestAnimationFrame(view3dFrame); }
+/* Puppe: Hüftgelenk 52 %, Knie 28,5 %, Knöchel 4,5 % der Größe; Hüftgelenke 10 % auseinander; Bund 4,5 % über dem Hüftgelenk */
+function view3dPose(G,W,H,yw){
+  const Hc=clamp(num($("height").value)||175,120,220), D=garmentDims(G), fab=stoffVon(G);
+  const hipH=.52*Hc, beltH=hipH+.045*Hc, ppc=H*.9/Math.max(beltH+6,D.len+10), floor=H*.955, Y=h=>floor-h*ppc;
+  const h=[Math.cos(yw),0,Math.sin(yw)], half=.05*Hc*ppc, cx=W/2;
+  const bone=[1,-1].map(sg=>[hipH,.285*Hc,.045*Hc].map((hh,j)=>[cx+h[0]*sg*half,Y(hh),h[2]*sg*half+(j===1?-1.5*ppc:0)]));
+  const foc=6*Math.max(W,H), pc=[W/2,H/2];
+  const info=draw3d(G.m3,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:Hc,rot:G.rot||null,ppc,cmH:D.cmW,cmL:D.len,
+    kHem:D.hem/(G.m3.hw[G.m3.nr-1]*D.cmW),h,belt:[cx,Y(beltH),0],yCrotch:Y(.47*Hc),bone,foc,pc,arms:[]},W,H,[1,1,1]);
+  return {info,bone,ppc,floor,cx,Hc,beltH,Y,yw,fab,D};
+}
+/* 3D-Datei (glTF 2.0 binär, .glb) der gewählten Hose, frontal an der Puppe, ohne Nachschwingen: für Shopify (3D-Modell am
+   Produkt; Shopify erzeugt daraus selbst die Datei für AR auf dem iPhone), Blender oder jeden 3D-Betrachter.
+   Meter, Y nach oben, Vorderseite zeigt nach +Z, Boden bei Y = 0. Stoff als Textur, Innenseiten dunkler (Vertex-Farben). */
+async function exportGLB(){
+  const G=g.key&&GARMENTS[g.key]; if(!G||!G.m3||running||!init3d()) return;
+  mesh3d(g.key,G.m3);
+  for(let t=0;t<80&&!g3.texReady;t++) await new Promise(r=>setTimeout(r,50));   // Stoffbild lädt noch
+  if(!g3.texReady||!g3.idxArr){ $("g-msg").textContent="Das Stoffbild lädt noch. Bitte gleich noch einmal tippen."; return; }
+  const W=$("g3dview").width, H=$("g3dview").height;
+  g3.cOk=false; const V=view3dPose(G,W,H,0);                   // Physik neu ansetzen: ruhige Form
+  const n=g3.nv, k=1/(V.ppc*100), Pp=new Float32Array(n*3), Nn=new Float32Array(n*3), UV=new Float32Array(n*2), CO=new Float32Array(n*3);
+  const lo=[1e9,1e9,1e9], hi=[-1e9,-1e9,-1e9];
+  for(let i=0;i<n;i++){
+    const x=(g3.pos[i*3]-V.cx)*k, y=(V.floor-g3.pos[i*3+1])*k, z=-g3.pos[i*3+2]*k;
+    Pp.set([x,y,z],i*3); [x,y,z].forEach((v,c)=>{ if(v<lo[c]) lo[c]=v; if(v>hi[c]) hi[c]=v; });
+    let nx=g3.nor[i*3], ny=-g3.nor[i*3+1], nz=-g3.nor[i*3+2]; const l=Math.hypot(nx,ny,nz);
+    if(l>1e-6){ nx/=l; ny/=l; nz/=l; } else { nx=0; ny=1; nz=0; }
+    Nn.set([nx,ny,nz],i*3); UV[i*2]=g3.uvs[i*2]; UV[i*2+1]=g3.uvs[i*2+1];
+    const a=clamp(Math.abs(g3.aoArr[i*2])*(g3.aoArr[i*2]<0?.8:1),0,1); CO.set([a,a,a],i*3);
+  }
+  const im=await new Promise((res,rej)=>{ const m=new Image(); m.onload=()=>res(m); m.onerror=rej; m.src=G.m3.atlas; });
+  const jpg=new Uint8Array(await (await new Promise(r=>matchHalves(im).toBlob(r,"image/jpeg",.9))).arrayBuffer());
+  const parts=[Pp,Nn,UV,CO,g3.idxArr,jpg], views=[]; let off=0;
+  for(const a of parts){ views.push({buffer:0,byteOffset:off,byteLength:a.byteLength}); off+=Math.ceil(a.byteLength/4)*4; }
+  views[0].target=views[1].target=views[2].target=views[3].target=34962; views[4].target=34963;
+  const fab=V.fab, json={asset:{version:"2.0",generator:"Passform Live-Anprobe"},scene:0,scenes:[{nodes:[0]}],
+    nodes:[{mesh:0,name:G.label}],
+    meshes:[{name:G.label,primitives:[{attributes:{POSITION:0,NORMAL:1,TEXCOORD_0:2,COLOR_0:3},indices:4,material:0}]}],
+    materials:[{name:fab.name,doubleSided:true,pbrMetallicRoughness:{baseColorTexture:{index:0},metallicFactor:0,roughnessFactor:clamp(.95-fab.gloss*1.5,.4,.95)}}],
+    textures:[{sampler:0,source:0}],samplers:[{magFilter:9729,minFilter:9987,wrapS:33071,wrapT:33071}],images:[{bufferView:5,mimeType:"image/jpeg"}],
+    accessors:[{bufferView:0,componentType:5126,count:n,type:"VEC3",min:lo,max:hi},{bufferView:1,componentType:5126,count:n,type:"VEC3"},
+      {bufferView:2,componentType:5126,count:n,type:"VEC2"},{bufferView:3,componentType:5126,count:n,type:"VEC3"},
+      {bufferView:4,componentType:5123,count:g3.idxArr.length,type:"SCALAR"}],
+    bufferViews:views,buffers:[{byteLength:off}]};
+  let js=new TextEncoder().encode(JSON.stringify(json)); const jl=Math.ceil(js.length/4)*4;
+  const out=new Uint8Array(12+8+jl+8+off), dv=new DataView(out.buffer);
+  dv.setUint32(0,0x46546C67,true); dv.setUint32(4,2,true); dv.setUint32(8,out.length,true);
+  dv.setUint32(12,jl,true); dv.setUint32(16,0x4E4F534A,true); out.fill(0x20,20,20+jl); out.set(js,20);
+  dv.setUint32(20+jl,off,true); dv.setUint32(24+jl,0x004E4942,true);
+  const b0=28+jl; parts.forEach((a,i)=>out.set(new Uint8Array(a.buffer,a.byteOffset,a.byteLength),b0+views[i].byteOffset));
+  const url=URL.createObjectURL(new Blob([out],{type:"model/gltf-binary"})), A=document.createElement("a");
+  A.href=url; A.download=(G.label||"hose").replace(/[^\wäöüÄÖÜß\- ]+/g,"").trim().replace(/\s+/g,"-")+".glb"; document.body.appendChild(A); A.click(); A.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000); g3.cOk=false;
+  $("g-msg").textContent=`3D-Datei gesichert (${Math.round(out.length/1024)} KB, ${Math.round((hi[1]-lo[1])*100)} cm hoch). Lässt sich in Shopify als 3D-Modell am Produkt hochladen oder in Blender und jedem 3D-Betrachter öffnen.`;
+}
+function view3dFrame(now){
+  v3d.raf=0;
+  const box=$("g3dbox"), cvs=$("g3dview"), G=g.key&&GARMENTS[g.key];
+  const show=!!(G&&G.m3&&!G.bad&&!running&&init3d());
+  box.hidden=!show; if(!show||!v3d.vis) return;
+  const dt=clamp((now-(v3d.last||now))/1000,0,.1); v3d.last=now;
+  if(!v3d.drag&&now-v3d.idle>2500) v3d.yaw+=dt*.5;           // dreht sich langsam, bis jemand zieht
+  mesh3d(g.key,G.m3);
+  const W=cvs.width, H=cvs.height, x=cvs.getContext("2d");
+  if(!g3.texReady){ view3dKick(); return; }
+  const {info,bone,ppc,floor,cx,Hc,beltH,Y,yw}=view3dPose(G,W,H,v3d.yaw);
+  x.clearRect(0,0,W,H);
+  // Boden-Schatten, Füße und Oberkörper der Puppe (schlicht, damit die Hose nicht in der Luft hängt)
+  x.fillStyle="rgba(0,0,0,.35)"; x.beginPath(); x.ellipse(cx,floor+2,.17*Hc*ppc,.03*Hc*ppc,0,0,7); x.fill();
+  x.fillStyle="#6d6458";
+  for(const b of bone){ const a=b[2]; x.beginPath(); x.ellipse(a[0]+Math.sin(yw)*4*ppc,floor-2.5*ppc,(4+7*Math.abs(Math.sin(yw)))*ppc,3*ppc,0,0,7); x.fill(); }
+  const tw=(32-10*Math.abs(Math.sin(yw)))*ppc*Hc/175, top=Y(beltH)+.5*ppc, gr=x.createLinearGradient(cx-tw*.55,0,cx+tw*.55,0);
+  gr.addColorStop(0,"#4c463e"); gr.addColorStop(.42,"#7d7468"); gr.addColorStop(1,"#463f37"); x.fillStyle=gr;
+  x.beginPath(); x.moveTo(cx-tw/2,top); x.lineTo(cx-tw*.42,top-22*ppc); x.lineTo(cx-tw*.55,0); x.lineTo(cx+tw*.55,0); x.lineTo(cx+tw*.42,top-22*ppc); x.lineTo(cx+tw/2,top); x.closePath(); x.fill();
+  x.drawImage(g3.c,0,0);
+  v3d.info=info; view3dKick();
+}
+(()=>{
+  const cvs=$("g3dview");
+  cvs.addEventListener("pointerdown",e=>{ v3d.drag={x:e.clientX,yaw:v3d.yaw}; cvs.setPointerCapture(e.pointerId); cvs.style.cursor="grabbing"; });
+  cvs.addEventListener("pointermove",e=>{ if(!v3d.drag) return; v3d.yaw=v3d.drag.yaw+(e.clientX-v3d.drag.x)/cvs.getBoundingClientRect().width*Math.PI*2; v3d.idle=performance.now(); });
+  const up=()=>{ v3d.drag=null; v3d.idle=performance.now(); cvs.style.cursor=""; };
+  cvs.addEventListener("pointerup",up); cvs.addEventListener("pointercancel",up);
+  // nur rechnen, solange die Ansicht zu sehen ist
+  if("IntersectionObserver" in window) new IntersectionObserver(es=>{ v3d.vis=es[0].isIntersecting; if(v3d.vis) view3dKick(); }).observe($("g3dbox"));
+})();
 /* ---------- Blickrichtung: wohin zeigt die Vorderseite der Person? ---------- */
 /* Betrag der Drehung aus der sichtbaren Schulter- und Hüftbreite, die Richtung aus Füßen, Nase und Tiefe.
    So hängt nichts allein an der unruhigen Tiefenschätzung. */
@@ -2886,9 +3015,30 @@ let saveT=0;
 function saveSoon(ms=800){ clearTimeout(saveT); saveT=ms?setTimeout(()=>{ saveT=0; saveOwn(); },ms):0; if(!ms) saveOwn(); }
 addEventListener("pagehide",()=>{ if(saveT) saveSoon(0); });
 function saveOwn(){
-  try{ localStorage.setItem(OWN,JSON.stringify(Object.entries(GARMENTS).filter(([,G])=>!G.unsaved).map(([key,G])=>({key,G})))); return true; }
+  try{ localStorage.setItem(OWN,JSON.stringify(Object.entries(GARMENTS).filter(([,G])=>!G.unsaved&&!G.shared).map(([key,G])=>({key,G:plainG(G)})))); return true; }
   catch(_){ $("g-msg").textContent="Speichern im Gerät hat nicht geklappt (Speicher voll oder gesperrt): Änderungen sind nach dem Neuladen weg. Lösche eine Hose, die du nicht mehr brauchst."; return false; }
 }
+/* Was gespeichert bzw. in eine Datei geschrieben wird: ohne Felder, die nur für diese Sitzung gelten oder neu berechnet werden */
+function plainG(G){ const o={...G}; delete o.unsaved; delete o.shared; delete o.prof; delete o.bad; return o; }
+/* Eine Hose aus Speicher oder Datei absichern und mit dem heutigen Generator nachprüfen. Rückgabe: true, wenn repariert. */
+function checkGarment(G){
+  let fixed=false;
+  try{
+    const nz=normalizeProfile(G.m3);
+    if(nz.changed){ G.m3=nz.M; G.aspect=(G.aspect||1)*nz.span; G.repaired=true; fixed=true; }
+    G.prof=garmentProf(G.m3,G.aspect||1); G.bad=nz.bad;
+    // Felder absichern: falscher Typ oder unsinniger Wert gilt als nicht eingetragen
+    for(const k of ["waist","len","hem"]) if(!(typeof G[k]==="number"&&G[k]>=DIM[k][0]&&G[k]<=DIM[k][1])) G[k]=null;
+    if(G.meas&&!(REFS[G.meas.ref]&&G.meas.len>0&&G.meas.len<400)) G.meas=null;
+    if(!(Array.isArray(G.rot)&&G.rot.length===9&&G.rot.every(isFinite))) G.rot=null;
+    if(!STOFFE[G.fabric]) G.fabric=null; G.material=typeof G.material==="string"?G.material:"";
+    G.label=String(G.label||"Hose"); G.src=typeof G.src==="string"?G.src:""; G.estFlat=G.estFlat>0?G.estFlat:40;
+    if(!(G.base&&isFinite(G.base.lum))) G.base={r:120,g:120,b:120,lum:120};
+  }catch(_){ G.bad="Modell beschädigt"; }
+  return fixed;
+}
+/* Gültige Einträge aus Speicher oder Datei: [{key, G}] mit Modell */
+const garmentList=a=>(Array.isArray(a)?a:a&&Array.isArray(a.hosen)?a.hosen:[]).filter(o=>o&&typeof o.key==="string"&&o.G&&o.G.m3&&Array.isArray(o.G.m3.hw)&&typeof o.G.m3.atlas==="string");
 function loadOwn(){
   let fixed=false;
   try{
@@ -2901,22 +3051,59 @@ function loadOwn(){
     if(old!=null&&(!fixed||saveOwn())) localStorage.removeItem("massScanEigen");
   }catch(_){}
   // Gespeicherte Hosen mit dem heutigen Generator nachprüfen: abstehende Zeilen weg, Größe neu normalisieren
-  for(const G of Object.values(GARMENTS)){
-    try{
-      const nz=normalizeProfile(G.m3);
-      if(nz.changed){ G.m3=nz.M; G.aspect=(G.aspect||1)*nz.span; G.repaired=true; fixed=true; }
-      G.prof=garmentProf(G.m3,G.aspect||1); G.bad=nz.bad;
-      // Felder aus dem Speicher absichern: falscher Typ oder unsinniger Wert gilt als nicht eingetragen
-      for(const k of ["waist","len","hem"]) if(!(typeof G[k]==="number"&&G[k]>=DIM[k][0]&&G[k]<=DIM[k][1])) G[k]=null;
-      if(G.meas&&!(REFS[G.meas.ref]&&G.meas.len>0&&G.meas.len<400)) G.meas=null;
-      if(!(Array.isArray(G.rot)&&G.rot.length===9&&G.rot.every(isFinite))) G.rot=null;
-      if(!STOFFE[G.fabric]) G.fabric=null; G.material=typeof G.material==="string"?G.material:"";
-      G.label=String(G.label||"Hose"); G.src=typeof G.src==="string"?G.src:""; G.estFlat=G.estFlat>0?G.estFlat:40;
-      if(!(G.base&&isFinite(G.base.lum))) G.base={r:120,g:120,b:120,lum:120};
-    }catch(_){ G.bad="Modell beschädigt"; }
-  }
+  for(const G of Object.values(GARMENTS)) if(checkGarment(G)) fixed=true;
   if(fixed) saveOwn();
 }
+/* ---------- Sammlung: alle Hosen als Datei sichern, aus einer Datei laden, hosen.json neben der Seite ----------
+   Zum Testen auf mehreren Geräten: am Laptop anlegen, „Alle Hosen als Datei“, die Datei hosen.json neben index.html legen
+   und den Ordner veröffentlichen (z. B. Netlify Drop). Jedes Gerät lädt sie dann beim Öffnen. Hosen aus hosen.json werden
+   nicht im Gerät gespeichert (der Speicher reicht nur für etwa 40 Hosen), außer man ändert etwas an ihnen. */
+const GONE="massScanWeg";                            // gelöschte Hosen aus hosen.json: nicht wieder anzeigen
+const goneKeys=()=>{ try{ const a=JSON.parse(localStorage.getItem(GONE)||"[]"); return new Set(Array.isArray(a)?a:[]); }catch(_){ return new Set(); } };
+function exportGarments(){
+  const E=Object.entries(GARMENTS).filter(([,G])=>G.m3);
+  if(!E.length){ $("g-msg").textContent="Noch keine Hose zum Sichern."; return; }
+  const data=JSON.stringify({app:"passform",version:1,erstellt:new Date().toISOString(),hosen:E.map(([key,G])=>({key,G:plainG(G)}))});
+  const url=URL.createObjectURL(new Blob([data],{type:"application/json"})), a=document.createElement("a");
+  a.href=url; a.download="hosen.json"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+  $("g-msg").textContent=`${E.length} ${E.length===1?"Hose":"Hosen"} als hosen.json gesichert (${Math.round(data.length/1024)} KB). Auf einem anderen Gerät mit „Hosen aus Datei laden“ öffnen, oder die Datei neben index.html legen: dann lädt jedes Gerät sie beim Öffnen.`;
+}
+/* Hosen aus einer Liste übernehmen. shared: aus hosen.json neben der Seite (nicht im Gerät speichern). Gleiche Schlüssel
+   werden übersprungen (schon da). Rückgabe: Anzahl {neu, da, kaputt, voll}. */
+function mergeGarments(list,shared){
+  const r={neu:0,da:0,kaputt:0,voll:0}, weg=shared?goneKeys():new Set();
+  for(const {key,G} of list){
+    if(GARMENTS[key]||weg.has(key)){ r.da++; continue; }
+    const H=JSON.parse(JSON.stringify(G)); checkGarment(H);
+    if(H.bad==="Modell beschädigt"){ r.kaputt++; continue; }
+    if(shared) H.shared=true;
+    GARMENTS[key]=H; r.neu++;
+    if(!shared&&!saveOwn()){ H.unsaved=true; r.voll++; }
+  }
+  if(!shared&&r.voll) saveOwn();
+  return r;
+}
+async function importGarmentFile(file){
+  let list=[];
+  try{ list=garmentList(JSON.parse(await file.text())); }catch(_){}
+  if(!list.length){ $("g-msg").textContent="In dieser Datei sind keine Hosen (erwartet: hosen.json aus „Alle Hosen als Datei“)."; return; }
+  const r=mergeGarments(list,false); buildPicker();
+  const k=Object.keys(GARMENTS).find(x=>!GARMENTS[x].bad); if(!g.key&&k) pickGarment(k,false);
+  $("g-msg").textContent=(r.neu?`${r.neu} ${r.neu===1?"Hose":"Hosen"} geladen`:"Nichts Neues")+(r.da?`, ${r.da} schon da`:"")+(r.kaputt?`, ${r.kaputt} beschädigt`:"")
+    +(r.voll?`. ${r.voll} davon passen nicht mehr in den Speicher des Geräts und sind nach dem Neuladen weg (alte Hosen löschen oder hosen.json neben die Seite legen).`:".");
+}
+async function loadSharedGarments(){
+  if(location.protocol==="file:") return;            // ohne Server gibt es keine Datei daneben
+  try{
+    const res=await fetch("hosen.json",{cache:"no-store"}); if(!res.ok) return;
+    const list=garmentList(await res.json()); if(!list.length) return;
+    const r=mergeGarments(list,true); if(!r.neu) return;
+    buildPicker(); $("g-msg").textContent=`${r.neu} ${r.neu===1?"Hose":"Hosen"} aus hosen.json neben der Seite geladen.`;
+  }catch(_){}
+}
+/* Eine Hose aus hosen.json wird beim Ändern zur eigenen (im Gerät gespeichert) */
+const ownIt=G=>{ if(G&&G.shared) G.shared=false; };
 function addOwnGarment(G){
   const key="h"+Date.now().toString(36);
   GARMENTS[key]=G; ownLast=key; buildPicker(); pickGarment(key,false);
@@ -2935,6 +3122,7 @@ function deleteGarment(k){
   const keys=Object.keys(GARMENTS), pos=keys.indexOf(k), wasOn=g.key===k;
   if(wasOn) clearGarment();
   if(g3.key===k) free3d();
+  if(GARMENTS[k].shared) try{ const w=goneKeys(); w.add(k); localStorage.setItem(GONE,JSON.stringify([...w])); }catch(_){}
   delete GARMENTS[k];
   if(ownLast===k){ ownLast=null; $("own-prev").hidden=true; $("own-msg").textContent=""; }
   saveOwn(); buildPicker();
@@ -2990,7 +3178,7 @@ function syncG(G=g.key&&GARMENTS[g.key]){
 }
 function resetDim(k){
   if(!g.key) return; const G=GARMENTS[g.key];
-  G[k]=null; syncG(); fillDims(); updateFit(); saveOwn(); $("g-msg").textContent="";
+  ownIt(G); G[k]=null; syncG(); fillDims(); updateFit(); saveOwn(); $("g-msg").textContent="";
 }
 /* Felder mit den Werten der ausgewählten Hose füllen (das Feld, in dem gerade getippt wird, bleibt in Ruhe) */
 function fillDims(){
@@ -3053,13 +3241,13 @@ function pickGarment(k,scroll=true){
   syncG(G);
   $("g-msg").textContent=G.repaired?"Diese Hose wurde automatisch repariert (oben ragte etwas aus dem Foto). Bitte Länge und Bund mit dem Maßband prüfen und hier eintragen."
     :g.est?"Länge und Bund sind nur grob geschätzt. Am besten die Länge mit dem Maßband messen und eintragen.":"";
-  fillDims(); markGarment(); $("fitRead").hidden=false; updateFit(); showFab();
+  fillDims(); markGarment(); $("fitRead").hidden=false; updateFit(); showFab(); view3dKick();
   if(scroll) stage.scrollIntoView({behavior:"smooth",block:"center"});
   cue("Hose liegt auf.",true);
 }
 function clearGarment(){
   g.key=null; g.img=null; g.flat=null; g.len=null; g.est=false; setTimeout(showFab);
-  markGarment(); $("fitRead").hidden=true; $("g-msg").textContent=""; fillDims();
+  markGarment(); $("fitRead").hidden=true; $("g-msg").textContent=""; fillDims(); view3dKick();
 }
 function markGarment(){
   $("gwrap").querySelectorAll(".gbtn").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.g===g.key)));
@@ -3170,12 +3358,44 @@ $("quick").addEventListener("click",()=>{ $("person").value="Jakob"; $("height")
 ["person","height"].forEach(id=>$(id).addEventListener("change",()=>{
   try{ localStorage.setItem(PKEY,JSON.stringify({n:$("person").value,h:$("height").value})); }catch(_){} }));
 try{ const o=JSON.parse(localStorage.getItem(PKEY)||"null"); if(o){ if(!$("person").value) $("person").value=o.n||""; if(!$("height").value) $("height").value=o.h||""; } }catch(_){}
+/* ---------- Anprobe wie im Shop (Vorschau für die Shopify-App): Vollbild, Kamera, nur die gewählte Hose, ✕ oder Zurück schließt ----------
+   Auf dem iPhone gibt es kein echtes Vollbild für Seitenteile; die Bühne füllt dann einfach den ganzen Bildschirm. */
+let shopMode=false;
+function openShop(){
+  if(!g.key){ $("g-msg").textContent="Erst eine Hose wählen."; return; }
+  const hh=num($("height").value);
+  if(!(hh>=120&&hh<=230)){ $("g-msg").textContent="Bitte zuerst oben deine Körpergröße eintragen: sie ist der Maßstab für die Hose.";
+    $("height").focus(); $("height").scrollIntoView({block:"center"}); return; }
+  shopMode=true; stage.classList.add("full","shop"); document.body.classList.add("locked"); setClean(true);
+  try{ history.pushState({shop:1},""); }catch(_){}
+  if(stage.requestFullscreen&&!document.fullscreenElement) stage.requestFullscreen().catch(()=>{});
+  // im Tipp-Ereignis: die Kamera-Frage kommt sofort. Klappt es nicht, Vollbild wieder zu, damit die Meldung zu sehen ist.
+  startCamera().then(()=>{ if(shopMode&&!running&&!starting) closeShop(); });
+}
+function closeShop(){
+  if(!shopMode) return; shopMode=false;
+  stage.classList.remove("full","shop"); document.body.classList.remove("locked"); setClean(false);
+  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  stopCamera();
+}
+/* Kamera aus: Bild weg, Erkennung ruht; danach läuft wieder die 3D-Ansicht */
+function stopCamera(){
+  running=false; try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null;
+  try{ video.srcObject=null; }catch(_){}
+  ctx.clearRect(0,0,cv.width,cv.height); $("placeholder").hidden=false; $("hud").hidden=true;
+  $("start").textContent="Kamera starten"; coach("","",null,true); view3dKick();
+}
+$("tryon").addEventListener("click",openShop);
+$("shopClose").addEventListener("click",e=>{ e.stopPropagation(); if(history.state&&history.state.shop) history.back(); else closeShop(); });
+addEventListener("popstate",()=>{ if(shopMode) closeShop(); });
+addEventListener("keydown",e=>{ if(e.key==="Escape"&&shopMode){ if(history.state&&history.state.shop) history.back(); else closeShop(); } });
 function setClean(on){
   clean=on; stage.classList.toggle("clean",on);
   $("cleanHint").hidden=!on; if(on) setTimeout(()=>{ $("cleanHint").hidden=true; },2500);
 }
 $("clean").addEventListener("click",e=>{ e.stopPropagation(); setClean(true); });
 stage.addEventListener("click",e=>{
+  if(shopMode) return;
   if(clean){ setClean(false); return; }
   if(e.target.closest("button")) return; cue(spoken||"Stell dich ins Bild",true); });
 $("flip").addEventListener("click",async()=>{
@@ -3204,7 +3424,7 @@ $("reset").addEventListener("click",()=>{
 // Maße der ausgewählten Hose: jede gültige Änderung wirkt sofort auf die angezeigte Hose
 document.querySelectorAll(".reset").forEach(b=>b.addEventListener("click",()=>resetDim(b.dataset.k)));
 for(const [id,k] of [["g-len","len"],["g-waist","waist"],["g-hemw","hem"]]){
-  $(id).addEventListener("input",e=>{ setDim(k,e.target); saveSoon(); });
+  $(id).addEventListener("input",e=>{ ownIt(g.key&&GARMENTS[g.key]); setDim(k,e.target); saveSoon(); });
   $(id).addEventListener("change",()=>saveSoon(0));
   $(id).addEventListener("blur",()=>{                  // ungültig verlassen: alter Wert zurück, Hinweis weg
     if($(id).classList.contains("bad")) $("g-msg").textContent="";
@@ -3214,7 +3434,11 @@ $("g-clear").addEventListener("click",clearGarment);
 // KI-Freistellung schon laden, während man das zweite Foto sucht
 for(const id of ["own-front","own-back"]) $(id).addEventListener("change",()=>loadAiSeg());
 fillFabSelect($("own-fab"),true); fillFabSelect($("g-fab"),true);
-$("g-fab").addEventListener("change",e=>{ const G=g.key&&GARMENTS[g.key]; if(!G) return; G.fabric=e.target.value||null; showFab(); saveSoon(0); });
+$("g-fab").addEventListener("change",e=>{ const G=g.key&&GARMENTS[g.key]; if(!G) return; ownIt(G); G.fabric=e.target.value||null; showFab(); saveSoon(0); });
+$("g-export").addEventListener("click",exportGarments);
+$("g-glb").addEventListener("click",()=>exportGLB().catch(e=>{ $("g-msg").textContent="3D-Datei ließ sich nicht erstellen: "+(e&&e.message||e); }));
+$("g-importbtn").addEventListener("click",()=>$("g-import").click());
+$("g-import").addEventListener("change",e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=""; if(f) importGarmentFile(f); });
 // Stoff automatisch aus Material und Name (der Name verrät oft die Bauart: „Cordhose“, „Jogger“, „Satin“)
 const ownFabAuto=()=>{ const m=$("own-mat").value, a=stoffAusText([m,$("own-name").value].filter(v=>v.trim()).join(" · ")), o=$("own-fab").options[0];
   o.textContent=m.trim()?`automatisch: ${STOFFE[a.key].name}${a.sicher?"":" (geraten)"}`:"automatisch aus dem Material"; };
@@ -3222,7 +3446,7 @@ $("own-mat").addEventListener("input",ownFabAuto); $("own-name").addEventListene
 $("g-debug").checked=dbg.on;
 // Notlösung: Hose von Hand um 90° drehen oder umdrehen, je Hose gespeichert
 $("g-rot").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
-  if(!g.key) return; const G=GARMENTS[g.key], r=b.dataset.r;
+  if(!g.key) return; const G=GARMENTS[g.key], r=b.dataset.r; ownIt(G);
   // z: im Uhrzeigersinn, wie das Symbol ↻ (oben → rechts)
   const M={x:[1,0,0,0,0,-1,0,1,0], y:[0,0,1,0,1,0,-1,0,0], z:[0,1,0,-1,0,0,0,0,1], flip:[-1,0,0,0,-1,0,0,0,1]}[r];
   G.rot=r==="reset"?null:(()=>{ const A=M, B=G.rot||[1,0,0,0,1,0,0,0,1], C=new Array(9).fill(0);
@@ -3309,7 +3533,7 @@ $("own-go").addEventListener("click",async()=>{
   }catch(e){ msg.textContent=e&&e.message?e.message:"Das hat nicht geklappt."; }
   finally{ $("own-go").disabled=false; }
 });
-loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null}; buildPicker(); renderSeries();
+loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null}; buildPicker(); renderSeries(); loadSharedGarments();
 </script>
 </body>
 </html>

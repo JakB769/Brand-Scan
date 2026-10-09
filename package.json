@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "pretest": "node werkzeuge/tests/baue-testseite.mjs",
-    "test": "node werkzeuge/tests/th.mjs && node werkzeuge/tests/tg.mjs && node werkzeuge/tests/tf.mjs && node werkzeuge/tests/tbreite.mjs && node werkzeuge/tests/tgenerator.mjs && node werkzeuge/tests/theic.mjs && node werkzeuge/tests/thosen.mjs && node werkzeuge/tests/tblob.mjs && node werkzeuge/tests/tlaenge.mjs && node werkzeuge/tests/tnah.mjs && node werkzeuge/tests/tkarte.mjs && node werkzeuge/tests/tpruefung.mjs && node werkzeuge/tests/tstoff.mjs && node werkzeuge/tests/tdarstellung.mjs && node werkzeuge/tests/tki.mjs",
+    "test": "node werkzeuge/tests/th.mjs && node werkzeuge/tests/tg.mjs && node werkzeuge/tests/tf.mjs && node werkzeuge/tests/tbreite.mjs && node werkzeuge/tests/tgenerator.mjs && node werkzeuge/tests/theic.mjs && node werkzeuge/tests/thosen.mjs && node werkzeuge/tests/tblob.mjs && node werkzeuge/tests/tlaenge.mjs && node werkzeuge/tests/tnah.mjs && node werkzeuge/tests/tkarte.mjs && node werkzeuge/tests/tpruefung.mjs && node werkzeuge/tests/tstoff.mjs && node werkzeuge/tests/tdarstellung.mjs && node werkzeuge/tests/tsammlung.mjs && node werkzeuge/tests/tansicht.mjs && node werkzeuge/tests/tshop.mjs && node werkzeuge/tests/tki.mjs",
     "diagnose": "node werkzeuge/tests/baue-testseite.mjs && node werkzeuge/tests/tfreistellung.mjs; node werkzeuge/tests/tknie.mjs"
   },
   "devDependencies": {
     "@mediapipe/tasks-vision": "0.10.18",
+    "gltf-validator": "2.0.0-dev.3.10",
     "heic-to": "^1.6.5",
     "heic2any": "^0.0.4",
     "playwright": "1.56.1"
