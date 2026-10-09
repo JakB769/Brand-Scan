@@ -65,7 +65,11 @@ Ablauf für den Anwender: Größe eingeben → Kamera → Frontal-Scan → Seite
 | `uprightProfile` | Beim Laden: Beinspalt oben statt unten → Modell um 180° drehen (Zeilen umkehren und `M.mir`: links/rechts tauschen, siehe `mesh3d`). |
 | Knöpfe „↻ X/Y/Z 90°“, „Umdrehen“ (`G.rot`) | Notlösung pro Hose, Drehung um die Mitte der Hose. Z dreht im Uhrzeigersinn; wieder gerade → `G.rot=null`. |
 | `garmentTurn`, `buildGarment` | Foto quer → um ±90° drehen (Saumseite hat zwei Beine; +90 im Canvas dreht links nach oben). Kein Schritt gefunden → beide Fotos um 180° gedreht noch einmal suchen (auf dem Kopf mit sich berührenden Säumen). Quer und sich berührende Säume bleibt geraten: Hinweis „Prüfe, ob der Bund oben ist“. |
-| `findGaps` | Beinspalt je Zeile aus Umriss oder Farbe (heller Boden zwischen den Beinen, den die Freistellung als Hose zählt); daraus der Schritt. |
+| `findGaps` | Beinspalt je Zeile aus Umriss oder Farbe (heller Boden zwischen den Beinen, den die Freistellung als Hose zählt); daraus der Schritt. Seit 9.10.: Loch in der Maske und angrenzender Boden zusammen (vorher kam Holzboden als Fleck auf den Oberschenkel). |
+| `PASSFORM` (9.10.) | **Alle Stellschrauben für Sitz und Form an einem Ort** (oben bei `K3`, jede mit Kommentar): `sitzCm` (Bundoberkante relativ zum Hüftknochen, −0,5 = etwas tiefer; vorher fest +1,5 % der Länge darüber), `einrollen`/`bogenSenkrecht` (Schrittbogen), `schrittTiefe`/`schrittTiefeRest` (wie tief der Schritt unter dem Körperschritt hängen darf), `schrittKoerper`/`schrittOhne` (anatomische Grenzen für den erkannten Körperschritt), `schrittFotoMax` (Schritt bei V-förmig gespreizten Beinen im Foto), `hueftWeiteMax`, `bandCm` (Übergang Becken→Beine, vorher 16), `gesaessCm`, `innenSuche`/`innenMax`/`innenKante`/`innenZug` (Innenbund). Im Test über `window.__dbg.PASSFORM` änderbar. |
+| `vSpread`, `alignRows` (9.10.) | Spalt öffnet sich als V (Beine im Foto gespreizt, oben übereinander): wahrer Schritt höher als der sichtbare, Schritt auf `schrittFotoMax` begrenzt. Rückseite mit eigenem Schritt vermessen und Zeile für Zeile auf den Schritt des Modells gezogen (vorher Gesäß und Taschen nach unten gezogen). |
+| `innerTopCut`, `applyInnerCut` (9.10.) | **Innenbund mit Etikett weg**: flach von vorne sieht man über dem vorderen Bund die Innenseite des höheren hinteren Bunds. Weg von Seitennaht zu Seitennaht (DP, Farbwechsel „unähnlich → ähnlich dem Außenstoff“), am Originalfoto geprüft: liegt auf der Oberkante des vorderen Bunds (ein Feinschliff auf die nächste Helligkeitsstufe darunter war schlechter und ist wieder raus). Nur wenn klar (Tiefe 1,2–11 % der Länge, Farbwechsel ≥ `innenKante` = 40: echter Innenbund 73, normaler Bund auf sechs Untergründen 16–26), sonst bleibt das Foto unverändert. Darüber wird abgeschnitten, der Bund nach oben gezogen (Dehnung über `innenZug` = 25 % der Länge verteilt); Ergebnis `m3.innen`. Nur Vorderseite. |
+| `innerColor`, `uin` (9.10.) | Innenflächen (Bund-/Saumbeleg, ins Hosenbein) zeigen nie das Außenfoto, sondern eine einheitliche Stoffrückseite aus der Grundfarbe (Denim heller und grauer). Vorher erschienen Taschen und Etiketten innen. |
 | `normalizeProfile` | Prüft jedes Modell (neu und beim Laden): schmale Zeilen am Bund/Saum weg, neu auf 0..1 verteilen, Plausibilität (`G.bad`). |
 | `mesh3d`, `pose3d`, `draw3d` | 3D-Netz, Lage je Bild, WebGL-Darstellung in eine eigene Fläche, die dann auf das 2D-Overlay gelegt wird. |
 | `skin3d`, `axisAngle`, `rotAbout` | **Skinning**: Hose wird in Ruhepose (Beine gerade nach unten, Knochenlängen von jetzt) gebaut, dann drehen Oberschenkel (Gewicht ab 0,2·Lt über bis 0,45·Lt unter dem Hüftgelenk) und Unterschenkel (0,8–1,15·Lt) sie in die Haltung. Mittelnaht vorne/hinten bleibt am Becken (sonst Riss, wenn nur ein Bein sich hebt). Seit 9.10. wird der Drehwinkel überblendet statt der Lage (wie Dual-Quaternion-Skinning bei einem Gelenk): kein Einfallen an Leiste und Kniekehle mehr. |
@@ -98,11 +102,12 @@ wf   flache Bundbreite als Anteil der Hosenlänge → Länge in cm = Bund in cm 
 f, b Texturkoordinaten je Zeile für Vorder- und Rückseite: [außen, innen, innen, außen]
 tv, tvb  senkrechte Texturkoordinate je Zeile (vorne, hinten)
 atlas    JPEG 640×640 als Data-URI: links Vorderseite, rechts Rückseite, Rand mit Stofffarbe aufgefüllt
+innen    true, wenn oben im Vorderseitenfoto der Innenbund erkannt und weggeschnitten wurde (9.10.)
 ```
 
 Dazu am Kleidungsstück: `waist` (Bund flach in cm), `len` (Außenlänge in cm, entlang der Außennaht; `m3.lo` = Außenlänge / senkrechte Länge im Foto; das Modell ist dann vom Bund bis zum Saum genau so lang, die Beine füllen auf, was nach der Leibhöhe übrig ist), `meas` (Länge aus Maßstab im Foto), `hem` (ein Bein unten in cm, optional, korrigiert die Weite linear vom Schritt zum Saum), `estFlat` (40 cm, Notwert), `bad` (Grund, warum das Modell nicht gezeigt wird), `repaired` (beim Laden repariert).
 
-Geometrie: flach gemessene Breite wird in **Umfang** umgerechnet. Über dem Schritt eine Ellipse mit Umfang 4·hw und Tiefe/Breite 0,62. Darunter je Bein ein Kreis mit Umfang 2·hw entlang der Knochenkette Hüfte→Knie→Knöchel, so weit nach außen versetzt (`off`), dass der Stoff gerade von der Hüfte fällt (vorher gab es eine Beule an der Hüfte). In den ersten 16 cm unter dem Schritt wird zwischen beidem übergeblendet. Das alles in der **Ruhepose** (Beine gerade); in die Haltung kommt die Hose per Skinning (`skin3d`), Nachschwingen und Durchhängen macht die Stoffphysik (`cloth3d`), zu lange Beine stauchen sich am Knöchel und werfen dort Falten.
+Geometrie: flach gemessene Breite wird in **Umfang** umgerechnet. Über dem Schritt eine Ellipse mit Umfang 4·hw und Tiefe/Breite 0,62. Darunter je Bein ein Kreis mit Umfang 2·hw entlang der Knochenkette Hüfte→Knie→Knöchel, so weit nach außen versetzt (`off`), dass der Stoff gerade von der Hüfte fällt (vorher gab es eine Beule an der Hüfte). In den ersten 6 cm unter dem Schritt (`PASSFORM.bandCm`) wird zwischen beidem übergeblendet. Seit 9.10. sitzt der Schritt **am Körper**: Die flache Leibhöhe wird nicht mehr ganz senkrecht gezeichnet (der unterste Teil läuft als Schrittbogen zwischen den Beinen nach hinten, Mitte vorne/hinten rollen dort ein), der Schritt der Hose hängt nur so weit unter dem Körperschritt, wie die Hose länger ist (bis `schrittTiefe` ganz, darüber zur Hälfte); innen (Schritt) und außen (Seitennaht) haben eigene Höhen (`yIn`, `yOut`), die Außenlänge bleibt wie gemessen. Über dem Schritt höchstens 8 % weiter als die weiteste Hüftstelle. Kennwerte je Bild in `g3.form` (cm). Das alles in der **Ruhepose** (Beine gerade); in die Haltung kommt die Hose per Skinning (`skin3d`), Nachschwingen und Durchhängen macht die Stoffphysik (`cloth3d`), zu lange Beine stauchen sich am Knöchel und werfen dort Falten.
 
 Darstellung: orthografische Lage plus Perspektive im Vertex-Shader (`foc`, `pc`), Tiefenpuffer. Seit 9.10. zwei Seiten: Außenseite (`upass` 0) und Innenseite (`upass` 1, abgewandte Flächen und Innenbeleg, eigen schattiert), dazwischen der Körper als unsichtbarer Tiefenverdecker. So sieht man die abgewandte Seite nur dort, wo sie wirklich zu sehen wäre (durch Bund- und Saumöffnung), und eine Hand vor der Hose schneidet sie aus. WebGL1: genau 8 Punkt-Attribute (`ao` ist jetzt vec2: Verdeckung, Offenheit innen).
 
@@ -205,6 +210,34 @@ Kontextverlust, Kamera lief weiter, wenn die Shop-Anprobe während des Starts ge
 wieder, fremde Dateien konnten HTML einschleusen (nur `data:image`-Bilder und einfache Schlüssel, Escaping in der Liste), toter Verlaufseintrag
 bei verweigerter Kamera, GLB beim Hosenwechsel während des Exports, Stoffanzeige ohne Name.
 
+### Passform des 3D-Modells (9.10. nachts, Auftrag des Nutzers: Proportionen, Sitzhöhe, Gesäß, Innenteile)
+
+Ursachen (gemessen an den Kartenfotos des Nutzers, IMG_7267/7268, und den Bershka-Fotos):
+- **Oberschenkel zu lang, Unterschenkel zu kurz**: Die ganze flache Leibhöhe (52 cm!) wurde senkrecht gezeichnet, der Schritt hing
+  fast am Knie. Zwei Gründe: (a) der Schritt im Foto lag am oberen Ende des sichtbaren Spalts, bei V-förmig gespreizten Beinen aber
+  10 % der Länge zu tief (0,48 statt etwa 0,37); (b) flach gemessen ist die Leibhöhe länger als am Körper senkrecht (Schrittbogen).
+- **Oberschenkel zu dick**: die Zeilen knapp über dem sichtbaren Spalt enthielten beide gespreizten Beine (Ballon, Hüftumfang bis
+  130 cm), dazu 16 cm Überblendung von der Beckenellipse in die Beine. Jetzt Hüftweite begrenzt, 6 cm Übergang, Beine rund.
+- **Sitzhöhe**: Bund saß 1,5 % der Länge (≈ 1,6 cm) über dem Hüftknochen; jetzt `PASSFORM.sitzCm` = −0,5 cm.
+- **Gesäß nach unten gezogen**: Rückseite hatte ihren Schritt tiefer als die Vorderseite und das Gesäß lag bei 68 % der (zu langen)
+  Leibhöhe, also etwa 35 cm unter dem Bund. Jetzt Rückseite ausgerichtet (`alignRows`), Gesäß `gesaessCm` unter dem Bund.
+- **Innenetikett vorne oben**: siehe `innerTopCut`. Drei Ansätze erwogen: (A) Bildanalyse im Vorderseitenfoto (gewählt, automatisch,
+  kein Netz nötig), (B) Innenbereich aus dem Vergleich mit dem Rückseitenfoto (die Rückseite zeigt den hinteren Bund von außen;
+  nicht gewählt, weil Lage, Neigung und Licht beider Fotos verschieden sind; nicht ausprobiert), (C) KI-Segmentierung von
+  Etiketten (eigenes Modell und Trainingsdaten nötig, mehrere MB mehr; nicht ausprobiert). Zusätzlich
+  zeigen Innenflächen nie mehr das Außenfoto (`uin`).
+- Nebenbei gefunden: Holzboden im Beinspalt als Fleck auf dem Oberschenkel (Spalt zu schmal, `findGaps`); Knick in der Seitenansicht
+  am Schritt (Schrittbogen hörte am Schritt schlagartig auf).
+- Unterwegs selbst eingebaut und wieder behoben: (a) Etikett-Erkennung schnitt auf künstlichen Untergründen (`tgenerator`) den
+  normalen Bund weg → Schwelle `innenKante`; (b) gestauchte Leibhöhe machte die ganze Hose kürzer als gemessen (100 statt 107 cm)
+  → Beine füllen wieder bis zur Länge auf (`tpassform` prüft das).
+
+Ergebnis an den Fotos des Nutzers (Puppe 179 cm): Leibhöhe am Körper 27 statt 52 cm, Schritt der Hose 10 cm unter dem Körperschritt
+(Super-Baggy), Gesäß 18 cm unter dem Bund (vorher ≈ 35), Oberschenkel von vorn 63 % der flachen Breite. Vorher/Nachher-Bilder
+wurden erzeugt, liegen aber nicht im Repo. **Mit echter Kamera nicht geprüft.** Grenzen: Etikett-Erkennung nur an einem echten
+Foto erprobt (dazu Bershka: richtig nichts erkannt); helle Hose mit hellem Etikett oder dunkler Innenbund auf dunkler Hose ungeprüft;
+gerade Hosen (nicht Baggy) nur über Bershka geprüft.
+
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
 
 - **3D-Modell statt Gaussian Splat.** Ein Splat braucht viele Ansichten und Training auf einer Grafikkarte; aus zwei Fotos im Browser geht das nicht. Splats auf bewegten Körpern sind Forschungsstand. Das Splat-Wissen im Team taugt später für drehbare Produktansichten.
@@ -257,6 +290,7 @@ Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt i
 | `tsammlung.mjs` | Alle Hosen als Datei sichern (Inhalt, Werte), auf leerem Gerät laden, doppelt laden, falsche Datei, `hosen.json` neben der Seite über einen lokalen Server (nicht im Gerät gespeichert, Ändern macht sie zur eigenen, Löschen bleibt), Speicher voll |
 | `tansicht.mjs` | 3D-Ansicht erscheint mit Hose, Ziehen dreht, 3D-Datei gültig (Khronos-Prüfer) und in Metern, Ansicht aus während der Anprobe |
 | `tki.mjs` | KI-Freistellung (dunkel auf dunkel, weißer Grund einig, quer), Fenster „Umriss prüfen“ (öffnet bei Uneinigkeit, Schuh weggetippt → Maße stimmen, Schutz gegen Löschen der Hose, Escape) |
+| `tpassform.mjs` | Passform (9.10.) mit den echten Kartenfotos und den Bershka-Fotos: Schritt bei gespreizten Beinen, Innenbund erkannt, Etikett weg, kein Boden auf dem Bein, Leibhöhe am Körper, Schritt höchstens 12 cm unter dem Körperschritt, Gesäß 6–20 cm unter dem Bund, Oberschenkel ≤ 80 % der flachen Breite, `sitzCm` wirkt, Bershka ohne Innenbund. Gegenprobe mit dem alten Stand: Schritt, Innenbund, Etikett und Boden schlagen fehl (3D-Kennwerte gibt es dort nicht) |
 | `tpruefung.mjs` | Rückschritte der Gesamtprüfung: Maßband-Taille, Komma, Prüfung beim Anlegen, quer/Kopfstand mit sich berührenden Säumen (`material/testbilder/orientierung/`), links/rechts beim Aufrichten (roter Fleck), kurze Hose, Drehknöpfe, WebGL-Kontextverlust, Kartenfenster (Escape, kein Viereck), alter Speicherschlüssel, voller Speicher |
 | `tlaenge.mjs` | Länge mit A4/Bankkarte (Testbilder aus `werkzeuge/python/testmassstab.py`, echt 105 cm, gerade und 15° schräg), echte iPhone-Fotos des Nutzers, Vorrang der eingetragenen Länge |
 

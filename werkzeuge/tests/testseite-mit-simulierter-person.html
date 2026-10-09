@@ -905,8 +905,10 @@ function analyse(res){
     P[j].zr=clamp(P[j-1].zr+sgn*dep,-.35*foc0,.35*foc0);
   }
   const yaw=bodyYaw(L,V,vw,vh,pxPerCm);
-  // Schritt am Körper: aus der Silhouette, sonst das Hüftgelenk — das liegt ohnehin fast dort
-  const yCrotch=(crotchFresh?crotchY:hipY)*vh;
+  // Schritt am Körper: aus der Silhouette, aber nur in anatomischen Grenzen (trägt man selbst eine weite Hose, öffnet sich
+  // der Spalt zwischen den Beinen erst tiefer); ohne Erkennung geschätzt
+  const Hk=num($("height").value)||175, kU=Hk/cmPerUnit, [k0,k1]=PASSFORM.schrittKoerper;
+  const yCrotch=clamp(crotchFresh?crotchY:hipY+PASSFORM.schrittOhne*kU,hipY+k0*kU,hipY+k1*kU)*vh;
   // Arme (Schulter, Ellbogen, Handgelenk, kleiner Finger, Zeigefinger): verdecken die Hose, wenn sie davor sind
   const hz=((L[23].z||0)+(L[24].z||0))/2;
   const arms=[[11,13,15,17,19],[12,14,16,18,20]].map(ix=>ix.map(i=>({x:emaV("ax"+i,L[i].x)*vw,y:emaV("ay"+i,L[i].y)*vh,
@@ -1009,7 +1011,7 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
       const mx=Math.max(scene.r,scene.g,scene.b)||1;
       const tint=[scene.r,scene.g,scene.b].map(v=>(1-(1-v/mx)*.45)*m);
       const fab=stoffVon(G);
-      const info=draw3d(M,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:num($("height").value)||175,rot:G.rot||null,ppc:pxPerCm,cmH,cmL,kHem:D.hem/(M.hw[M.nr-1]*cmH),h,belt:[cx,anchorY*vh+g.off*pxPerCm,0],yCrotch,bone:B,foc,pc,arms:ext.arms,zs:vw},vw,vh,tint);
+      const info=draw3d(M,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:num($("height").value)||175,rot:G.rot||null,ppc:pxPerCm,cmH,cmL,kHem:D.hem/(M.hw[M.nr-1]*cmH),h,belt:[cx,anchorY*vh+g.off*pxPerCm,0],yCrotch,bone:B,foc,pc,arms:ext.arms,zs:vw,inner:innerColor(G)},vw,vh,tint);
       ctx.save();
       ctx.globalAlpha=g.opa;
       shadow3d(ext.mask,vw,vh,pxPerCm,foc,pc);
@@ -1169,11 +1171,42 @@ function stoffAusText(text){
   if(bw+synth>=70) return R("chino",false,"Baumwoll-Mischgewebe");
   return R("jeans",false,"Material nicht erkannt, Standard Jeans");
 }
+/* Farbe der Stoffrückseite (0..1) aus der Grundfarbe des Stoffs: grauer und etwas heller, bei Denim deutlich heller */
+function innerColor(G){
+  const b=G&&G.base||{r:120,g:120,b:120}, l=.2126*b.r+.7152*b.g+.0722*b.b, blau=b.b-b.r>12;
+  const k=blau?.62:.35, hell=blau?1.35:1.08;
+  return [b.r,b.g,b.b].map(c=>clamp((c+(l-c)*k)*hell/255,.05,.95));
+}
 /* Stoffart einer Hose: von Hand gewählt, sonst aus dem Material, sonst Jeans */
 const stoffText=G=>[G&&G.material,G&&G.label].filter(Boolean).join(" · ");
 const stoffVon=G=>STOFFE[G&&G.fabric]||STOFFE[stoffAusText(stoffText(G)).key];
 /* ---------- 3D-Hose: aus den Maßen aufgeblasen, live am Skelett ---------- */
-const K3=12, BAND3=16;                         // Punkte je Viertelbogen, Übergang Schritt→Bein in cm
+const K3=12;                                   // Punkte je Viertelbogen
+/* ---------- Sitz und Form der 3D-Hose: alle Stellschrauben an einem Ort ----------
+   Längen in cm, Anteile als Bruchteil. Wirkung jeweils dahinter. */
+const PASSFORM={
+  sitzCm:-.5,            // Bundoberkante relativ zur Bundlinie am Körper (15 % des Rumpfs über dem Hüftgelenk); negativ = tiefer.
+                         // Vorher fest +1,6 cm (1,5 % der Hosenlänge über der Linie): die Hose saß zu hoch.
+  einrollen:.4,          // unterster Teil der Leibhöhe (Anteil), der am Körper zwischen den Beinen nach hinten läuft
+                         // (Schrittbogen): dort rollen Mitte vorne und hinten zur Schrittmitte ein
+  bogenSenkrecht:.5,     // davon geht nur dieser Anteil senkrecht nach unten (Viertelkreis ≈ 0,6; flacher Bogen weniger)
+  schrittTiefe:5,        // so weit darf der Schritt der Hose ohne Weiteres unter dem Schritt des Körpers hängen (cm) …
+  schrittTiefeRest:.5,   // … und von allem, was die Leibhöhe darüber hinaus länger ist, noch dieser Anteil (Baggy-Hosen
+                         // mit tiefem Schritt hängen tiefer); der Rest wird an der Hüfte gestaucht
+  schrittKoerper:[.03,.08], // Schritt des Körpers liegt 3–8 % der Körpergröße unter dem Hüftgelenk (Grenzen für die Erkennung)
+  schrittOhne:.05,       // wird kein Schritt erkannt: 5 % der Körpergröße unter dem Hüftgelenk
+  schrittFotoMax:.38,    // liegen die Beine im Foto gespreizt und oben übereinander (Spalt öffnet sich als V), liegt der
+                         // wahre Schritt höher als der sichtbare Spalt: höchstens bei diesem Anteil der Länge
+  hueftWeiteMax:1.08,    // über dem Schritt höchstens 8 % weiter als die weiteste Hüftstelle (gespreizte Beine im Foto
+                         // machen die Zeilen knapp über dem Spalt sonst zu einem Ballon)
+  bandCm:6,              // Übergang von der Beckenform in die zwei Hosenbeine unter dem Schritt (vorher 16 cm: dicke Oberschenkel)
+  gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
+  innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
+  innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
+  innenKante:40,         // so deutlich muss der Farbwechsel sein (sonst ist es der normale Bund, nicht die Innenseite)
+  innenZug:.25,          // der vordere Bund wird nach oben gezogen; die Dehnung verteilt sich auf diesen Anteil der Länge
+                         // (kürzer: Bund und Gürtelschlaufen wirken in der Mitte gestreckt)
+};
 const g3={c:null,gl:null,ok:null,prog:null,loc:null,tex:null,texReady:false,
           key:null,nv:0,ni:0,pos:null,nor:null,vb:null,nb:null,row:{},last:0};
 const VS3=`attribute vec3 p;attribute vec3 n;attribute vec2 uv;attribute vec2 ao;attribute vec3 tu;attribute vec3 tw;attribute vec2 uv2;attribute float sd;
@@ -1185,7 +1218,7 @@ vv=vec3((q-pc)/foc,1.);
 gl_Position=vec4(q.x/vp.x*2.-1.,1.-q.y/vp.y*2.,clamp(p.z/vp.x,-.95,.95),1.);}`;
 // va.x: Umgebungsverdeckung (negativ: Innenseite von Bund und Saum), va.y: wie offen das Innere hier ist.
 // upass 0 zeichnet die Außenseite, upass 1 die Innenseite (abgewandte Flächen, durch Bund- und Saumöffnung zu sehen).
-const FS3=`precision mediump float;uniform sampler2D t;uniform vec3 tint;uniform float bump;uniform float gloss;uniform float upass;
+const FS3=`precision mediump float;uniform sampler2D t;uniform vec3 tint;uniform float bump;uniform float gloss;uniform float upass;uniform vec3 uin;
 varying vec3 vn;varying vec3 vv;varying vec2 vu;varying vec2 va;varying vec3 vtu;varying vec3 vtw;varying vec2 vu2;varying float vsd;
 float L(vec2 c){return dot(texture2D(t,c).rgb,vec3(.299,.587,.114));}
 void main(){vec3 n=normalize(vn);vec3 v=normalize(vv);float fz=dot(n,v);
@@ -1208,11 +1241,11 @@ vec3 al=mix(texture2D(t,vu).rgb,texture2D(t,vu2).rgb,vsd);
 float ao=abs(va.x);
 vec3 c;
 if(inn){
-  float g=dot(al,vec3(.3,.59,.11));
-  // Innenbeleg von Bund und Saum: Stoffrückseite (heller, weniger farbig), Licht kommt nur durch die Öffnung
-  if(va.x<0.) c=mix(al,vec3(g)*vec3(1.,1.03,1.1),.45)*1.08*tint*(.16+.7*va.y*(sky+.45*k))*ao;
-  // abgewandte Hosenwand (ins Hosenbein hinein, Unterseite von Falten): beidseitig beleuchtet, tief drin dunkler
-  else c=al*tint*(sky+.5*k+.16*f)*ao*(.45+.4*va.y);
+  // Innen nie das Außenfoto (sonst erscheinen Etiketten, Patches und Taschen innen): einheitliche Stoffrückseite uin
+  // Innenbeleg von Bund und Saum: Licht kommt nur durch die Öffnung
+  if(va.x<0.) c=uin*tint*(.16+.7*va.y*(sky+.45*k))*ao;
+  // abgewandte Hosenwand (ins Hosenbein hinein): beidseitig beleuchtet, tief drin dunkler
+  else c=uin*tint*(sky+.5*k+.16*f)*ao*(.45+.4*va.y);
 }else{
   c=al*tint*(sky+.62*k+.16*f)*ao*mix(.8,1.,rim);
   // Glanzlicht (nur glänzende Stoffe): Blinn-Phong mit dem Hauptlicht
@@ -1246,7 +1279,7 @@ function init3d(){
       if(!gl.getProgramParameter(p0,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p0));
       g3.prog0=p0; g3.loc0={vp:gl.getUniformLocation(p0,"vp"),pc:gl.getUniformLocation(p0,"pc"),foc:gl.getUniformLocation(p0,"foc")}; }
     g3.loc={p:gl.getAttribLocation(pr,"p"),n:gl.getAttribLocation(pr,"n"),uv:gl.getAttribLocation(pr,"uv"),
-            ao:gl.getAttribLocation(pr,"ao"),tu:gl.getAttribLocation(pr,"tu"),tw:gl.getAttribLocation(pr,"tw"),uv2:gl.getAttribLocation(pr,"uv2"),sd:gl.getAttribLocation(pr,"sd"),bump:gl.getUniformLocation(pr,"bump"),gloss:gl.getUniformLocation(pr,"gloss"),upass:gl.getUniformLocation(pr,"upass"),vp:gl.getUniformLocation(pr,"vp"),pc:gl.getUniformLocation(pr,"pc"),foc:gl.getUniformLocation(pr,"foc"),tint:gl.getUniformLocation(pr,"tint"),
+            ao:gl.getAttribLocation(pr,"ao"),tu:gl.getAttribLocation(pr,"tu"),tw:gl.getAttribLocation(pr,"tw"),uv2:gl.getAttribLocation(pr,"uv2"),sd:gl.getAttribLocation(pr,"sd"),bump:gl.getUniformLocation(pr,"bump"),gloss:gl.getUniformLocation(pr,"gloss"),upass:gl.getUniformLocation(pr,"upass"),uin:gl.getUniformLocation(pr,"uin"),vp:gl.getUniformLocation(pr,"vp"),pc:gl.getUniformLocation(pr,"pc"),foc:gl.getUniformLocation(pr,"foc"),tint:gl.getUniformLocation(pr,"tint"),
             t:gl.getUniformLocation(pr,"t")};
     g3.ok=true;
   }catch(e){ console.warn("3D nicht verfügbar",e); g3.ok=false; }
@@ -1384,20 +1417,35 @@ function pose3d(M,P){
   const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos, ppc=P.ppc;
   const S=P.cmH*ppc;                                   // Maßstab der Weiten: Länge laut Foto in Bildpunkten
   const h=P.h, up=v3.norm(v3.sub([0,-1,0],v3.mul(h,v3.dot([0,-1,0],h)))), fw=v3.cross(h,up), dn=v3.mul(up,-1);
-  const top=v3.add(P.belt,v3.mul(up,.015*S));
-  // Leibhöhe: reicht die Hose nicht bis in den Schritt, wird sie leicht gedehnt statt eingeschnitten
-  const riseG=M.vc*S, riseB=v3.dot(v3.sub([P.belt[0],P.yCrotch,P.belt[2]],top),dn);
-  const rs=clamp(riseB/riseG,1,1.22);
-  // Die Hose ist vom Bund bis zum Saum genau so lang wie angegeben: die Beine bekommen, was nach der Leibhöhe übrig ist
+  const top=v3.add(P.belt,v3.mul(up,PASSFORM.sitzCm*ppc));
+  // Leibhöhe am Körper. Flach gemessen ist sie länger, als sie am Körper senkrecht nach unten reicht: der unterste Teil
+  // (einrollen) läuft zwischen den Beinen nach hinten und geht nur zu bogenSenkrecht nach unten. Der Schritt der Hose sitzt
+  // am Schritt des Körpers (riseB) und hängt nur so tief darunter, wie die Hose länger ist (bis schrittTiefe ganz, darüber
+  // anteilig). Vorher wurde die ganze flache Leibhöhe senkrecht gezeichnet: der Schritt hing fast am Knie.
+  // Reicht die Hose nicht bis in den Schritt, wird sie leicht gedehnt statt eingeschnitten.
+  const riseB=v3.dot(v3.sub([P.belt[0],P.yCrotch,P.belt[2]],top),dn), eR=PASSFORM.einrollen, bg=PASSFORM.bogenSenkrecht;
+  const v0=M.vc*(1-eR), riseN=S*(v0+(M.vc-v0)*bg), exc=riseN-Math.max(0,riseB), t5=PASSFORM.schrittTiefe*ppc;
+  const riseK=exc<0?Math.min(riseB,riseN*1.22):Math.max(0,riseB)+Math.min(exc,t5+Math.max(0,exc-t5)*PASSFORM.schrittTiefeRest);
   // Sehr kurze eingetragene Länge (bei eingetragenem Bund): lieber die Leibhöhe kürzen als die Länge verfehlen
   const L=(P.cmL||P.cmH)*ppc, minLeg=.3*S*(1-M.vc);
-  const rise=L-riseG*rs>=minLeg?riseG*rs:Math.max(L*.5,L-minLeg), rr=rise/riseG;
-  const SV=(L-rise)/(1-M.vc);
+  const rise=L-riseK>=minLeg?riseK:Math.max(L*.5,L-minLeg), kR=rise/riseN;
+  // Senkrechte Lage je Höhe v: innen (Mitte vorne/hinten, Innennaht am Bein) und außen (Seitennaht). Innen sitzt der Schritt
+  // oben, außen reicht die Hüfte etwas tiefer (ohne Schrittbogen); am Saum treffen sich beide.
+  // Die Hose ist vom Bund bis zum Saum genau so lang wie angegeben (L): die Beine bekommen, was nach der Leibhöhe übrig ist.
+  const yOutC=kR*M.vc*S, SV=(L-rise)/(1-M.vc), SO=(L-yOutC)/(1-M.vc);
+  const yIn=v=>v<=v0?kR*v*S:v<=M.vc?kR*S*(v0+(v-v0)*bg):rise+(v-M.vc)*SV;
+  const yOut=v=>v<=M.vc?kR*v*S:yOutC+(v-M.vc)*SO;
+  const seamOut=i=>yOut(M.v[i])-yIn(M.v[i]);
+  // Über dem Schritt höchstens etwas weiter als die weiteste Hüftstelle (gespreizte Beine im Foto blähen sonst auf)
+  let hipMax=0; for(let i=0;i<ic;i++) if(M.v[i]<.6*M.vc) hipMax=Math.max(hipMax,M.hw[i]); hipMax=(hipMax||M.hw[0])*PASSFORM.hueftWeiteMax;
+  const hwU=i=>Math.min(M.hw[i],hipMax);
+  // Gesäß: stärkste Wölbung am Körper gesaessCm unter dem Bund, nicht bei einem festen Anteil der (oft zu langen) Leibhöhe
+  const uSeat=clamp(PASSFORM.gesaessCm*ppc/Math.max(rise,1),.2,.8);
   const cr=v3.add(top,v3.mul(dn,rise));                // Schrittpunkt der Hose
   const q=.62, ek=Math.PI*(3*(1+q)-Math.sqrt((3+q)*(1+3*q)));
   const ell=hw=>{ const a=4*hw/ek; return [a,a*q]; };
   // Querschnitt über dem Schritt: hinten das Gesäß tiefer, vorne etwas flacher; der Umfang bleibt genau 4·hw
-  const RQ=x=>Math.PI*(3*(1+x)-Math.sqrt((3+x)*(1+3*x))), seatF=u=>Math.exp(-(((u-.68)/.32)**2));
+  const RQ=x=>Math.PI*(3*(1+x)-Math.sqrt((3+x)*(1+3*x))), seatF=u=>Math.exp(-(((u-uSeat)/.3)**2));
   const ell2=(hw,u)=>{ const sf=seatF(u), qf=q*(1-.06*sf), qb=q*(1+.22*sf), a=8*hw/(RQ(qf)+RQ(qb)); return [a,a*qf,a*qb]; };
   let dvMin=1; for(let i=ic;i<NR-1;i++) dvMin=Math.min(dvMin,M.v[i+1]-M.v[i]); dvMin=Math.max(1e-4,dvMin);
   const now=performance.now(), dtRaw=(now-(g3.last||now))/1000, dt=clamp(dtRaw,0,.1); g3.last=now;   // lange Pause: Physik neu ansetzen
@@ -1418,14 +1466,14 @@ function pose3d(M,P){
     // Stoff fällt außen gerade von der Hüfte: das Hosenbein liegt nicht mittig um den Knochen, sondern so weit außen,
     // dass seine Außenkante unter dem Schritt dort weiterläuft, wo die Hüfte endet. Sonst entsteht eine Beule an der Hüfte.
     const dC=v3.dot(v3.sub(cr,ch[0]),dn), bC=walk3(ch,Math.max(0,dC));
-    const off=Math.max(0,ell(M.hw[ic-1]*S)[0]-Rc-v3.dot(v3.sub(bC,cr),h)*sg);
+    const off=Math.max(0,ell(hwU(ic-1)*S)[0]-Rc-v3.dot(v3.sub(bC,cr),h)*sg);
     for(let i=0;i<NR;i++){
-      const below=i>=ic, hwPx=M.hw[i]*S*(i>=ic?legK(i):1);
+      const below=i>=ic, hwPx=(below?M.hw[i]*legK(i):hwU(i))*S, dOut=seamOut(i);
       let cT,a,b,bB,uS,sCm=0;
-      if(!below){ cT=v3.add(top,v3.mul(dn,M.v[i]*S*rr)); uS=M.v[i]/M.vc; [a,b,bB]=ell2(hwPx,uS); }
-      else { const sPx=(M.v[i]-M.vc)*SV; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); uS=1; [a,b,bB]=ell2(M.hw[ic-1]*S,1); }
+      if(!below){ cT=v3.add(top,v3.mul(dn,yIn(M.v[i]))); uS=M.v[i]/M.vc; [a,b,bB]=ell2(hwPx,uS); }
+      else { const sPx=(M.v[i]-M.vc)*SV; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); uS=1; [a,b,bB]=ell2(hwU(ic-1)*S,1); }
       // Dieselbe Höhe am Bein: so viele Bildpunkte unter dem Hüftgelenk, entlang der Knochen
-      let d=v3.dot(v3.sub(cT,ch[0]),dn), cL=null,r=null,fl=null,R=0,wdev=0,wband=below?sstep(0,BAND3,sCm):0;
+      let d=v3.dot(v3.sub(cT,ch[0]),dn), cL=null,r=null,fl=null,R=0,wdev=0,wband=below?sstep(0,PASSFORM.bandCm,sCm):0;
       const onLeg=d>0;
       if(onLeg){
         if(cS<1&&d>z0) d=z0+(d-z0)*cS;                      // zu lange Beine stauchen sich am Schuh
@@ -1443,15 +1491,21 @@ function pose3d(M,P){
         for(let j=0;j<C;j++){
           const t=j/K3, k=(((s*NR+i)*2+f)*C+j)*3;
           // Punkte gleichmäßig nach Bogenlänge (wie der Stoff im Foto), nicht nach Winkel
-          const bq=f?bB:b, ps=psiArc(bq/a,t), ca=a*Math.sin(ps)*sg, cb=bq*Math.cos(ps)*fs;
+          // Schrittbogen: im untersten Teil der Leibhöhe rollen Mitte vorne und hinten zur Schrittmitte ein (wie am Körper);
+          // unter dem Schritt bleibt das so, bis die Beine rund sind (sonst springt die Mitte vorne am Schritt wieder nach vorn)
+          const curl=.88*sstep(1-PASSFORM.einrollen,1,uS)*(1-t)*(1-t);
+          const bq=f?bB:b, ps=psiArc(bq/a,t), ca=a*Math.sin(ps)*sg, cb=bq*Math.cos(ps)*fs*(1-curl);
           // hinten sitzt der Bund höher (längere hintere Schrittnaht), vorne etwas tiefer; zur Seitennaht hin auslaufend
           const bR=(f?2:-.8)*ppc*Math.pow(1-t,1.5)*(1-sstep(0,f?.6:.5,uS));
-          let x=cT[0]+h[0]*ca+fw[0]*cb+up[0]*bR, y=cT[1]+h[1]*ca+fw[1]*cb+up[1]*bR, z=cT[2]+h[2]*ca+fw[2]*cb+up[2]*bR;
+          // Außen läuft die Naht tiefer als innen am Schritt (wO): so bleibt die Außenlänge wie gemessen und der Schritt sitzt oben
+          const wO=dOut*sstep(.15,1,t)-bR;
+          let x=cT[0]+h[0]*ca+fw[0]*cb+dn[0]*wO, y=cT[1]+h[1]*ca+fw[1]*cb+dn[1]*wO, z=cT[2]+h[2]*ca+fw[2]*cb+dn[2]*wO;
           if(onLeg){
             const wL=Math.max(wband,wdev*sstep(0,.45,t));
             if(wL>0){
-              const ph=Math.PI*t, cr_=-Math.cos(ph)*sg*R, cf=Math.sin(ph)*fs*R;
-              x+=(cL[0]+r[0]*cr_+fl[0]*cf-x)*wL; y+=(cL[1]+r[1]*cr_+fl[1]*cf-y)*wL; z+=(cL[2]+r[2]*cr_+fl[2]*cf-z)*wL;
+              const ph=Math.PI*t, cr_=-Math.cos(ph)*sg*R, cf=Math.sin(ph)*fs*R, wO=dOut*sstep(.15,1,t);
+              const tx=cL[0]+r[0]*cr_+fl[0]*cf+dn[0]*wO, ty=cL[1]+r[1]*cr_+fl[1]*cf+dn[1]*wO, tz=cL[2]+r[2]*cr_+fl[2]*cf+dn[2]*wO;
+              x+=(tx-x)*wL; y+=(ty-y)*wL; z+=(tz-z)*wL;
             }
           }
           pos[k]=x; pos[k+1]=y; pos[k+2]=z;
@@ -1481,16 +1535,17 @@ function pose3d(M,P){
   // Stauchfalten: wird der Stoff zusammengeschoben (Knöchel, Kniekehle, Leiste), knickt er aus. Aus der Stauchung c
   // (jetziger Abstand der Zeilen / Ruheabstand) folgt die Faltentiefe a = λ/π·√(c(1−c)) bei Faltenlänge λ (in Ruhe).
   // Ruheabstand der Zeilen; das Paar über den Schritt hinweg hat oben den Leib-, unten den Bein-Maßstab
-  const lam=(P.foldCm||5)*ppc, rest=i=>i<ic-1?(M.v[i+1]-M.v[i])*S*rr:i===ic-1?(M.vc-M.v[i])*S*rr+(M.v[i+1]-M.vc)*SV:(M.v[i+1]-M.v[i])*SV;
+  const lam=(P.foldCm||5)*ppc, rest=(i,t)=>{ const a=M.v[i], b=M.v[i+1], w=sstep(.15,1,t);
+    return (yIn(b)-yIn(a))*(1-w)+(yOut(b)-yOut(a))*w; };
   let anyF=false; const amp=g3.amp||(g3.amp=new Float32Array(g3.nRing));
   for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){
     let arc=0;
     for(let i=0;i<NR;i++){
       const k=((s*NR+i)*2+f)*C+j, cmp=e=>{ if(e<0||e>=NR-1) return 1; const a=(((s*NR+e)*2+f)*C+j)*3, b=(((s*NR+e+1)*2+f)*C+j)*3;
-        return Math.hypot(pos[b]-pos[a],pos[b+1]-pos[a+1],pos[b+2]-pos[a+2])/Math.max(1e-6,rest(e)); };
+        return Math.hypot(pos[b]-pos[a],pos[b+1]-pos[a+1],pos[b+2]-pos[a+2])/Math.max(1e-6,rest(e,j/K3)); };
       const c=clamp((cmp(i-1)+2*cmp(i)+cmp(i+1))/4,.05,1);
       const A=Math.min(.32*lam,lam/Math.PI*Math.sqrt(c*(1-c)))*(P.foldK??1)*sstep(1,4,i);
-      if(i>0) arc+=rest(i-1);
+      if(i>0) arc+=rest(i-1,j/K3);
       // Winkel rundherum, an allen Nähten stetig (vorne π·t, hinten 2π−π·t; nur ganze Vielfache): sonst klaffen die
       // Falten an den Nähten auseinander. Die Falten laufen schräg und unregelmäßig statt als gleichmäßige Ringe.
       const tt=j/K3, psi=f?2*Math.PI-Math.PI*tt:Math.PI*tt, sl=s*clamp((i-ic)/6,0,1);
@@ -1512,7 +1567,9 @@ function pose3d(M,P){
   }
   g3.frame={top,h,up,fw}; g3.S=S; g3.lastLen=rise+(1-M.vc)*SV; g3.lastPpc=ppc;
   rim3d(M,ppc);
-  return {top,S:rise+(1-M.vc)*SV,SW:S,rs:rr};
+  // Kennwerte in cm (Debug-Ansicht und Tests): Leibhöhe am Körper, bis zum Körperschritt, flach im Foto
+  g3.form={leib:rise/ppc,koerper:riseB/ppc,flach:M.vc*S/ppc,sitz:PASSFORM.sitzCm,gesaess:uSeat*rise/ppc};
+  return {top,S:rise+(1-M.vc)*SV,SW:S,rs:kR};
 }
 /* ---------- Stoff in Bewegung: hängt an der Form aus dem Skelett, schwingt nach, hängt frei durch ----------
    Jeder Punkt ist mit einer Feder an seine Stelle in der Form vom Skelett gebunden (Ziel). Oben am Bund ist sie fast
@@ -1813,6 +1870,7 @@ function draw3d(M,P,vw,vh,tint){
     at(g3.vb,g3.loc.p,3,up&&g3.pos); at(g3.nb,g3.loc.n,3,up&&g3.nor); at(g3.ub,g3.loc.uv,2); at(g3.ab,g3.loc.ao,2);
     at(g3.tub,g3.loc.tu,3,up&&g3.tu); at(g3.twb,g3.loc.tw,3,up&&g3.tw); at(g3.u2b,g3.loc.uv2,2); at(g3.sdb,g3.loc.sd,1);
     gl.uniform1f(g3.loc.bump,P.bump??3.2); gl.uniform1f(g3.loc.gloss,P.fab?P.fab.gloss||0:0); gl.uniform1f(g3.loc.upass,pass);
+    const ui=P.inner||[.6,.62,.66]; gl.uniform3f(g3.loc.uin,ui[0],ui[1],ui[2]);
     gl.uniform2f(g3.loc.vp,vw,vh); gl.uniform2f(g3.loc.pc,P.pc[0],P.pc[1]); gl.uniform1f(g3.loc.foc,P.foc); gl.uniform3f(g3.loc.tint,tint[0],tint[1],tint[2]);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,g3.tex); gl.uniform1i(g3.loc.t,0);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g3.ib);
@@ -1863,7 +1921,7 @@ function view3dPose(G,W,H,yw){
   const bone=[1,-1].map(sg=>[hipH,.285*Hc,.045*Hc].map((hh,j)=>[cx+h[0]*sg*half,Y(hh),h[2]*sg*half+(j===1?-1.5*ppc:0)]));
   const foc=6*Math.max(W,H), pc=[W/2,H/2];
   const info=draw3d(G.m3,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:Hc,rot:G.rot||null,ppc,cmH:D.cmW,cmL:D.len,
-    kHem:D.hem/(G.m3.hw[G.m3.nr-1]*D.cmW),h,belt:[cx,Y(beltH),0],yCrotch:Y(.47*Hc),bone,foc,pc,arms:[]},W,H,[1,1,1]);
+    kHem:D.hem/(G.m3.hw[G.m3.nr-1]*D.cmW),h,belt:[cx,Y(beltH),0],yCrotch:Y(.47*Hc),bone,foc,pc,arms:[],inner:innerColor(G)},W,H,[1,1,1]);
   return {info,bone,ppc,floor,cx,Hc,beltH,Y,yw,fab,D};
 }
 /* 3D-Datei (glTF 2.0 binär, .glb) der gewählten Hose, frontal an der Puppe, ohne Nachschwingen: für Shopify (3D-Modell am
@@ -2336,8 +2394,72 @@ function seedPoints(S,w,h){
   }
   return pts.length?pts:[[w*.5,h*.35]];
 }
+/* Innenseite oben im Vorderseitenfoto: Weil der hintere Bund höher ist als der vordere, sieht man flach von vorne über dem
+   vorderen Bund die Innenseite des hinteren Bunds (Etikett, Waschzettel, Innenstoff). Getragen ist das unsichtbar.
+   Gesucht wird die Oberkante des äußeren Bunds: ein Weg von Seitennaht zu Seitennaht (an den Ecken oben, in der Mitte
+   tiefer), an dem es von „unähnlich dem Außenstoff“ (oben) zu „ähnlich dem Außenstoff“ (unten) wechselt.
+   Rückgabe: Kante je Spalte und gerade Linie zwischen den Ecken, oder null (nichts sicher gefunden: nichts wird verändert). */
+function innerTopCut(d,mm,CW,CH,top,bot){
+  const Hg=bot-top, band=Math.round(PASSFORM.innenSuche*Hg); if(Hg<80||band<8) return null;
+  const yb=Math.min(CH-1,top+band);
+  // Ecken des Bunds: äußerste Hosenpunkte knapp unter der Oberkante (weiter unten wird die Hüfte breiter)
+  const yc=top+Math.max(2,Math.round(.02*Hg)); let xl=-1,xr=-1; for(let x=0;x<CW;x++) if(mm[yc*CW+x]){ if(xl<0) xl=x; xr=x; }
+  if(xl<0||xr-xl<CW*.3) return null;
+  const topAt=x=>{ for(let y=top;y<=yb;y++) if(mm[y*CW+x]) return y; return yb; };
+  // Farbe des Außenstoffs: Median im oberen Vorderteil unter dem Bund (Mitte)
+  const ref=[[],[],[]];
+  for(let y=Math.round(top+.16*Hg);y<top+.3*Hg;y+=2) for(let x=Math.round(xl+(xr-xl)*.3);x<xl+(xr-xl)*.7;x+=2){
+    const i=y*CW+x; if(!mm[i]) continue; for(let c=0;c<3;c++) ref[c].push(d[i*4+c]); }
+  if(ref[0].length<40) return null;
+  const R=ref.map(a=>{ a.sort((p,q)=>p-q); return a[a.length>>1]; });
+  const W=xr-xl+1, H1=band+1, dist=new Float32Array(W*H1);
+  for(let x=xl;x<=xr;x++) for(let y=top;y<=yb;y++){ const i=(y*CW+x)*4; dist[(x-xl)*H1+y-top]=Math.hypot(d[i]-R[0],d[i+1]-R[1],d[i+2]-R[2]); }
+  const dm=(x,y0,y1)=>{ let s=0,n=0; for(let y=Math.max(top,y0);y<=Math.min(yb,y1);y++){ s+=dist[(x-xl)*H1+y-top]; n++; } return n?s/n:0; };
+  // Wert je Punkt: über der Kante unähnlich, darunter ähnlich (über 5 Spalten gemittelt); außerhalb der Hose nichts
+  const E=new Float32Array(W*H1);
+  for(let x=xl;x<=xr;x++) for(let y=top+2;y<=yb-4;y++){
+    if(!mm[y*CW+x]||!mm[(y-2)*CW+x]) continue;
+    const xm=(x-xl)/(W-1); if(xm>.2&&xm<.8&&y<topAt(x)+Math.max(3,.015*Hg)) continue;   // in der Mitte nicht an der Oberkante
+    let e=0,n=0;
+    for(let dx=-2;dx<=2;dx++){ const xx=clamp(x+dx,xl,xr); e+=dm(xx,y-5,y-1)-dm(xx,y,y+4); n++; }
+    E[(x-xl)*H1+y-top]=Math.max(0,e/n); }
+  // Kürzester Weg (größte Summe) von links nach rechts, je Spalte höchstens einen Punkt hoch oder runter;
+  // Anfang und Ende an den oberen Ecken der Hose (innen und außen treffen sich an den Seitennähten)
+  const corner=Math.max(3,Math.round(.03*Hg)), NEG=-1e9, Sc=new Float32Array(W*H1).fill(NEG), From=new Int8Array(W*H1);
+  const t0=topAt(xl), t1=topAt(xr);
+  for(let y=0;y<H1;y++) if(top+y>=t0-1&&top+y<=t0+corner) Sc[y]=E[y];
+  for(let x=1;x<W;x++) for(let y=0;y<H1;y++){ let best=NEG,bk=0;
+    for(let k=-1;k<=1;k++){ const yy=y+k; if(yy<0||yy>=H1) continue; const v=Sc[(x-1)*H1+yy]; if(v>best){ best=v; bk=k; } }
+    if(best>NEG/2){ Sc[x*H1+y]=best+E[x*H1+y]; From[x*H1+y]=bk; } }
+  let yEnd=-1, bv=NEG; for(let y=0;y<H1;y++) if(top+y>=t1-1&&top+y<=t1+corner&&Sc[(W-1)*H1+y]>bv){ bv=Sc[(W-1)*H1+y]; yEnd=y; }
+  if(yEnd<0) return null;
+  const path=new Int16Array(W); for(let x=W-1,y=yEnd;x>=0;x--){ path[x]=top+y; y+=From[x*H1+y]; }
+  // Prüfen: in der Mitte deutlich tiefer als die Linie zwischen den Ecken, nicht zu tief, klarer Farbwechsel,
+  // und darüber wirklich etwas anderes als Außenstoff
+  const line=x=>path[0]+(path[W-1]-path[0])*x/(W-1);
+  let dip=0, eSum=0, eN=0, above=0, aN=0;
+  for(let x=Math.round(W*.25);x<W*.75;x++){ dip=Math.max(dip,path[x]-line(x)); eSum+=E[x*H1+path[x]-top]; eN++;
+    for(let y=Math.ceil(line(x));y<path[x]-1;y++) if(mm[y*CW+x+xl]){ above+=dist[x*H1+y-top]; aN++; } }
+  const eMean=eSum/Math.max(1,eN), aMean=aN?above/aN:0;
+  // Schwellen an Fotos geprüft: echter Innenbund eMean 73, aMean 83; normaler Bund auf Teppich, Fliesen, Parkett, Bettdecke,
+  // dunklem Boden und weißem Grund eMean 16–26 (der Bund ist nur etwas anders gefärbt als die Hose darunter)
+  if(dip<.012*Hg||dip>PASSFORM.innenMax*Hg||eMean<PASSFORM.innenKante||aMean<28) return {ok:false,dip:dip/Hg,eMean,aMean};
+  return {ok:true,xl,xr,path,line,yb:Math.min(CH-1,top+Math.max(band,Math.round(PASSFORM.innenZug*Hg))),dip:dip/Hg,eMean,aMean};
+}
+/* Kante anwenden: je Spalte wird der Streifen von der Kante bis yb auf den Bereich von der geraden Eckenlinie bis yb gezogen.
+   Was darüber lag (Innenseite), fällt weg; der äußere Bund wird zur Oberkante der Hose. */
+function applyInnerCut(d,mm,CW,cut){
+  const {xl,xr,path,line,yb}=cut, col=new Uint8ClampedArray((yb+1)*4), cm=new Uint8Array(yb+1);
+  for(let x=xl;x<=xr;x++){
+    const ys=path[x-xl], yt=Math.round(line(x-xl)); if(ys<=yt) continue;
+    for(let y=0;y<=yb;y++){ const i=(y*CW+x)*4; col[y*4]=d[i]; col[y*4+1]=d[i+1]; col[y*4+2]=d[i+2]; col[y*4+3]=d[i+3]; cm[y]=mm[y*CW+x]; }
+    for(let y=0;y<=yb;y++){ const i=(y*CW+x)*4;
+      const src=y<yt?ys:Math.round(ys+(y-yt)*(yb-ys)/Math.max(1,yb-yt));
+      d[i]=col[src*4]; d[i+1]=col[src*4+1]; d[i+2]=col[src*4+2]; d[i+3]=255; mm[y*CW+x]=y<yt?0:cm[src]; }
+  }
+}
 /* Auf einheitliche Größe zuschneiden, Rand mit Stofffarbe auffüllen, Umriss Zeile für Zeile ablesen */
-function cropGarment(cv,S,flip){
+function cropGarment(cv,S,flip,innen=false){
   const {CW,CH,NR}=GEN, pad=4;
   const bx=S.x0-pad, by=S.y0-pad, bw=S.x1-S.x0+2*pad, bh=S.y1-S.y0+2*pad;
   const c=document.createElement("canvas"); c.width=CW; c.height=CH;
@@ -2367,6 +2489,10 @@ function cropGarment(cv,S,flip){
   }
   for(let y=0;y<CH;y++){ let any=false; for(let xx=0;xx<CW;xx++) if(core[y*CW+xx]){ any=true; break; }
     if(any){ for(let y2=0;y2<y;y2++) d.copyWithin(y2*CW*4,y*CW*4,(y+1)*CW*4); break; } }
+  // Vorderseite: Innenseite des hinteren Bunds (Etikett) über dem vorderen Bund erkennen und wegnehmen
+  let inner=null;
+  if(innen){ let t0=CH,b0=0; for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<t0)t0=y; if(y>b0)b0=y; }
+    inner=t0<b0?innerTopCut(d,mm,CW,CH,t0,b0):null; if(inner&&inner.ok) applyInnerCut(d,mm,CW,inner); }
   x.putImageData(id,0,0);
   // Zeilenprofil
   let top=CH,bot=0; for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<top)top=y; if(y>bot)bot=y; }
@@ -2380,7 +2506,7 @@ function cropGarment(cv,S,flip){
     if(!runs.length) runs.push([CW*.3,CW*.7]);
     rows.push({y,runs});
   }
-  return {c,d,rows,top,bot,sx:bw/CW,sy:bh/CH,base:sn?{r:sr/sn,g:sg/sn,b:sb/sn}:{r:120,g:120,b:120}};
+  return {c,d,rows,top,bot,sx:bw/CW,sy:bh/CH,base:sn?{r:sr/sn,g:sg/sn,b:sb/sn}:{r:120,g:120,b:120},inner};
 }
 /* Lücke zwischen den Beinen je Zeile: aus dem Umriss (zwei getrennte Flächen) oder aus der Farbe. Liegt heller Boden
    zwischen den Beinen, den die Freistellung als Hose gezählt hat, unterscheidet er sich im Farbton deutlich vom Stoff. */
@@ -2389,17 +2515,21 @@ function findGaps(A){
   const chd=(x,y)=>{ let c1=0,c2=0,n=0;                    // senkrecht mitteln, waagrecht nicht: die Lücke ist oben nur ein paar Punkte breit
     for(let dy=-2;dy<=2;dy++) for(let dx=0;dx<=0;dx++){ const i=(clamp(y+dy,0,CH-1)*CW+clamp(x+dx,0,CW-1))*4; c1+=d[i]-d[i+1]; c2+=(d[i]+d[i+1])/2-d[i+2]; n++; }
     return Math.hypot(c1/n-bc1,c2/n-bc2); };
+  // Boden zwischen den Beinen an der Farbe: stärkster Fleck in der Mitte, so weit er reicht
+  const colorGap=(R,a,z)=>{ let bx=-1,bv=0; const lo=Math.round(a+(z-a)*.3), hi=Math.round(a+(z-a)*.7);
+    for(let x=lo;x<=hi;x++){ const v=chd(x,R.y); if(v>bv){ bv=v; bx=x; } }
+    if(bv<30) return null;
+    let g0=bx,g1=bx; while(g0>lo&&chd(g0-1,R.y)>20) g0--; while(g1<hi&&chd(g1+1,R.y)>20) g1++;
+    return g1-g0>=1?[g0-1,g1+1]:null; };
   for(const R of A.rows){
     R.gap=null; const a=R.runs[0][0], z=R.runs[R.runs.length-1][1], c=(a+z)/2;
     if(R.runs.length>=2){ let bs=-1e9;
       for(let k=0;k<R.runs.length-1;k++){ const g0=R.runs[k][1], g1=R.runs[k+1][0], sc=(g1-g0)-.5*Math.abs((g0+g1)/2-c);
         if(sc>bs){ bs=sc; R.gap=[g0,g1]; } }
+      // grenzt Boden an das Loch, gehört er zum Spalt
+      const cg=colorGap(R,a,z); if(cg&&cg[0]<=R.gap[1]+3&&cg[1]>=R.gap[0]-3) R.gap=[Math.min(cg[0],R.gap[0]),Math.max(cg[1],R.gap[1])];
       continue; }
-    let bx=-1,bv=0; const lo=Math.round(a+(z-a)*.3), hi=Math.round(a+(z-a)*.7);
-    for(let x=lo;x<=hi;x++){ const v=chd(x,R.y); if(v>bv){ bv=v; bx=x; } }
-    if(bv<30) continue;
-    let g0=bx,g1=bx; while(g0>lo&&chd(g0-1,R.y)>20) g0--; while(g1<hi&&chd(g1+1,R.y)>20) g1++;
-    if(g1-g0>=1) R.gap=[g0-1,g1+1];
+    R.gap=colorGap(R,a,z);
   }
   // Schritt: oberes Ende der längsten Folge von Zeilen mit Lücke, die bis weit nach unten reicht
   const N=A.rows.length, v=i=>(A.rows[i].y-A.top)/(A.bot-A.top);
@@ -2411,6 +2541,24 @@ function findGaps(A){
   // Nur Zeilen dieser Folge gelten als Beinspalt, verstreute Farbflecken sonst nicht
   for(let i=0;i<N;i++) if(!best||i<best[0]||i>best[1]) A.rows[i].gap=A.rows[i].runs.length>=2?A.rows[i].gap:null;
   return best&&v(best[0])<.7?v(best[0])-.008:null;
+}
+/* Spalt zwischen den Beinen öffnet sich als V: oben nur wenige Punkte, darunter gleichmäßig breiter */
+function vSpread(A,vc){
+  const g=A.rows.map(R=>R.gap?R.gap[1]-R.gap[0]:0), v=R=>(R.y-A.top)/(A.bot-A.top);
+  const i0=A.rows.findIndex((R,i)=>v(R)>=vc-.02&&g[i]>0); if(i0<0||i0+6>=g.length) return false;
+  return g[i0]<=GEN.CW*.025&&g[i0+5]>=g[i0]*2.2+4;
+}
+/* Profil einer Seite (Zeilen bei gleichmäßigem v, Schritt bei vcA) auf den Schritt vcM umrechnen: über dem Schritt
+   v·vcA/vcM, darunter entsprechend; Texturkoordinaten und Weiten werden dazwischen gemittelt */
+function alignRows(pr,vcA,vcM){
+  if(Math.abs(vcA-vcM)<.004) return pr;
+  const N=pr.vv.length, at=v=>{ const x=clamp(v,pr.vv[0],pr.vv[N-1]); let k=0; while(k<N-2&&pr.vv[k+1]<x) k++;
+    const w=clamp((x-pr.vv[k])/((pr.vv[k+1]-pr.vv[k])||1),0,1); return [k,w]; };
+  const lerp=(a,b,w)=>a+(b-a)*w, out={...pr,hw:[],tv:[],uv:[]};
+  for(let i=0;i<N;i++){ const v=pr.vv[i], src=v<vcM?v*vcA/vcM:vcA+(v-vcM)*(1-vcA)/(1-vcM), [k,w]=at(src);
+    out.hw.push(lerp(pr.hw[k],pr.hw[k+1],w)); out.tv.push(+lerp(pr.tv[k],pr.tv[k+1],w).toFixed(4));
+    out.uv.push(pr.uv[k].map((u,c)=>+lerp(u,pr.uv[k+1][c],w).toFixed(4))); }
+  return out;
 }
 function garmentProfile(A,VC,off){
   const {CW,CH,NR}=GEN, H=(A.bot-A.top)*A.sy, arr=[], vv=[], tv=[]; let px=null;
@@ -2970,7 +3118,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind=""){
   if(backFile) bp=await loadGarmentPhoto(backFile,say,refKind,"Rückseite");
   // Schritt: wo sich die Beine trennen. Berühren sich auf einem Foto die Säume, ist die Lücke zwischen den Beinen
   // dort nicht sicher zu sehen; dann gilt der Schritt des anderen Fotos.
-  const crop=(fp,bp)=>{ const F=cropGarment(fp.cv,fp.S,false), B=bp?cropGarment(bp.cv,bp.S,false):cropGarment(fp.cv,fp.S,true);
+  const crop=(fp,bp)=>{ const F=cropGarment(fp.cv,fp.S,false,true), B=bp?cropGarment(bp.cv,bp.S,false):cropGarment(fp.cv,fp.S,true,true);
     const vcF=findGaps(F), vcB=bp?findGaps(B):null; if(!bp) findGaps(B);   // ohne Rückenfoto: Vorderseite gespiegelt
     return {F,B,vcF,vcB}; };
   let {F,B,vcF,vcB}=crop(fp,bp);
@@ -2983,7 +3131,14 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind=""){
     if(v2!=null&&v2>.2&&v2<.6){ fp=fp2; bp=bp2; ({F,B,vcF,vcB}=c2); }
   }
   let VC=vcF??vcB; const split=VC!=null; if(!split) VC=.39;
-  const pf=garmentProfile(F,VC,0), pb=garmentProfile(B,VC,CW);
+  // Öffnet sich der Spalt zwischen den Beinen als V (Beine gespreizt, oben übereinander), liegt der wahre Schritt höher
+  const spreiz=(A,vc)=>vc!=null&&vc>PASSFORM.schrittFotoMax&&vSpread(A,vc);
+  const vcFe=spreiz(F,vcF)?PASSFORM.schrittFotoMax:vcF, vcBe=spreiz(B,vcB)?PASSFORM.schrittFotoMax:vcB;
+  if(VC===vcF&&vcFe!=null) VC=vcFe; else if(VC===vcB&&vcBe!=null) VC=vcBe;
+  // Rückseite mit ihrem eigenen Schritt vermessen und dann Zeile für Zeile so verschoben, dass ihr Schritt auf dem des
+  // Modells liegt. Vorher lag der Schritt der Rückseite oft tiefer: Gesäß und Taschen wirkten nach unten gezogen.
+  const vcBack=bp&&vcBe!=null?vcBe:VC;
+  const pf=garmentProfile(F,VC,0), pb=alignRows(garmentProfile(B,vcBack,CW),vcBack,VC);
   for(let i=NR-3;i<NR;i++){ pf.hw[i]=pf.hw[NR-4]; pb.hw[i]=pb.hw[NR-4]; }
   // Vorder- und Rückseite haben denselben Umriss. Beide mitteln: Reste von Schräglage (die meist an
   // entgegengesetzten Enden wirkt) heben sich auf. Die Beine nur von Fotos, auf denen sie getrennt zu sehen sind.
@@ -3000,6 +3155,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind=""){
             f:pf.uv,b:pb.uv,atlas:at.toDataURL("image/jpeg",.85)};
   // lo: Außenlänge geteilt durch senkrechte Länge (Einheit aller Werte im Modell)
   raw.lo=+((bp?(pf.Hout/pf.H+pb.Hout/pb.H)/2:pf.Hout/pf.H)).toFixed(4);
+  raw.innen=!!(F.inner&&F.inner.ok);
   const nz=normalizeProfile(raw), m3=nz.M;
   const th=document.createElement("canvas"); th.width=120; th.height=240; th.getContext("2d").drawImage(F.c,0,0,120,240);
   const cw=CW*F.sx, aspect=pf.H*nz.span/cw;
@@ -3013,7 +3169,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind=""){
   return {G:{label:"Eigene Hose",size:"–",kind:"pants",aspect,prof:garmentProf(m3,aspect),
              elastic:false,estFlat:40,waist:null,len:null,hem:null,meas,base,src:th.toDataURL("image/jpeg",.8),m3,own:true,bad:nz.bad},
           info:{split,hasBack:!!backFile,trimmed:nz.changed||fp.cut||!!(bp&&bp.cut),turned:fp.turned||(bp&&bp.turned)||0,
-                both,tilt:[fp.tilt,bp?bp.tilt:null],ref:[fp.ref,bp?bp.ref:null],refKind,warn:[...fp.warn,...(bp?bp.warn:[])],ki:[fp.ki,bp?bp.ki:false],hand:[fp.hand,bp?bp.hand:false]}};
+                both,innen:!!(F.inner&&F.inner.ok),vcSpreiz:VC!==(vcF??vcB),tilt:[fp.tilt,bp?bp.tilt:null],ref:[fp.ref,bp?bp.ref:null],refKind,warn:[...fp.warn,...(bp?bp.warn:[])],ki:[fp.ki,bp?bp.ki:false],hand:[fp.hand,bp?bp.hand:false]}};
 }
 /* Eigene Hosen: Liste im Gerät merken */
 const OWN="massScanHosen";
@@ -3546,7 +3702,7 @@ $("own-go").addEventListener("click",async()=>{
   }catch(e){ msg.textContent=e&&e.message?e.message:"Das hat nicht geklappt."; }
   finally{ $("own-go").disabled=false; }
 });
-loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null}; buildPicker(); renderSeries(); loadSharedGarments();
+loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null}; buildPicker(); renderSeries(); loadSharedGarments();
 </script>
 </body>
 </html>

@@ -21,7 +21,7 @@ ersetze('scn.x.drawImage(video,0,0,24,24);',"scn.x.fillStyle='rgb(150,146,140)';
 //    laden, damit fehlendes Netz in den anderen Tests keine Fehlermeldungen erzeugt
 ersetze('const V=await import(MP_URL+"/vision_bundle.mjs");','if(!window.__kiTest) throw new Error("KI im Test aus"); const V=await import(MP_URL+"/vision_bundle.mjs");');
 // 8. Einblick für die Tests
-s=s.replace(/loadOwn\(\);\s*buildPicker\(\);/,'loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null}; buildPicker();');
+s=s.replace(/loadOwn\(\);\s*buildPicker\(\);/,'loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null}; buildPicker();');
 if(!s.includes('window.__dbg')) throw new Error('Einblick nicht eingefügt');
 fs.writeFileSync(hier+'testseite-mit-simulierter-person.html',s);
 console.log('Testseite neu erzeugt.');
