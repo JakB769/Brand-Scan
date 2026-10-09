@@ -586,18 +586,20 @@ async function startCamera(){
   if(!(h>=120&&h<=230)){ showError("Bitte zuerst eine Körpergröße zwischen 120 und 230 cm eintragen.");
     $("height").focus(); $("height").scrollIntoView({block:"center"}); return; }
   starting=true; $("error").hidden=true; $("start").disabled=true;
+  const gen=++camGen;                              // wird die Kamera unterwegs wieder ausgemacht (✕ in der Shop-Anprobe), hier aufhören
   // Ton und Sprache brauchen auf iOS eine echte Nutzeraktion zum Freischalten
   try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(_){}
   try{ if(voiceOn()){ const u=new SpeechSynthesisUtterance("Bereit"); u.lang="de-DE"; speechSynthesis.speak(u); } }catch(_){}
   // Kamera zuerst: die Freigabe-Frage kommt sofort beim Tippen, nicht erst nach dem Modell
-  try{ await openStream(); }
+  const aus=()=>{ if(gen===camGen) return false; try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null; try{ video.srcObject=null; }catch(_){} return true; };
+  try{ await openStream(); if(aus()) return; }
   catch(e){
     showError("Kamera nicht verfügbar: "+e.message+" — die Seite muss über https:// laufen und die Kamera muss im Browser erlaubt sein.");
     $("start").disabled=false; starting=false; return;
   }
   $("placeholder").hidden=true; $("hud").hidden=false;
   stage.scrollIntoView({behavior:"smooth",block:"center"});
-  try{ if(!landmarker){ coach("Einen Moment","Erkennung wird geladen","warn",true); await loadModel(); } }
+  try{ if(!landmarker){ coach("Einen Moment","Erkennung wird geladen","warn",true); await loadModel(); } if(aus()) return; }
   catch(e){
     showError("Die Erkennung konnte nicht geladen werden: "+e.message+" — Internetverbindung prüfen und neu starten.");
     coach("Erkennung nicht geladen","Internet prüfen, dann „Kamera neu starten“","bad",true); setStatus("Erkennung nicht geladen","bad");
@@ -1181,7 +1183,7 @@ function init3d(){
     g3.c=document.createElement("canvas");
     // Grafikspeicher entzogen (iPhone im Hintergrund, zu viele Tabs): beim nächsten Bild alles neu anlegen
     g3.c.addEventListener("webglcontextlost",e=>{ e.preventDefault();
-      Object.assign(g3,{ok:null,gl:null,key:null,texReady:false,vb:null,nb:null,ub:null,ab:null,ib:null,tex:null,prog0:null,ovb:null,oib:null,oN:0}); });
+      Object.assign(g3,{ok:null,gl:null,prog:null,key:null,texReady:false,vb:null,nb:null,ub:null,ab:null,ib:null,tub:null,twb:null,u2b:null,sdb:null,tex:null,prog0:null,ovb:null,oib:null,oN:0,cOk:false}); });
     const o={alpha:true,premultipliedAlpha:true,antialias:true,depth:true};
     const gl=g3.c.getContext("webgl2",o)||g3.c.getContext("webgl",o);
     if(!gl){ g3.ok=false; return false; }
@@ -1276,7 +1278,7 @@ function mesh3d(key,M){
     q(id(s,NR-1,f,j),id(s,NR-1,f,j+1),rid(s,f,3,j+1),rid(s,f,3,j));    // Saumkante
     q(rid(s,f,4,j),rid(s,f,4,j+1),rid(s,f,5,j+1),rid(s,f,5,j));        // Umschlag innen
   }
-  g3.key=key; g3.nv=nv; g3.nRing=nRing; g3.nWall=nWall; g3.oN=0; g3.ic=ic; g3.idxArr=new Uint16Array(idx); g3.aoArr=ao; g3.ni=idx.length; g3.duj=duj; g3.uvs=uv; g3.nr=NR; g3.amp=null;
+  g3.key=key; g3.nv=nv; g3.nRing=nRing; g3.nWall=nWall; g3.oN=0; g3.ic=ic; g3.cOk=false; g3.tg=null; g3.idxArr=new Uint16Array(idx); g3.aoArr=ao; g3.ni=idx.length; g3.duj=duj; g3.uvs=uv; g3.nr=NR; g3.amp=null;
   g3.pos=new Float32Array(nv*3); g3.nor=new Float32Array(nv*3); g3.tu=new Float32Array(nv*3); g3.tw=new Float32Array(nv*3);
   const buf=(data,loc,size)=>{ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
     gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW); return b; };
@@ -1432,7 +1434,8 @@ function pose3d(M,P){
     normals3d(P,rotL,piv); }
   // Stauchfalten: wird der Stoff zusammengeschoben (Knöchel, Kniekehle, Leiste), knickt er aus. Aus der Stauchung c
   // (jetziger Abstand der Zeilen / Ruheabstand) folgt die Faltentiefe a = λ/π·√(c(1−c)) bei Faltenlänge λ (in Ruhe).
-  const lam=(P.foldCm||5)*ppc, rest=i=>i<ic?(M.v[i+1]-M.v[i])*S*rr:(M.v[i+1]-M.v[i])*SV;
+  // Ruheabstand der Zeilen; das Paar über den Schritt hinweg hat oben den Leib-, unten den Bein-Maßstab
+  const lam=(P.foldCm||5)*ppc, rest=i=>i<ic-1?(M.v[i+1]-M.v[i])*S*rr:i===ic-1?(M.vc-M.v[i])*S*rr+(M.v[i+1]-M.vc)*SV:(M.v[i+1]-M.v[i])*SV;
   let anyF=false; const amp=g3.amp||(g3.amp=new Float32Array(g3.nRing));
   for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){
     let arc=0;
@@ -1444,14 +1447,18 @@ function pose3d(M,P){
       if(i>0) arc+=rest(i-1);
       // Winkel rundherum, an allen Nähten stetig (vorne π·t, hinten 2π−π·t; nur ganze Vielfache): sonst klaffen die
       // Falten an den Nähten auseinander. Die Falten laufen schräg und unregelmäßig statt als gleichmäßige Ringe.
-      const tt=j/K3, psi=f?2*Math.PI-Math.PI*tt:Math.PI*tt, sl=i>=ic?s:0;
+      const tt=j/K3, psi=f?2*Math.PI-Math.PI*tt:Math.PI*tt, sl=s*clamp((i-ic)/6,0,1);
       const ph=2*Math.PI*arc/lam+2.6*Math.sin(psi+1.7*sl+i*.13)+1.1*Math.sin(2*psi+i*.29+.9*sl);
       const am=.5+.5*Math.sin(psi+2.3+1.1*sl+i*.17);         // mal tiefer, mal flacher: keine gleichmäßigen Ringe
       amp[k]=A>.02*ppc?A*am*Math.sin(ph):0; if(amp[k]) anyF=true;
     }
   }
   if(anyF){
-    const nor=g3.nor;
+    const nor=g3.nor, id=(s,i,f,j)=>((s*NR+i)*2+f)*C+j;
+    // Punkte, die auf einer Naht aufeinanderliegen, bekommen dieselbe Normale: sonst reißt die Falte die Naht auf
+    const avg=(a,b)=>{ a*=3; b*=3; const n=v3.norm([nor[a]+nor[b],nor[a+1]+nor[b+1],nor[a+2]+nor[b+2]]); for(const q of [a,b]){ nor[q]=n[0]; nor[q+1]=n[1]; nor[q+2]=n[2]; } };
+    for(let s=0;s<2;s++) for(let i=0;i<NR;i++){ avg(id(s,i,0,K3),id(s,i,1,K3)); if(i>=ic) avg(id(s,i,0,0),id(s,i,1,0)); }
+    for(let i=0;i<ic;i++) for(let f=0;f<2;f++) avg(id(0,i,f,0),id(1,i,f,0));
     for(let k=0;k<g3.nRing;k++){ const a=amp[k]; if(!a) continue; pos[k*3]+=nor[k*3]*a; pos[k*3+1]+=nor[k*3+1]*a; pos[k*3+2]+=nor[k*3+2]*a; }
     for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const w=(g3.nRing+(s*NR+i)*2+f)*3, src=(((s*NR+i)*2+f)*C)*3;
       pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2]; }
@@ -1475,7 +1482,7 @@ function cloth3d(M,P,dt){
   const Hc=P.heightCm||175, rb=u=>(u<.5?.31+(.21-.31)*u/.5:.21+(.125-.21)*(u-.5)/.5)*Hc/(2*Math.PI)*ppc;
   const caps=[]; for(const ch of P.bone){ caps.push([ch[0],ch[1],rb(0),rb(.5)]); caps.push([ch[1],ch[2],rb(.5),rb(1)]); }
   // Ziel mit Durchhängen: Normale nach unten (Bild-y) und Abstand Stoff↔Bein bestimmen, wie weit
-  const Tg=g3.tg||(g3.tg=new Float32Array(n*3)), DV=(g3.cdv&&g3.cdv.length===n)?g3.cdv:(g3.cdv=new Float32Array(n)); (g3.tgRoh&&g3.tgRoh.length===n*3?g3.tgRoh:(g3.tgRoh=new Float32Array(n*3))).set(T.subarray(0,n*3));
+  const Tg=(g3.tg&&g3.tg.length===n*3)?g3.tg:(g3.tg=new Float32Array(n*3)), DV=(g3.cdv&&g3.cdv.length===n)?g3.cdv:(g3.cdv=new Float32Array(n)); (g3.tgRoh&&g3.tgRoh.length===n*3?g3.tgRoh:(g3.tgRoh=new Float32Array(n*3))).set(T.subarray(0,n*3));
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){
     const k=((s*NR+i)*2+f)*C+j, q=k*3, ny=nor[q+1];
     let sag=0; DV[k]=fab.dev*ppc;
@@ -1817,13 +1824,14 @@ function view3dPose(G,W,H,yw){
    Produkt; Shopify erzeugt daraus selbst die Datei für AR auf dem iPhone), Blender oder jeden 3D-Betrachter.
    Meter, Y nach oben, Vorderseite zeigt nach +Z, Boden bei Y = 0. Stoff als Textur, Innenseiten dunkler (Vertex-Farben). */
 async function exportGLB(){
-  const G=g.key&&GARMENTS[g.key]; if(!G||!G.m3||running||!init3d()) return;
+  const G=g.key&&GARMENTS[g.key]; if(!G||!G.m3) return;
+  if(running||!init3d()){ $("g-msg").textContent="Die 3D-Datei geht nur bei ausgeschalteter Kamera und mit WebGL."; return; }
   mesh3d(g.key,G.m3);
   for(let t=0;t<80&&!g3.texReady;t++) await new Promise(r=>setTimeout(r,50));   // Stoffbild lädt noch
   if(!g3.texReady||!g3.idxArr){ $("g-msg").textContent="Das Stoffbild lädt noch. Bitte gleich noch einmal tippen."; return; }
   const W=$("g3dview").width, H=$("g3dview").height;
   g3.cOk=false; const V=view3dPose(G,W,H,0);                   // Physik neu ansetzen: ruhige Form
-  const n=g3.nv, k=1/(V.ppc*100), Pp=new Float32Array(n*3), Nn=new Float32Array(n*3), UV=new Float32Array(n*2), CO=new Float32Array(n*3);
+  const idx=g3.idxArr.slice(), n=g3.nv, k=1/(V.ppc*100), Pp=new Float32Array(n*3), Nn=new Float32Array(n*3), UV=new Float32Array(n*2), CO=new Float32Array(n*3);
   const lo=[1e9,1e9,1e9], hi=[-1e9,-1e9,-1e9];
   for(let i=0;i<n;i++){
     const x=(g3.pos[i*3]-V.cx)*k, y=(V.floor-g3.pos[i*3+1])*k, z=-g3.pos[i*3+2]*k;
@@ -1835,7 +1843,7 @@ async function exportGLB(){
   }
   const im=await new Promise((res,rej)=>{ const m=new Image(); m.onload=()=>res(m); m.onerror=rej; m.src=G.m3.atlas; });
   const jpg=new Uint8Array(await (await new Promise(r=>matchHalves(im).toBlob(r,"image/jpeg",.9))).arrayBuffer());
-  const parts=[Pp,Nn,UV,CO,g3.idxArr,jpg], views=[]; let off=0;
+  const parts=[Pp,Nn,UV,CO,idx,jpg], views=[]; let off=0;
   for(const a of parts){ views.push({buffer:0,byteOffset:off,byteLength:a.byteLength}); off+=Math.ceil(a.byteLength/4)*4; }
   views[0].target=views[1].target=views[2].target=views[3].target=34962; views[4].target=34963;
   const fab=V.fab, json={asset:{version:"2.0",generator:"Passform Live-Anprobe"},scene:0,scenes:[{nodes:[0]}],
@@ -1845,7 +1853,7 @@ async function exportGLB(){
     textures:[{sampler:0,source:0}],samplers:[{magFilter:9729,minFilter:9987,wrapS:33071,wrapT:33071}],images:[{bufferView:5,mimeType:"image/jpeg"}],
     accessors:[{bufferView:0,componentType:5126,count:n,type:"VEC3",min:lo,max:hi},{bufferView:1,componentType:5126,count:n,type:"VEC3"},
       {bufferView:2,componentType:5126,count:n,type:"VEC2"},{bufferView:3,componentType:5126,count:n,type:"VEC3"},
-      {bufferView:4,componentType:5123,count:g3.idxArr.length,type:"SCALAR"}],
+      {bufferView:4,componentType:5123,count:idx.length,type:"SCALAR"}],
     bufferViews:views,buffers:[{byteLength:off}]};
   let js=new TextEncoder().encode(JSON.stringify(json)); const jl=Math.ceil(js.length/4)*4;
   const out=new Uint8Array(12+8+jl+8+off), dv=new DataView(out.buffer);
@@ -2974,6 +2982,8 @@ function saveOwn(){
 }
 /* Was gespeichert bzw. in eine Datei geschrieben wird: ohne Felder, die nur für diese Sitzung gelten oder neu berechnet werden */
 function plainG(G){ const o={...G}; delete o.unsaved; delete o.shared; delete o.prof; delete o.bad; return o; }
+/* Nur eingebettete Bilder (aus Speicher oder fremder Datei): keine Adressen, kein eingeschleuster Text */
+const safeImg=v=>typeof v==="string"&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v);
 /* Eine Hose aus Speicher oder Datei absichern und mit dem heutigen Generator nachprüfen. Rückgabe: true, wenn repariert. */
 function checkGarment(G){
   let fixed=false;
@@ -2986,13 +2996,14 @@ function checkGarment(G){
     if(G.meas&&!(REFS[G.meas.ref]&&G.meas.len>0&&G.meas.len<400)) G.meas=null;
     if(!(Array.isArray(G.rot)&&G.rot.length===9&&G.rot.every(isFinite))) G.rot=null;
     if(!STOFFE[G.fabric]) G.fabric=null; G.material=typeof G.material==="string"?G.material:"";
-    G.label=String(G.label||"Hose"); G.src=typeof G.src==="string"?G.src:""; G.estFlat=G.estFlat>0?G.estFlat:40;
+    G.label=String(G.label||"Hose"); G.src=safeImg(G.src)?G.src:"";
+    if(!safeImg(G.m3.atlas)) throw new Error("Atlas"); G.estFlat=G.estFlat>0?G.estFlat:40;
     if(!(G.base&&isFinite(G.base.lum))) G.base={r:120,g:120,b:120,lum:120};
   }catch(_){ G.bad="Modell beschädigt"; }
   return fixed;
 }
 /* Gültige Einträge aus Speicher oder Datei: [{key, G}] mit Modell */
-const garmentList=a=>(Array.isArray(a)?a:a&&Array.isArray(a.hosen)?a.hosen:[]).filter(o=>o&&typeof o.key==="string"&&o.G&&o.G.m3&&Array.isArray(o.G.m3.hw)&&typeof o.G.m3.atlas==="string");
+const garmentList=a=>(Array.isArray(a)?a:a&&Array.isArray(a.hosen)?a.hosen:[]).filter(o=>o&&typeof o.key==="string"&&/^[\w-]{1,40}$/.test(o.key)&&o.G&&o.G.m3&&Array.isArray(o.G.m3.hw)&&typeof o.G.m3.atlas==="string");
 function loadOwn(){
   let fixed=false;
   try{
@@ -3076,7 +3087,7 @@ function deleteGarment(k){
   const keys=Object.keys(GARMENTS), pos=keys.indexOf(k), wasOn=g.key===k;
   if(wasOn) clearGarment();
   if(g3.key===k) free3d();
-  if(GARMENTS[k].shared) try{ const w=goneKeys(); w.add(k); localStorage.setItem(GONE,JSON.stringify([...w])); }catch(_){}
+  try{ const w=goneKeys(); w.add(k); localStorage.setItem(GONE,JSON.stringify([...w])); }catch(_){}   // auch eine geänderte Hose aus hosen.json bleibt gelöscht
   delete GARMENTS[k];
   if(ownLast===k){ ownLast=null; $("own-prev").hidden=true; $("own-msg").textContent=""; }
   saveOwn(); buildPicker();
@@ -3089,7 +3100,7 @@ function deleteGarment(k){
 function buildPicker(){
   const E=Object.entries(GARMENTS), esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   $("gwrap").innerHTML=E.length?E.map(([k,v])=>
-    `<div class="gitem"><button class="gbtn" data-g="${k}" aria-pressed="false"><img src="${v.src}" alt=""><span>${esc(v.label)}<br>`
+    `<div class="gitem"><button class="gbtn" data-g="${esc(k)}" aria-pressed="false"><img src="${esc(v.src)}" alt=""><span>${esc(v.label)}<br>`
     +(v.bad?`<b class="warnb">⚠ bitte neu erstellen</b>`:(v.waist?"Bund "+v.waist+" cm":"Bund geschätzt"))+`</span></button>`
     +`<button class="gdel" data-del="${k}" aria-label="${esc(v.label)} löschen" title="Löschen">✕</button></div>`).join("")
     :`<div style="color:var(--chalk-faint);font-size:13.5px">Noch keine Hose. Oben zwei Fotos wählen und „3D-Hose erstellen“ drücken.</div>`;
@@ -3107,7 +3118,7 @@ function buildPicker(){
   });
   const ok=E.filter(([,v])=>!v.bad);
   $("gchips").innerHTML=ok.length?ok.map(([k,v])=>
-    `<button class="chip" data-g="${k}" aria-pressed="false">${esc(v.label.slice(0,12))}</button>`).join("")
+    `<button class="chip" data-g="${esc(k)}" aria-pressed="false">${esc(v.label.slice(0,12))}</button>`).join("")
     +`<button class="chip" data-g="" aria-pressed="false">Aus</button>`:"";
   $("gchips").querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>
     b.dataset.g?pickGarment(b.dataset.g,false):clearGarment()));
@@ -3170,7 +3181,7 @@ function setDim(k,el){
   const G=GARMENTS[g.key], v=Math.round(num(el.value)*10)/10, why=dimWhy(k,v,G);
   el.classList.toggle("bad",!!why); $("g-msg").textContent=why?why+" Die Hose bleibt wie sie war.":"";
   if(why) return;
-  G.repaired=false;
+  ownIt(G); G.repaired=false;
   if(k==="waist") G.waist=v; else if(k==="len") G.len=v; else G.hem=v;
   syncG(); fillDims(); updateFit();
   if(k==="waist"){ const sp=$("gwrap").querySelector(`.gbtn[data-g="${g.key}"] span`); if(sp) sp.innerHTML=sp.innerHTML.replace(/<br>.*$/,"<br>Bund "+v+" cm"); }
@@ -3182,7 +3193,7 @@ function showFab(){
   const sel=$("g-fab"), t=$("tag-fab"), G=g.key&&GARMENTS[g.key];
   sel.disabled=!G; if(!G){ t.textContent=""; return; }
   const a=stoffAusText(stoffText(G)); sel.value=G.fabric||"";
-  t.textContent=G.fabric?"manuell":(G.material?(a.sicher?"aus Material":"geraten"):"Standard");
+  t.textContent=G.fabric?"manuell":(stoffText(G).trim()?(a.sicher?"aus Material/Name":"geraten"):"Standard");
   t.className="tag "+(G.fabric?"man":a.sicher?"mes":"est"); t.title=G.fabric?"von dir gewählt":a.grund;
 }
 function pickGarment(k,scroll=true){
@@ -3324,7 +3335,7 @@ function openShop(){
   try{ history.pushState({shop:1},""); }catch(_){}
   if(stage.requestFullscreen&&!document.fullscreenElement) stage.requestFullscreen().catch(()=>{});
   // im Tipp-Ereignis: die Kamera-Frage kommt sofort. Klappt es nicht, Vollbild wieder zu, damit die Meldung zu sehen ist.
-  startCamera().then(()=>{ if(shopMode&&!running&&!starting) closeShop(); });
+  startCamera().then(()=>{ if(shopMode&&!running&&!starting){ if(history.state&&history.state.shop) history.back(); else closeShop(); } });
 }
 function closeShop(){
   if(!shopMode) return; shopMode=false;
@@ -3333,7 +3344,9 @@ function closeShop(){
   stopCamera();
 }
 /* Kamera aus: Bild weg, Erkennung ruht; danach läuft wieder die 3D-Ansicht */
+let camGen=0;
 function stopCamera(){
+  camGen++; starting=false; $("start").disabled=false;
   running=false; try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null;
   try{ video.srcObject=null; }catch(_){}
   ctx.clearRect(0,0,cv.width,cv.height); $("placeholder").hidden=false; $("hud").hidden=true;
@@ -3378,7 +3391,7 @@ $("reset").addEventListener("click",()=>{
 // Maße der ausgewählten Hose: jede gültige Änderung wirkt sofort auf die angezeigte Hose
 document.querySelectorAll(".reset").forEach(b=>b.addEventListener("click",()=>resetDim(b.dataset.k)));
 for(const [id,k] of [["g-len","len"],["g-waist","waist"],["g-hemw","hem"]]){
-  $(id).addEventListener("input",e=>{ ownIt(g.key&&GARMENTS[g.key]); setDim(k,e.target); saveSoon(); });
+  $(id).addEventListener("input",e=>{ setDim(k,e.target); saveSoon(); });
   $(id).addEventListener("change",()=>saveSoon(0));
   $(id).addEventListener("blur",()=>{                  // ungültig verlassen: alter Wert zurück, Hinweis weg
     if($(id).classList.contains("bad")) $("g-msg").textContent="";
@@ -3395,7 +3408,7 @@ $("g-importbtn").addEventListener("click",()=>$("g-import").click());
 $("g-import").addEventListener("change",e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=""; if(f) importGarmentFile(f); });
 // Stoff automatisch aus Material und Name (der Name verrät oft die Bauart: „Cordhose“, „Jogger“, „Satin“)
 const ownFabAuto=()=>{ const m=$("own-mat").value, a=stoffAusText([m,$("own-name").value].filter(v=>v.trim()).join(" · ")), o=$("own-fab").options[0];
-  o.textContent=m.trim()?`automatisch: ${STOFFE[a.key].name}${a.sicher?"":" (geraten)"}`:"automatisch aus dem Material"; };
+  o.textContent=(m+$("own-name").value).trim()?`automatisch: ${STOFFE[a.key].name}${a.sicher?"":" (geraten)"}`:"automatisch aus dem Material"; };
 $("own-mat").addEventListener("input",ownFabAuto); $("own-name").addEventListener("input",ownFabAuto);
 $("g-debug").checked=dbg.on;
 // Notlösung: Hose von Hand um 90° drehen oder umdrehen, je Hose gespeichert

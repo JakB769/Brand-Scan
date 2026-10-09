@@ -199,6 +199,11 @@ Gesäß-Querschnitt, Bogenlänge, Schatten nur auf der Person, Saumstauchung ohn
 Umfangsschutz, neue Stoffwerte und Stofferkennung. Gemessen in `tdarstellung.mjs` und `tstoff.mjs`; Gegenprobe mit dem alten Stand: 5 Prüfungen
 schlagen dort fehl. Nicht gelöst: echte Stoffsimulation (XPBD, im Node-Prototyp 3–10 ms je Bild, nicht eingebaut); in der Attrappe fehlt der
 Arm im Kamerabild, daher sehen die Ausschnitte für Hände/Arme dort wie Löcher aus (mit echter Kamera ist dort der Arm).
+Schnellprüfung 9.10. (zwei Prüfer, nur Code): behoben sind Faltenring am Schritt (falscher Ruheabstand über den Schritt), Faltensprung an der
+Schrittzeile, Nahtrisse durch Falten (Normalen auf Nähten gemittelt), Stoffzustand der alten Hose nach Hosenwechsel, unvollständiger Reset nach
+Kontextverlust, Kamera lief weiter, wenn die Shop-Anprobe während des Starts geschlossen wurde (`camGen`), gelöschte Hose aus `hosen.json` kam
+wieder, fremde Dateien konnten HTML einschleusen (nur `data:image`-Bilder und einfache Schlüssel, Escaping in der Liste), toter Verlaufseintrag
+bei verweigerter Kamera, GLB beim Hosenwechsel während des Exports, Stoffanzeige ohne Name.
 
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
 

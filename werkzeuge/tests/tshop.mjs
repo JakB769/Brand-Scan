@@ -32,6 +32,10 @@ const z3=await zustand();
 pruefe(!z3.shop&&!z3.video,'Zurück-Taste schließt die Anprobe');
 await p.click('#tryon'); await p.waitForTimeout(1500); await p.keyboard.press('Escape'); await p.waitForTimeout(800);
 pruefe(!(await zustand()).shop,'Escape schließt die Anprobe');
+// Sofort wieder schließen, während die Kamera noch startet: Kamera bleibt aus, 3D-Ansicht kommt wieder
+await p.click('#tryon'); await p.keyboard.press('Escape'); await p.waitForTimeout(2500);
+const z4=await zustand();
+pruefe(!z4.shop&&!z4.video&&!z4.ansicht,'Während des Kamerastarts geschlossen: Kamera bleibt aus, 3D-Ansicht wieder da');
 pruefe(errs.length===0,'keine Skriptfehler'+(errs.length?': '+[...new Set(errs)].slice(0,3).join(' | '):''));
 await b.close();
 if(fehler) process.exit(1);

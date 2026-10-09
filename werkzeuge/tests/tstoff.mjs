@@ -32,7 +32,7 @@ await p.fill('#own-mat','100 % Viskose'); await p.click('#own-go');
 await p.waitForFunction(()=>/Fertig/.test(document.getElementById('own-msg').textContent),null,{timeout:120000});
 const k=await p.evaluate(()=>window.__dbg.g.key);
 let st=await p.evaluate(()=>({sel:document.getElementById('g-fab').value,tag:document.getElementById('tag-fab').textContent,mat:window.__dbg.GARMENTS[window.__dbg.g.key].material}));
-pruefe(st.sel===''&&st.tag==='aus Material'&&st.mat==='100 % Viskose','Material beim Anlegen übernommen, Stoff automatisch: '+JSON.stringify(st));
+pruefe(st.sel===''&&st.tag==='aus Material/Name'&&st.mat==='100 % Viskose','Material beim Anlegen übernommen, Stoff automatisch: '+JSON.stringify(st));
 await p.selectOption('#g-fab','chino'); await p.waitForTimeout(200); await p.reload(); await p.waitForTimeout(600);
 await p.click(`#gwrap .gbtn[data-g="${k}"]`); await p.waitForTimeout(300);
 st=await p.evaluate(()=>({sel:document.getElementById('g-fab').value,tag:document.getElementById('tag-fab').textContent}));
