@@ -1,0 +1,13 @@
+# Netlify, mit GitHub verbunden: die Seite liegt in app/, der Server-Teil für „Link einfügen“ in netlify/functions/.
+# Kein Build-Schritt. Die Test-Werkzeuge (Playwright usw.) werden nicht installiert.
+[build]
+  publish = "app"
+  command = "echo kein Build-Schritt"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--omit=dev"
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1"
+
+[functions]
+  directory = "netlify/functions"

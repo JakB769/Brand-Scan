@@ -1,0 +1,83 @@
+Okay, pass auf. Also ich brauche ähm, eine Idee für eine, für eine Website-Extension mehr oder weniger, dass man äh, als, als äh, Mode bzw. als Fashion-Brand, whatever, Webseite, ähm, zum Beispiel jetzt auf der H&M-Webseite oder sowas, dass man dann eine Extension hat, dass du mit der Kamera, die sowieso im Handy, Laptop, whatever, verbaut ist, dass du die verwenden kannst, um... Ähm, um äh, Genau, um, um, die, um die Kleidung, die du überlegst zu kaufen, vorher anzuprobieren, damit du... Um zu schauen, welche Größe dir passt und wie es ausschaut. Um zu schauen, welche Größe passt und wie es ausschaut. Damit man vorher weiß, wie fittet das und wie ist das mit dem... Äh, wie lang ist die Hose, wie breit ist die Hose. So, oder? Circa. Genau. Und genau, ich bräuchte jetzt mal eine Idee, also das ist mal so eine Startup-Idee und ich bräuchte ein bisschen so... Wir machen jetzt gerade Ideenfindung, also mach vielleicht so ein bisschen strukturierte Punkte mit... wie das funktionieren könnte und wie realistisch es ist und was man sich da preislich vorstellen kann und vielleicht Patent oder sowas haben wir auch überlegt. Genau.
+
+Kurzfazit: Die Idee ist sinnvoll (Retouren sind das Hauptproblem im Online-Modehandel), aber der Markt ist nicht leer. Die Chance liegt in der Umsetzung, nicht in der Grundidee.
+
+Wie es funktionieren könnte
+
+Kamera-Scan (Ganzkörper, ca. 10 Sek.) → Körpermaße per Pose-Estimation schätzen (z. B. MediaPipe, läuft direkt im Browser)
+Extension erkennt Produktseite und liest Größentabelle und Bild aus
+Ausgabe 1: Größenempfehlung („M sitzt locker, L eher oversized")
+Ausgabe 2: Visuelles Overlay bzw. KI-generiertes Anprobe-Bild
+Datenschutz-Vorteil: Scan lokal auf dem Gerät, keine Bilder auf dem Server
+
+Realismus
+
+Größenempfehlung: gut machbar, aber Genauigkeit hängt an den Größentabellen der Shops (oft ungenau, Stoff/Schnitt fehlt)
+Realistisches Anprobe-Bild: technisch inzwischen möglich (Diffusionsmodelle), aber rechenintensiv und bei Passform nur „so ungefähr"
+Große Hürde: Jeder Shop hat andere Seitenstrukturen, und Extensions brauchen Nutzer, die sie erst installieren müssen
+Konkurrenz: Google (Try-On in der Suche), Zalando, Snap/Fit Analytics, True Fit, Zeekit (Walmart) und diverse Startups
+
+Geld verdienen
+
+Nutzer: gratis (sonst installiert es kaum jemand)
+Händler (B2B): Monatsabo, grob 200–2.000 € je nach Shopgröße, oder Gebühr pro Nutzung
+Alternative: Provision pro vermiedener Retoure. Das ist das stärkste Verkaufsargument, weil Retouren Händler richtig Geld kosten
+
+Patent
+
+Software und Algorithmen sind in Österreich/EU nur patentierbar, wenn sie einen technischen Effekt haben. „Kamera + Kleidung überlagern" ist außerdem sehr wahrscheinlich schon durch bestehende Patente abgedeckt
+Sinnvoller: Marke schützen, eigene Datenbasis aufbauen (Körper- vs. Größenfeedback) und Partnerschaften mit Shops
+Vorher unbedingt eine Patentrecherche machen (Espacenet, Google Patents). Ich bin kein Anwalt, das gehört ggf. zum Patentamt
+
+Mögliche Nische, um sich abzuheben: nur Hosen/Jeans oder nur Sportbekleidung (Triathlon-Anzüge etc.), wo Passform besonders entscheidend ist.
+
+Soll ich als Nächstes die Konkurrenz genauer aufschlüsseln oder ein Mini-Konzept (Zielgruppe, MVP) ausarbeiten?
+
+live kamera wär geiler, wenn man so einmal rückt und die kamera dich durchgehend trackt damit man sich auch drehen kann, maybe könnte man splatting technologie verwenden um die rechenleistung so simpel wie möglich zu halten
+
+Live-Tracking ist die richtige Richtung, und Splatting ist ein spannender Ansatz. Es löst aber nur einen Teil des Problems.
+
+Was Gaussian Splatting hier gut kann
+
+Das Rendern ist sehr schnell, auch im Browser (WebGL/WebGPU) und auf Handys
+Es gibt inzwischen animierbare Avatare aus Gaussians: Man dreht sich einmal, daraus entsteht ein 3D-Körper, der dann live von deiner erkannten Pose gesteuert wird
+Damit könntest du dich frei drehen, und der Avatar samt Kleidung dreht mit
+
+Wo die Schwierigkeiten liegen
+
+Das Erzeugen des Avatars ist rechenintensiv (Sekunden bis Minuten, eher auf einem Server). Nur das Anzeigen ist leicht
+Das eigentliche Problem ist die Kleidung: Shops haben nur 2D-Fotos. Ein 3D-Kleidungsstück daraus zu erzeugen (samt Stoff, Falten, Fall) ist schwer und ungenau
+Stoffphysik (wie eine Hose fällt oder spannt) kann Splatting nicht, dafür bräuchte es eine Simulation oder ein gelerntes Modell
+Zwei Varianten: (a) dein echtes Videobild mit überlagerter Kleidung, dann müsste deine aktuelle Kleidung „wegretuschiert" werden; (b) ein Avatar von dir, sauberer, wirkt aber weniger echt
+
+Realistischer Weg in Stufen
+
+Live-Pose-Tracking mit Größenempfehlung (MediaPipe, läuft lokal, sofort machbar)
+Einfaches Overlay: das 2D-Produktbild wird an den Körper angepasst (wie bei Snap-Filtern)
+Später: Splatting-Avatar plus 3D-Kleidung, zuerst für einfache Teile wie Hosen oder T-Shirts
+
+Für einen Prototyp würde ich mit Stufe 1 und 2 starten, weil du damit schnell etwas zeigen kannst. Splatting wäre dann euer Alleinstellungsmerkmal für die Zukunft.
+
+Soll ich dir einen groben technischen Plan für diesen Prototyp skizzieren?
+
+die produktbilder die schon auf der website sind sollten reichen um ein gaussean splat zu machen ih stell mir das so vor das man eins von vorne eins hinten und eins von der seite, das müsste reichen um ein modell zu generieren, ist es realistisch das wir auch physiks dabei haben das ein leiwerl zb beim drehen eine art physiks modell hat.
+
+Produktbilder → 3D-Modell: teilweise realistisch
+
+Klassisches Splatting braucht Dutzende bis Hunderte Fotos aus bekannten Blickwinkeln, mit 3 Bildern klappt das nicht
+Aber es gibt inzwischen generative Bild-zu-3D-Modelle, die aus 1 bis 4 Bildern ein 3D-Objekt schätzen. Vorne/hinten/seitlich ist dafür sogar ein guter Input
+Die verdeckten Stellen (Innenseite, Ärmelunterseite) werden dabei nur geraten
+Größtes Problem: Shops zeigen oft das Teil am Model, gefaltet oder als Flatlay, und nicht jeder Shop hat Rückseite und Seite. Die Qualität schwankt also stark
+Gut ist: Das Modell muss nur einmal pro Produkt auf dem Server berechnet und gespeichert werden, nicht pro Nutzer. Das ist skalierbar
+Rechtlich: Mit den Bildern fremder Shops zu arbeiten, geht sauberer über eine Partnerschaft mit den Händlern
+
+Physik: ja, aber in Stufen
+
+Splatting ist nur die Darstellung, die Physik kommt separat dazu
+Einfache Variante (realistisch): Das Kleidungsstück hängt am Körper-Skelett, dazu kommt eine Feder-Simulation für Nachschwingen beim Drehen. Das wirkt bei einem Leiberl schon überzeugend und läuft auch auf dem Handy
+Echte Stoffsimulation (Fall, Falten, Spannung): rechenintensiv, im Browser auf schwächeren Geräten schwierig
+Physik direkt in Splats: gibt es (z. B. PhysGaussian), ist aber noch Forschung und nicht produktreif
+
+Mein Tipp für die Passform: Statt echter Physik die Maße aus der Größentabelle mit deinem Körper vergleichen und eine Farbkarte zeigen (grün = passt, gelb = eng, rot = zu klein). Das ist billiger, genauer und beantwortet genau deine Frage „wie fittet das".
+
+Fürs Startup könntet ihr also sagen: Fit-Karte als Kernfunktion, Live-Optik mit einfacher Physik als „Wow-Effekt".

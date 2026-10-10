@@ -1,0 +1,16 @@
+import { chromium } from 'playwright';
+const b=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});
+const ctx=await b.newContext({permissions:['camera'],viewport:{width:390,height:780}});
+const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('file:///tmp/claude-0/test.html'); await p.waitForTimeout(600);
+await p.fill('#height','180'); await p.click('#start'); await p.waitForTimeout(2500);
+const vis=async()=>p.evaluate(()=>{const s=id=>{const e=document.getElementById(id);return !!(e&&e.offsetParent!==null);};
+  return {hud:s('hud'),chips:s('gchips'),clean:document.getElementById('stage').classList.contains('clean'),hint:s('cleanHint')};});
+console.log('vorher      ',JSON.stringify(await vis()));
+await p.click('#clean'); await p.waitForTimeout(200);
+console.log('ausgeblendet',JSON.stringify(await vis()));
+await p.screenshot({path:'/home/claude/cut/clean.png'});
+await p.click('#stage',{position:{x:150,y:200}}); await p.waitForTimeout(200);
+console.log('nach Tippen ',JSON.stringify(await vis()));
+console.log(errs.length?'SEITENFEHLER: '+errs.join(' | '):'keine Skriptfehler');
+await b.close();
