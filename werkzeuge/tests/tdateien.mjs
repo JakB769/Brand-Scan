@@ -73,6 +73,9 @@ pruefe(/fehlt ein flaches Foto/.test(z.m),'Nur Tabelle: „'+z.m.slice(0,60)+'�
 if(ki){ await neu(); z=await hoch(tb+'getragen/model_vorne_bershka.jpg');
   pruefe(/Person, von vorne/.test(z.l[0]||'')&&/fehlt ein flaches Foto/.test(z.m),'Model-Foto: '+z.l[0]+' → '+z.m.slice(0,50)); }
 else console.log('übersprungen: Personenerkennung (Modelle nicht erreichbar)');
+// 6b) Model-Foto nur von der Hüfte abwärts (wie bei Shops üblich, kein Gesicht): Haut im Umriss → angeschnitten, nicht als Vorderseite benutzt
+await neu(); z=await hoch(fotos+'front.jpg',tb+'getragen/model_ausschnitt_bershka.jpg');
+pruefe(z.l[0]==='Vorderseite, flach'&&/angeschnitten/.test(z.l[1]||'')&&/Fertig/.test(z.m),'angeschnittenes Model-Foto nicht benutzt: '+z.l.join(', '));
 // 7) Flach vorne + getragen hinten: Rückseite aus dem Foto mit Person, Taschen oben, Kniefleck auf Kniehöhe
 await neu(); z=await hoch(fotos+'front.jpg',tb+'getragen/hinten_getragen.jpg');
 pruefe(/Person, von hinten/.test(z.l[1]||'')&&/Rückseite: aus dem Foto mit Person/.test(z.m)&&/Fertig/.test(z.m),'getragenes Rückenfoto benutzt: '+z.l.join(', '));

@@ -3925,21 +3925,39 @@ function loadPoseImg(){
   return poseImgP;
 }
 async function findPerson(cv){
-  if(window.__poseMock){ const L=window.__poseMock(cv); if(L) return personInfo(L); }   // für Tests: feste Körperpunkte
+  if(window.__poseMock){ const L=window.__poseMock(cv); if(L) return personInfo(L,cv); }   // für Tests: feste Körperpunkte
   const P=await withTimeout(loadPoseImg(),20000); if(!P) return {na:true};
   let res=null; try{ res=P.detect(scaled(cv,1280)); }catch(_){ return {na:true}; }
-  const L=res&&res.landmarks&&res.landmarks[0]; return L?personInfo(L):null;
+  const L=res&&res.landmarks&&res.landmarks[0]; return L?personInfo(L,cv):null;
 }
-function personInfo(L){
+/* Hautfarbe (YCbCr-Bereich) in einem Kreis um (cx,cy), Anteil 0..1 */
+function skinAt(cv,cx,cy,r){
+  const x0=Math.max(0,Math.round(cx-r)), y0=Math.max(0,Math.round(cy-r)), w=Math.min(cv.width,Math.round(cx+r))-x0, h=Math.min(cv.height,Math.round(cy+r))-y0;
+  if(w<2||h<2) return 0;
+  const d=cv.getContext("2d",{willReadFrequently:true}).getImageData(x0,y0,w,h).data; let n=0,k=0;
+  for(let i=0;i<d.length;i+=4){ n++; if(isSkin(d[i],d[i+1],d[i+2])) k++; }
+  return k/n;
+}
+const isSkin=(R,G,B)=>{ const Y=.299*R+.587*G+.114*B, Cb=128-.169*R-.331*G+.5*B, Cr=128+.5*R-.419*G-.081*B;
+  return Y>60&&Cb>=77&&Cb<=127&&Cr>=133&&Cr<=173; };
+function personInfo(L,cv=null){
   const vis=i=>L[i]?(L[i].visibility??1):0, inPic=i=>vis(i)>.5&&L[i].x>-.02&&L[i].x<1.02&&L[i].y>-.02&&L[i].y<1.02;
   const face=(vis(0)+vis(2)+vis(5)+vis(9)+vis(10))/5;
   // Person: Gesicht klar zu sehen, oder Schultern und Hüfte (Model ohne Kopf im Bild)
   if(!(face>.8||(inPic(11)&&inPic(12)&&inPic(23)&&inPic(24)))) return null;
+  // Von vorne oder hinten? Die Erkennung meldet auch am Hinterkopf ein „Gesicht“. Brauchbar (an echten Diesel-Fotos geprüft):
+  // Haut zwischen Augen und Nase (vorne 0,6–1, hinten 0), linke Schulter im Bild rechts (vorne) oder links (hinten),
+  // Nase vor oder hinter den Ohren (Tiefe), Fußspitzen tiefer im Bild als die Fersen (vorne).
+  let sc=0;
+  if(cv&&inPic(0)&&inPic(2)&&inPic(5)){ const W=cv.width,H=cv.height, ear=Math.hypot((L[7].x-L[8].x)*W,(L[7].y-L[8].y)*H);
+    const cx=(L[0].x+(L[2].x+L[5].x)/2)/2*W, cy=(L[0].y+(L[2].y+L[5].y)/2)/2*H; sc+=(skinAt(cv,cx,cy,Math.max(3,ear*.3))-.3)*5; }
+  if(inPic(11)&&inPic(12)) sc+=L[11].x>L[12].x?1:-1;
+  if(L[0].z!=null&&L[7]&&L[8]&&L[7].z!=null) sc+=L[0].z<(L[7].z+L[8].z)/2?.8:-.8;
   let foot=0; for(const [hl,to] of [[29,31],[30,32]]) if(inPic(hl)&&inPic(to)) foot+=Math.sign(L[to].y-L[hl].y);
-  const sc=(face-.5)*4+foot*.6;
+  sc+=foot*.3;
   // Für das Stoffbild der Rückseite müssen Hüfte und Knie im Bild sein
   const legs=inPic(23)&&inPic(24)&&inPic(25)&&inPic(26);
-  return {L:L.map(p=>({x:p.x,y:p.y,v:p.visibility??1})),side:sc>=0?"vorne":"hinten",sicher:Math.abs(sc)>.8,legs};
+  return {L:L.map(p=>({x:p.x,y:p.y,v:p.visibility??1})),side:sc>=0?"vorne":"hinten",sicher:Math.abs(sc)>1,legs,sc};
 }
 
 /* Umriss einer flachen Hose: Füllgrad, zwei Beine, Seitenverhältnis */
@@ -4221,6 +4239,12 @@ async function upAnalyse(it){
 async function classifyFlat(it,noPose=false){
   if(!aiSeg) await withTimeout(loadAiSeg(),9000);
   let S=null; try{ S=segGarment(it.cv); }catch(e){ it.kind="none"; it.note="keine Hose erkannt"; return; }
+  // Haut im Umriss (Beine unter Shorts, Hände): Foto mit Person, nur angeschnitten (ohne Gesicht erkennt die Pose-Erkennung
+  // sie nicht). Oben am Bildrand abgeschnitten: nicht die ganze Hose im Bild.
+  { const d=it.cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,S.w,S.h).data; let n=0,k=0;
+    for(let y=S.y0;y<S.y1;y+=2) for(let x=S.x0;x<S.x1;x+=2){ const i=y*S.w+x; if(!S.m[i]) continue; n++; if(isSkin(d[i*4],d[i*4+1],d[i*4+2])) k++; }
+    if(n&&k/n>.06){ it.kind="worn"; it.person={L:null,side:"vorne",legs:false,crop:true}; return; }
+    if(S.y0<=1){ it.kind="none"; it.note="oben abgeschnitten: die Hose muss ganz im Bild sein"; return; } }
   for(let k=0;k<2;k++){ const t=garmentTurn(S); if(!t) break; it.cv=rotateCanvas(it.cv,t); S=segGarment(it.cv); }
   const sh=pantsShape(S);
   if(sh.legs>=2||(sh.fill>.45&&sh.fill<.92&&sh.aspect>.7&&sh.aspect<3.6)){ it.kind="flat"; it.S=S; it.score=flatSideScore(it); }
@@ -4241,7 +4265,7 @@ function upAssign(){
 function upKindText(i){
   if(i.kind==="wait") return i.note||"wird geprüft …";
   if(i.kind==="flat") return i.extra?"flach, nicht gebraucht (schon zwei Seiten)":`${i.side==="vorne"?"Vorderseite":"Rückseite"}, flach`;
-  if(i.kind==="worn") return `Foto mit Person, von ${i.side}`+(!i.person.legs?" (Beine nicht ganz im Bild, nicht gebraucht)":i.side==="hinten"?"":" (nicht gebraucht)");
+  if(i.kind==="worn") return i.person.crop?"Foto mit Person, angeschnitten (nicht gebraucht)":`Foto mit Person, von ${i.side}`+(!i.person.legs?" (Beine nicht ganz im Bild, nicht gebraucht)":i.side==="hinten"?"":" (nicht gebraucht)");
   if(i.kind==="table"){ const R=i.tab.rows, k=Object.keys(R), body=k.length&&k.every(x=>R[x].sect==="body"||x==="waistB"||x==="hip");
     return k.length?`Maßtabelle${i.tab.sizes.length>1?" ("+i.tab.sizes.join(" ")+")":""}${body?", nur Körpermaße":""}`:"Material: "+i.tab.material; }
   return "nicht verwendet: "+(i.note||"nicht erkannt");
