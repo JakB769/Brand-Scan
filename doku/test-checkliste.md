@@ -11,7 +11,13 @@ Was mit „simuliert geprüft“ markiert ist, lief nur in der Testumgebung ohne
 
 ## 2. Hosen anlegen (am besten am Laptop)
 
-Je Hose:
+**Am schnellsten: „⇪ Dateien hochladen“.** Einfach alles hineinziehen, was der Shop hergibt: Foto vorne flach, Foto hinten (flach
+oder mit Model von hinten), ganze Screenshots der Produktseite, Maßtabelle als Screenshot oder als Text (kopieren und mit
+Strg+V einfügen). Die Seite sortiert selbst, zeigt die Einordnung (⇄ tauscht vorne/hinten, ✕ entfernt) und sagt, was fehlt.
+Hat die Tabelle mehrere Größen, die Größe der Fotos wählen (Vorgabe: die mittlere). Ergibt etwas keine realistische Hose,
+wird sie nicht angelegt und der Grund steht da. „Neue Hose“ leert die Liste für die nächste.
+
+Für eigene Hosen mit Maßband oder Bankkarte weiter das Formular darunter. Je Hose:
 - [ ] Zwei Fotos (vorne, hinten) nach `doku/foto-anleitung-haendler.md`: flach, Beine getrennt, ruhiger Untergrund, Handy senkrecht darüber. iPhone-Fotos direkt hochladen, nicht über WhatsApp (sonst fehlt die Neigung).
 - [ ] Name, **Material vom Etikett** (z. B. „98 % Baumwolle, 2 % Elasthan“) und mindestens **ein Maß mit dem Maßband** (Länge außen oder Bund flach).
 - [ ] Optional „Umriss immer prüfen“ anhaken: Im Fenster sieht man, was als Hose erkannt wurde. Mit „－ weg“ antippen, was nicht dazugehört.
@@ -53,6 +59,9 @@ Für Fehlerbilder: den Schalter „Debug-Ansicht“ einschalten. Er zeigt Achsen
 
 ## 5. Was ihr mir schicken solltet
 
+- **Fotos von hinten mit Person** (Model von hinten, ganze Beine im Bild) samt dem flachen Vorderseitenfoto: das Abwickeln der
+  Rückseite ist bisher nur mit einem künstlichen Bild geprüft.
+- **Maßtabellen, die nicht erkannt werden** (Screenshot), und Shop-Screenshots, die nicht zerlegt werden.
 - **Original-Fotos**, bei denen die Freistellung nicht klappt, direkt aus der Fotomediathek (nicht über WhatsApp). Kartennummern abdecken.
 - **Bildschirmaufnahmen** (iPhone: Kontrollzentrum → Bildschirmaufnahme) von allem, was in der Anprobe falsch aussieht. Dazu Gerät, Browser und den Namen der Hose.
 - Die `hosen.json`, mit der getestet wurde.
