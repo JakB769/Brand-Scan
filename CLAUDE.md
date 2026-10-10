@@ -325,6 +325,8 @@ Bilder (Zalando) zeigen die Weite von vorn, nicht flach; Maske am Model-Foto sch
 - Kamera muss beim Tippen **sofort** starten und den weitesten Winkel nehmen.
 - Schreibt oft per Spracheingabe; „Buntweite“ heißt Bundweite.
 - Antworten kurz, ehrlich, mit klarer Aussage, was geprüft ist und was nicht.
+- **Bei jeder Änderung am Ende die Datei anhängen** (Wunsch vom 10.10.): `app/index.html` mit SendUserFile schicken,
+  damit sie direkt getestet werden kann (z. B. auf Netlify Drop). Geänderte andere Dateien, die sie zum Testen brauchen, dazu.
 
 ## Testen
 
