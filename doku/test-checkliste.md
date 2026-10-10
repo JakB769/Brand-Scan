@@ -5,13 +5,23 @@ Was mit „simuliert geprüft“ markiert ist, lief nur in der Testumgebung ohne
 
 ## 1. Seite veröffentlichen (einmal)
 
+**Besser (seit 10.10.): Netlify mit GitHub verbinden**, siehe `doku/netlify-einrichten.md`. Dann gibt es eine feste Adresse,
+jede Änderung ist von selbst online, und **„🔗 Link zur Hose im Shop einfügen“** funktioniert (Netlify Drop kann das nicht).
+
+Ohne GitHub (Link einfügen geht dann nicht):
+
 1. Ordner anlegen, darin `index.html` (aus `app/`). Später kommt `hosen.json` dazu (siehe 3).
 2. Auf **app.netlify.com/drop** ziehen. Die Kamera braucht https, das liefert Netlify.
 3. Tipp: Mit einem kostenlosen Netlify-Konto bleibt die Adresse gleich. Dann den neuen Ordner im bestehenden Projekt unter „Deploys“ hineinziehen. Gleiche Adresse heißt: Jedes Gerät behält seine gespeicherten Hosen und Einstellungen. Bei neuer Adresse ist der Gerätespeicher leer.
 
 ## 2. Hosen anlegen (am besten am Laptop)
 
-**Am schnellsten: „⇪ Dateien hochladen“.** Einfach alles hineinziehen, was der Shop hergibt: Foto vorne flach, Foto hinten (flach
+**Am schnellsten: Link einfügen** (nur mit Netlify über GitHub). Produktseite im Shop öffnen, Adresse kopieren, oben ins Feld
+„🔗 Link zur Hose im Shop einfügen“ (oder einfach Strg+V auf der Seite) → ⇩. Die Seite holt Bilder, Größentabelle und
+Model-Größe, baut die Hose und zeigt darunter den **Abgleich**: Shop-Foto mit Model neben derselben Haltung mit der 3D-Hose.
+Prüfpunkt: Endet der Saum der 3D-Hose dort, wo er am Model endet? Ist sie gleich weit? Screenshot davon zurückschicken.
+
+**Sonst: „⇪ Dateien hochladen“.** Einfach alles hineinziehen, was der Shop hergibt: Foto vorne flach, Foto hinten (flach
 oder mit Model von hinten), ganze Screenshots der Produktseite, Maßtabelle als Screenshot oder als Text (kopieren und mit
 Strg+V einfügen). Die Seite sortiert selbst, zeigt die Einordnung (⇄ tauscht vorne/hinten, ✕ entfernt) und sagt, was fehlt.
 Hat die Tabelle mehrere Größen, die Größe der Fotos wählen (Vorgabe: die mittlere). Ergibt etwas keine realistische Hose,

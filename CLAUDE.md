@@ -22,7 +22,9 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 
 | Pfad | Inhalt |
 |---|---|
-| `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 200 KB, kein Build-Schritt. |
+| `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 330 KB, kein Build-Schritt. |
+| `netlify/functions/holen.mjs`, `netlify.toml` | **Server-Teil für „Link einfügen“** (10.10.): holt Shop-Seite, Bilder, Größentabelle, Model-Größe. Läuft nur, wenn Netlify mit GitHub verbunden ist (Netlify Drop kann keine Funktionen), Anleitung `doku/netlify-einrichten.md`. |
+| `werkzeuge/server.mjs` | Lokaler Server wie Netlify (Dateien + `/api/holen`), `NODE_USE_ENV_PROXY=1` hinter dem Cloud-Proxy. |
 | `prototypen/` | Sieben ältere Stände, nummeriert und datiert. Nur zum Nachschlagen. |
 | `werkzeuge/tests/testseite-mit-simulierter-person.html` | Aktuelle Seite mit Attrappe statt MediaPipe (siehe „Testen“). |
 | `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“. Die nicht in `npm test` genannten (`t.mjs` bis `te.mjs`) sind alt und haben noch harte Pfade. |
@@ -35,6 +37,7 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 | `doku/chatverlauf.md` | Der Chat ab dem 5. Oktober als Text. Der Teil davor ist nur noch als Zusammenfassung erhalten (unten eingearbeitet). |
 | `doku/pitch-plan.md` | Pitch-Plan als Markdown. |
 | `doku/foto-anleitung-haendler.md` | Foto-Anleitung für Händler (steht verkürzt auch in der Seite unter „So fotografierst du richtig“). |
+| `doku/netlify-einrichten.md` | Netlify einmal mit GitHub verbinden (feste Adresse, Link einfügen geht). |
 | `doku/test-checkliste.md` | Ablauf zum Testen vieler Hosen auf mehreren Geräten (Netlify, `hosen.json`, Prüfpunkte je Gerät, was zurückschicken). |
 
 **Rechtlicher Hinweis:** Die Bershka-Bilder sind nur interne Testdaten. Für ein echtes Produkt braucht es eigene Fotos oder die Erlaubnis der Marke. Der Nutzer will ab jetzt mit eigenen, selbst fotografierten Hosen arbeiten.
@@ -47,8 +50,10 @@ Reines HTML mit einem `<script type="module">`. Zur Laufzeit von jsDelivr nachge
 Programm etwa 3 MB plus deutsche und englische Schrift 4 MB, Apache 2.0).
 
 Ablauf für den Anwender: Größe eingeben → Kamera → Frontal-Scan → Seiten-Scan → Nahphase mit Anprobe.
-Hose anlegen (seit 10.10.): **„Dateien hochladen“** (Fotos, Shop-Screenshots, Maßtabelle als Bild oder Text, hineinziehen,
-antippen oder Strg+V); darunter weiter das Einzel-Formular mit Maßband-Werten und Maßstab (A4/Bankkarte).
+Hose anlegen (seit 10.10.): **„🔗 Link zur Hose im Shop einfügen“** (Seite wird über `/api/holen` geholt, Bilder, Tabelle,
+Model-Größe landen im Upload) oder **„Dateien hochladen“** (Fotos, Shop-Screenshots, Maßtabelle als Bild oder Text,
+hineinziehen, antippen oder Strg+V; ein eingefügter Link wird geholt); darunter weiter das Einzel-Formular mit Maßband-Werten
+und Maßstab (A4/Bankkarte). Nach dem Bauen mit Foto mit Model: **Abgleich** (Shop-Foto neben derselben Haltung mit 3D-Hose).
 
 ### Die wichtigsten Stellen im Code
 
@@ -81,6 +86,13 @@ antippen oder Strg+V); darunter weiter das Einzel-Formular mit Maßband-Werten u
 | `wornMask`, `paintWornBack` (10.10.) | **Rückseite getragen**: Form aus dem flachen Foto (gespiegelte Vorderseite), Stoff aus dem Foto mit Person: Hose freistellen (KI mit Saatpunkten an Oberschenkeln/Schienbeinen, sonst Farbe + Löcher füllen), Bund oben und Schritt entlang der Körperachse, über dem Schritt quer zum Körper von Rand zu Rand, darunter je Bein quer zum Bein entlang Hüfte → Knie → Knöchel bis zum Saum. Nur mit dem künstlichen Testbild geprüft (Taschen am Gesäß, Kniefleck 38–43 % statt 43 %). |
 | `rockShape`, `M.rock`, `icOf` (10.10.) | **Röcke**: ein Rock ist „alles über dem Schritt“ (beide Hälften bilden einen Schlauch, keine Beine; `icOf(M)` = `nr`). Erkannt, wenn nirgends ein Beinspalt ist, unten keine Kerbe zwischen zwei Säumen (≥ 2,5 % der Länge) und der Saum ≥ 1,25 × Bund oder Länge/Bund < 1,9; sonst Hose mit sich berührenden Säumen. Umschalter „⇄ Rock/Hose“ (`#drop-art`, `opts.art`). In `pose3d` hängt der Rock gerade vom Bund (kein Schrittbogen, keine Hüftbegrenzung), kein Bein-Skinning, die Beine schieben ihn nur (Kapseln in `cloth3d` auf allen Zeilen), Verdecker nur bis zum Körperschritt. Realismus für Röcke: Länge 25–130, Bund 22–75, Länge/Bund 0,6–3,6, Saum 0,8–4 × Bund. Nur am künstlichen Testbild geprüft. |
 | `beltCut` (10.10.) | **Gürtel, der nicht zum Teil gehört**: Band ganz oben (≥ 55 % der Breite fremd gefärbt, RGB-Abstand > `guertelFarbe` zu den Stofffarben per k-Means), dazu Schnalle, überstehende Enden oder herunterhängendes Ende (sonst ist es ein andersfarbiger Bund und bleibt). Überstehendes aus dem Umriss, auf dem Stoff gespiegelt von unterhalb, Hängendes quer aus dem Stoff daneben, Kanten 2 Punkte breiter. Vor `innerTopCut`, für Vorder- und Rückseite. Meldung „Gürtel erkannt und entfernt“. Nur an aufgemalten Gürteln geprüft. |
+| `holen.mjs`: `seite`, `bild`, `modelInfo`, `hole`, `pruefeUrl` (10.10.) | Server-Teil. Bilder: Shopify `/products/<name>.js` > JSON-LD `Product.image` > og:image + Bild-URLs mit der Produktkennung; je Datei die Fassung mit 900–2000 Punkten Breite; Adobe-Bildserver (`/is/image/…_prod1`, Hollister) auch die Geschwister prod1–3/model1–4. Text: sichtbarer Text, Tabellen, verlinkte Größentabellen desselben Shops (`size-chart`, `groessentabelle`, `measuring`, höchstens 3; Diesel liefert JSON mit HTML). `modelInfo`: „Modell trägt Größe 26 und ist 175 cm“, „6'2" wearing Size 32 X 34“ (→ `w`, `l` in Zoll). Material aus dem JSON-LD oder Seitenzeilen mit % und Faser. Damen/Herren aus Link und Text. Schutz: nur http(s), keine Adressen im eigenen Netz (`HOLEN_LOKAL=1` nur für Tests), 5 Weiterleitungen, 6 MB Seite / 5,5 MB Bild, 15 s; gesperrt (403/418/429/503 oder kleine Captcha-Seite) → „lässt keine automatischen Abrufe zu“, wird nicht umgangen. |
+| `linkImport`, `LINK_API`, `shortLabel` (10.10.) | Link-Feld `#link-in`/`#link-go`, Strg+V eines Links, gezogener Link. Ohne Server-Teil (Datei, Netlify Drop): Meldung mit Verweis auf die Anleitung. Bilder kommen über `?bild=` (sonst darf die Seite die Pixel nicht lesen), Text der Seite als eigener Eintrag „Text der Shop-Seite“ (`shop:true`). Name der Hose = Produktname, `G.link`. Texterkennung nur, wenn die Seite keine Tabelle hatte; Person wird vor „Tabelle?“ geprüft (Model vor weißem Grund sah wie eine Tabelle aus: 200 s Texterkennung). |
+| `parseSizeText` (10.10. abends) | Zusätzlich Shop-Formate: Größen untereinander (Zeilen mit lauter Größen an die vorige gehängt), „32.9 cm 12.95 in“ → nur cm, „1/2 Taille“/„halbe“ = flach, Becken, Untere Hosenkante, Beininnenseite, Knie, „Schritt“ allein = Leibhöhe; Blöcke je Größe (Zeile kommt einmal je Größe; Innenbein für drei Längen → die mittlere); „Abstand …“ und Auswahlzeilen („Auswählen länge 30 32 34“) zählen nicht; Kopfzeilen gedrehter Tabellen übersprungen. `tableDims`: Länge = Innenbein + Leibhöhe. Größe vorgewählt wie am Model. |
+| `inseamToLen`, Model-Größe W×L (10.10.) | Innenbein → Länge: + 0,62 × Bund flach (Diesel-Tabelle: Leibhöhe 22,5 bei Bund 36,5), sonst `m3.oi` (Außen/Innen aus dem flachen Foto, ungenau: Diesel +8 %, Hollister +20 %), sonst /0,76. „32 X 34“: Bund (W+1)·2,54/2, Länge aus L·2,54. |
+| `wornLength`, `wornSeeds`, `modelHeight` (10.10.) | **Länge am Foto mit Model**, wenn Tabelle und Model-Größe fehlen (`G.meas={len,ref:"model"}`, Kennzeichnung „gemessen“). Maßstab: Augen bis Fußsohle = 93,6 % der Körpergröße + 2 cm Sohle (ohne Gesicht: Hüfte–Knöchel 47 %); Größe laut Shop, sonst Damen 176 / Herren 187 / sonst 180 (Rock: Damen). Gemessen wird, **wo der Saum endet**, von der Bundlinie der Anprobe aus (15 % Rumpf über dem Hüftgelenk + `sitzCm`; Rock + `rockSitzCm`), damit er bei der Anprobe genauso endet. Sichtbarer Bund und Innenbein waren unbrauchbar (Bund unter dem Pullover; Baggy: Schritt hängt tief, Saum gestaucht). Saum auf dem Schuh → +4 %. Saatpunkte nur auf Hosenfarbe (Shorts/Rock: Schienbein ist Haut). Diesel: 101–104 cm gemessen, Tabelle 107,5. |
+| `photoFit`, `upFitShow`, `qlFromRatio` (10.10.) | **Abgleich mit dem Foto mit Model**: 3D-Hose mit den Körperpunkten des Fotos als Skelett, Maßstab aus der Model-Größe, auf das Foto gerendert (`#drop-fit`: Shop-Foto links, mit 3D rechts). Gemessen und je Hose gespeichert: Farbe (`G.farbe`, Gewinn je Kanal 0,7–1,5: Hollister flach 30 % dunkler als am Model), Querschnitt der Beine (`G.ql`, aus Breite von vorn Foto/3D, 0,6–1), Lage der Beine (`G.offK`, Spalt zwischen den Beinen), Weite (`G.waist`, `G.waistFoto`, nur wenn die Größe nicht aus Tabelle/Model-Größe kommt). Wird beim Laden geprüft (`checkGarment`). |
+| `PASSFORM.beinTiefe`, `rockSitzCm`, Körper als Mindestweite (10.10.) | Bein-Querschnitt Ellipse statt Kreis (Tiefe/Breite 0,8; Umfang bleibt 2·hw, Punkte nach Bogenlänge), Außenkante weiter Beine höchstens 1 cm außerhalb der Hüfte. Röcke sitzen 9 cm höher (Taille). Über dem Schritt nie schmaler als der Körper (halbe Breite 0,95 × Hüftgelenk-Abstand, an der Bundlinie 88 %): sonst schwebt eine zu kleine Hose vor dem Becken; `g3.form.eng` = Dehnung. Licht weicher (vorn ≈ Fotohelligkeit), Relief × 0,6, Saumstauchung auf 16 cm, Falten flacher. |
 | `realismus`, `realText` (10.10.) | **Ist das eine echte Hose?** Länge 25–135 cm, Bund 22–75 cm, Länge/Bund 1,7–3,9 (Shorts 0,7–2,3), Leibhöhe 14–58 cm, ein Bein oben 0,42–1,12 × Bund, Saum 0,28–1,4 × oben, Beine gleich breit (≤ 40 % Unterschied), Umriss ohne Sprünge (≤ 30 % je Zeile), kein Rechteck (Füllgrad ≤ 0,93). Fällt etwas durch, wird nichts angelegt; die Meldung nennt die Gründe und Warnungen (z. B. „Karte wirkt verzogen“). Gilt für Hochladen und Einzel-Formular. |
 | `normalizeProfile` | Prüft jedes Modell (neu und beim Laden): schmale Zeilen am Bund/Saum weg, neu auf 0..1 verteilen, Plausibilität (`G.bad`). Seit 10.10. auch Shorts (Bund bis 1,15 × Länge, Schritt bis 0,8; Schritt bei gespreizten Beinen höchstens `schrittFotoMaxKurz`). |
 | `mesh3d`, `pose3d`, `draw3d` | 3D-Netz, Lage je Bild, WebGL-Darstellung in eine eigene Fläche, die dann auf das 2D-Overlay gelegt wird. |
@@ -270,7 +282,30 @@ W26; die Seite nennt „Modell trägt Größe 26 und ist 175 cm“, daraus ließ
 schwarz auf schwarzem Grund flach erkannt (Länge 67, Bund 40 geschätzt); das Model-Foto ab Hüfte wurde vorher als Rückseite benutzt →
 Haut-Regel in `classifyFlat`. Hollister (418) und Zalando (502) sperren automatische Abrufe (Bot-Schutz): dort nur per Screenshot.
 
+### Link einfügen, Größe und Abgleich mit dem Foto mit Model (10.10. abends, Sprachnachricht des Nutzers)
+
+Rückmeldung: „Hose viel zu klein, Saum 30 cm über dem Boden“, Link soll reichen, 3D realistischer, Passform am Foto mit Model
+prüfen. Befund: Die Anzeige „Saum … über Boden“ rechnet richtig (Hüfthöhe − Länge, geprüft: 80 cm → 21 cm, 60 → 41); die
+**Länge** war ohne Maßtabelle aus dem Normbund 40 cm geschätzt (Diesel 126 statt 107,5; J&J-Shorts 67 statt etwa 48;
+Zalando-Rock 87 statt etwa 49). Dazu: eine 3D-Hose mit weniger Umfang als der Körper schwebte zu klein vor dem Becken.
+Gemacht (siehe Tabelle oben, Test `tlink.mjs`): Server-Teil, Link-Feld, Shop-Tabellenformate, Model-Größe, Länge am Foto,
+Abgleich, flachere Beine, Körper als Mindestweite, Licht, Farbe. Ergebnisse mit den vier echten Links des Nutzers
+(nur Scratchpad, **fremde Bilder nicht im Repo**), alle per Link aus der Cloud erreichbar:
+- Diesel 1971 D-Sent: Größentabelle (Produktmaße je Größe) gelesen, Größe 26 wie am Model: Bund 36,5, Länge 107,5
+  (85 + 22,5), Saum 24,5. 3D auf dem Model-Foto deckungsgleich (Länge, Weite).
+- Hollister Baggy: keine Tabelle, „6'2" wearing 32 X 34“ → Länge 114, Bund 42. Farbe angeglichen (vorher 44 % zu dunkel).
+- Jack & Jones Shorts: Länge 42 cm am Foto gemessen (Model-Größe unbekannt, 180 angenommen), Weite am Foto angepasst.
+- Zalando-Rock: als Rock erkannt (welliger Saum zählte vorher als Kerbe), Länge 49 am Foto, Rock sitzt in der Taille.
+Grenzen: Model-Größe oft nicht auf der Seite (J&J nur als Platzhalter, Zalando lädt sie nach) → angenommen; Ghost-Mannequin-
+Bilder (Zalando) zeigen die Weite von vorn, nicht flach; Maske am Model-Foto schließt manchmal Oberteil und Haare ein
+(Länge davon unberührt). **Mit echter Kamera und auf Netlify nicht geprüft**; der Server-Teil lief nur lokal (`werkzeuge/server.mjs`).
+
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
+
+- **Netlify Drop kann keine Server-Funktionen.** Für „Link einfügen“ muss Netlify mit dem GitHub-Repo verbunden sein.
+- **Länge am Foto mit Model: Saumposition, nicht sichtbarer Bund.** Bund ist meist unter dem Oberteil, bei weiten Hosen staucht
+  der Saum auf dem Schuh und der Schritt hängt tief; gemessen wird ab der Bundlinie der Anprobe, so endet der Saum bei der
+  Anprobe dort, wo er am Model endet.
 
 - **3D-Modell statt Gaussian Splat.** Ein Splat braucht viele Ansichten und Training auf einer Grafikkarte; aus zwei Fotos im Browser geht das nicht. Splats auf bewegten Körpern sind Forschungsstand. Das Splat-Wissen im Team taugt später für drehbare Produktansichten.
 - **KI-Bild-zu-3D (Hunyuan3D) getestet und verworfen.** Aus flach fotografierten Hosen macht es flache Hosen (117 breit, 17 tief). Getragene Form kommt aus den Maßen, nicht aus der KI.
@@ -310,7 +345,7 @@ Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt i
 | `th.mjs` | Schnellstart, Saum, Drehung |
 | `tg.mjs` | Anlegen, Speichern, Löschen, HEIC ohne Netz |
 | `tf.mjs` | Drehung bei kaputter Tiefe |
-| `tbreite.mjs` | Saumbreite im Bild bei verrauschter Tiefe |
+| `tbreite.mjs` | Saumbreite im Bild bei verrauschter Tiefe (Soll mit elliptischem Querschnitt `beinTiefe`) |
 | `tgenerator.mjs` | Maße aus Fotos auf fünf Untergründen (Testbilder aus `werkzeuge/python/testhintergruende.py`) |
 | `theic.mjs` | HEIC-Umwandlung mit heic-to und heic2any |
 | `thosen.mjs` | Maßfelder live und mit ungültigen Eingaben, eigene Werte je Hose, Löschen der angezeigten Hose, Grafikspeicher frei |
@@ -323,6 +358,7 @@ Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt i
 | `tansicht.mjs` | 3D-Ansicht erscheint mit Hose, Ziehen dreht, 3D-Datei gültig (Khronos-Prüfer) und in Metern, Ansicht aus während der Anprobe |
 | `tki.mjs` | KI-Freistellung (dunkel auf dunkel, weißer Grund einig, quer), Fenster „Umriss prüfen“ (öffnet bei Uneinigkeit, Schuh weggetippt → Maße stimmen, Schutz gegen Löschen der Hose, Escape) |
 | `tpassform.mjs` | Passform (9.10.) mit den echten Kartenfotos und den Bershka-Fotos: Schritt bei gespreizten Beinen, Innenbund erkannt, Etikett weg, kein Boden auf dem Bein, Leibhöhe am Körper, Schritt höchstens 12 cm unter dem Körperschritt, Gesäß 6–20 cm unter dem Bund, Oberschenkel ≤ 80 % der flachen Breite, `sitzCm` wirkt, Bershka ohne Innenbund. Gegenprobe mit dem alten Stand: Schritt, Innenbund, Etikett und Boden schlagen fehl (3D-Kennwerte gibt es dort nicht) |
+| `tlink.mjs` | Link einfügen mit eigenem Server und künstlichen Shop-Seiten (`werkzeuge/tests/shop/`): Größentabelle im Diesel-Format (Blöcke je Größe, cm/Zoll, Innenbein ×3, Auswahlzeilen), Größe wie am Model, andere Größe, Name/Material/Link, US-Größe „32 X 32“, Shopify `.js`, gesperrter Shop, Foto mit Person → Länge gemessen und Abgleich sichtbar, Strg+V eines Links, ohne Server-Teil. Schutzregeln des Server-Teils (eigenes Netz, Metadaten-Adresse, file:) |
 | `tdateien.mjs` | Dateien hochladen: Rock mit Gürtel (Rock erkannt, Gürtel weg, 3D ohne ungültige Werte, Umschalter), Jeans mit Gürtel (bleibt Hose, Bund unverfälscht), ohne Gürtel kein Fehlalarm, back/front richtig eingeordnet, Bershka-Screenshot zerlegt, Tabelle als Text (Größe M, dann XL), Material, Größentabelle als Bild (Texterkennung, Körpermaß → Bund 43), nur Tabelle → „fehlt“, Model-Foto erkannt und nicht benutzt, Model-Foto ab Hüfte (`model_ausschnitt_bershka.jpg`) als angeschnitten erkannt, getragene Rückseite (künstlich, `werkzeuge/python/testgetragen.py`: Taschen oben, Kniefleck auf Kniehöhe), schiefes Bein und Handtuch abgelehnt (`testunecht.py`), Strg+V, Einzel-Formular lehnt ebenso ab. MediaPipe und Tesseract aus node_modules, Modelle von storage.googleapis.com |
 | `tpruefung.mjs` | Rückschritte der Gesamtprüfung: Maßband-Taille, Komma, Prüfung beim Anlegen, quer/Kopfstand mit sich berührenden Säumen (`material/testbilder/orientierung/`), links/rechts beim Aufrichten (roter Fleck), kurze Hose, Drehknöpfe, WebGL-Kontextverlust, Kartenfenster (Escape, kein Viereck), alter Speicherschlüssel, voller Speicher |
 | `tlaenge.mjs` | Länge mit A4/Bankkarte (Testbilder aus `werkzeuge/python/testmassstab.py`, echt 105 cm, gerade und 15° schräg), echte iPhone-Fotos des Nutzers, Vorrang der eingetragenen Länge |

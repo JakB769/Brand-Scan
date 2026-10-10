@@ -25,7 +25,9 @@ const miss=()=>p.evaluate(()=>{
   const ic=g3.ic, i1=Math.min(NR-1,ic+8), i2=NR-1;
   // Bildpunkte je cm aus dem Bund: der liegt genau auf der flachen Bundbreite
   const r=(s,i)=>breite(s,i);
-  const soll=i=>2*M.hw[i]*cmH/Math.PI;        // Durchmesser eines Kreises mit Umfang 2·flache Breite
+  // Breite von vorn einer Ellipse mit Umfang 2·flache Breite und Tiefe/Breite PASSFORM.beinTiefe (rund wäre 2·hw/π)
+  const q=window.__dbg.PASSFORM.beinTiefe, RQ=Math.PI*(3*(1+q)-Math.sqrt((3+q)*(1+3*q)));
+  const soll=i=>4*M.hw[i]*cmH/RQ;
   const ppc=g3.S/cmH;                         // Bildpunkte je cm
   return {oben:[r(0,i1),r(1,i1)].map(v=>v/ppc), saum:[r(0,i2),r(1,i2)].map(v=>v/ppc), sollOben:soll(i1), sollSaum:soll(i2)};
 });
