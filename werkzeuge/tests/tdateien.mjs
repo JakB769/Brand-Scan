@@ -93,6 +93,29 @@ await neu(); const vor=(await lage()).n; z=await hoch(tb+'unecht/schief_bein.jpg
 pruefe(/keine realistische Hose/.test(z.m)&&/breiter als das andere/.test(z.m)&&z.n===vor,'schiefes Bein abgelehnt: '+z.m.slice(0,90));
 await neu(); z=await hoch(tb+'unecht/handtuch.jpg');
 pruefe(/keine realistische Hose|keine Hose erkannt|fehlt ein flaches Foto/.test(z.m)&&z.n===vor,'Handtuch abgelehnt: '+z.m.slice(0,90));
+// 9a) Rock mit Gürtel (Gürtel gehört nicht dazu): als Rock erkannt, Gürtel aus Stoffbild und Umriss, 3D ohne ungültige Werte
+await neu(); z=await hoch(tb+'rock/rock_vorne_guertel.jpg',tb+'rock/rock_hinten.jpg');
+const rk=await p.evaluate(async()=>{ const G=window.__dbg.GARMENTS[window.__dbg.g.key], M=G.m3, im=new Image(); im.src=M.atlas; await im.decode();
+  const c=document.createElement('canvas'); c.width=im.width; c.height=im.height; const x=c.getContext('2d'); x.drawImage(im,0,0);
+  const W=c.width, d=x.getImageData(0,0,W/2,c.height).data; let braun=0;
+  for(let i=0;i<d.length;i+=4) if(d[i]-d[i+2]>45&&d[i]>80) braun++;
+  return {rock:!!M.rock,braun,wf:M.wf}; });
+pruefe(rk.rock&&/Fertig \(Rock\)/.test(z.m),'Rock erkannt: '+z.m.slice(z.m.indexOf('Fertig'),z.m.indexOf('Fertig')+60));
+pruefe(/Gürtel erkannt und entfernt/.test(z.m)&&rk.braun<60,`Gürtel entfernt (braune Punkte im Stoffbild vorne: ${rk.braun})`);
+const r3=await (async()=>{ const box=await p.$('#g3dview'); await box.scrollIntoViewIfNeeded(); await p.waitForTimeout(1500);
+  return p.evaluate(()=>{ const g3=window.__dbg.g3; let nan=false; for(let k=0;k<g3.nv*3;k++) if(!isFinite(g3.pos[k])){ nan=true; break; } return {nan,rock:g3.form&&g3.form.rock}; }); })();
+pruefe(!r3.nan&&r3.rock,'Rock in der 3D-Ansicht ohne ungültige Werte');
+// „⇄ Hose“: als Hose bauen lassen, dann wieder Rock
+await p.click('#drop-art'); z=await warte();
+pruefe(!/Fertig \(Rock\)/.test(z.m)&&/Fertig|realistische/.test(z.m),'Umschalter baut ihn als Hose: '+z.m.slice(Math.max(0,z.m.indexOf('Fertig')),Math.max(0,z.m.indexOf('Fertig'))+40));
+await p.click('#drop-art'); z=await warte();
+pruefe(/Fertig \(Rock\)/.test(z.m),'und wieder als Rock');
+// 9b) Jeans mit Gürtel: Gürtel weg, Maße wie ohne Gürtel; ohne Gürtel kein Fehlalarm
+await neu(); z=await hoch(tb+'rock/jeans_guertel.jpg',fotos+'back.jpg'); const mg=await p.evaluate(()=>window.__dbg.GARMENTS[window.__dbg.g.key].m3.wf);
+pruefe(/Gürtel erkannt und entfernt/.test(z.m)&&!/Rock/.test(z.m),'Jeans mit Gürtel: Gürtel entfernt, bleibt Hose');
+await neu(); z=await hoch(fotos+'front.jpg',fotos+'back.jpg'); const m0=await p.evaluate(()=>window.__dbg.GARMENTS[window.__dbg.g.key].m3.wf);
+pruefe(!/Gürtel/.test(z.m),'Jeans ohne Gürtel: kein Fehlalarm');
+pruefe(Math.abs(mg/m0-1)<.06,`Bund im Verhältnis zur Länge mit Gürtel ${mg.toFixed(3)}, ohne ${m0.toFixed(3)} (überstehende Enden nicht mitgezählt)`);
 // 9) Einfügen (Strg+V) einer Tabelle als Text
 await neu(); await hoch(fotos+'front.jpg');
 await p.evaluate(()=>{ const dt=new DataTransfer(); dt.setData('text/plain','Größe 38\nBundweite 41 cm\nAußenlänge 107 cm');

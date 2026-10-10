@@ -15,7 +15,8 @@ Was mit „simuliert geprüft“ markiert ist, lief nur in der Testumgebung ohne
 oder mit Model von hinten), ganze Screenshots der Produktseite, Maßtabelle als Screenshot oder als Text (kopieren und mit
 Strg+V einfügen). Die Seite sortiert selbst, zeigt die Einordnung (⇄ tauscht vorne/hinten, ✕ entfernt) und sagt, was fehlt.
 Hat die Tabelle mehrere Größen, die Größe der Fotos wählen (Vorgabe: die mittlere). Ergibt etwas keine realistische Hose,
-wird sie nicht angelegt und der Grund steht da. „Neue Hose“ leert die Liste für die nächste.
+wird sie nicht angelegt und der Grund steht da. „Neue Hose“ leert die Liste für die nächste. Röcke werden erkannt (sonst
+„⇄ Rock“ tippen); ein Gürtel auf dem Foto, der nicht dazugehört, wird entfernt.
 
 Für eigene Hosen mit Maßband oder Bankkarte weiter das Formular darunter. Je Hose:
 - [ ] Zwei Fotos (vorne, hinten) nach `doku/foto-anleitung-haendler.md`: flach, Beine getrennt, ruhiger Untergrund, Handy senkrecht darüber. iPhone-Fotos direkt hochladen, nicht über WhatsApp (sonst fehlt die Neigung).
@@ -71,5 +72,5 @@ Für Fehlerbilder: den Schalter „Debug-Ansicht“ einschalten. Er zeigt Achsen
 
 - Eine Hand **auf** der flach liegenden Hose lässt sich nicht herausrechnen. Bitte neu fotografieren.
 - Schräg in der Bildebene gelegte Hosen (nicht 0° oder 90°) werden falsch vermessen.
-- Hosen ohne zwei getrennte Beine (Röcke, Overalls) gehen nicht.
+- Overalls, Kleider und Hosenröcke gehen nicht (Röcke schon).
 - Links und rechts können in der Rückenansicht vertauscht sein.

@@ -288,6 +288,7 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
     <div class="droplist" id="drop-list"></div>
     <div class="row droprow" id="drop-row" hidden>
       <label hidden>Größe auf den Fotos <select id="drop-size"></select></label>
+      <button id="drop-art" title="Hose oder Rock? Automatisch erkannt; hier umschalten" hidden>⇄ Rock</button>
       <button id="drop-new" title="Liste leeren; die erstellte Hose bleibt">Neue Hose</button>
     </div>
     <div class="dropmsg" id="drop-msg" aria-live="polite"></div>
@@ -1216,6 +1217,8 @@ const stoffText=G=>[G&&G.material,G&&G.label].filter(Boolean).join(" · ");
 const stoffVon=G=>STOFFE[G&&G.fabric]||STOFFE[stoffAusText(stoffText(G)).key];
 /* ---------- 3D-Hose: aus den Maßen aufgeblasen, live am Skelett ---------- */
 const K3=12;                                   // Punkte je Viertelbogen
+/* Erste Zeile unter dem Schritt. Rock (M.rock): keine Beine, alle Zeilen gehören zum „Becken“ (ein Schlauch von Bund bis Saum) */
+const icOf=M=>{ const k=M.rock?-1:M.v.findIndex(v=>v>=M.vc); return k<0?M.nr:k; };
 /* ---------- Sitz und Form der 3D-Hose: alle Stellschrauben an einem Ort ----------
    Längen in cm, Anteile als Bruchteil. Wirkung jeweils dahinter. */
 const PASSFORM={
@@ -1239,7 +1242,8 @@ const PASSFORM={
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
   innenKante:40,         // so deutlich muss der Farbwechsel sein (sonst ist es der normale Bund, nicht die Innenseite)
-  innenZug:.25,          // der vordere Bund wird nach oben gezogen; die Dehnung verteilt sich auf diesen Anteil der Länge
+  innenZug:.25,
+  guertelFarbe:55,       // so weit (RGB-Abstand) muss ein Gürtel farblich vom Stoff weg sein, um als Gürtel zu gelten          // der vordere Bund wird nach oben gezogen; die Dehnung verteilt sich auf diesen Anteil der Länge
                          // (kürzer: Bund und Gürtelschlaufen wirken in der Mitte gestreckt)
 };
 const g3={c:null,gl:null,ok:null,prog:null,loc:null,tex:null,texReady:false,
@@ -1346,7 +1350,7 @@ function matchHalves(im){
 function mesh3d(key,M){
   if(g3.key===key) return;
   free3d();
-  const gl=g3.gl, NR=M.nr, C=K3+1, ic=M.v.findIndex(v=>v>=M.vc);
+  const gl=g3.gl, NR=M.nr, C=K3+1, ic=icOf(M);
   // Punkte: Ringe (Bein s, Zeile i, vorne/hinten f, Spalte j), Innenwand zwischen den Beinen, Randzeilen an Bund und Saum
   const nRing=2*NR*2*C, nWall=2*NR*2, nRim=2*2*6*C;
   const nv=nRing+nWall+nRim, uv=new Float32Array(nv*2), ao=new Float32Array(nv*2), idx=[], duj=new Float32Array(nv);
@@ -1463,16 +1467,17 @@ function pose3d(M,P){
   const riseK=exc<0?Math.min(riseB,riseN*1.22):Math.max(0,riseB)+Math.min(exc,t5+Math.max(0,exc-t5)*PASSFORM.schrittTiefeRest);
   // Sehr kurze eingetragene Länge (bei eingetragenem Bund): lieber die Leibhöhe kürzen als die Länge verfehlen
   const L=(P.cmL||P.cmH)*ppc, minLeg=.3*S*(1-M.vc);
-  const rise=L-riseK>=minLeg?riseK:Math.max(L*.5,L-minLeg), kR=rise/riseN;
+  // Rock: hängt gerade vom Bund bis zum Saum, kein Schritt
+  const rock=!!M.rock, rise=rock?L:L-riseK>=minLeg?riseK:Math.max(L*.5,L-minLeg), kR=rock?L/(M.vc*S||1):rise/riseN;
   // Senkrechte Lage je Höhe v: innen (Mitte vorne/hinten, Innennaht am Bein) und außen (Seitennaht). Innen sitzt der Schritt
   // oben, außen reicht die Hüfte etwas tiefer (ohne Schrittbogen); am Saum treffen sich beide.
   // Die Hose ist vom Bund bis zum Saum genau so lang wie angegeben (L): die Beine bekommen, was nach der Leibhöhe übrig ist.
-  const yOutC=kR*M.vc*S, SV=(L-rise)/(1-M.vc), SO=(L-yOutC)/(1-M.vc);
-  const yIn=v=>v<=v0?kR*v*S:v<=M.vc?kR*S*(v0+(v-v0)*bg):rise+(v-M.vc)*SV;
-  const yOut=v=>v<=M.vc?kR*v*S:yOutC+(v-M.vc)*SO;
+  const yOutC=kR*M.vc*S, SV=rock?0:(L-rise)/(1-M.vc), SO=rock?0:(L-yOutC)/(1-M.vc);
+  const yIn=rock?v=>v*L:v=>v<=v0?kR*v*S:v<=M.vc?kR*S*(v0+(v-v0)*bg):rise+(v-M.vc)*SV;
+  const yOut=rock?v=>v*L:v=>v<=M.vc?kR*v*S:yOutC+(v-M.vc)*SO;
   const seamOut=i=>yOut(M.v[i])-yIn(M.v[i]);
   // Über dem Schritt höchstens etwas weiter als die weiteste Hüftstelle (gespreizte Beine im Foto blähen sonst auf)
-  let hipMax=0; for(let i=0;i<ic;i++) if(M.v[i]<.6*M.vc) hipMax=Math.max(hipMax,M.hw[i]); hipMax=(hipMax||M.hw[0])*PASSFORM.hueftWeiteMax;
+  let hipMax=0; for(let i=0;i<ic;i++) if(M.v[i]<.6*M.vc) hipMax=Math.max(hipMax,M.hw[i]); hipMax=rock?1e9:(hipMax||M.hw[0])*PASSFORM.hueftWeiteMax;
   const hwU=i=>Math.min(M.hw[i],hipMax);
   // Gesäß: stärkste Wölbung am Körper gesaessCm unter dem Bund, nicht bei einem festen Anteil der (oft zu langen) Leibhöhe
   const uSeat=clamp(PASSFORM.gesaessCm*ppc/Math.max(rise,1),.2,.8);
@@ -1486,7 +1491,7 @@ function pose3d(M,P){
   const now=performance.now(), dtRaw=(now-(g3.last||now))/1000, dt=clamp(dtRaw,0,.1); g3.last=now;   // lange Pause: Physik neu ansetzen
   const delta=5*ppc;
   const kH=P.kHem||1, legK=i=>1+(kH-1)*clamp((M.v[i]-M.vc)/(1-M.vc),0,1);
-  const Rc=M.hw[ic]*S/Math.PI;                         // Radius des Hosenbeins direkt unter dem Schritt
+  const Rc=M.hw[Math.min(ic,NR-1)]*S/Math.PI;          // Radius des Hosenbeins direkt unter dem Schritt
   // 1. Hose in Ruhepose bauen: Beine gerade nach unten, mit den Knochenlängen von jetzt. 2. Mit den Knochen in die
   // aktuelle Haltung drehen (Skinning). So knickt der Stoff an Leiste und Knie wie echter Stoff, statt sich aufzublähen.
   const restB=P.bone.map(c=>{ const Lt=v3.len(v3.sub(c[1],c[0])), Ls=v3.len(v3.sub(c[2],c[1]));
@@ -1509,7 +1514,7 @@ function pose3d(M,P){
       else { const sPx=(M.v[i]-M.vc)*SV; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); uS=1; [a,b,bB]=ell2(hwU(ic-1)*S,1); }
       // Dieselbe Höhe am Bein: so viele Bildpunkte unter dem Hüftgelenk, entlang der Knochen
       let d=v3.dot(v3.sub(cT,ch[0]),dn), cL=null,r=null,fl=null,R=0,wdev=0,wband=below?sstep(0,PASSFORM.bandCm,sCm):0;
-      const onLeg=d>0;
+      const onLeg=!rock&&d>0;                          // ein Rock wird nicht ans Bein gezogen (die Beine schieben ihn nur, cloth3d)
       if(onLeg){
         if(cS<1&&d>z0) d=z0+(d-z0)*cS;                      // zu lange Beine stauchen sich am Schuh
         const pa=walk3(ch,d-delta), pb=walk3(ch,d+delta);
@@ -1528,7 +1533,7 @@ function pose3d(M,P){
           // Punkte gleichmäßig nach Bogenlänge (wie der Stoff im Foto), nicht nach Winkel
           // Schrittbogen: im untersten Teil der Leibhöhe rollen Mitte vorne und hinten zur Schrittmitte ein (wie am Körper);
           // unter dem Schritt bleibt das so, bis die Beine rund sind (sonst springt die Mitte vorne am Schritt wieder nach vorn)
-          const curl=.88*sstep(1-PASSFORM.einrollen,1,uS)*(1-t)*(1-t);
+          const curl=rock?0:.88*sstep(1-PASSFORM.einrollen,1,uS)*(1-t)*(1-t);
           const bq=f?bB:b, ps=psiArc(bq/a,t), ca=a*Math.sin(ps)*sg, cb=bq*Math.cos(ps)*fs*(1-curl);
           // hinten sitzt der Bund höher (längere hintere Schrittnaht), vorne etwas tiefer; zur Seitennaht hin auslaufend
           const bR=(f?2:-.8)*ppc*Math.pow(1-t,1.5)*(1-sstep(0,f?.6:.5,uS));
@@ -1603,7 +1608,8 @@ function pose3d(M,P){
   g3.frame={top,h,up,fw}; g3.S=S; g3.lastLen=rise+(1-M.vc)*SV; g3.lastPpc=ppc;
   rim3d(M,ppc);
   // Kennwerte in cm (Debug-Ansicht und Tests): Leibhöhe am Körper, bis zum Körperschritt, flach im Foto
-  g3.form={leib:rise/ppc,koerper:riseB/ppc,flach:M.vc*S/ppc,sitz:PASSFORM.sitzCm,gesaess:uSeat*rise/ppc};
+  g3.form={leib:rise/ppc,koerper:riseB/ppc,flach:M.vc*S/ppc,sitz:PASSFORM.sitzCm,gesaess:uSeat*rise/ppc,rock};
+  g3.riseB=riseB;
   return {top,S:rise+(1-M.vc)*SV,SW:S,rs:kR};
 }
 /* ---------- Stoff in Bewegung: hängt an der Form aus dem Skelett, schwingt nach, hängt frei durch ----------
@@ -1655,7 +1661,7 @@ function cloth3d(M,P,dt){
       let dx=X[q]-Tg[q], dy=X[q+1]-Tg[q+1], dz=X[q+2]-Tg[q+2], dl=Math.hypot(dx,dy,dz);
       if(dl>maxD){ const k=maxD/dl; X[q]=Tg[q]+dx*k; X[q+1]=Tg[q+1]+dy*k; X[q+2]=Tg[q+2]+dz*k;
         const vr=((V[q]-vx)*dx+(V[q+1]-vy)*dy+(V[q+2]-vz)*dz)/dl; if(vr>0){ V[q]-=vr*dx/dl; V[q+1]-=vr*dy/dl; V[q+2]-=vr*dz/dl; } }
-      if(i>=g3.ic) for(const [a,b,ra,rbb] of caps){
+      if(i>=g3.ic||M.rock) for(const [a,b,ra,rbb] of caps){
         const ab=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], L2=ab[0]*ab[0]+ab[1]*ab[1]+ab[2]*ab[2]||1;
         const t=clamp(((X[q]-a[0])*ab[0]+(X[q+1]-a[1])*ab[1]+(X[q+2]-a[2])*ab[2])/L2,0,1);
         const cx=a[0]+ab[0]*t, cy=a[1]+ab[1]*t, cz=a[2]+ab[2]*t, r=ra+(rbb-ra)*t;
@@ -1668,11 +1674,11 @@ function cloth3d(M,P,dt){
   // Stoff dehnt sich kaum: längs je Spalte vom Schritt zum Saum höchstens 3 % länger als die Zielform, quer je Ring
   // derselbe Umfang wie die Zielform (±2 %). Sonst wird die Hose beim Schwingen länger und der Saum enger oder weiter.
   const ix=(s,i,f,j)=>(((s*NR+i)*2+f)*C+j)*3, rg=(s,i,m)=>m<C?ix(s,i,0,m):ix(s,i,1,2*C-1-m);
-  for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++) for(let i=Math.max(2,g3.ic-2);i<NR;i++){
+  for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++) for(let i=M.rock?2:Math.max(2,g3.ic-2);i<NR;i++){
     const a=ix(s,i-1,f,j), b=ix(s,i,f,j);
     const L0=Math.hypot(Tg[b]-Tg[a],Tg[b+1]-Tg[a+1],Tg[b+2]-Tg[a+2])*1.03, dx=X[b]-X[a], dy=X[b+1]-X[a+1], dz=X[b+2]-X[a+2], l=Math.hypot(dx,dy,dz);
     if(l>L0&&l>1e-6){ const k=L0/l; X[b]=X[a]+dx*k; X[b+1]=X[a+1]+dy*k; X[b+2]=X[a+2]+dz*k; } }
-  for(let s=0;s<2;s++) for(let i=g3.ic;i<NR;i++){
+  for(let s=0;s<2;s++) for(let i=M.rock?2:g3.ic;i<NR;i++){
     let px=0,pt=0,cx=0,cy=0,cz=0;
     for(let m=0;m<2*C;m++){ const a=rg(s,i,m), b=rg(s,i,(m+1)%(2*C));
       px+=Math.hypot(X[b]-X[a],X[b+1]-X[a+1],X[b+2]-X[a+2]); pt+=Math.hypot(Tg[b]-Tg[a],Tg[b+1]-Tg[a+1],Tg[b+2]-Tg[a+2]); cx+=X[a]; cy+=X[a+1]; cz+=X[a+2]; }
@@ -1701,6 +1707,7 @@ function rotAbout(o,k,a,x,y,z,out){
    Gewicht dreht sich um den halben Winkel und behält seinen Abstand zum Gelenk. Lineares Mischen der Lagen ließ den Stoff an
    Leiste und Kniekehle einfallen und warf beim angehobenen Knie einen Lappen. */
 function skin3d(M,P,rest,dn){
+  if(M.rock) return;                                   // Rock: bleibt in seiner Form, die Beine schieben ihn nur (cloth3d)
   const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos, o=[0,0,0];
   for(let s=0;s<2;s++){
     const ch=P.bone[s], J=ch[0], K=ch[1], A=ch[2];
@@ -1808,7 +1815,7 @@ function rim3d(M,ppc){
   const put=(k,p,n,src)=>{ pos[k*3]=p[0]; pos[k*3+1]=p[1]; pos[k*3+2]=p[2]; nor[k*3]=n[0]; nor[k*3+1]=n[1]; nor[k*3+2]=n[2];
     for(let c=0;c<3;c++){ g3.tu[k*3+c]=g3.tu[src*3+c]; g3.tw[k*3+c]=g3.tw[src*3+c]; } };
   for(let s=0;s<2;s++){
-    const upA=v3.norm(v3.sub(mid(s,0),mid(s,Math.min(3,NR-1)))), dnZ=v3.norm(v3.sub(mid(s,NR-1),mid(s,Math.max(g3.ic,NR-10))));
+    const upA=v3.norm(v3.sub(mid(s,0),mid(s,Math.min(3,NR-1)))), dnZ=v3.norm(v3.sub(mid(s,NR-1),mid(s,Math.min(NR-2,Math.max(g3.ic,NR-10)))));
     for(let f=0;f<2;f++) for(let j=0;j<C;j++){
       const a=id(s,0,f,j), z=id(s,NR-1,f,j), pa=g(a), na=gn(a), pz=g(z), nz=gn(z);
       const lipA=v3.add(v3.sub(pa,v3.mul(na,th)),v3.mul(upA,.12*ppc)), lipZ=v3.add(v3.sub(pz,v3.mul(nz,th)),v3.mul(dnZ,.12*ppc));
@@ -1841,8 +1848,9 @@ function occl3d(M,P){
   const row=(i,lift,r)=>{ let cx=0,cy=0,cz=0,n=0;
     for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=id(s,i,f,j)*3; cx+=pos[k]; cy+=pos[k+1]; cz+=pos[k+2]; n++; }
     cx/=n; cy/=n; cz/=n; let a=0;
+    const below=M.rock&&((cx-F.top[0])*-F.up[0]+(cy-F.top[1])*-F.up[1]+(cz-F.top[2])*-F.up[2])>(g3.riseB||0), sc=below?0:.93;
     for(let s=0;s<2;s++) for(let f=0;f<2;f++){ for(let j=0;j<C;j++){ const k=id(s,i,f,j)*3, o=((r*4+a)*C+j)*3;
-      O[o]=cx+(pos[k]-cx)*.93+F.up[0]*lift; O[o+1]=cy+(pos[k+1]-cy)*.93+F.up[1]*lift; O[o+2]=cz+(pos[k+2]-cz)*.93+F.up[2]*lift; } a++; } };
+      O[o]=cx+(pos[k]-cx)*sc+F.up[0]*lift; O[o+1]=cy+(pos[k+1]-cy)*sc+F.up[1]*lift; O[o+2]=cz+(pos[k+2]-cz)*sc+F.up[2]*lift; } a++; } };
   row(0,30*ppc,0); row(0,16*ppc,1); row(0,8*ppc,2);
   for(let i=0;i<ic;i++) row(i,0,i+3);
   const Hc=P.heightCm||175, rb=u=>(u<.5?.31+(.21-.31)*u/.5:.21+(.125-.21)*(u-.5)/.5)*Hc/(2*Math.PI)*ppc*.85;
@@ -2482,6 +2490,59 @@ function innerTopCut(d,mm,CW,CH,top,bot){
   if(dip<.012*Hg||dip>PASSFORM.innenMax*Hg||eMean<PASSFORM.innenKante||aMean<28) return {ok:false,dip:dip/Hg,eMean,aMean};
   return {ok:true,xl,xr,path,line,yb:Math.min(CH-1,top+Math.max(band,Math.round(PASSFORM.innenZug*Hg))),dip:dip/Hg,eMean,aMean};
 }
+/* Gürtel, der nicht zum Teil gehört: ein Band ganz oben über die Breite in deutlich anderer Farbe als der Stoff. Damit es
+   nicht ein andersfarbiger Bund ist, muss mindestens eins dazukommen: eine Schnalle (hell oder messingfarben in der Mitte),
+   Enden, die seitlich über die Hose hinausstehen, oder ein Ende, das herunterhängt. Dann: überstehende Enden aus dem Umriss,
+   auf dem Stoff die Farbe von direkt darunter (gespiegelt), herunterhängende Enden quer aus dem Stoff daneben. */
+function beltCut(d,mm,CW,CH,top,bot){
+  const Hg=bot-top; if(Hg<80) return null;
+  const px=[]; for(let y=Math.round(top+.22*Hg);y<top+.55*Hg;y+=2) for(let x=2;x<CW-2;x+=2){ const i=y*CW+x; if(mm[i]&&mm[i-2]&&mm[i+2]) px.push(d[i*4],d[i*4+1],d[i*4+2]); }
+  const n=px.length/3; if(n<200) return null;
+  const Cs=kmeans(new Float32Array(px),n,4).filter(c=>c.share>=.04), T=PASSFORM.guertelFarbe;
+  const far=i=>{ let m=1e9; for(const c of Cs) m=Math.min(m,Math.hypot(d[i*4]-c[0],d[i*4+1]-c[1],d[i*4+2]-c[2])); return m; };
+  const span=y=>{ let a=-1,b=-1; for(let x=0;x<CW;x++) if(mm[y*CW+x]){ if(a<0) a=x; b=x; } return [a,b]; };
+  // Band: zusammenhängende Zeilen, in denen über 55 % der Breite fremd gefärbt ist, beginnend in den obersten 7 %
+  let y0=-1,y1=-1;
+  for(let y=top;y<=top+.16*Hg;y++){ const [a,b]=span(y); let f=0; if(a>=0) for(let x=a;x<=b;x++) if(far(y*CW+x)>T) f++;
+    if(a>=0&&f>.55*(b-a+1)){ if(y0<0){ if(y-top>.07*Hg) break; y0=y; } y1=y; } else if(y0>=0&&y-y1>2) break; }
+  if(y0<0) return null; const hb=y1-y0+1; if(hb<.008*Hg||hb>.09*Hg) return null;
+  // Breite der Hose direkt unter dem Gürtel
+  let [ga,gb]=span(Math.min(CH-1,y1+Math.max(3,Math.round(.01*Hg)))); if(ga<0) return null;
+  // Gürtelpunkte: fremd im Band und alles Fremde, das daran hängt (Schnalle, Enden), bis 40 % der Länge
+  const B=new Uint8Array(CW*CH), st=[], yMax=top+.4*Hg;
+  for(let y=Math.max(0,y0-2);y<=Math.min(CH-1,y1+2);y++) for(let x=0;x<CW;x++){ const i=y*CW+x; if(mm[i]&&far(i)>T){ B[i]=1; st.push(i); } }
+  while(st.length){ const i=st.pop(), x=i%CW, y=(i/CW)|0;
+    for(const j of [x>0?i-1:-1,x<CW-1?i+1:-1,y>0?i-CW:-1,y<CH-1?i+CW:-1]) if(j>=0&&!B[j]&&mm[j]&&((j/CW)|0)<yMax&&far(j)>T*.8){ B[j]=1; st.push(j); } }
+  // Merkmale: Schnalle, überstehende Enden, herunterhängendes Ende
+  const cx=(ga+gb)/2, hw=(gb-ga)/2; let buckle=0, prot=0, hang=0;
+  for(let y=Math.max(0,y0-3);y<=Math.min(CH-1,y1+3);y++) for(let x=0;x<CW;x++){ const i=y*CW+x; if(!mm[i]) continue;
+    const r=d[i*4],g=d[i*4+1],b=d[i*4+2];
+    if(Math.abs(x-cx)<.35*hw&&((r+g+b)/3>170||(r-b>70&&g-b>40&&r>150))) buckle++;
+    if(x<ga-2||x>gb+2) prot++; }
+  for(let i=0;i<CW*CH;i++) if(B[i]&&((i/CW)|0)>y1+.03*Hg) hang++;
+  if(!(buckle>=6||prot>=2*hb||hang>=.02*Hg*4)) return null;           // nur ein andersfarbiger Bund
+  // Kanten mitnehmen (Mischfarbe zwischen Gürtel und Stoff): 2 Punkte breiter
+  for(let r=0;r<2;r++){ const add=[]; for(let i=0;i<CW*CH;i++) if(B[i]){ const x=i%CW;
+      for(const j of [x>0?i-1:-1,x<CW-1?i+1:-1,i-CW,i+CW]) if(j>=0&&j<CW*CH&&mm[j]&&!B[j]) add.push(j); }
+    for(const j of add) B[j]=1; }
+  // überstehende Enden aus dem Umriss
+  for(let y=Math.max(0,y0-3);y<=Math.min(CH-1,y1+3);y++) for(let x=0;x<CW;x++) if(x<ga-1||x>gb+1){ mm[y*CW+x]=0; B[y*CW+x]=0; }
+  // im Band: gespiegelt von unterhalb des Gürtels; darunter (herunterhängend): quer zwischen Stoff links und rechts
+  const yb=y1+2, out=new Uint8ClampedArray(d);
+  for(let y=0;y<CH;y++) for(let x=0;x<CW;x++){ const i=y*CW+x; if(!B[i]) continue; let src=-1;
+    if(y<=yb){ for(let k=0;k<12&&src<0;k++){ const yy=Math.min(CH-1,2*yb-y+k), j=yy*CW+x; if(mm[j]&&!B[j]) src=j; } }
+    if(src<0){ let l=x,r=x; while(l>0&&(B[y*CW+l]||!mm[y*CW+l])&&x-l<60) l--; while(r<CW-1&&(B[y*CW+r]||!mm[y*CW+r])&&r-x<60) r++;
+      const okL=mm[y*CW+l]&&!B[y*CW+l], okR=mm[y*CW+r]&&!B[y*CW+r];
+      if(okL&&okR){ const t=(x-l)/Math.max(1,r-l); for(let c=0;c<3;c++) out[i*4+c]=d[(y*CW+l)*4+c]*(1-t)+d[(y*CW+r)*4+c]*t; continue; }
+      src=okL?y*CW+l:okR?y*CW+r:-1; }
+    if(src<0){ const c=Cs[0]; out[i*4]=c[0]; out[i*4+1]=c[1]; out[i*4+2]=c[2]; continue; }
+    out[i*4]=d[src*4]; out[i*4+1]=d[src*4+1]; out[i*4+2]=d[src*4+2]; }
+  d.set(out);
+  // Rand der Bandzeilen neu auffüllen (dort stand vorher der Gürtel)
+  for(let y=Math.max(0,y0-3);y<=Math.min(CH-1,y1+3);y++){ const [a,b]=span(y); if(a<0) continue;
+    for(let x=0;x<CW;x++) if(x<a||x>b){ const j=(y*CW+(x<a?a:b))*4, i=(y*CW+x)*4; d[i]=d[j]; d[i+1]=d[j+1]; d[i+2]=d[j+2]; } }
+  return {ok:true,y0,y1,buckle,prot,hang};
+}
 /* Kante anwenden: je Spalte wird der Streifen von der Kante bis yb auf den Bereich von der geraden Eckenlinie bis yb gezogen.
    Was darüber lag (Innenseite), fällt weg; der äußere Bund wird zur Oberkante der Hose. */
 function applyInnerCut(d,mm,CW,cut){
@@ -2526,9 +2587,11 @@ function cropGarment(cv,S,flip,innen=false){
   for(let y=0;y<CH;y++){ let any=false; for(let xx=0;xx<CW;xx++) if(core[y*CW+xx]){ any=true; break; }
     if(any){ for(let y2=0;y2<y;y2++) d.copyWithin(y2*CW*4,y*CW*4,(y+1)*CW*4); break; } }
   // Vorderseite: Innenseite des hinteren Bunds (Etikett) über dem vorderen Bund erkennen und wegnehmen
-  let inner=null;
-  if(innen){ let t0=CH,b0=0; for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<t0)t0=y; if(y>b0)b0=y; }
-    inner=t0<b0?innerTopCut(d,mm,CW,CH,t0,b0):null; if(inner&&inner.ok) applyInnerCut(d,mm,CW,inner); }
+  let inner=null, belt=null, t0=CH, b0=0;
+  for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<t0)t0=y; if(y>b0)b0=y; }
+  // Gürtel, der nicht zum Teil gehört, zuerst (er liegt oben auf dem Bund)
+  if(t0<b0){ try{ belt=beltCut(d,mm,CW,CH,t0,b0); }catch(e){ console.warn(e); } }
+  if(innen&&t0<b0){ inner=innerTopCut(d,mm,CW,CH,t0,b0); if(inner&&inner.ok) applyInnerCut(d,mm,CW,inner); }
   x.putImageData(id,0,0);
   // Zeilenprofil
   let top=CH,bot=0; for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<top)top=y; if(y>bot)bot=y; }
@@ -2542,7 +2605,7 @@ function cropGarment(cv,S,flip,innen=false){
     if(!runs.length) runs.push([CW*.3,CW*.7]);
     rows.push({y,runs});
   }
-  return {c,d,mm,rows,top,bot,sx:bw/CW,sy:bh/CH,base:sn?{r:sr/sn,g:sg/sn,b:sb/sn}:{r:120,g:120,b:120},inner};
+  return {c,d,mm,rows,top,bot,sx:bw/CW,sy:bh/CH,base:sn?{r:sr/sn,g:sg/sn,b:sb/sn}:{r:120,g:120,b:120},inner,belt};
 }
 /* Lücke zwischen den Beinen je Zeile: aus dem Umriss (zwei getrennte Flächen) oder aus der Farbe. Liegt heller Boden
    zwischen den Beinen, den die Freistellung als Hose gezählt hat, unterscheidet er sich im Farbton deutlich vom Stoff. */
@@ -2577,6 +2640,21 @@ function findGaps(A){
   // Nur Zeilen dieser Folge gelten als Beinspalt, verstreute Farbflecken sonst nicht
   for(let i=0;i<N;i++) if(!best||i<best[0]||i>best[1]) A.rows[i].gap=A.rows[i].runs.length>=2?A.rows[i].gap:null;
   return best&&v(best[0])<.7?v(best[0])-.008:null;
+}
+/* Sieht der Umriss aus wie ein Rock? Unterkante ohne Kerbe zwischen zwei Säumen (Hosen mit sich berührenden Säumen haben
+   dort eine Kerbe), und unten deutlich weiter als der Bund (A-Linie) oder kurz im Verhältnis zur Breite (Mini, knielang). */
+function rockShape(A){
+  const {CW,CH}=GEN, mm=A.mm, Hg=A.bot-A.top; if(!mm||Hg<40) return {ok:false,why:"kein Umriss"};
+  const yb=x=>{ for(let y=A.bot;y>A.top+Hg*.5;y--) if(mm[y*CW+x]) return y; return -1; };
+  let xa=-1,xb=-1; for(let x=0;x<CW;x++) if(yb(x)>=A.bot-Hg*.08){ if(xa<0) xa=x; xb=x; }
+  if(xa<0||xb-xa<10) return {ok:false,why:"keine Unterkante"};
+  const med=x=>{ const a=[]; for(let k=-3;k<=3;k++) a.push(yb(clamp(x+k,xa,xb))); a.sort((p,q)=>p-q); return a[3]; };
+  const notch=Math.min(med(Math.round(xa+(xb-xa)*.27)),med(Math.round(xa+(xb-xa)*.73)))-med(Math.round((xa+xb)/2));
+  const w=y=>{ let a=-1,b=-1; for(let x=0;x<CW;x++) if(mm[y*CW+x]){ if(a<0) a=x; b=x; } return a<0?0:b-a+1; };
+  const wTop=w(A.top+Math.round(Hg*.03)), wBot=w(A.bot-Math.round(Hg*.04)), ratio=Hg*A.sy/Math.max(1,wTop*A.sx);
+  if(notch>=.025*Hg) return {ok:false,why:"Kerbe zwischen zwei Säumen"};
+  if(!(wBot>=1.25*wTop||ratio<1.9)) return {ok:false,why:"unten kaum weiter und lang"};
+  return {ok:true,notch:notch/Hg,flare:wBot/wTop,ratio};
 }
 /* Spalt zwischen den Beinen öffnet sich als V: oben nur wenige Punkte, darunter gleichmäßig breiter */
 function vSpread(A,vc){
@@ -3042,9 +3120,9 @@ function uprightProfile(M){
    werden abgeschnitten und das Profil neu auf 0..1 verteilt. Gilt für neue Hosen und beim Laden für alle gespeicherten. */
 function normalizeProfile(M0){
   const upr=uprightProfile(M0), M=upr.M;
-  const NR=M.nr, ic=M.v.findIndex(v=>v>=M.vc), up=[], leg=[];
+  const NR=M.nr, ic=icOf(M), up=[], leg=[];
   for(let i=0;i<NR;i++) (i<ic?up:leg).push(M.hw[i]);
-  const maxU=Math.max(...up), legS=[...leg].sort((a,b)=>a-b), medL=legS[legS.length>>1]||0;
+  const maxU=Math.max(...(M.rock?up.slice(0,Math.ceil(up.length*.3)):up)), legS=[...leg].sort((a,b)=>a-b), medL=legS[legS.length>>1]||0;
   let it=0; while(it<ic-1&&M.hw[it]<.55*maxU) it++;
   let ib=NR-1; while(ib>ic+1&&M.hw[ib]<.4*medL) ib--;
   let out=M, changed=false, span=1;
@@ -3063,12 +3141,12 @@ function normalizeProfile(M0){
   }
   // Plausibel? Lange Hosen: Bund flach 0,2–0,6 der Länge, Schritt bei 0,2–0,6; Shorts: Bund bis 1,15, Schritt bis 0,8;
   // ein Bein nie viel breiter als der ganze Bund
-  const ic2=out.v.findIndex(v=>v>=out.vc), legMax=Math.max(...out.hw.slice(Math.max(0,ic2)));
+  const ic2=icOf(out), legMax=out.rock?0:Math.max(...out.hw.slice(Math.max(0,ic2)));
   let bad=null;
   // Shorts: Bund bis gut so breit wie die Hose lang ist, Schritt weiter unten
   const kurz=out.wf>.6;
-  if(!(out.wf>=.2&&out.wf<=1.15)) bad="Bund und Länge passen nicht zusammen";
-  else if(!(out.vc>=.2&&out.vc<=(kurz?.8:.6))) bad="Schritt nicht gefunden";
+  if(!(out.wf>=.2&&out.wf<=(out.rock?1.4:1.15))) bad="Bund und Länge passen nicht zusammen";
+  else if(!out.rock&&!(out.vc>=.2&&out.vc<=(kurz?.8:.6))) bad="Schritt nicht gefunden";
   else if(legMax>1.15*out.wf) bad="Hosenbeine breiter als der Bund (Foto quer oder Untergrund mit erkannt)";
   return {M:out,changed:changed||upr.flipped,bad,span,flipped:upr.flipped};
 }
@@ -3171,6 +3249,11 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
     if(v2!=null&&v2>.2&&v2<.6){ fp=fp2; bp=bp2; ({F,B,vcF,vcB}=c2); }
   }
   let VC=vcF??vcB; const split=VC!=null; if(!split) VC=.39;
+  // Rock: nirgends ein Spalt zwischen Beinen, unten keine Kerbe zwischen zwei Säumen, und nach unten deutlich weiter oder
+  // kurz (oder der Dateiname sagt es). Sonst bleibt es eine Hose mit sich berührenden Säumen (Schritt geschätzt).
+  const art=opts.art||null, rs=[rockShape(F)].concat(bp?[rockShape(B)]:[]);
+  const rock=art?art==="rock":!split&&rs.every(r=>r.ok);
+  if(rock) VC=1.01;
   // Öffnet sich der Spalt zwischen den Beinen als V (Beine gespreizt, oben übereinander), liegt der wahre Schritt höher
   // Shorts (Bund flach mehr als 0,6 der Länge) haben den Schritt weiter unten
   const kurzA=A=>{ const r=A.rows[1].runs; return (r[r.length-1][1]-r[0][0])*A.sx/Math.max(1,(A.bot-A.top)*A.sy)>.6; };
@@ -3184,7 +3267,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   // Ohne flaches Rückenfoto, aber mit Foto von hinten getragen: Form der gespiegelten Vorderseite, Stoff aus dem Foto
   let wornBack=null;
   if(!bp&&opts.worn){ say("Rückseite wird aus dem Foto mit Person übernommen …"); try{ wornBack=paintWornBack(B,opts.worn,VC); }catch(e){ console.warn(e); wornBack={ok:false,why:"Fehler beim Übernehmen"}; } }
-  const pf=garmentProfile(F,VC,0), pb=alignRows(garmentProfile(B,vcBack,CW),vcBack,VC);
+  const pf=garmentProfile(F,VC,0), pb=alignRows(garmentProfile(B,rock?VC:vcBack,CW),rock?VC:vcBack,VC);
   for(let i=NR-3;i<NR;i++){ pf.hw[i]=pf.hw[NR-4]; pb.hw[i]=pb.hw[NR-4]; }
   // Vorder- und Rückseite haben denselben Umriss. Beide mitteln: Reste von Schräglage (die meist an
   // entgegengesetzten Enden wirkt) heben sich auf. Die Beine nur von Fotos, auf denen sie getrennt zu sehen sind.
@@ -3197,7 +3280,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   const at=document.createElement("canvas"); at.width=2*CW; at.height=CH;
   const ax=at.getContext("2d"); ax.drawImage(F.c,0,0); ax.drawImage(B.c,CW,0);
   const r4=a=>a.map(x=>+x.toFixed(4));
-  const raw={nr:NR,vc:+VC.toFixed(3),wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),
+  const raw={nr:NR,vc:rock?1:+VC.toFixed(3),rock,wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),
             f:pf.uv,b:pb.uv,atlas:at.toDataURL("image/jpeg",.85)};
   // lo: Außenlänge geteilt durch senkrechte Länge (Einheit aller Werte im Modell)
   raw.lo=+((bp?(pf.Hout/pf.H+pb.Hout/pb.H)/2:pf.Hout/pf.H)).toFixed(4);
@@ -3217,7 +3300,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   return {G:{label:"Eigene Hose",size:"–",kind:"pants",aspect,prof:garmentProf(m3,aspect),
              elastic:false,estFlat:40,waist:null,len:null,hem:null,meas,base,src:th.toDataURL("image/jpeg",.8),m3,own:true,bad:nz.bad},
           info:{split,hasBack:!!backFile,trimmed:nz.changed||fp.cut||!!(bp&&bp.cut),turned:fp.turned||(bp&&bp.turned)||0,
-                both,innen:!!(F.inner&&F.inner.ok),vcSpreiz:VC!==(vcF??vcB),wornBack,fill:fillN/((S0.x1-S0.x0)*(S0.y1-S0.y0)),tilt:[fp.tilt,bp?bp.tilt:null],ref:[fp.ref,bp?bp.ref:null],refKind,warn:[...fp.warn,...(bp?bp.warn:[])],ki:[fp.ki,bp?bp.ki:false],hand:[fp.hand,bp?bp.hand:false]}};
+                both,innen:!!(F.inner&&F.inner.ok),vcSpreiz:!rock&&VC!==(vcF??vcB),wornBack,rock,rockWhy:rs[0].why,belt:[F.belt||null,B.belt||null],fill:fillN/((S0.x1-S0.x0)*(S0.y1-S0.y0)),tilt:[fp.tilt,bp?bp.tilt:null],ref:[fp.ref,bp?bp.ref:null],refKind,warn:[...fp.warn,...(bp?bp.warn:[])],ki:[fp.ki,bp?bp.ki:false],hand:[fp.hand,bp?bp.hand:false]}};
 }
 /* Eigene Hosen: Liste im Gerät merken */
 const OWN="massScanHosen";
@@ -3486,8 +3569,8 @@ function updateFit(){
     $("f-ease").innerHTML=`<span class="diff ${c}">${e>0?"+":""}${e.toFixed(1)} cm</span>`;
   }else $("f-ease").textContent="–";
   $("f-hem").textContent=(g.hem!=null)?(g.hem>0?fmt(g.hem):"reicht bis auf den Boden"):"–";
-  if(G.m3&&g.flat){ const M=G.m3, cmH=g.flat/M.wf, ic=M.v.findIndex(v=>v>=M.vc);
-    $("f-leg").textContent=`${(M.hw[ic+1]*cmH).toFixed(0)} / ${garmentDims(G).hem.toFixed(0)} cm`+(G.hem?"":" (aus dem Foto)"); }
+  if(G.m3&&g.flat){ const M=G.m3, cmH=g.flat/M.wf, ic=icOf(M);
+    $("f-leg").textContent=M.rock?`Rock, Saum ${(2*garmentDims(G).hem).toFixed(0)} cm breit`:`${(M.hw[ic+1]*cmH).toFixed(0)} / ${garmentDims(G).hem.toFixed(0)} cm`+(G.hem?"":" (aus dem Foto)"); }
   $("f-yaw").textContent=Math.round(g.yaw*180/Math.PI)+"°";
 }
 
@@ -3727,7 +3810,7 @@ $("own-go").addEventListener("click",async()=>{
         px.beginPath(); px.moveTo(r[0]*320,y); px.lineTo(r[1]*320,y); px.moveTo(r[2]*320,y); px.lineTo(r[3]*320,y); px.stroke(); })); };
     im.src=G.m3.atlas;
     const saved=addOwnGarment(G);
-    const D=garmentDims(G), icr=G.m3.v.findIndex(v=>v>=G.m3.vc), r0=x=>x.toFixed(0);
+    const D=garmentDims(G), icr=icOf(G.m3), r0=x=>x.toFixed(0);
     const lenHow=D.man.len?"eingetragen":G.meas?"gemessen mit "+REFS[G.meas.ref].dat:G.waist?"geschätzt aus dem Bund":"grob geschätzt, Bund unbekannt";
     const notes=[];
     info.tilt.forEach((t,i)=>{ if(t!=null&&t>=1.5) notes.push(`${i?"Rückseite":"Vorderseite"} war ${t.toFixed(0)}° schräg fotografiert und wurde gerade gerechnet`); });
@@ -3737,11 +3820,12 @@ $("own-go").addEventListener("click",async()=>{
     else if(info.both) notes.push("Umriss aus Vorder- und Rückseite gemittelt");
     if(!info.split) notes.push("Schritt nicht erkannt (berühren sich die Säume?), Standardwert benutzt. Prüfe beim Anprobieren, ob der Bund oben ist; sonst „Umdrehen“ drücken oder mit einer Handbreit Abstand zwischen den Säumen neu fotografieren");
     if(info.hand.some(Boolean)) notes.push("Umriss von Hand geprüft");
+    if(info.belt.some(Boolean)) notes.push("Gürtel erkannt und entfernt (gehört nicht zum Teil)");
     if(info.ki.some(Boolean)) notes.push("Umriss mit KI-Freistellung"+(info.ki[0]&&info.ki[1]?"":info.ki[0]?" (Vorderseite)":" (Rückseite)"));
     for(const w of info.warn) notes.push("ACHTUNG: "+w);
     for(const w of dropped) notes.push("ACHTUNG: "+w);
     msg.textContent=`Fertig in ${((performance.now()-t0)/1000).toFixed(1)} s. Länge ${r0(D.len)} cm (${lenHow}), Bund ${r0(D.waist)} cm, `
-      +`Leibhöhe ${r0(G.m3.vc*D.cmW)} cm, ein Hosenbein flach oben ${r0(G.m3.hw[icr+1]*D.cmW)} cm und unten ${r0(D.hem)} cm. `
+      +(G.m3.rock?`Rock (keine Beine erkannt), Saum flach ${r0(2*D.hem)} cm. `:`Leibhöhe ${r0(G.m3.vc*D.cmW)} cm, ein Hosenbein flach oben ${r0(G.m3.hw[icr+1]*D.cmW)} cm und unten ${r0(D.hem)} cm. `)
       +(notes.length?notes.join(". ")+". ":"")+"Die gelben Linien zeigen den erkannten Umriss."
       +(D.est?" Tipp: Länge mit dem Maßband messen und eintragen, oder eine Bankkarte bzw. ein A4-Blatt mitfotografieren.":"")
       +(info.trimmed?" ACHTUNG: Oben oder unten war der Umriss unsauber (etwas ragte heraus oder der Untergrund ist der Hose zu ähnlich) und wurde begradigt. Prüfe die gelben Linien und trag die Länge mit dem Maßband ein.":"")
@@ -3757,7 +3841,7 @@ $("own-go").addEventListener("click",async()=>{
    nebeneinander (werden herausgeschnitten: links vorne, rechts hinten), Maßtabellen als Bild (Texterkennung) oder als Text.
    Reicht es für ein Modell, entsteht es sofort; fehlt etwas, steht da, was. Jede Änderung baut die Hose dieses Uploads neu,
    bis „Neue Hose“ gedrückt wird (oder eine zweite flache Vorderseite kommt: dann ist es eine andere Hose). */
-const UP={items:[],key:null,gen:0,size:-1,n:0,batch:0};
+const UP={items:[],key:null,gen:0,size:-1,n:0,batch:0,art:null,rock:false};
 const upMsg=h=>{ $("drop-msg").innerHTML=h; };
 const escH=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const cm1=v=>String(Math.round(v*10)/10).replace(".",",");
@@ -4063,6 +4147,17 @@ function paintWornBack(B,Wn,VC){
    Was durchfällt, wird nicht angelegt; die Gründe stehen in der Meldung. */
 function realismus(G,info={}){
   const M=G.m3, D=garmentDims(G), err=[], r0=x=>Math.round(x);
+  if(M.rock){                                          // Rock: Länge 25–130 cm, Bund 22–75, Saum 0,8- bis 4-mal so weit wie der Bund
+    const ratio=D.len/D.waist, saum=2*D.hem;
+    if(!(D.len>=25&&D.len<=130)) err.push(`Länge ${r0(D.len)} cm`);
+    if(!(D.waist>=22&&D.waist<=75)) err.push(`Bund ${r0(D.waist)} cm`);
+    if(!(ratio>=.6&&ratio<=3.6)) err.push(`Länge ${r0(D.len)} cm passt nicht zu ${r0(D.waist)} cm Bund`);
+    if(!(saum>=.8*D.waist&&saum<=4*D.waist)) err.push(`Saum ${r0(saum)} cm bei ${r0(D.waist)} cm Bund`);
+    let jump=0; for(let i=2;i<M.nr-3;i++) jump=Math.max(jump,Math.abs(M.hw[i+1]/M.hw[i]-1));
+    if(jump>.3) err.push("der Umriss springt");
+    if(info.fill!=null&&info.fill>.96) err.push("der Umriss ist ein Rechteck");
+    return err;
+  }
   const ic=Math.max(1,M.v.findIndex(v=>v>=M.vc)), kurz=D.len<70;
   const thigh=M.hw[Math.min(M.nr-1,ic+1)]*D.cmW, rise=M.vc*D.cmW, ratio=D.len/D.waist;
   if(!(D.len>=25&&D.len<=135)) err.push(`Länge ${r0(D.len)} cm`);
@@ -4094,7 +4189,7 @@ async function upAdd(files,texts=[]){
   await Promise.all(fresh.map(it=>upAnalyse(it).catch(e=>{ it.kind="none"; it.note=e&&e.message?e.message:"nicht lesbar"; })));
   // Kommt eine zweite flache Vorderseite, ist das eine andere Hose: von vorn anfangen
   const fl=UP.items.filter(i=>i.kind==="flat"), oldFlat=fl.filter(i=>i.batch!==batch), newFlat=fl.filter(i=>i.batch===batch);
-  if(UP.key&&oldFlat.length&&newFlat.length){ UP.items=UP.items.filter(i=>i.batch===batch); UP.key=null; UP.size=-1; }
+  if(UP.key&&oldFlat.length&&newFlat.length){ UP.items=UP.items.filter(i=>i.batch===batch); UP.key=null; UP.size=-1; UP.art=null; }
   upAssign(); upRender(); await upBuild();
 }
 async function upAnalyse(it){
@@ -4192,10 +4287,12 @@ async function upBuild(){
   have.push(back?"Rückseite: flach":wornB?"Rückseite: aus dem Foto mit Person":"Rückseite: <span class=\"dwarn\">fehlt, gespiegelte Vorderseite</span>");
   upMsg(`${have.join(" · ")}<br>Modell wird berechnet …`);
   let r=null; window.__ownCheck=$("own-check").checked;      // „Umriss immer prüfen“ gilt auch hier
-  try{ r=await buildGarment(front.cv,back?back.cv:null,t=>{ if(gen===UP.gen) upMsg(`${have.join(" · ")}<br>${escH(t)}`); },"",{worn:!back&&wornB?{cv:wornB.cv,L:wornB.person.L}:null}); }
+  try{ r=await buildGarment(front.cv,back?back.cv:null,t=>{ if(gen===UP.gen) upMsg(`${have.join(" · ")}<br>${escH(t)}`); },"",{worn:!back&&wornB?{cv:wornB.cv,L:wornB.person.L}:null,art:UP.art}); }
   catch(e){ if(gen===UP.gen) upMsg(`<div class="dbad">${escH(e&&e.message||"Das hat nicht geklappt.")}</div>`); return; }
   if(gen!==UP.gen) return;                          // inzwischen kam etwas Neues dazu
   const {G,info}=r;
+  UP.rock=!!info.rock; $("drop-art").hidden=false; $("drop-art").textContent=UP.rock?"⇄ Hose":"⇄ Rock";
+  $("drop-art").title=UP.rock?"Als Rock erkannt. Ist es eine Hose? Tippen":"Als Hose erkannt. Ist es ein Rock? Tippen";
   if(G.bad){ upMsg(`<div class="dbad">Aus diesem Foto ließ sich keine Hose bauen: ${escH(G.bad)}.</div>`); upDrop(); return; }
   // Maße aus der Tabelle (für die gewählte Größe)
   const notes=[], si=Math.max(0,UP.size); let mass="keine Maßtabelle";
@@ -4211,8 +4308,9 @@ async function upBuild(){
   G.label=UP.key&&GARMENTS[UP.key]?GARMENTS[UP.key].label:nextName();     // neu gebaut: Name bleibt
   const err=realismus(G,info);
   if(err.length){ upMsg(`<div class="dbad">${escH(realText(err,[...info.warn,...notes]))}</div>`); upDrop(); return; }
+  if(info.belt.some(Boolean)) notes.push("Gürtel erkannt und entfernt (gehört nicht zum Teil)");
   if(info.wornBack&&!info.wornBack.ok) notes.push(`Foto mit Person nicht benutzt: ${info.wornBack.why}; Rückseite ist die gespiegelte Vorderseite`);
-  if(!info.split) notes.push("Schritt nicht erkannt (Säume berühren sich?), Standardwert benutzt");
+  if(!info.split&&!info.rock) notes.push("Schritt nicht erkannt (Säume berühren sich?), Standardwert benutzt. Ist es ein Rock, tippe „Rock“");
   for(const w of info.warn) notes.push(w);
   // anlegen oder die Hose dieses Uploads ersetzen
   if(UP.key&&GARMENTS[UP.key]){ const k=UP.key; if(g.key===k) clearGarment(); if(g3.key===k) free3d(); G.fabric=GARMENTS[k].fabric||null; GARMENTS[k]=G;
@@ -4220,7 +4318,7 @@ async function upBuild(){
   else { addOwnGarment(G); UP.key=ownLast; }
   const D=garmentDims(G), est=!G.len&&!G.waist&&!G.meas;
   upMsg(`${have.join(" · ")}<br>Maße: ${est?`<span class="dwarn">${T?"Tabelle gelesen, aber ohne Bund-, Längen- oder Saummaß":"keine Maßtabelle"}: Größe nur geschätzt</span>`:escH(mass||"aus der Tabelle")}`
-    +`<br><b>Fertig:</b> Länge ${Math.round(D.len)} cm, Bund ${Math.round(D.waist)} cm, Saum ${Math.round(D.hem)} cm.`
+    +`<br><b>Fertig${G.m3.rock?" (Rock)":""}:</b> Länge ${Math.round(D.len)} cm, Bund ${Math.round(D.waist)} cm, Saum ${Math.round(G.m3.rock?2*D.hem:D.hem)} cm${G.m3.rock?" breit":""}.`
     +(notes.length?`<br><span class="dwarn">${notes.map(escH).join(". ")}.</span>`:""));
 }
 /* Hose dieses Uploads entfernen (neue Dateien ergaben keine brauchbare Hose) */
@@ -4243,7 +4341,8 @@ function upDrop(){ if(UP.key&&GARMENTS[UP.key]){ deleteGarment(UP.key); } UP.key
     const t=cd.getData("text/plain"); if(!f.length&&!(t&&t.trim())) return;
     e.preventDefault(); upAdd(f,f.length?[]:[t]);
   });
-  $("drop-new").addEventListener("click",()=>{ UP.items=[]; UP.key=null; UP.size=-1; UP.gen++; upRender(); upMsg(""); });
+  $("drop-new").addEventListener("click",()=>{ UP.items=[]; UP.key=null; UP.size=-1; UP.art=null; UP.gen++; $("drop-art").hidden=true; upRender(); upMsg(""); });
+  $("drop-art").addEventListener("click",()=>{ UP.art=UP.rock?"hose":"rock"; upBuild(); });
   $("drop-size").addEventListener("change",e=>{ UP.size=+e.target.value; upBuild(); });
 }
 loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null}; buildPicker(); renderSeries(); loadSharedGarments();
