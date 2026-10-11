@@ -262,7 +262,7 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
         <div class="small" id="coachSmall"></div>
       </div>
       <div class="hud-bottom">
-        <div class="nearhint" id="nearHint" hidden>Du kannst jetzt auch näher an die Kamera kommen</div>
+        <div class="nearhint" id="nearHint" hidden>✓ Gescannt · frei bewegen, auch näher kommen</div>
         <div class="hud-read" id="hudRead"></div>
         <div class="szrow" id="szchips" role="group" aria-label="Größe wählen"></div>
         <div class="chips" id="gchips"></div>
@@ -494,8 +494,8 @@ const fillT=(t,x,y)=>{ if(!stage.classList.contains("mirror")) return ctx.fillTe
 let landmarker=null, stream=null, running=false, starting=false;
 let facing="environment", lastTime=-1, held=false;
 let mode="cal", phase="cal";
-let live=null, ref=null, stableSince=0, badSince=0, camCount=1, nearScale=null, clean=false;
-const HOLD_MS=1800, STABLE_CM=2.6, WIN_MS=900;
+let live=null, ref=null, stableSince=0, badSince=0, camCount=1, nearScale=null, clean=false, sideSince=0, wasStraight=true, wasFull=false, scaleT=0;
+const HOLD_MS=700, STABLE_CM=3.2, WIN_MS=600;     // Scan: so lange ruhig (ms), so wenig Schwanken (cm) im Fenster (ms)
 const caps={cal:null, side:null};
 const STORE="massScanSerie";
 const cam={fk:.8};
@@ -508,18 +508,23 @@ const showError=m=>{$("error").hidden=false;$("error").textContent=m;};
 
 /* ---------- Glättung: Linien gleiten, statt zu springen ---------- */
 const oe={}, bt={}; const hist=[];
-/* One-Euro-Filter: im Stand sehr träge, bei echter Bewegung schnell. Dazu eine Sperre gegen
-   Sprünge — ein Punkt wandert nicht in einem einzigen Bild um ein Zehntel des Bildes. */
+/* One-Euro-Filter: im Stand sehr träge, bei echter Bewegung schnell. Dazu eine Sperre gegen einzelne Ausreißer: ein Punkt
+   wandert nicht in einem Bild um ein Zehntel des Bildes. Zeigen aber zwei Bilder hintereinander denselben neuen Ort, ist es eine
+   echte schnelle Bewegung (Sprung, Drehung): dann sofort folgen statt acht Bilder zu warten. */
 function emaV(k,v){
   if(v==null||!isFinite(v)) return oe[k]?oe[k].x:null;
   const now=performance.now(), s=oe[k];
-  if(!s){ oe[k]={x:v,dx:0,t:now,out:0}; return v; }
+  if(!s){ oe[k]={x:v,dx:0,t:now,out:0,raw:v}; return v; }
   let dt=(now-s.t)/1000; if(!(dt>0)) return s.x; if(dt>.25) dt=.25; s.t=now;
-  if(Math.abs(v-s.x)>.09&&++s.out<8){ s.x+=(v-s.x)*.04; return s.x; }   // Ausreißer: erst nach 8 Bildern glauben
-  if(Math.abs(v-s.x)<=.09) s.out=0;
+  if(Math.abs(v-s.x)>.09){
+    const echt=Math.abs(v-s.raw)<.035; s.raw=v;
+    if(!echt&&++s.out<8){ s.x+=(v-s.x)*.04; return s.x; }      // Ausreißer: erst glauben, wenn er sich bestätigt
+    s.out=0; s.dx=0; s.x=v; return s.x;
+  }
+  s.raw=v; s.out=0;
   const aD=dt/(dt+1/(2*Math.PI*1.0));
   s.dx+=aD*((v-s.x)/dt-s.dx);
-  const fc=.45+1.6*Math.abs(s.dx), a=dt/(dt+1/(2*Math.PI*fc));
+  const fc=.45+3*Math.abs(s.dx), a=dt/(dt+1/(2*Math.PI*fc));
   s.x+=a*(v-s.x); return s.x;
 }
 function emaBand(k,b){
@@ -527,7 +532,7 @@ function emaBand(k,b){
   const l=oe[k+".l"], r=oe[k+".r"]; if(!l||!r) return null;
   return {l:l.x,r:r.x,w:r.x-l.x,age:performance.now()-(bt[k]?bt[k].t:0),unsure:!!(bt[k]&&bt[k].u)};
 }
-function clearSm(){ for(const k in oe) delete oe[k]; for(const k in bt) delete bt[k]; hist.length=0; stableSince=0; badSince=0; nearScale=null; }
+function clearSm(){ for(const k in oe) delete oe[k]; for(const k in bt) delete bt[k]; hist.length=0; stableSince=0; badSince=0; nearScale=null; sideSince=0; }
 
 /* Ruhe in Zentimetern prüfen, nicht in Prozent der Pixelbreite */
 function stability(hipCm,shCm){
@@ -535,7 +540,7 @@ function stability(hipCm,shCm){
   if(hipCm!=null) hist.push({t,h:hipCm,s:shCm});
   while(hist.length&&t-hist[0].t>WIN_MS+400) hist.shift();
   const w=hist.filter(x=>t-x.t<=WIN_MS);
-  if(w.length<6||t-w[0].t<WIN_MS*.7) return null;
+  if(w.length<4||t-w[0].t<WIN_MS*.7) return null;           // mindestens 4 Bilder (langsame Geräte: ~7 Bilder/s)
   const hs=w.map(x=>x.h), ss=w.map(x=>x.s).filter(x=>x!=null);
   return Math.max(Math.max(...hs)-Math.min(...hs),
                   ss.length?Math.max(...ss)-Math.min(...ss):0);
@@ -621,7 +626,9 @@ async function loadModel(){
   await loadVision();
   const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
   const o={baseOptions:{modelAssetPath:POSE_URL,delegate:"GPU"},
-    runningMode:"VIDEO",numPoses:1,outputSegmentationMasks:true};
+    runningMode:"VIDEO",numPoses:1,outputSegmentationMasks:true,
+    // bei schnellen Bewegungen lieber weiterverfolgen als neu suchen (sonst springen die Punkte, wenn die Suche kurz ausfällt)
+    minPoseDetectionConfidence:.5,minPosePresenceConfidence:.4,minTrackingConfidence:.35};
   try{ landmarker=await PoseLandmarker.createFromOptions(vision,o); }
   catch(_){ o.baseOptions.delegate="CPU"; landmarker=await PoseLandmarker.createFromOptions(vision,o); }
 }
@@ -805,7 +812,9 @@ function analyse(res){
   const m={d:mk.getAsFloat32Array(),w:mk.width,h:mk.height};
   const bounds=maskBounds(m.d,m.w,m.h);
 
-  const aspect=vw/vh, isSide=(phase==="side");
+  const aspect=vw/vh;
+  // Seitlich (Breite im Bild = Körpertiefe): aus der Drehung des letzten Bildes; vor dem ersten Scan gilt „von vorn“
+  const isSide=phase!=="cal"&&Math.abs(Math.sin(fc.yaw))>.7;
   // Ist ein Punkt verdeckt (Hand vor der Hüfte), bleibt seine letzte gute Position stehen
   const V=i=>(L[i].visibility??1)>=.4;
   const hold=(k,v,good)=>{ const r=emaV(k,good?v:null); return r==null?emaV(k,v):r; };
@@ -818,29 +827,36 @@ function analyse(res){
   const topN=emaV("topN",bounds?bounds.top:null,.3);
   const botN=emaV("botN",bounds?bounds.bottom:null,.3);
 
+  // Maßstab (cm je Bildhöhe). Ganzer Körper im Bild und gerade: aus der Körpergröße. Sonst aus der Rumpflänge (Schulter bis
+  // Hüfte, ändert sich beim Drehen nicht), vor dem ersten Scan mit dem Durchschnitt 0,29 × Körpergröße, danach gemessen.
+  // So liegt die Hose sofort auf, auch wenn man nah an der Kamera ins Bild kommt, und bleibt beim Näherkommen richtig groß.
   let cmPerUnit=null, scaleSrc="";
-  const span=(topN!=null&&botN!=null)?botN-topN:0;
-  if(phase!=="near"){
-    if(!(span>.1)){ setStatus("Ganzer Körper muss ins Bild","warn");
-      coach("Geh ein paar Schritte zurück","","bad",false,"Geh ein paar Schritte zurück"); stableSince=0; return; }
-    cmPerUnit=num($("height").value)/span; scaleSrc="Körpergröße";
-  }else if(ref){
-    // Maßstab zuerst aus der Rumpflänge: die ändert sich weder beim Drehen noch durch Hände
-    // an der Hüfte. Hüft- und Schulterbreite nur als Ersatz, wenn die Schultern nicht im Bild sind.
-    let cand=null;
-    const shIn=V(11)&&V(12)&&L[11].y>.02&&L[12].y>.02;
-    if(ref.torso&&shIn&&V(23)&&V(24)&&hipY-shY>.04){ cand=ref.torso/(hipY-shY); scaleSrc="Rumpflänge"; }
-    else if(Math.abs(Math.cos(fc.yaw))>.9){          // Breiten nur frontal (seitlich misst man die Körpertiefe); sonst Maßstab halten
-      const c=[];
-      if(mode!=="top"){ const t0=torsoSpan(m,hipY,L,0); if(t0&&t0.w>.02) c.push(ref.hip/(t0.w*aspect)); }
-      if(shoulderN>.02&&shIn) c.push(ref.shoulder/(shoulderN*aspect));
-      if(c.length){ cand=Math.min(...c); scaleSrc="Körperbreite"; }
-    }
-    // höchstens 1,5 % Änderung pro Bild: die Hose pumpt nicht mehr
-    if(cand) nearScale=nearScale?nearScale*clamp(cand/nearScale,.985,1.015):cand;
+  const H=num($("height").value)||175, span=(topN!=null&&botN!=null)?botN-topN:0;
+  const full=span>.1&&topN>.008&&botN<.992;
+  const shIn=V(11)&&V(12)&&L[11].y>.02&&L[12].y>.02, torsoN=hipY-shY;
+  const torsoUp=shIn&&V(23)&&V(24)&&torsoN>.04&&Math.abs((L[11].x+L[12].x-L[23].x-L[24].x)/2*aspect)<.6*torsoN;   // Rumpf eher senkrecht
+  const cands=[];
+  if(full&&wasStraight){ cands.push(H/span); scaleSrc="Körpergröße"; }
+  if(torsoUp){ cands.push((ref&&ref.torso?ref.torso:.29*H)/torsoN); scaleSrc=scaleSrc?scaleSrc+" + Rumpflänge":"Rumpflänge"; }
+  if(!cands.length&&ref&&Math.abs(Math.cos(fc.yaw))>.9){          // Breiten nur frontal (seitlich misst man die Körpertiefe)
+    if(mode!=="top"){ const t0=torsoSpan(m,hipY,L,0); if(t0&&t0.w>.02) cands.push(ref.hip/(t0.w*aspect)); }
+    if(shoulderN>.02&&shIn) cands.push(ref.shoulder/(shoulderN*aspect));
+    if(cands.length) scaleSrc="Körperbreite";
+  }
+  if(phase==="cal"&&full) cmPerUnit=H/span;                       // erster Scan: immer aus der Körpergröße
+  else{
+    const cand=cands.length?cands.reduce((a,b)=>a+b,0)/cands.length:null;
+    // höchstens 70 % Änderung je Sekunde (unabhängig von der Bildrate): die Hose pumpt nicht, folgt aber beim Näherkommen
+    const kS=Math.exp(.7*Math.min(.2,(performance.now()-(scaleT||performance.now()))/1000));
+    if(cand) nearScale=nearScale?nearScale*clamp(cand/nearScale,1/kS,kS):cand;
     cmPerUnit=nearScale;
   }
-  if(!cmPerUnit){ setStatus("Referenz nicht sichtbar","warn"); stableSince=0; return; }
+  if(phase==="cal"&&full) nearScale=cmPerUnit;
+  scaleT=performance.now();
+  // Gerade ganz ins Bild gekommen: Breiten neu ansetzen statt langsam vom alten (nahen) Bild herüberzugleiten
+  if(phase==="cal"&&full&&!wasFull){ for(const k of Object.keys(oe)) if(/^(hip|waist|knee\d|thigh\d)\./.test(k)) delete oe[k]; hist.length=0; }
+  wasFull=full;
+  if(!cmPerUnit){ setStatus("Hüfte und Schultern nicht im Bild","warn"); coach("Stell dich ins Bild","","bad",false,"Stell dich ins Bild"); stableSince=0; return; }
 
   const toCm=n=>n*aspect*cmPerUnit;
   const pxPerCm=vw/(aspect*cmPerUnit);
@@ -877,54 +893,48 @@ function analyse(res){
     thighR:!isSide&&bothStraight&&legs[1].thigh?toCm(legs[1].thigh.w):null,
     kneeL:!isSide&&bothStraight&&legs[0].knee?toCm(legs[0].knee.w):null,
     kneeR:!isSide&&bothStraight&&legs[1].knee?toCm(legs[1].knee.w):null,
-    inseam:(crotchFresh&&botN!=null&&bothStraight)?(botN-crotchY)*cmPerUnit:null,
-    leg:botN!=null?(botN-hipY)*cmPerUnit:null,
+    inseam:(full&&crotchFresh&&bothStraight)?(botN-crotchY)*cmPerUnit:null,
+    leg:full?(botN-hipY)*cmPerUnit:null,
     shoulderN, torso:(hipY-shY)*cmPerUnit
   };
   if(!held) live=s;
 
-  const sRat=(ref&&ref.shoulderN>.01)?shoulderN/ref.shoulderN:1;
-  const hRat=(ref&&ref.hip>1&&hipCm!=null)?hipCm/ref.hip:1;
-  const tr=clamp(Math.max((.75-sRat)/.35,(1.02-hRat)/.22),0,1);
-  const turned=tr>=.8, frontal=tr<.35;
-
+  wasStraight=legsOk;
   const vis=isSide?Math.max(L[23].visibility??1,L[24].visibility??1)
                   :Math.min(L[23].visibility??1,L[24].visibility??1);
   const drift=stability(hipCm,shCm);
+  const tr=Math.abs(Math.sin(fc.yaw));                              // 0 von vorn, 1 seitlich
 
+  // Scan: einmal ganz im Bild, gerade und kurz ruhig → Maße von vorn, die Hose liegt sofort auf. Danach frei bewegen und näher
+  // kommen; dreht man sich einmal ganz im Bild zur Seite und hält kurz still, wird die Körpertiefe nebenbei gemessen.
   let ok=false,big="",small="",lvl="warn",voice="";
+  const nowT=performance.now();
   if(held){ setStatus("Messwert eingefroren","ok"); lvl=null; }
-  else if(phase!=="near"&&topN!=null&&(topN<.008||botN>.992)){
-    setStatus("Körper angeschnitten","warn"); big="Geh ein paar Schritte zurück"; lvl="bad"; voice=big; }
-  else if(!legsOk&&phase!=="near"){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
-  else if(vis<.5){ setStatus("Hüfte schlecht sichtbar","warn"); big="Bleib so stehen"; }
-  else if(phase==="cal"&&!frontal){ setStatus("Zur Kamera drehen","warn"); big="Dreh dich zur Kamera"; voice=big; }
-  else if(phase==="side"&&!turned){ setStatus(`Drehung ${Math.round(tr*100)} %`,"warn");
-    big="Dreh dich zur Seite"; small="Arme vor der Brust"; voice=big; }
-  else if(phase==="near"&&turned){ setStatus("Maßstab unsicher","warn"); }
-  else if(drift==null||drift>STABLE_CM){
-    setStatus(drift==null?"Messe …":`In Bewegung, ${drift.toFixed(1)} cm`,"warn"); big="Bleib so stehen"; voice=big; }
-  else ok=true;
+  else if(phase==="cal"){
+    if(!full){ setStatus("Für die Maße einmal ganz ins Bild","warn"); big="Geh einen Schritt zurück"; small="Ganz ins Bild, von Kopf bis Fuß"; voice=big; }
+    else if(!legsOk){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
+    else if(vis<.5){ setStatus("Hüfte schlecht sichtbar","warn"); big="Bleib kurz so"; }
+    else if(drift==null||drift>STABLE_CM){ setStatus(drift==null?"Messe …":`In Bewegung, ${drift.toFixed(1)} cm`,"warn"); }
+    else ok=true;
+  }
+  else if(!caps.side&&full&&isSide&&tr>.85&&(legs[0].straight||legs[1].straight)&&drift!=null&&drift<=STABLE_CM){
+    if(!sideSince) sideSince=nowT;
+    if(nowT-sideSince>=HOLD_MS) captureSide();
+  }
+  else sideSince=0;
 
   // Kurze Aussetzer brechen den Scan nicht ab: erst nach 0,45 s ohne Ruhe von vorn
-  const nowT=performance.now();
   if(ok) badSince=0; else if(!badSince) badSince=nowT;
-  const counting=!held&&phase!=="near"&&(ok||(stableSince>0&&nowT-badSince<450));
-  const showTurn=(phase==="side"&&!turned&&!counting&&!held);
-  $("coachTurn").hidden=!showTurn;
-  if(showTurn) $("coachTurn").textContent=Math.round(tr*100)+" %";
-
+  const counting=!held&&phase==="cal"&&(ok||(stableSince>0&&nowT-badSince<450));
+  $("coachTurn").hidden=true; $("coachCount").hidden=true;
   if(counting){
-    if(!stableSince){ stableSince=nowT; beep(760,90,.25); }
-    const el=nowT-stableSince;
-    $("coachCount").hidden=false;
-    $("coachCount").textContent=Math.max(1,Math.ceil((HOLD_MS-el)/600));
-    coach("Scan läuft","Nicht bewegen","ok",true);
-    setStatus("Stabil","ok");
-    if(el>=HOLD_MS&&ok){ $("coachCount").hidden=true; phase==="cal"?captureCal():captureSide(); }
+    if(!stableSince) stableSince=nowT;
+    setStatus("Scan …","ok");
+    if(nowT-stableSince>=HOLD_MS&&ok) captureCal();
+    else coach("","",null);
   }else{
-    $("coachCount").hidden=true; stableSince=0;
-    if(ok&&phase==="near"){ setStatus("Stabil","ok"); coach("","","ok"); }
+    stableSince=0;
+    if(phase!=="cal"&&!held){ setStatus(caps.side?"Anprobe":"Anprobe · zur Seite drehen misst die Tiefe","ok"); coach("","",null); }
     else coach(big,small,lvl,false,voice);
   }
 
@@ -958,6 +968,9 @@ function analyse(res){
     P[j].zr=clamp(P[j-1].zr+sgn*dep,-.35*foc0,.35*foc0);
   }
   const yaw=bodyYaw(L,V,vw,vh,pxPerCm);
+  // Neigung des Rumpfs in der Bildebene (Hüfte → Schultern): zur Seite lehnen, vorbeugen, Handstand. 0 = aufrecht.
+  const hipX=hold("hipX",(L[23].x+L[24].x)/2,V(23)&&V(24)), shX=hold("shX",(L[11].x+L[12].x)/2,V(11)&&V(12));
+  const roll=torsoRoll((shX-hipX)*vw,(shY-hipY)*vh,shIn&&V(23)&&V(24));
   // Schritt am Körper: aus der Silhouette, aber nur in anatomischen Grenzen (trägt man selbst eine weite Hose, öffnet sich
   // der Spalt zwischen den Beinen erst tiefer); ohne Erkennung geschätzt
   const Hk=num($("height").value)||175, kU=Hk/cmPerUnit, [k0,k1]=PASSFORM.schrittKoerper;
@@ -966,7 +979,8 @@ function analyse(res){
   const hz=((L[23].z||0)+(L[24].z||0))/2;
   const arms=[[11,13,15,17,19],[12,14,16,18,20]].map(ix=>ix.map(i=>({x:emaV("ax"+i,L[i].x)*vw,y:emaV("ay"+i,L[i].y)*vh,
     v:L[i].visibility??1,zr:emaV("az"+i,(L[i].z||0)-hz)})));
-  drawGarment(hipBand,beltY,pxPerCm,botN,ref?tr:0,bone,yCrotch,vw,vh,{yaw,half:fc.half,arms,mask:m,shirt:g.key&&PASSFORM.shirtDarueber?shirtHem(L,V):null});
+  drawGarment(hipBand,beltY,pxPerCm,botN,ref?tr:0,bone,yCrotch,vw,vh,{yaw,half:fc.half,arms,mask:m,roll,hipPx:[hipX*vw,hipY*vh],shPx:[shX*vw,shY*vh],
+    shirt:g.key&&PASSFORM.shirtDarueber&&Math.abs(roll)<.35?shirtHem(L,V):null});
   if(!clean) draw(L,{topN,botN},{hipY,waistY,crotchY:crotchY??hipY+PASSFORM.schrittOhne*kU0,crotchFresh,beltY},{hipBand,waistBand},legs,cmPerUnit,vw,vh);
   if(dbg.on) window.__messung={shirt:shirt.show>.02&&shirt.ys?{show:shirt.show,ys:shirt.ys.filter(v=>v!=null)}:null,hipY,shY,kneeY,beltY,waistY,crotchY,crotchFresh,topN,botN,hipBand,waistBand,hipD:Math.abs(L[23].x-L[24].x),
     legs:legs.map(l=>({thigh:l.thigh,knee:l.knee,thighY:l.thighY,kneeY:l.kneeY})),L:L.map(q=>({x:q.x,y:q.y,v:q.visibility}))};
@@ -1058,7 +1072,14 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
     if(g3.texReady&&cmH){
       // Kamera: Brennweite grob aus dem Bildwinkel, Blickachse durch die Bildmitte
       const foc=cam.fk*Math.max(vw,vh), pc=[vw/2,vh/2], yw=ext.yaw, sy=Math.sin(yw);
-      const h=v3.norm([Math.cos(yw),clamp((bone[0][0].y-bone[1][0].y)/(2*ext.half||1),-.3,.3)*Math.abs(Math.cos(yw)),sy]);
+      // Rumpf geneigt (roll): die ganze Hose dreht in der Bildebene mit, Bund und Schritt liegen auf der Rumpfachse.
+      // Die Schräge der Hüfte (eine Seite höher) wird nach Abzug dieser Neigung gemessen.
+      const ro=ext.roll||0, cr=Math.cos(ro), sr=Math.sin(ro), hx=bone[0][0].x-bone[1][0].x, hy=bone[0][0].y-bone[1][0].y;
+      const h0=[Math.cos(yw),clamp((-hx*sr+hy*cr)/(2*ext.half||1),-.3,.3)*Math.abs(Math.cos(yw)),sy];
+      const h=v3.norm([h0[0]*cr-h0[1]*sr,h0[0]*sr+h0[1]*cr,h0[2]]), upRef=[sr,-cr,0];
+      const hp=ext.hipPx||[cx,anchorY*vh], sp=ext.shPx||hp, kB=ro?.15:0;
+      const belt=[cx+(sp[0]-hp[0])*kB-sr*g.off*pxPerCm, anchorY*vh+cr*g.off*pxPerCm, 0];
+      const dC=yCrotch-hp[1], crotchP=[cx-sr*dC, hp[1]+cr*dC, 0];
       // Gelenke liegen im Bild schon perspektivisch richtig: zurückrechnen, damit sie nach der Projektion wieder dort landen
       const B=bone.map((c,s)=>c.map(p=>{ const z=(s?-1:1)*ext.half*sy+(p.zr||0), k=(foc+z)/foc;
         return [pc[0]+(p.x-pc[0])*k, pc[1]+(p.y-pc[1])*k, z]; }));
@@ -1068,7 +1089,7 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
       const fab=stoffVon(G);
       const fk=G.farbe||[1,1,1]; for(let c=0;c<3;c++) tint[c]*=fk[c];
       const drape=drapeFor(G,num($("height").value)||175,10);
-      const info=draw3d(M,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:num($("height").value)||175,rot:G.rot||null,ql:G.ql||null,offK:G.offK??null,drape,drapeW:drapeW(drape),ppc:pxPerCm,cmH,cmL,kHem:D.hem/(M.hw[M.nr-1]*cmH),h,belt:[cx,anchorY*vh+g.off*pxPerCm,0],yCrotch,bone:B,foc,pc,arms:ext.arms,zs:vw,inner:innerColor(G)},vw,vh,tint);
+      const info=draw3d(M,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:num($("height").value)||175,rot:G.rot||null,ql:G.ql||null,offK:G.offK??null,drape,drapeW:drapeW(drape),ppc:pxPerCm,cmH,cmL,kHem:D.hem/(M.hw[M.nr-1]*cmH),h,upRef,belt,yCrotch,crotchP,bone:B,foc,pc,arms:ext.arms,zs:vw,inner:innerColor(G)},vw,vh,tint);
       ctx.save();
       ctx.globalAlpha=g.opa;
       const src=ext.shirt?shirtCut(g3.c,ext.shirt,vw,vh,pxPerCm):g3.c;   // Oberteil über dem Bund: Hose dort weg
@@ -1563,14 +1584,14 @@ function psiArc(q,t){
 function pose3d(M,P){
   const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos, ppc=P.ppc;
   const S=P.cmH*ppc;                                   // Maßstab der Weiten: Länge laut Foto in Bildpunkten
-  const h=P.h, up=v3.norm(v3.sub([0,-1,0],v3.mul(h,v3.dot([0,-1,0],h)))), fw=v3.cross(h,up), dn=v3.mul(up,-1);
+  const UR=P.upRef||[0,-1,0], h=P.h, up=v3.norm(v3.sub(UR,v3.mul(h,v3.dot(UR,h)))), fw=v3.cross(h,up), dn=v3.mul(up,-1);   // UR: Richtung Hüfte → Schultern im Bild
   const top=v3.add(P.belt,v3.mul(up,(PASSFORM.sitzCm+(M.rock?PASSFORM.rockSitzCm:0))*ppc));
   // Leibhöhe am Körper. Flach gemessen ist sie länger, als sie am Körper senkrecht nach unten reicht: der unterste Teil
   // (einrollen) läuft zwischen den Beinen nach hinten und geht nur zu bogenSenkrecht nach unten. Der Schritt der Hose sitzt
   // am Schritt des Körpers (riseB) und hängt nur so tief darunter, wie die Hose länger ist (bis schrittTiefe ganz, darüber
   // anteilig). Vorher wurde die ganze flache Leibhöhe senkrecht gezeichnet: der Schritt hing fast am Knie.
   // Reicht die Hose nicht bis in den Schritt, wird sie leicht gedehnt statt eingeschnitten.
-  const riseB=v3.dot(v3.sub([P.belt[0],P.yCrotch,P.belt[2]],top),dn), eR=PASSFORM.einrollen, bg=PASSFORM.bogenSenkrecht;
+  const riseB=v3.dot(v3.sub(P.crotchP||[P.belt[0],P.yCrotch,P.belt[2]],top),dn), eR=PASSFORM.einrollen, bg=PASSFORM.bogenSenkrecht;
   const v0=M.vc*(1-eR), riseN=S*(v0+(M.vc-v0)*bg), exc=riseN-Math.max(0,riseB), t5=PASSFORM.schrittTiefe*ppc;
   const riseK=exc<0?Math.min(riseB,riseN*1.22):Math.max(0,riseB)+Math.min(exc,t5+Math.max(0,exc-t5)*PASSFORM.schrittTiefeRest);
   // Sehr kurze eingetragene Länge (bei eingetragenem Bund): lieber die Leibhöhe kürzen als die Länge verfehlen
@@ -2341,6 +2362,17 @@ function view3dFrame(now){
    So hängt nichts allein an der unruhigen Tiefenschätzung. */
 const fc={yaw:0,ks:.74,kh:.36,as:0,ah:0,cal:false,half:0,sgn:1,pend:0,t:0};
 const wrapA=a=>{ while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a; };
+/* Neigung des Rumpfs in der Bildebene aus der Richtung Hüfte → Schultern (Bildpunkte). Geglättet als Richtung (kein Sprung
+   bei ±180°), unter 7° gilt aufrecht (die Hose wackelt im Stehen nicht), ohne Schultern im Bild langsam zurück zu aufrecht. */
+const tro={x:0,y:-1,t:0,seen:0};
+function torsoRoll(tx,ty,ok){
+  const now=performance.now(), dt=clamp((now-(tro.t||now))/1000,0,.25); tro.t=now;
+  const l=Math.hypot(tx,ty);
+  if(ok&&l>1){ tro.seen=now; const a=1-Math.exp(-dt/.06); tro.x+=(tx/l-tro.x)*a; tro.y+=(ty/l-tro.y)*a; }
+  else if(now-tro.seen>800){ const a=1-Math.exp(-dt/.6); tro.x+=(0-tro.x)*a; tro.y+=(-1-tro.y)*a; }
+  const r=Math.atan2(tro.x,-tro.y), ar=Math.abs(r);
+  return r*sstep(.08,.2,ar);
+}
 function bodyYaw(L,V,vw,vh,ppc){
   const X=i=>L[i].x*vw, Y=i=>L[i].y*vh, shOk=V(11)&&V(12), hipOk=V(23)&&V(24);
   let c=null; fc.half=9*ppc;
@@ -3995,22 +4027,20 @@ function captureCal(){
   $("step-cal").classList.add("done");
   $("v-cal").textContent=`Hüfte ${fmt(live.hip)} · Schritt ${fmt(live.inseam)}`;
   $("m-leg").disabled=false; $("m-top").disabled=false;
-  phase="side"; hist.length=0; stableSince=0;
-  beep(1040,180); setTimeout(()=>beep(1320,220),190);
-  cue("Gescannt. Dreh dich jetzt zur Seite, Arme vor der Brust.",true);
-  coach("Dreh dich zur Seite","Arme vor der Brust","warn",true);
+  // gleich weiter mit der Anprobe: frei bewegen, näher kommen; die Seite wird nebenbei gemessen
+  phase="near"; setMode("leg"); hist.length=0; stableSince=0; sideSince=0;
+  beep(1040,140);
+  cue("Gescannt.",true);
+  $("nearHint").hidden=false; setTimeout(()=>{ $("nearHint").hidden=true; },6000);
+  buildResult();
 }
+/* Körpertiefe von der Seite: nebenbei, sobald man einmal ganz im Bild seitlich ruhig steht (kein eigener Schritt mehr) */
 function captureSide(){
   if(!live) return;
-  caps.side={...live};
+  caps.side={...live}; sideSince=0;
   $("step-side").classList.add("done");
   $("v-side").textContent=`Tiefe Hüfte ${fmt(live.hip)}`;
-  phase="near"; setMode("leg"); hist.length=0; stableSince=0;
-  beep(1320,200); setTimeout(()=>beep(1660,280),210);
-  cue("Fertig. Du kannst jetzt näher kommen.",true);
-  coach("Fertig","","ok",true);
-  setTimeout(()=>coach("","",null,true),2500);
-  $("nearHint").hidden=false; setTimeout(()=>{ $("nearHint").hidden=true; },10000);
+  beep(1320,120);
   buildResult();
 }
 function buildResult(){

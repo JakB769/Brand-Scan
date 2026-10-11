@@ -7,7 +7,11 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0};
     const yaw=md.yaw, c=Math.cos(yaw), s=Math.sin(yaw), cx=.5+(md.sway?Math.sin(t*2.2)*.03:0);
     // zoom: Person kommt näher (Nahphase); um die Hüfte (95 cm hoch) vergrößert, Hüfte bei hueftY im Bild
     const zm=md.zoom||1, hy0=top+ph-95*cmN, ty=zm!==1?(md.hueftY??.42):hy0;
-    const P=(lat,hgt,fwd=0)=>({x:cx+(lat*c+fwd*s)*cmN/A*zm, y:ty+(top+ph-hgt*cmN-hy0)*zm, z:(md.zk==null?1:md.zk)*(lat*s-fwd*c)*cmN/A*zm, visibility:1});
+    // roll: ganze Person um die Hüfte in der Bildebene gedreht (Neigung, Handstand), shift: seitlich versetzt (schneller Sprung)
+    const rc=Math.cos(md.roll||0), rs=Math.sin(md.roll||0), sx=md.shift||0;
+    const P=(lat,hgt,fwd=0)=>{ let x=cx+(lat*c+fwd*s)*cmN/A*zm, y=ty+(top+ph-hgt*cmN-hy0)*zm;
+      if(md.roll){ const dx=(x-cx)*A, dy=y-ty; x=cx+(dx*rc-dy*rs)/A; y=ty+(dx*rs+dy*rc); }
+      return {x:x+sx, y, z:(md.zk==null?1:md.zk)*(lat*s-fwd*c)*cmN/A*zm, visibility:1}; };
     const L=Array.from({length:33},()=>({x:cx,y:.5,z:0,visibility:1}));
     L[0]=P(0,170,8);
     L[11]=P(20,148); L[12]=P(-20,148); L[13]=P(26,118); L[14]=P(-26,118); L[15]=P(30,92); L[16]=P(-30,92);
