@@ -46,6 +46,12 @@ await p.evaluate(()=>Object.assign(window.__mode,{zoom:1,rand:'raten'})); await 
 z=await zustand();
 pruefe(Math.abs(z.ppc/ppc1-1)<.06,`wieder zurück: Maßstab ${(z.ppc/ppc1).toFixed(2)}×`);
 
+// 3b) Gegenstand im Hintergrund, Arm über dem Kopf: Maßstab bleibt (oben = Kopf, unten = Füße, nur die Person selbst)
+for(const m of [{gegenstand:1},{armHoch:1}]){
+  await p.evaluate(m=>Object.assign(window.__mode,m),m); await p.waitForTimeout(2500); z=await zustand();
+  pruefe(Math.abs(z.ppc/ppc1-1)<.015,`${Object.keys(m)[0]}: Maßstab ${(z.ppc/ppc1).toFixed(3)}×`);
+  await p.evaluate(m=>{ for(const k in m) window.__mode[k]=0; },m); await p.waitForTimeout(1500); }
+
 // 4) Einmal zur Seite drehen: Tiefe nebenbei gemessen, Umfänge im Ergebnis
 await p.evaluate(()=>{ window.__mode.yaw=1.5; });
 await p.waitForFunction(()=>document.getElementById('step-side').classList.contains('done'),null,{timeout:15000}).catch(()=>{});

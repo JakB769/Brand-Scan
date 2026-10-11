@@ -698,6 +698,38 @@ function maskBounds(d,w,h){
   for(let y=h-1;y>=0&&b<0;y--){const r=y*w;for(let x=0;x<w;x+=sx){if(d[r+x]>.5){b=y;break;}}}
   return t<0?null:{top:t/h,bottom:b/h};
 }
+/* Oben und unten der Person für den Maßstab: nur der zusammenhängende Umriss um die Hüfte (ein Gegenstand oder eine zweite
+   Person im Hintergrund zählt nicht), oben nur über dem Kopf (hochgestreckte Arme zählen nicht), unten nur unter den Füßen.
+   Auf einem verkleinerten Raster (etwa 240 Zeilen). Ohne brauchbare Körperpunkte wie früher: oberste und unterste Zeile. */
+const pbS={g:null,st:null};
+function personBounds(m,L){
+  const V=i=>L[i]&&(L[i].visibility??1)>=.4;
+  if(!(V(23)||V(24))) return maskBounds(m.d,m.w,m.h);
+  const k=Math.max(1,Math.floor(m.h/240)), gw=Math.ceil(m.w/k), gh=Math.ceil(m.h/k), N=gw*gh;
+  if(!pbS.g||pbS.g.length<N){ pbS.g=new Uint8Array(N); pbS.st=new Int32Array(N); }
+  const G=pbS.g; G.fill(0,0,N);
+  const on=(x,y)=>m.d[Math.min(m.h-1,y*k)*m.w+Math.min(m.w-1,x*k)]>.5;
+  // Start: Hüftmitte, sonst in der Nähe
+  const hx=((V(23)?L[23].x:L[24].x)+(V(24)?L[24].x:L[23].x))/2, hy=((V(23)?L[23].y:L[24].y)+(V(24)?L[24].y:L[23].y))/2;
+  let sx=-1, sy=-1;
+  for(let r=0;r<6&&sx<0;r++) for(let dy=-r;dy<=r&&sx<0;dy++) for(let dx=-r;dx<=r;dx++){ const x=Math.round(hx*gw)+dx, y=Math.round(hy*gh)+dy;
+    if(x>=0&&y>=0&&x<gw&&y<gh&&on(x,y)){ sx=x; sy=y; break; } }
+  if(sx<0) return maskBounds(m.d,m.w,m.h);
+  const st=pbS.st; let n=0; G[sy*gw+sx]=1; st[n++]=sy*gw+sx;
+  while(n){ const i=st[--n], x=i%gw, y=(i/gw)|0;
+    if(x>0&&!G[i-1]&&on(x-1,y)){ G[i-1]=1; st[n++]=i-1; } if(x<gw-1&&!G[i+1]&&on(x+1,y)){ G[i+1]=1; st[n++]=i+1; }
+    if(y>0&&!G[i-gw]&&on(x,y-1)){ G[i-gw]=1; st[n++]=i-gw; } if(y<gh-1&&!G[i+gw]&&on(x,y+1)){ G[i+gw]=1; st[n++]=i+gw; } }
+  // Spalten: über dem Kopf (Nase ± ein Viertel der Schulterbreite), unter den Füßen (um Knöchel, Ferse, Fußspitze)
+  const shW=V(11)&&V(12)?Math.abs(L[11].x-L[12].x):.1, band=(cx,hw)=>[Math.max(0,Math.floor((cx-hw)*gw)),Math.min(gw-1,Math.ceil((cx+hw)*gw))];
+  const head=V(0)?band(L[0].x,Math.max(.3*shW,.02)):V(11)&&V(12)?band((L[11].x+L[12].x)/2,.35*shW):[0,gw-1];
+  let top=-1;
+  for(let y=0;y<gh&&top<0;y++) for(let x=head[0];x<=head[1];x++) if(G[y*gw+x]){ top=y; break; }
+  const feet=[27,28,29,30,31,32].filter(V); let bot=-1;
+  const cols=feet.length?feet.map(i=>band(L[i].x,Math.max(.25*shW,.02))):[[0,gw-1]];
+  for(let y=gh-1;y>=0&&bot<0;y--) for(const [a,b] of cols){ for(let x=a;x<=b;x++) if(G[y*gw+x]){ bot=y; break; } if(bot>=0) break; }
+  if(top<0||bot<0) return maskBounds(m.d,m.w,m.h);
+  return {top:top*k/m.h,bottom:Math.min(m.h,(bot+1)*k)/m.h};
+}
 function runsAt(m,ny,minW=.012){
   const y=clamp(Math.round(ny*m.h),0,m.h-1), r=y*m.w, out=[]; let s=-1;
   for(let x=0;x<m.w;x++){
@@ -810,7 +842,7 @@ function analyse(res){
   const mk=res.segmentationMasks&&res.segmentationMasks[0];
   if(!mk){ setStatus("Silhouette fehlt","warn"); stableSince=0; return; }
   const m={d:mk.getAsFloat32Array(),w:mk.width,h:mk.height};
-  const bounds=maskBounds(m.d,m.w,m.h);
+  const bounds=personBounds(m,L);
 
   const aspect=vw/vh;
   // Seitlich (Breite im Bild = Körpertiefe): aus der Drehung des letzten Bildes; vor dem ersten Scan gilt „von vorn“
@@ -4359,6 +4391,8 @@ function loadPoseImg(){
   poseImgP=(async()=>{
     const V=await visionBundle(), fset=await V.FilesetResolver.forVisionTasks(MP_URL+"/wasm");
     poseImg=await V.PoseLandmarker.createFromOptions(fset,{baseOptions:{modelAssetPath:POSE_URL,delegate:"CPU"},runningMode:"IMAGE",numPoses:1});
+    // keine Segmentierungsmaske im Einzelbild-Modus: tasks-vision 0.10.18 bricht damit auf der CPU bei manchen Fotos ab
+    // („Check failed: 1 == ChannelSize()“, danach geht keine Erkennung mehr; an Diesel- und J&J-Fotos gesehen)
     return poseImg;
   })().catch(e=>{ console.warn("Personenerkennung nicht verfügbar",e); poseImgP=null; poseImg=null; return null; });
   return poseImgP;
@@ -4536,28 +4570,108 @@ function tableDims(T,si){
    Form und Maße kommen aus dem flachen Foto (gespiegelte Vorderseite, Bild B). Aus dem Foto mit Person wird nur der Stoff
    genommen: über dem Schritt quer zum Körper von Rand zu Rand der Hose, darunter je Bein quer zum Bein, vom Schritt bis zum
    Saum entlang der Knochen (Hüfte → Knie → Knöchel). So liegen Gesäßtaschen und Waschung an der richtigen Stelle. */
-function wornMask(cv,seeds){
+function wornMask(cv,seeds,L=null,pm=null){
   const w=cv.width,h=cv.height; let m=null;
   if(aiSeg){ try{ const a=aiMask(cv,seeds); if(a){ let n=0; for(let i=0;i<w*h;i++) n+=a[i]; if(n>w*h*.02) m=a; } }catch(_){} }
-  if(m) return m;
-  // ohne KI: Farbe wie an den Saatpunkten, zusammenhängend
-  const d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data, ref=[];
+  if(!m) m=wornColor(cv,seeds);
+  return m&&L?wornRefine(cv,m,seeds,L,pm):m;
+}
+/* ohne KI: Farbe wie an den Saatpunkten, zusammenhängend, Löcher gefüllt */
+function wornColor(cv,seeds){
+  const w=cv.width,h=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data, ref=[];
   for(const [sx,sy] of seeds) for(let dy=-3;dy<=3;dy++) for(let dx=-3;dx<=3;dx++){ const x=Math.round(sx+dx), y=Math.round(sy+dy); if(x>=0&&y>=0&&x<w&&y<h){ const i=(y*w+x)*4; ref.push([d[i],d[i+1],d[i+2]]); } }
   if(ref.length<20) return null;
   const mean=[0,1,2].map(k=>ref.reduce((s,p)=>s+p[k],0)/ref.length), sd=Math.sqrt(ref.reduce((s,p)=>s+(p[0]-mean[0])**2+(p[1]-mean[1])**2+(p[2]-mean[2])**2,0)/ref.length);
   const thr=Math.max(40,2.5*sd+20), near=i=>Math.hypot(d[i*4]-mean[0],d[i*4+1]-mean[1],d[i*4+2]-mean[2])<thr;
-  m=new Uint8Array(w*h); const st=[];
+  const m=new Uint8Array(w*h); const st=[];
   for(const [sx,sy] of seeds){ const x=Math.round(sx), y=Math.round(sy); if(x>=0&&y>=0&&x<w&&y<h){ const i=y*w+x; if(!m[i]&&near(i)){ m[i]=1; st.push(i); } } }
   while(st.length){ const i=st.pop(), x=i%w, y=(i/w)|0;
     for(const j of [x>0?i-1:-1,x<w-1?i+1:-1,y>0?i-w:-1,y<h-1?i+w:-1]) if(j>=0&&!m[j]&&near(j)){ m[j]=1; st.push(j); } }
-  // Löcher (Taschen, Aufnäher, Nieten) gehören dazu: alles, was vom Rand aus nicht erreichbar ist
-  const out=new Uint8Array(w*h);
+  return fillHoles(m,w,h);
+}
+/* Löcher (Taschen, Aufnäher, Nieten) gehören dazu: alles, was vom Bildrand aus nicht erreichbar ist. Mit bg: große Löcher,
+   die überwiegend Hintergrund zeigen (Spalt zwischen den Beinen, wenn sich unten die Säume berühren), bleiben offen. */
+function fillHoles(m,w,h,bg=null){
+  const out=new Uint8Array(w*h), st=[];
   for(let x=0;x<w;x++) for(const y of [0,h-1]){ const i=y*w+x; if(!m[i]&&!out[i]){ out[i]=1; st.push(i); } }
   for(let y=0;y<h;y++) for(const x of [0,w-1]){ const i=y*w+x; if(!m[i]&&!out[i]){ out[i]=1; st.push(i); } }
   while(st.length){ const i=st.pop(), x=i%w, y=(i/w)|0;
     for(const j of [x>0?i-1:-1,x<w-1?i+1:-1,y>0?i-w:-1,y<h-1?i+w:-1]) if(j>=0&&!m[j]&&!out[j]){ out[j]=1; st.push(j); } }
-  for(let i=0;i<w*h;i++) if(!out[i]) m[i]=1;
+  if(!bg){ for(let i=0;i<w*h;i++) if(!out[i]) m[i]=1; return m; }
+  let area=0; for(let i=0;i<w*h;i++) area+=m[i];
+  const seen=new Uint8Array(w*h);
+  for(let s0=0;s0<w*h;s0++){ if(out[s0]||m[s0]||seen[s0]) continue;
+    const comp=[s0]; seen[s0]=1; let nb=0;
+    for(let k=0;k<comp.length;k++){ const i=comp[k], x=i%w, y=(i/w)|0; if(bg(i)) nb++;
+      for(const j of [x>0?i-1:-1,x<w-1?i+1:-1,y>0?i-w:-1,y<h-1?i+w:-1]) if(j>=0&&!out[j]&&!m[j]&&!seen[j]){ seen[j]=1; comp.push(j); } }
+    if(!(comp.length>.01*area&&nb>.6*comp.length)) for(const i of comp) m[i]=1; }
   return m;
+}
+/* Hose am Model-Foto nachschärfen: die Freistellung (KI oder Farbe) nimmt manchmal Oberteil, Haare, Haut oder Schuhe mit.
+   Weg kommt: alles über der Taille; über der Hüfte und unter den Knöcheln, was eher wie Oberteil, Haut oder Schuh aussieht
+   als wie die Hose (Farben vom Rumpf und von den Füßen); mit Umriss der Person alles, was nicht zur Person gehört;
+   dann nur, was mit den Saatpunkten an den Beinen zusammenhängt. Nimmt das mehr als die Hälfte weg, bleibt die alte Maske. */
+function wornRefine(cv,m0,seeds,L,pm){
+  const w=cv.width,h=cv.height, ok=i=>L[i]&&(L[i].v??L[i].visibility??1)>.5, P=i=>[L[i].x*w,L[i].y*h];
+  if(!ok(23)||!ok(24)||!seeds.length) return m0;
+  const d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data, dist=(i,c)=>Math.hypot(d[i]-c[0],d[i+1]-c[1],d[i+2]-c[2]);
+  const hipY=(P(23)[1]+P(24)[1])/2, shY=ok(11)&&ok(12)?(P(11)[1]+P(12)[1])/2:null, T=shY!=null?hipY-shY:null;
+  // Hosenfarbe an den Saatpunkten
+  const ref=[]; for(const [sx,sy] of seeds) for(let dy=-3;dy<=3;dy++) for(let dx=-3;dx<=3;dx++){ const x=Math.round(sx+dx), y=Math.round(sy+dy); if(x>=0&&y>=0&&x<w&&y<h) ref.push((y*w+x)*4); }
+  if(ref.length<20) return m0;
+  const pc=[0,1,2].map(k=>ref.reduce((t,i)=>t+d[i+k],0)/ref.length), sd=Math.sqrt(ref.reduce((t,i)=>t+dist(i,pc)**2,0)/ref.length), thrP=Math.max(40,2.5*sd+20);
+  const pSkin=isSkin(pc[0],pc[1],pc[2]);
+  // Fremdfarben: Oberteil (Rumpf zwischen Schultern und Taille, zwei Farben), Schuhe (um Ferse und Fußspitze)
+  const others=[], mean=ix=>[0,1,2].map(k=>ix.reduce((t,i)=>t+d[i+k],0)/ix.length);
+  if(T>10){ const xs=[P(11)[0],P(12)[0],P(23)[0],P(24)[0]], x0=Math.round(Math.min(...xs)), x1=Math.round(Math.max(...xs)), px=[];
+    for(let y=Math.round(shY+.2*T);y<Math.round(shY+.6*T);y+=2) for(let x=x0;x<=x1;x+=2) if(x>=0&&y>=0&&x<w&&y<h) px.push((y*w+x)*4);
+    if(px.length>20){ let c=[mean(px.slice(0,px.length>>1)),mean(px.slice(px.length>>1))];
+      for(let it=0;it<6;it++){ const g=[[],[]]; for(const i of px) g[dist(i,c[0])<=dist(i,c[1])?0:1].push(i); c=c.map((q,k)=>g[k].length?mean(g[k]):q); }
+      for(const q of c) if(Math.hypot(q[0]-pc[0],q[1]-pc[1],q[2]-pc[2])>thrP) others.push(q); } }
+  let footY=null;
+  for(const f of [29,30,31,32]) if(ok(f)){ const [fx,fy]=P(f), px=[]; footY=Math.max(footY??0,fy);
+    for(let y=Math.round(fy-4);y<=Math.round(fy+4);y++) for(let x=Math.round(fx-4);x<=Math.round(fx+4);x++) if(x>=0&&y>=0&&x<w&&y<h) px.push((y*w+x)*4);
+    if(px.length){ const q=mean(px); if(Math.hypot(q[0]-pc[0],q[1]-pc[1],q[2]-pc[2])>thrP) others.push(q); } }
+  const ankY=ok(27)&&ok(28)?Math.min(P(27)[1],P(28)[1]):null;
+  // Hintergrund: häufige Farben am Bildrand (Studio-Hintergrund, auch zwischen den Beinen)
+  const bgc=[]; { const px=[]; for(let x=0;x<w;x+=4){ px.push(x*4,((h-1)*w+x)*4); } for(let y=0;y<h;y+=4){ px.push(y*w*4,(y*w+w-1)*4); }
+    let c=[mean(px.slice(0,px.length>>1)),mean(px.slice(px.length>>1))];
+    for(let it=0;it<6;it++){ const g=[[],[]]; for(const i of px) g[dist(i,c[0])<=dist(i,c[1])?0:1].push(i); c=c.map((q,k)=>g[k].length>px.length*.15?mean(g[k]):null).filter(Boolean); if(c.length<2) break; }
+    for(const q of c) if(Math.hypot(q[0]-pc[0],q[1]-pc[1],q[2]-pc[2])>1.5*thrP) bgc.push(q); }
+  const fremd=i=>{ const dp=dist(i,pc); if(dp<thrP) return false; if(!pSkin&&isSkin(d[i],d[i+1],d[i+2])) return true; for(const q of others) if(dist(i,q)<.7*dp) return true; return false; };
+  const hinter=i=>{ const dp=dist(i,pc); if(dp<thrP) return false; for(const q of bgc) if(dist(i,q)<.5*dp) return true; return false; };
+  // Umriss der Person: eine Zelle Rand dazu (die Maske der Pose-Erkennung ist weich und etwas knapp)
+  const inPerson=pm?((x,y)=>{ const cx=Math.floor(x*pm.w/w), cy=Math.floor(y*pm.h/h);
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const X=cx+dx, Y=cy+dy; if(X>=0&&Y>=0&&X<pm.w&&Y<pm.h&&pm.d[Y*pm.w+X]>64) return true; } return false; }):null;
+  let yTop=T?hipY-.45*T:0;
+  // Oberkante der Hose: stärkste waagrechte Farbkante zwischen Taille und Hüfte (in der Mitte zwischen den Hüftgelenken),
+  // darunter muss es nach Hose aussehen (eingestecktes Oberteil in ähnlicher Farbe wie die Jeans)
+  if(T){ const xa=Math.round(Math.min(P(23)[0],P(24)[0])), xb=Math.round(Math.max(P(23)[0],P(24)[0])), rows=[];
+    for(let y=Math.max(0,Math.round(yTop));y<Math.min(h,Math.round(hipY));y++){ let r=0,g=0,b=0,n=0; for(let x=xa;x<=xb;x++){ const i=(y*w+x)*4; if(m0[y*w+x]){ r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++; } }
+      rows.push(n>(xb-xa)*.5?[r/n,g/n,b/n]:null); }
+    // Kante = oben und unten verschieden, auch etwas weiter weg (eine dünne Linie, z. B. eine Taschennaht, hat oben und
+    // unten dieselbe Farbe und zählt nicht)
+    const k=Math.max(3,Math.round(.03*T)), avg=(y0,y1)=>{ const a=rows.slice(Math.max(0,y0),Math.max(0,y1)).filter(Boolean); return a.length>=(y1-y0)*.7?[0,1,2].map(q=>a.reduce((t,v)=>t+v[q],0)/a.length):null; };
+    const dd=(u,v)=>Math.hypot(u[0]-v[0],u[1]-v[1],u[2]-v[2]); let best=0, at=-1;
+    for(let y=2*k;y<rows.length-2*k;y++){ const ma=avg(y-k,y), mc=avg(y,y+k), ma2=avg(y-2*k,y-k), mc2=avg(y+k,y+2*k); if(!ma||!mc||!ma2||!mc2) continue;
+      const e=Math.min(dd(ma,mc),dd(ma2,mc2));
+      if(e>best&&dd(mc,pc)<dd(ma,pc)&&dd(mc2,pc)<dd(ma2,pc)) { best=e; at=y; } }
+    if(best>22) yTop=Math.max(0,Math.round(yTop))+at; }
+  const m=new Uint8Array(w*h); let n0=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=y*w+x; if(!m0[i]) continue; n0++;
+    if(y<yTop) continue;
+    if(y<hipY&&dist(i*4,pc)>1.3*thrP) continue;                       // über der Hüfte nur, was wie die Hose aussieht
+    if((y<hipY||(ankY!=null&&y>ankY))&&fremd(i*4)) continue;
+    if(hinter(i*4)) continue;
+    if(inPerson&&!inPerson(x,y)) continue;
+    m[i]=1; }
+  // nur, was mit den Saatpunkten zusammenhängt
+  const keep=new Uint8Array(w*h), st=[];
+  for(const [sx,sy] of seeds){ const x=Math.round(sx), y=Math.round(sy); if(x>=0&&y>=0&&x<w&&y<h&&m[y*w+x]&&!keep[y*w+x]){ keep[y*w+x]=1; st.push(y*w+x); } }
+  while(st.length){ const i=st.pop(), x=i%w, y=(i/w)|0;
+    for(const j of [x>0?i-1:-1,x<w-1?i+1:-1,y>0?i-w:-1,y<h-1?i+w:-1]) if(j>=0&&m[j]&&!keep[j]){ keep[j]=1; st.push(j); } }
+  let n1=0; for(let i=0;i<w*h;i++) n1+=keep[i];
+  return n1>=.5*n0?fillHoles(keep,w,h,i=>hinter(i*4)):m0;
 }
 function paintWornBack(B,Wn,VC){
   const {CW,CH}=GEN, cv=scaled(Wn.cv,1200), w=cv.width, h=cv.height, src=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
@@ -4570,7 +4684,7 @@ function paintWornBack(B,Wn,VC){
   if(!(thighL>8)) return {ok:false,why:"Beine im Foto mit Person zu klein"};
   const inside=p=>p[0]>=0&&p[1]>=0&&p[0]<w&&p[1]<h;
   const seeds=wornSeeds(cv,legs); seeds.push(add(hipM,mul(up,.1*thighL)));
-  const m=wornMask(cv,seeds.filter(inside));
+  const m=wornMask(cv,seeds.filter(inside),L,Wn.pm);
   if(!m) return {ok:false,why:"Hose im Foto mit Person nicht gefunden"};
   const M=p=>{ const x=Math.round(p[0]), y=Math.round(p[1]); return x>=0&&y>=0&&x<w&&y<h&&m[y*w+x]===1; };
   // so weit die Hose in Richtung dir reicht (kleine Lücken, z. B. Nähte, werden übersprungen)
@@ -4645,7 +4759,7 @@ function wornLength(Wn,M,Hcm){
   const legs=[[23,25,27],[24,26,28]].map(ix=>ix.map(P)).sort((a,b)=>a[0][0]-b[0][0]);
   const thighL=(len(sub(legs[0][1],legs[0][0]))+len(sub(legs[1][1],legs[1][0])))/2;
   const seeds=wornSeeds(cv,legs); if(seeds.length<2) return {ok:false,why:"Hose im Foto nicht gefunden"};
-  const m=wornMask(cv,seeds); if(!m) return {ok:false,why:"Hose im Foto nicht gefunden"};
+  const m=wornMask(cv,seeds,Wn.L,Wn.pm); if(!m) return {ok:false,why:"Hose im Foto nicht gefunden"};
   const inM=p=>{ const x=Math.round(p[0]), y=Math.round(p[1]); return x>=0&&y>=0&&x<w&&y<h&&m[y*w+x]===1; };
   const reach=(p,dir,max,gap=4)=>{ let last=0, miss=0; for(let t=1;t<max;t++){ if(inM(add(p,mul(dir,t)))){ last=t; miss=0; } else if(++miss>gap) break; } return last; };
   // Bund oben in der Mitte, Schritt: von der Hüfte nach unten, so weit die Hose reicht
@@ -4724,7 +4838,7 @@ function photoFit(G,Wn,Hcm,maxS=900){
   let ratio=null, ratioUp=null, dcOut=null, colGain=null;
   try{
     const legs=[[23,25,27],[24,26,28]].map(ix=>ix.map(P)).sort((a,b)=>a[0][0]-b[0][0]);
-    const m=wornMask(cv,wornSeeds(cv,legs));
+    const m=wornMask(cv,wornSeeds(cv,legs),L,Wn.pm);
     const run=(xc,y,get)=>{ xc=Math.round(xc); y=Math.round(y); if(y<0||y>=H||xc<0||xc>=W||!get(xc,y)) return null; let a=xc,b=xc;
       while(a>0&&get(a-1,y)) a--; while(b<W-1&&get(b+1,y)) b++; return [a,b]; };
     const inP=(xx,y)=>m[y*W+xx]===1, in3=(xx,y)=>ga[(y*W+xx)*4+3]>100, med=a=>{ a.sort((p,q)=>p-q); return a[a.length>>1]; };
@@ -4761,7 +4875,7 @@ async function upFitShow(G,key,gen){
   mesh3d(key,G.m3);                                     // Stoffbild dieser Hose laden und abwarten
   for(let t=0;t<100&&!g3.texReady;t++){ await new Promise(r=>setTimeout(r,50)); if(g3.key!==key) mesh3d(key,G.m3); }
   if(gen!==UP.gen||!GARMENTS[key]||g.key!==key||!g3.texReady||running) return;
-  const mh=modelHeight(M0rock(G)), Wn={cv:W.cv,L:W.person.L,side:W.side};
+  const mh=modelHeight(M0rock(G)), Wn={cv:W.cv,L:W.person.L,pm:W.person.pm,side:W.side};
   let r=photoFit(G,Wn,mh.cm); if(!r) return;
   let txt="";
   // Weite: nur wenn die Größe nicht aus Tabelle oder Model-Größe kommt (sonst sind die Maße echt)
@@ -4951,7 +5065,7 @@ async function upBuild(){
   have.push(back?"Rückseite: flach":wornB?"Rückseite: aus dem Foto mit Person":"Rückseite: <span class=\"dwarn\">fehlt, gespiegelte Vorderseite</span>");
   upMsg(`${have.join(" · ")}<br>Modell wird berechnet …`);
   let r=null; window.__ownCheck=$("own-check").checked;      // „Umriss immer prüfen“ gilt auch hier
-  try{ r=await buildGarment(front.cv,back?back.cv:null,t=>{ if(gen===UP.gen) upMsg(`${have.join(" · ")}<br>${escH(t)}`); },"",{worn:!back&&wornB?{cv:wornB.cv,L:wornB.person.L}:null,art:UP.art}); }
+  try{ r=await buildGarment(front.cv,back?back.cv:null,t=>{ if(gen===UP.gen) upMsg(`${have.join(" · ")}<br>${escH(t)}`); },"",{worn:!back&&wornB?{cv:wornB.cv,L:wornB.person.L,pm:wornB.person.pm}:null,art:UP.art}); }
   catch(e){ if(gen===UP.gen) upMsg(`<div class="dbad">${escH(e&&e.message||"Das hat nicht geklappt.")}</div>`); return; }
   if(gen!==UP.gen) return;                          // inzwischen kam etwas Neues dazu
   const {G,info}=r;
@@ -4977,7 +5091,7 @@ async function upBuild(){
       notes.push(`Größe des Models ${mdl.size}: Innenbein ${cm1(ins)} cm, Länge ${cm1(v)} cm${G.waist?", Bund "+cm1(G.waist)+" cm":""}`); } }
   const wornAll=its.filter(i=>i.kind==="worn"&&i.person&&i.person.L&&i.person.legs);
   if(wornAll.length){
-    const mh=modelHeight(M0rock(G)), res=wornAll.slice(0,3).map(i=>{ try{ return wornLength({cv:i.cv,L:i.person.L},G.m3,mh.cm); }catch(e){ console.warn(e); return {ok:false}; } }).filter(r=>r.ok&&r.len>=25&&r.len<=140);
+    const mh=modelHeight(M0rock(G)), res=wornAll.slice(0,3).map(i=>{ try{ return wornLength({cv:i.cv,L:i.person.L,pm:i.person.pm},G.m3,mh.cm); }catch(e){ console.warn(e); return {ok:false}; } }).filter(r=>r.ok&&r.len>=25&&r.len<=140);
     if(res.length){
       // Liegt der Saum auf dem Schuh, ist die Hose dort gestaucht: etwas länger als sichtbar (Diesel: Tabelle +5 % über der Messung)
       const ls=res.map(r=>r.len*(r.stacked?1.04:1)).sort((a,b)=>a-b), lm=Math.round(ls[(ls.length-1)>>1]*10)/10, st=res.some(r=>r.stacked);
