@@ -47,7 +47,9 @@ const kontakt=await p.evaluate(()=>{ const c=document.getElementById('overlay'),
   const px=1/(cmN*c.height); return [1,2].map(k=>d[(Math.round(y+k*px)*c.width+X)*4+3]); });
 pruefe(kontakt[0]>15,`Kontaktschatten unter dem Saum: Deckkraft 1 cm darunter ${kontakt[0]}, 2 cm darunter ${kontakt[1]}`);
 
-// 3) Geometrie: Saum ohne übereinanderliegende Zeilen, Bund hinten höher, Rand mit Dicke, keine ungültigen Werte
+// 3) Geometrie: Saum ohne übereinanderliegende Zeilen (die gerechnete Form, ohne Stoff-Fall: mit Fall liegen Falten
+//    übereinander, siehe tfall.mjs), Bund hinten höher, Rand mit Dicke, keine ungültigen Werte
+await p.evaluate(()=>{ window.__dbg.PASSFORM.fall=false; }); await p.waitForTimeout(800);
 const geo=await p.evaluate(()=>{
   const g3=window.__dbg.g3, M=(g3.M||Object.values(window.__dbg.GARMENTS).find(G=>G.m3).m3), NR=M.nr, C=13, ic=g3.ic, T=g3.tgRoh, ppc=g3.lastPpc, F=g3.frame;
   const id=(s,i,f,j)=>((s*NR+i)*2+f)*C+j, P=(A,k)=>[A[k*3],A[k*3+1],A[k*3+2]];
@@ -61,7 +63,8 @@ const geo=await p.evaluate(()=>{
   const nRim=g3.nv-g3.nRing-g3.nWall;
   return {minStep,hinten,bad,nRim,glErr:g3.gl.getError()};
 });
-pruefe(geo.minStep>=.25,`Saum: jede Zeile liegt tiefer als die vorige (kleinster Abstand ${geo.minStep.toFixed(2)} cm)`);
+await p.evaluate(()=>{ window.__dbg.PASSFORM.fall=true; });
+pruefe(geo.minStep>=.25,`Saum (gerechnete Form): jede Zeile liegt tiefer als die vorige (kleinster Abstand ${geo.minStep.toFixed(2)} cm)`);
 pruefe(geo.hinten>1.5&&geo.hinten<4,`Bund hinten ${geo.hinten.toFixed(1)} cm höher als vorne`);
 pruefe(geo.nRim>0&&geo.bad===0,`Bund und Saum mit Dicke (${geo.nRim} Randpunkte), keine ungültigen Werte`);
 pruefe(geo.glErr===0,`keine WebGL-Fehler (${geo.glErr})`);
