@@ -42,7 +42,7 @@ const atlas=()=>p.evaluate(async()=>{
 });
 // 3D-Ansicht (Puppe in 179 cm): Kennwerte aus pose3d und die Lage der Punkte
 const form=async()=>{ await (await p.$('#g3dview')).scrollIntoViewIfNeeded(); await p.waitForTimeout(1500);
-  return p.evaluate(()=>{ const {g3,GARMENTS,g}=window.__dbg, M=GARMENTS[g.key].m3, NR=M.nr, C=13, ic=g3.ic, pos=g3.pos, F=g3.frame, ppc=g3.lastPpc;
+  return p.evaluate(()=>{ const {g3,GARMENTS,g}=window.__dbg, M=(g3.M||GARMENTS[g.key].m3), NR=M.nr, C=13, ic=g3.ic, pos=g3.pos, F=g3.frame, ppc=g3.lastPpc;
     const P=k=>[pos[k*3]-F.top[0],pos[k*3+1]-F.top[1],pos[k*3+2]-F.top[2]], dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
     const id=(s,i,f,j)=>((s*NR+i)*2+f)*C+j;
     // Gesäß: Zeile über dem Schritt, in der die Rückseite am weitesten nach hinten reicht

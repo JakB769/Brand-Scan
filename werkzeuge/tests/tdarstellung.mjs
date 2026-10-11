@@ -49,7 +49,7 @@ pruefe(kontakt[0]>15,`Kontaktschatten unter dem Saum: Deckkraft 1 cm darunter ${
 
 // 3) Geometrie: Saum ohne übereinanderliegende Zeilen, Bund hinten höher, Rand mit Dicke, keine ungültigen Werte
 const geo=await p.evaluate(()=>{
-  const g3=window.__dbg.g3, M=Object.values(window.__dbg.GARMENTS).find(G=>G.m3).m3, NR=M.nr, C=13, ic=g3.ic, T=g3.tgRoh, ppc=g3.lastPpc, F=g3.frame;
+  const g3=window.__dbg.g3, M=(g3.M||Object.values(window.__dbg.GARMENTS).find(G=>G.m3).m3), NR=M.nr, C=13, ic=g3.ic, T=g3.tgRoh, ppc=g3.lastPpc, F=g3.frame;
   const id=(s,i,f,j)=>((s*NR+i)*2+f)*C+j, P=(A,k)=>[A[k*3],A[k*3+1],A[k*3+2]];
   let minStep=1e9;
   for(let s=0;s<2;s++){ const a=P(T,id(s,ic,0,0)), z=P(T,id(s,NR-1,0,0)), dl=Math.hypot(z[0]-a[0],z[1]-a[1],z[2]-a[2]), dir=[(z[0]-a[0])/dl,(z[1]-a[1])/dl,(z[2]-a[2])/dl];

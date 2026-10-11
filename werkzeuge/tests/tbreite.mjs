@@ -16,7 +16,7 @@ await p.click('#clean'); await p.waitForTimeout(2500);
 const miss=()=>p.evaluate(()=>{
   // Form vor den Stauchfalten (Zustand der Stoffphysik): die Falten am Knöchel beulen den Saum absichtlich etwas aus,
   // geprüft wird hier aber, ob verrauschte Tiefe die Breite verfälscht
-  const {g3,cam,GARMENTS,g}=window.__dbg, M=GARMENTS[g.key].m3, C=13, NR=M.nr, pos=g3.cx||g3.pos;
+  const {g3,cam,GARMENTS,g}=window.__dbg, M=(g3.M||GARMENTS[g.key].m3), C=13, NR=M.nr, pos=g3.cx||g3.pos;
   const vw=1280, vh=720, foc=cam.fk*Math.max(vw,vh), pc=[vw/2,vh/2];
   const cmH=g.flat/M.wf, S=cmH;               // Länge in cm
   const breite=(s,i)=>{ let lo=1e9,hi=-1e9;

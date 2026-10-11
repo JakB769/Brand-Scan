@@ -20,8 +20,13 @@ ersetze('scn.x.drawImage(video,0,0,24,24);',"scn.x.fillStyle='rgb(150,146,140)';
 // 7. KI-Freistellung und Personenerkennung in Einzelbildern nur mit window.__kiTest (tki.mjs, tdateien.mjs: MediaPipe aus node_modules); sonst gar nicht erst
 //    laden, damit fehlendes Netz in den anderen Tests keine Fehlermeldungen erzeugt
 ersetze('const visionBundle=()=>import(MP_URL+"/vision_bundle.mjs");','const visionBundle=()=>window.__kiTest?import(MP_URL+"/vision_bundle.mjs"):Promise.reject(new Error("KI im Test aus"));');
-// 8. Einblick für die Tests
-s=s.replace(/loadOwn\(\);\s*buildPicker\(\);/,'loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null}; buildPicker();');
+// 8. Oberteil über dem Bund: das Kamerabild der Testseite ist ein Testmuster; erkannt wird nur in einem gemalten Bild
+//    (window.__shirtBild, toberteil.mjs), sonst gar nicht
+ersetze('if(V(11)&&V(12)&&V(23)&&V(24)&&video.videoWidth){','if(V(11)&&V(12)&&V(23)&&V(24)&&window.__shirtBild){');
+ersetze('vw=video.videoWidth, vh=video.videoHeight;\n      if(!shirt.c)','vw=window.__shirtBild.width, vh=window.__shirtBild.height;\n      if(!shirt.c)');
+ersetze('shirt.x.drawImage(video,x0*vw','shirt.x.drawImage(window.__shirtBild,x0*vw');
+// 9. Einblick für die Tests
+s=s.replace(/loadOwn\(\);\s*buildPicker\(\);/,'loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null}; buildPicker();');
 if(!s.includes('window.__dbg')) throw new Error('Einblick nicht eingefügt');
 fs.writeFileSync(hier+'testseite-mit-simulierter-person.html',s);
 console.log('Testseite neu erzeugt.');

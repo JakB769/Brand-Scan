@@ -25,6 +25,7 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 | `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 330 KB, kein Build-Schritt. |
 | `netlify/functions/holen.mjs`, `netlify.toml` | **Server-Teil für „Link einfügen“** (10.10.): holt Shop-Seite, Bilder, Größentabelle, Model-Größe. Läuft nur, wenn Netlify mit GitHub verbunden ist (Netlify Drop kann keine Funktionen), Anleitung `doku/netlify-einrichten.md`. |
 | `werkzeuge/server.mjs` | Lokaler Server wie Netlify (Dateien + `/api/holen`), `NODE_USE_ENV_PROXY=1` hinter dem Cloud-Proxy. |
+| `werkzeuge/pruefstand.mjs` | **Prüfstand**: echte Seite und echte Erkennung mit einem Foto als Kamerabild (`node werkzeuge/pruefstand.mjs foto.jpg 180 [link]`), Bild nach `werkzeuge/tests/ausgabe/pruefstand.png`, Messwerte in der Konsole. Braucht ffmpeg. |
 | `prototypen/` | Sieben ältere Stände, nummeriert und datiert. Nur zum Nachschlagen. |
 | `werkzeuge/tests/testseite-mit-simulierter-person.html` | Aktuelle Seite mit Attrappe statt MediaPipe (siehe „Testen“). |
 | `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“. Die nicht in `npm test` genannten (`t.mjs` bis `te.mjs`) sind alt und haben noch harte Pfade. |
@@ -109,7 +110,14 @@ und Maßstab (A4/Bankkarte). Nach dem Bauen mit Foto mit Model: **Abgleich** (Sh
 | `exportGarments`, `importGarmentFile`, `loadSharedGarments`, `mergeGarments`, `checkGarment`, `plainG`, `ownIt` (9.10.) | **Sammlung**: „⇩ Alle Hosen als Datei“ schreibt `hosen.json` ({app, version, hosen:[{key, G}]}), „⇧ Hosen aus Datei laden“ übernimmt sie (gleiche Schlüssel werden übersprungen, beschädigte gemeldet, Speicher voll → „nur bis zum Neuladen“). Liegt `hosen.json` neben `index.html` (z. B. Netlify), lädt jedes Gerät sie beim Öffnen; diese Hosen (`G.shared`) werden nicht im Gerät gespeichert, außer man ändert etwas (`ownIt`). Gelöschte Hosen aus der Datei merkt sich `massScanWeg`. `checkGarment` ist die gemeinsame Prüfung für Speicher und Datei. |
 | `view3dFrame`, `view3dPose`, `exportGLB` (9.10.) | **Drehbare 3D-Ansicht** ohne Kamera unter der Hosenliste: dieselbe Hose, Physik und Darstellung an einer Puppe (Gelenke als Anteil der eingegebenen Größe), ziehen zum Drehen, dreht sich sonst langsam. Läuft nur, wenn die Kamera aus und die Ansicht zu sehen ist (teilt sich `g3` mit der Anprobe). „⇩ 3D-Datei (.glb)“: glTF 2.0 binär, Meter, Y oben, Vorderseite +Z, Boden 0, Textur (Atlas) und Innenseiten als Vertex-Farbe; geprüft mit dem Khronos-Prüfer (`gltf-validator`, 0 Fehler) und in three.js angesehen. |
 
-Weitere `localStorage`-Schlüssel: `massScanSerie` (Messreihe), `massScanPerson`, `massScanStimme`, `massScanDebug`, `massScanWeg` (gelöschte Hosen aus `hosen.json`).
+| `findCrotch`, `legRun`, `torsoSpan` (11.10.) | **Messpunkte am Körper** (live): Schritt nur zwischen den Beinachsen gesucht (innere 70 %), Spalt muss 3 Zeilen weiter unten noch offen sein, nur in anatomischen Grenzen (`schrittKoerper`), sonst geschätzt (`schrittOhne`). Je Bein eigene Breite: ein Lauf der Silhouette mit beiden Beinen wird in der Mitte geteilt (`legRun`). Hüftband: Armschnitt nur, wenn der Arm wirklich neben dem Rumpf ist (> 1,15 × Hüftgelenk-Abstand), sonst „unsicher“. Mit `massScanDebug` gibt es `window.__messung`. Geprüft am Prüfstand mit Model-Fotos (Hollister, Diesel, J&J, Zalando). |
+| `refineM` (11.10.) | Feineres Netz: aus den 56 Zeilen des Modells werden 111 (Werte dazwischen gemittelt), `g3.M`. Alle Zeilen-Indizes in Tests über `g3.M`. |
+| `drape3d`, `drapeFor`, `drapeW`, `PASSFORM.fall*` (11.10.) | **Stoff, der wirklich fällt**: die Hose wird einmal in Ruhehaltung (Puppe in der eingegebenen Größe) als Stoff simuliert (Position Based Dynamics: Dehnung, Scherung, Biegung über 2 und 4 Punkte nach Stoffart, Schwerkraft, Beine und Schuhe als Kapseln, Boden mit Reibung, Stoff gegen Stoff ab 55 % der Länge). Was zu lang ist, staucht sich in unregelmäßigen Falten auf Schuh und Boden statt in gleichmäßigen Ringen. Gespeichert wird je Punkt nur der Versatz (cm, Körper-Koordinaten), der in jedem Bild vor dem Skinning dazukommt. Rechnet etwa 0,8–1 s, **in Stücken** (`drapeFor(G,H,ms)`: Anprobe 10 ms je Bild, 3D-Ansicht 12 ms; blendet in 0,5 s ein), am Stück für Abgleich und GLB. Zwischenspeicher je Hose/Maße/Stoff/Größe (12 Einträge). Saum: unterste 4 cm bleiben Röhre (`fallSaumWeit`, doppelt schwer), am Boden höchstens `fallBodenWeit` × Saumweite vom Knöchel (sonst flache Lappen), Stapel höchstens `fallAusstellen`. Innenseiten im gestauchten Saum dunkel (`draw3d`, `g3.aoFor`: dort fällt kaum Licht hinein). Aus: `PASSFORM.fall=false`. |
+| `shirtHem`, `shirtCut`, `PASSFORM.shirtDarueber` (11.10.) | **Oberteil über dem Bund**: je Spalte zwischen den Hüften vom Bauch abwärts der Wechsel von Oberteil-Farbe (Bauch) zu eigener Hosenfarbe (Oberschenkel), nur bei deutlichem Unterschied (RGB > 45), zeitlich geglättet, alle 90 ms. Die 3D-Hose wird darüber ausgeschnitten (weiche Kante auf dem Shirt, auch der Schatten), das Kamerabild (Shirt) bleibt sichtbar. Eingestecktes oder gleichfarbiges Oberteil: nichts. Geprüft am Prüfstand (Pulli Hollister, Hoodie J&J: erkannt; eingestecktes Hemd Diesel: nichts) und in `toberteil.mjs`. |
+| `bodyMeas`, `sizeGarment`, `sizeVerdict`, `sizeAll`, `renderSizes`, `setSize`, `gradeSizes` (11.10.) | **Größen**: `G.sizes` [{n, waist, len, hem}] aus der Maßtabelle (je Größe, gleiche Prüfung `dimWhy`), ohne Tabelle aus der Größe des Models abgeleitet (`G.sizesEst`; W-Größen ±1 Zoll Umfang je Größe, W−4 bis W+6; Buchstaben/EU-Größen 4 cm Umfang und 1 cm Länge je Größe). `G.size` gewählt. Knöpfe in der Hosenkarte (alle), in der Anprobe und der Shop-Ansicht (`#szchips`, `#szshop`: fünf um die gewählte); Antippen setzt Bund/Länge/Saum der Größe. Körper: Maßband (Messreihe) > Scan > letzter Scan (`massScanKoerper`) > grob von vorn. Urteil: Spiel am Bund (Körper an den Hüftknochen ≈ Taille + ¼ (Hüfte − Taille)) und an der Hüfte → zu eng / eng / passt / weit / zu weit (mit Stretch mehr Spielraum); Sitz aus dem Spiel an Knie (0,7) und Oberschenkel (0,3) gegen 0,39 bzw. 0,6 × Hüftumfang → skinny / slim / regular / weit / baggy; Empfehlung = passende Größe mit Bund-Spiel nahe +1 cm (Stretch −1). **Schwellen geschätzt, nicht an echten Anproben geprüft.** |
+| Deckkraft (11.10.) | Hose standardmäßig 100 % deckend (`g.opa=1`, Regler auf 100). |
+
+Weitere `localStorage`-Schlüssel: `massScanSerie` (Messreihe), `massScanPerson`, `massScanKoerper` (letzter Scan: Taille, Hüfte), `massScanStimme`, `massScanDebug`, `massScanWeg` (gelöschte Hosen aus `hosen.json`).
 
 Sonst noch: `fillT` schreibt Text auf die Überlagerung und spiegelt ihn bei der Selfie-Kamera zurück; `drawDebug3d` passt die Schrift an den sichtbaren Ausschnitt an. Geht der WebGL-Kontext verloren (`webglcontextlost`), wird beim nächsten Bild alles neu angelegt. Lädt die Erkennung nicht, steht das auch auf der Bühne. `fileToCanvas` begrenzt die Fläche auf 6 MP und gibt das dekodierte Bild frei.
 
@@ -300,6 +308,23 @@ Grenzen: Model-Größe oft nicht auf der Seite (J&J nur als Platzhalter, Zalando
 Bilder (Zalando) zeigen die Weite von vorn, nicht flach; Maske am Model-Foto schließt manchmal Oberteil und Haare ein
 (Länge davon unberührt). **Mit echter Kamera und auf Netlify nicht geprüft**; der Server-Teil lief nur lokal (`werkzeuge/server.mjs`).
 
+### Messpunkte, Stoff-Fall, Shirt über dem Bund, Größen (11.10., Sprachnachricht des Nutzers)
+
+Wunsch: alle Messpunkte immer richtig; 3D viel realistischer, vor allem die Falten unten; Bund auf den Hüftknochen, Shirt
+über der Hose; Beine bis unten (nicht schweben, nicht zu hoch); Deckkraft 100 %; beim Link alle Größen, Größe wählbar,
+und dazu, welche passt, welche zu groß/zu klein, welche skinny/baggy sitzt.
+Gemacht (siehe Tabelle oben): Messpunkte (`findCrotch`, `legRun`, Hüftband), feineres Netz, Stoff-Fall per Simulation
+(`drape3d`), Oberteil über dem Bund (`shirtHem`), Größen mit Urteil, Deckkraft 100 %. Neues Werkzeug **Prüfstand**
+(`werkzeuge/pruefstand.mjs`): echte Seite mit echter Erkennung, ein Foto als Kamerabild (Chromium-Testkamera aus .y4m).
+Damit an den Model-Fotos der vier Shops geprüft (fremde Bilder nur im Scratchpad): Hüftband über die ganze Hüfte, Schritt
+nicht mehr auf Hüfthöhe, Beinbreiten je Bein, 3D-Hose mit Bund an der Bundlinie und Saum am Boden; Hollister-Hose (114 cm bei
+188 cm) staucht sich weich auf den Schuhen. Unterwegs gefunden und behoben: Saum klappte in der Simulation wie eine Manschette
+um und zeigte hell die Innenseite (flache graue „Lappen“ am Boden).
+**Nicht geprüft:** echte Kamera, echte Handys, Rechenzeit der Simulation auf dem Handy (hier 0,8–1 s am Stück, in der Anprobe
+verteilt), Shirt-Erkennung bei gemusterten Oberteilen, Händen am Bauch, schlechtem Licht; Größenurteil an echten Anproben
+(Schwellen sind Erfahrungswerte). Grenzen: Größenurteil braucht Körpermaße (Scan mit Seite oder Maßband); ohne Tabelle sind die
+Größen nur abgeleitet; Länge ändert sich bei W-Größen nur mit der Leibhöhe (Innenbein bleibt).
+
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
 
 - **Netlify Drop kann keine Server-Funktionen.** Für „Link einfügen“ muss Netlify mit dem GitHub-Repo verbunden sein.
@@ -341,6 +366,7 @@ Die Testseite `werkzeuge/tests/testseite-mit-simulierter-person.html` wird von `
 Steuerung der Attrappe über `window.__mode`: `yaw`, `knee`, `wide`, `sway`, `zk` (Tiefe an/aus/verkehrt), `zn` (Knöchel scheinbar näher),
 `zr` (Tiefe zittert), `hand` (linke Hand vor dem Oberschenkel). Die Attrappe setzt die Handpunkte 17–22 an die Handgelenke wie MediaPipe.
 Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt ist (nur `tki.mjs`); sonst gäbe fehlendes Netz Fehlermeldungen.
+Die Shirt-Erkennung arbeitet in der Testseite nur auf `window.__shirtBild` (sonst ist das Kamerabild ein Testmuster).
 
 | Test | prüft |
 |---|---|
@@ -363,6 +389,9 @@ Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt i
 | `tlink.mjs` | Link einfügen mit eigenem Server und künstlichen Shop-Seiten (`werkzeuge/tests/shop/`): Größentabelle im Diesel-Format (Blöcke je Größe, cm/Zoll, Innenbein ×3, Auswahlzeilen), Größe wie am Model, andere Größe, Name/Material/Link, US-Größe „32 X 32“, Shopify `.js`, gesperrter Shop, Foto mit Person → Länge gemessen und Abgleich sichtbar, Strg+V eines Links, ohne Server-Teil. Schutzregeln des Server-Teils (eigenes Netz, Metadaten-Adresse, file:) |
 | `tdateien.mjs` | Dateien hochladen: Rock mit Gürtel (Rock erkannt, Gürtel weg, 3D ohne ungültige Werte, Umschalter), Jeans mit Gürtel (bleibt Hose, Bund unverfälscht), ohne Gürtel kein Fehlalarm, back/front richtig eingeordnet, Bershka-Screenshot zerlegt, Tabelle als Text (Größe M, dann XL), Material, Größentabelle als Bild (Texterkennung, Körpermaß → Bund 43), nur Tabelle → „fehlt“, Model-Foto erkannt und nicht benutzt, Model-Foto ab Hüfte (`model_ausschnitt_bershka.jpg`) als angeschnitten erkannt, getragene Rückseite (künstlich, `werkzeuge/python/testgetragen.py`: Taschen oben, Kniefleck auf Kniehöhe), schiefes Bein und Handtuch abgelehnt (`testunecht.py`), Strg+V, Einzel-Formular lehnt ebenso ab. MediaPipe und Tesseract aus node_modules, Modelle von storage.googleapis.com |
 | `tpruefung.mjs` | Rückschritte der Gesamtprüfung: Maßband-Taille, Komma, Prüfung beim Anlegen, quer/Kopfstand mit sich berührenden Säumen (`material/testbilder/orientierung/`), links/rechts beim Aufrichten (roter Fleck), kurze Hose, Drehknöpfe, WebGL-Kontextverlust, Kartenfenster (Escape, kein Viereck), alter Speicherschlüssel, voller Speicher |
+| `tfall.mjs` | Stoff-Fall: zu lange Hose liegt auf dem Boden ohne Lappen, kürzere hängt frei, in Stücken gerechnet = am Stück, ausschaltbar |
+| `toberteil.mjs` | Shirt über dem Bund (gemaltes Kamerabild `window.__shirtBild`): Saum erkannt, Hose darüber weg und darunter da, kurzes Shirt, gleiche Farbe, ausschaltbar |
+| `tgroessen.mjs` | Größen aus der Tabelle und aus der US-Größe des Models, Urteil je Größe (nie enger mit der Größe, eine Empfehlung), Antippen setzt die Maße, Sitz, Knöpfe in Anprobe/Shop, Speichern und Prüfen beim Laden |
 | `tlaenge.mjs` | Länge mit A4/Bankkarte (Testbilder aus `werkzeuge/python/testmassstab.py`, echt 105 cm, gerade und 15° schräg), echte iPhone-Fotos des Nutzers, Vorrang der eingetragenen Länge |
 
 ## Vorschlag für die nächsten Schritte
