@@ -1187,13 +1187,13 @@ function shirtHem(L,V){
   if(now-shirt.at<90) return shirt.show>.02?shirt:null;
   const dt=Math.min(.5,(now-shirt.at)/1000); shirt.at=now;
   let found=null;
-  if(V(11)&&V(12)&&V(23)&&V(24)&&video.videoWidth){
+  if(V(11)&&V(12)&&V(23)&&V(24)&&window.__shirtBild){
     const hx0=Math.min(L[23].x,L[24].x), hx1=Math.max(L[23].x,L[24].x), hw=hx1-hx0, cx=(hx0+hx1)/2;
     const shY=(L[11].y+L[12].y)/2, hipY=(L[23].y+L[24].y)/2, T=hipY-shY;
     if(T>.05&&hw>.02){
-      const x0=cx-.7*hw, x1=cx+.7*hw, y0=shY+.35*T, y1=hipY+.6*T, vw=video.videoWidth, vh=video.videoHeight;
+      const x0=cx-.7*hw, x1=cx+.7*hw, y0=shY+.35*T, y1=hipY+.6*T, vw=window.__shirtBild.width, vh=window.__shirtBild.height;
       if(!shirt.c){ shirt.c=document.createElement("canvas"); shirt.c.width=N; shirt.c.height=H; shirt.x=shirt.c.getContext("2d",{willReadFrequently:true}); }
-      let d=null; try{ shirt.x.drawImage(video,x0*vw,y0*vh,(x1-x0)*vw,(y1-y0)*vh,0,0,N,H); d=shirt.x.getImageData(0,0,N,H).data; }catch(_){}
+      let d=null; try{ shirt.x.drawImage(window.__shirtBild,x0*vw,y0*vh,(x1-x0)*vw,(y1-y0)*vh,0,0,N,H); d=shirt.x.getImageData(0,0,N,H).data; }catch(_){}
       if(d){
         const row=y=>clamp(Math.round((y-y0)/(y1-y0)*H),0,H-1), col=x=>clamp(Math.round((x-x0)/(x1-x0)*N),0,N-1);
         const med=a=>{ a.sort((p,q)=>p-q); return a[a.length>>1]; };
@@ -1801,6 +1801,7 @@ function cloth3d(M,P,dt){
   const caps=[]; for(const ch of P.bone){ caps.push([ch[0],ch[1],rb(0),rb(.5)]); caps.push([ch[1],ch[2],rb(.5),rb(1)]); }
   // Ziel mit Durchhängen: Normale nach unten (Bild-y) und Abstand Stoff↔Bein bestimmen, wie weit
   const Tg=(g3.tg&&g3.tg.length===n*3)?g3.tg:(g3.tg=new Float32Array(n*3)), DV=(g3.cdv&&g3.cdv.length===n)?g3.cdv:(g3.cdv=new Float32Array(n)); (g3.tgRoh&&g3.tgRoh.length===n*3?g3.tgRoh:(g3.tgRoh=new Float32Array(n*3))).set(T.subarray(0,n*3));
+  const dr=!!(P.drape&&P.drape.nr===NR);
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){
     const k=((s*NR+i)*2+f)*C+j, q=k*3, ny=nor[q+1];
     let sag=0; DV[k]=fab.dev*ppc;
@@ -1808,7 +1809,11 @@ function cloth3d(M,P,dt){
       const ch=P.bone[s], c=closestOnChain(ch,T[q],T[q+1],T[q+2]);
       const gap=Math.max(0,c.d-rb(c.u)*1.05);
       DV[k]=Math.min(fab.dev*ppc,gap+1*ppc);
-      if(ny>.15) sag=Math.min(gap*fab.hang*(ny-.15)/.85,fab.dev*ppc);
+      // Mit Stoff-Fall (drape3d) ist das Durchhängen bei geraden Beinen schon drin: dann nur, soweit das Bein hier schräg
+      // steht (angehobenes Knie), sonst sänken die Falten am Saum unter den Boden
+      let kd=1; if(dr&&i>=P.drape.iS){ const a=c.u<.5?ch[0]:ch[1], e=c.u<.5?ch[1]:ch[2], dx=e[0]-a[0], dy=e[1]-a[1], dz=e[2]-a[2];
+        kd=clamp((1-Math.abs(dy)/(Math.hypot(dx,dy,dz)||1)-.1)/.4,0,1); }
+      if(ny>.15) sag=kd*Math.min(gap*fab.hang*(ny-.15)/.85,fab.dev*ppc);
     }
     Tg[q]=T[q]; Tg[q+1]=T[q+1]+sag; Tg[q+2]=T[q+2];
   }
@@ -5102,7 +5107,7 @@ function upDrop(){ if(UP.key&&GARMENTS[UP.key]){ deleteGarment(UP.key); } UP.key
   $("drop-art").addEventListener("click",()=>{ UP.art=UP.rock?"hose":"rock"; upBuild(); });
   $("drop-size").addEventListener("change",e=>{ UP.size=+e.target.value; upBuild(); });
 }
-loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null}; buildPicker(); renderSeries(); loadSharedGarments();
+loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null}; buildPicker(); renderSeries(); loadSharedGarments();
 </script>
 </body>
 </html>

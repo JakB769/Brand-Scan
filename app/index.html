@@ -1755,6 +1755,7 @@ function cloth3d(M,P,dt){
   const caps=[]; for(const ch of P.bone){ caps.push([ch[0],ch[1],rb(0),rb(.5)]); caps.push([ch[1],ch[2],rb(.5),rb(1)]); }
   // Ziel mit Durchhängen: Normale nach unten (Bild-y) und Abstand Stoff↔Bein bestimmen, wie weit
   const Tg=(g3.tg&&g3.tg.length===n*3)?g3.tg:(g3.tg=new Float32Array(n*3)), DV=(g3.cdv&&g3.cdv.length===n)?g3.cdv:(g3.cdv=new Float32Array(n)); (g3.tgRoh&&g3.tgRoh.length===n*3?g3.tgRoh:(g3.tgRoh=new Float32Array(n*3))).set(T.subarray(0,n*3));
+  const dr=!!(P.drape&&P.drape.nr===NR);
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){
     const k=((s*NR+i)*2+f)*C+j, q=k*3, ny=nor[q+1];
     let sag=0; DV[k]=fab.dev*ppc;
@@ -1762,7 +1763,11 @@ function cloth3d(M,P,dt){
       const ch=P.bone[s], c=closestOnChain(ch,T[q],T[q+1],T[q+2]);
       const gap=Math.max(0,c.d-rb(c.u)*1.05);
       DV[k]=Math.min(fab.dev*ppc,gap+1*ppc);
-      if(ny>.15) sag=Math.min(gap*fab.hang*(ny-.15)/.85,fab.dev*ppc);
+      // Mit Stoff-Fall (drape3d) ist das Durchhängen bei geraden Beinen schon drin: dann nur, soweit das Bein hier schräg
+      // steht (angehobenes Knie), sonst sänken die Falten am Saum unter den Boden
+      let kd=1; if(dr&&i>=P.drape.iS){ const a=c.u<.5?ch[0]:ch[1], e=c.u<.5?ch[1]:ch[2], dx=e[0]-a[0], dy=e[1]-a[1], dz=e[2]-a[2];
+        kd=clamp((1-Math.abs(dy)/(Math.hypot(dx,dy,dz)||1)-.1)/.4,0,1); }
+      if(ny>.15) sag=kd*Math.min(gap*fab.hang*(ny-.15)/.85,fab.dev*ppc);
     }
     Tg[q]=T[q]; Tg[q+1]=T[q+1]+sag; Tg[q+2]=T[q+2];
   }
