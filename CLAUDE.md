@@ -25,10 +25,11 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 | `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 330 KB, kein Build-Schritt. |
 | `netlify/functions/holen.mjs`, `netlify.toml` | **Server-Teil für „Link einfügen“** (10.10.): holt Shop-Seite, Bilder, Größentabelle, Model-Größe. Läuft nur, wenn Netlify mit GitHub verbunden ist (Netlify Drop kann keine Funktionen), Anleitung `doku/netlify-einrichten.md`. |
 | `werkzeuge/server.mjs` | Lokaler Server wie Netlify (Dateien + `/api/holen`), `NODE_USE_ENV_PROXY=1` hinter dem Cloud-Proxy. |
+| `shopify/` | **Shopify-Gerüst** (siehe `doku/shopify-einrichten.md`). |
 | `werkzeuge/pruefstand.mjs` | **Prüfstand**: echte Seite und echte Erkennung mit einem Foto als Kamerabild (`node werkzeuge/pruefstand.mjs foto.jpg 180 [link]`), Bild nach `werkzeuge/tests/ausgabe/pruefstand.png`, Messwerte in der Konsole. Braucht ffmpeg. |
 | `prototypen/` | Sieben ältere Stände, nummeriert und datiert. Nur zum Nachschlagen. |
 | `werkzeuge/tests/testseite-mit-simulierter-person.html` | Aktuelle Seite mit Attrappe statt MediaPipe (siehe „Testen“). |
-| `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“. Die nicht in `npm test` genannten (`t.mjs` bis `te.mjs`) sind alt und haben noch harte Pfade. |
+| `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“ (die alten `t.mjs` bis `te.mjs` mit harten Pfaden sind seit 11.10. gelöscht). |
 | `werkzeuge/python/` | Der ursprüngliche Python-Weg vom Foto zum Modell. Inzwischen nach JavaScript portiert, als Referenz nützlich. |
 | `werkzeuge/bausteine/` | `g3d.js` (3D-Darstellung) und `gen.js` (Generator, Blickrichtung) als Einzelstücke, bevor sie in die Seite kamen. **Nicht mehr ganz aktuell**, die Wahrheit steht in `app/index.html`. |
 | `material/produktfotos/` | `front.jpg`, `back.jpg` (Bershka Super Baggy Jeans, 702×900), der fertige Atlas und das Modell als JSON. Gute Testdaten. |
@@ -116,6 +117,16 @@ und Maßstab (A4/Bankkarte). Nach dem Bauen mit Foto mit Model: **Abgleich** (Sh
 | `shirtHem`, `shirtCut`, `PASSFORM.shirtDarueber` (11.10.) | **Oberteil über dem Bund**: je Spalte zwischen den Hüften vom Bauch abwärts der Wechsel von Oberteil-Farbe (Bauch) zu eigener Hosenfarbe (Oberschenkel), nur bei deutlichem Unterschied (RGB > 45), zeitlich geglättet, alle 90 ms. Die 3D-Hose wird darüber ausgeschnitten (weiche Kante auf dem Shirt, auch der Schatten), das Kamerabild (Shirt) bleibt sichtbar. Eingestecktes oder gleichfarbiges Oberteil: nichts. Geprüft am Prüfstand (Pulli Hollister, Hoodie J&J: erkannt; eingestecktes Hemd Diesel: nichts) und in `toberteil.mjs`. |
 | `bodyMeas`, `sizeGarment`, `sizeVerdict`, `sizeAll`, `renderSizes`, `setSize`, `gradeSizes` (11.10.) | **Größen**: `G.sizes` [{n, waist, len, hem}] aus der Maßtabelle (je Größe, gleiche Prüfung `dimWhy`), ohne Tabelle aus der Größe des Models abgeleitet (`G.sizesEst`; W-Größen ±1 Zoll Umfang je Größe, W−4 bis W+6; Buchstaben/EU-Größen 4 cm Umfang und 1 cm Länge je Größe). `G.size` gewählt. Knöpfe in der Hosenkarte (alle), in der Anprobe und der Shop-Ansicht (`#szchips`, `#szshop`: fünf um die gewählte); Antippen setzt Bund/Länge/Saum der Größe. Körper: Maßband (Messreihe) > Scan > letzter Scan (`massScanKoerper`) > grob von vorn. Urteil: Spiel am Bund (Körper an den Hüftknochen ≈ Taille + ¼ (Hüfte − Taille)) und an der Hüfte → zu eng / eng / passt / weit / zu weit (mit Stretch mehr Spielraum); Sitz aus dem Spiel an Knie (0,7) und Oberschenkel (0,3) gegen 0,39 bzw. 0,6 × Hüftumfang → skinny / slim / regular / weit / baggy; Empfehlung = passende Größe mit Bund-Spiel nahe +1 cm (Stretch −1). **Schwellen geschätzt, nicht an echten Anproben geprüft.** |
 | Deckkraft (11.10.) | Hose standardmäßig 100 % deckend (`g.opa=1`, Regler auf 100). |
+
+| Scan-Ablauf, `captureCal`, `captureSide`, `stability` (11.10. abends) | **Hinstellen reicht**: einmal ganz im Bild, gerade und 0,7 s ruhig (`HOLD_MS`, Schwanken ≤ `STABLE_CM` = 3,2 cm im Fenster `WIN_MS` = 0,6 s; auf langsamen Geräten die letzten 4 Bilder) → Maße von vorn, gleich weiter in der Anprobe (`phase="near"`). Kein Countdown, keine Pflicht-Drehung: dreht man sich einmal ganz im Bild zur Seite (|sin yaw| > 0,85) und hält kurz still, misst `captureSide` nebenbei die Tiefe. Die Hose liegt schon vor dem Scan auf, auch nah an der Kamera. |
+| Maßstab in `analyse` (11.10. abends) | Ganz im Bild und gerade: Körpergröße / Höhe im Bild; dazu (gemittelt) Rumpflänge Schulter–Hüfte, vor dem Scan 0,29 × Größe, danach gemessen (`ref.torso`); sonst Breiten (nur frontal). Änderung höchstens 70 % je Sekunde (zeitbasiert, `scaleT`). Beim Hereinkommen ins Bild werden die Breitenfilter neu angesetzt. |
+| `torsoRoll`, Roll in `drawGarment`/`pose3d` (11.10. abends) | **Rumpf geneigt bis Handstand**: Richtung Hüfte → Schultern geglättet, unter 7° aufrecht; die ganze Hose dreht in der Bildebene mit (`P.upRef`, `h` gedreht), Bund und Schritt liegen auf der Rumpfachse (`crotchP`). Ohne Schultern im Bild langsam zurück zu aufrecht. |
+| `emaV`, Pose-Optionen (11.10. abends) | Ausreißer-Sperre unterscheidet Ausreißer von echter schneller Bewegung: zeigen zwei Bilder hintereinander denselben neuen Ort (±0,035), wird sofort übernommen. One-Euro schneller (β 3). MediaPipe verfolgt länger (`minTrackingConfidence` .35, `minPosePresenceConfidence` .4). |
+| `personBounds` (11.10. abends) | Kopf oben und Füße unten nur am zusammenhängenden Umriss um die Hüfte (Raster ~240 Zeilen), oben nur über dem Kopf (Nase ± ¼ Schulterbreite), unten um Knöchel/Fersen/Fußspitzen: Gegenstände im Hintergrund und hochgestreckte Arme verfälschen den Maßstab nicht (Attrappe `gegenstand`, `armHoch`). |
+| `wornRefine`, `wornColor`, `fillHoles` (11.10. abends) | **Hose am Model-Foto nachschärfen** (nach KI oder Farbe): Oberkante an der stärksten waagrechten Farbkante zwischen Taille und Hüfte (auch weiter weg verschieden, dünne Taschennähte zählen nicht), über der Hüfte nur Hosenfarbe, Oberteil-/Haut-/Schuhfarben und Hintergrund (Bildrand) raus, nur was mit den Saatpunkten zusammenhängt; große Löcher in Hintergrundfarbe bleiben offen (Spalt zwischen den Beinen). Nimmt es mehr als die Hälfte weg, bleibt die alte Maske. Diesel-Model: Kopf, Bluse und Hintergrund zwischen den Beinen weg; Hollister, J&J unverändert gut. **Keine Segmentierungsmaske im Einzelbild-Modus** (tasks-vision 0.10.18 bricht auf der CPU bei manchen Fotos ab). |
+| Gesäßfall in `pose3d` (11.10. abends) | Seitenansicht: hinten halten die Backen (neben der Mitte) bis zum Schritt 78 % der Gesäßtiefe, darunter läuft die Tiefe am Bein über `gesaessFallCm` (18, enge Hosen 80 %) aus; unter dem Gesäß nie tiefer als am Gesäß (`capB`). Vorher sprang die Rückseite stufig vom Gesäß aufs Bein. |
+| `drape3d`: Längenbegrenzung, `fallInnen` (11.10. abends) | Je Stoffbahn kein Punkt weiter vom festen Rand, als der Stoff lang ist (long range attachment): die Hose dehnt sich nicht mehr 3–4 cm unter ihrem Gewicht. Im Stapel nicht enger als 85 % der Ruheform: die Seitenwände knicken nicht zum Knöchel ein (vorher wurden die Beine unten fassförmig). Innenseiten im Saum dunkles Denim statt Schwarz. |
+| Gestaltung (11.10. abends) | Apple-artig: hell (dunkel nach Geräteeinstellung), Systemschrift (keine Google Fonts mehr), große Überschriften, weiße Karten, Blau als Akzent, Kapsel-Knöpfe; auf der Kamera dunkles Glas mit weißer Schrift, gelbe Messlinien (iOS). Technisches in einklappbaren Bereichen (`details.adv`: „Ton und Stimme“, „Einzeln mit Maßband und Maßstab“, „Feineinstellungen“, „So geht der Scan“); die Testseite öffnet sie (`baue-testseite.mjs`). Variablennamen historisch: `--chalk` = Text, `--brass` = Akzent. Reihenfolge: Du, Kamera, Hose, Deine Maße. |
 
 Weitere `localStorage`-Schlüssel: `massScanSerie` (Messreihe), `massScanPerson`, `massScanKoerper` (letzter Scan: Taille, Hüfte), `massScanStimme`, `massScanDebug`, `massScanWeg` (gelöschte Hosen aus `hosen.json`).
 
@@ -215,9 +226,9 @@ Offen (gefunden, nicht behoben):
 - Quer fotografiert UND Säume berühren sich: Drehrichtung geraten (Hinweis erscheint). Gleiches gilt aufrecht/auf dem Kopf, wenn auch
   gedreht kein Schritt zu finden ist.
 - Ohne Neigungsdaten kosten 1–2 px an den Kartenecken ±15 % Länge (kleine Karte bestimmt die Perspektive der ganzen Hose).
-- Nahphase: `findCrotch` zählt frei hängende Arme als Beine (Schritt auf Hüfthöhe), Schritt- und Beinlänge zu kurz, wenn die Füße aus dem Bild sind.
+- ~~Nahphase: `findCrotch` zählt frei hängende Arme als Beine~~ (11.10. behoben: Suche nur zwischen den Beinachsen); Schritt- und Beinlänge gibt es nur, wenn die Füße im Bild sind.
 - Querformat: untere Knopfreihe der Bühne wird bei großen Ansagen abgeschnitten (Schriftgrößen hängen an vw statt an der Bühne).
-- Google Fonts wird von Google geladen (DSGVO-Frage für die EU, vor dem Verkauf selbst hosten).
+- ~~Google Fonts wird von Google geladen~~ (11.10.: Systemschrift, nichts mehr von Google Fonts).
 - Doppelte Logik (Flutfüllung dreimal, Geraden-Schnitt zweimal), Test-Einblick `window.__refDlg` im Produktcode (nur solange das Fenster offen ist).
 
 ### 3D, Physik, KI-Freistellung (8.10. abends, Sprachnachricht des Nutzers)
@@ -364,7 +375,8 @@ npm run diagnose  # Freistellung im Detail und Bildserie mit Knie, Ausgabe in we
 Die Testseite `werkzeuge/tests/testseite-mit-simulierter-person.html` wird von `baue-testseite.mjs` aus `app/index.html` erzeugt
 (Attrappe aus `attrappe.js` statt MediaPipe, feste Umgebungsfarbe, Einblick über `window.__dbg`). **Nie von Hand ändern.**
 Steuerung der Attrappe über `window.__mode`: `yaw`, `knee`, `wide`, `sway`, `zk` (Tiefe an/aus/verkehrt), `zn` (Knöchel scheinbar näher),
-`zr` (Tiefe zittert), `hand` (linke Hand vor dem Oberschenkel). Die Attrappe setzt die Handpunkte 17–22 an die Handgelenke wie MediaPipe.
+`zr` (Tiefe zittert), `hand` (linke Hand vor dem Oberschenkel), `roll` (Neigung in der Bildebene, π = Handstand), `shift` (seitlich versetzt),
+`gegenstand` (etwas Hohes im Hintergrund in der Maske), `armHoch` (Arm über dem Kopf). Die Attrappe setzt die Handpunkte 17–22 an die Handgelenke wie MediaPipe.
 Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt ist (nur `tki.mjs`); sonst gäbe fehlendes Netz Fehlermeldungen.
 Die Shirt-Erkennung arbeitet in der Testseite nur auf `window.__shirtBild` (sonst ist das Kamerabild ein Testmuster).
 
@@ -392,6 +404,7 @@ Die Shirt-Erkennung arbeitet in der Testseite nur auf `window.__shirtBild` (sons
 | `tfall.mjs` | Stoff-Fall: zu lange Hose liegt auf dem Boden ohne Lappen, kürzere hängt frei, in Stücken gerechnet = am Stück, ausschaltbar |
 | `toberteil.mjs` | Shirt über dem Bund (gemaltes Kamerabild `window.__shirtBild`): Saum erkannt, Hose darüber weg und darunter da, kurzes Shirt, gleiche Farbe, ausschaltbar |
 | `tgroessen.mjs` | Größen aus der Tabelle und aus der US-Größe des Models, Urteil je Größe (nie enger mit der Größe, eine Empfehlung), Antippen setzt die Maße, Sitz, Knöpfe in Anprobe/Shop, Speichern und Prüfen beim Laden |
+| `tscan.mjs` | Scan-Ablauf: nah ohne Scan aber mit Hose, gescannt in < 2,5 s ohne Drehen, näher/zurück (Maßstab 1,75×/1,00×), Gegenstand im Hintergrund und Arm über dem Kopf ändern den Maßstab nicht, Seite nebenbei, Neigung ±30° und Handstand, schneller Sprung |
 | `tlaenge.mjs` | Länge mit A4/Bankkarte (Testbilder aus `werkzeuge/python/testmassstab.py`, echt 105 cm, gerade und 15° schräg), echte iPhone-Fotos des Nutzers, Vorrang der eingetragenen Länge |
 
 ## Vorschlag für die nächsten Schritte

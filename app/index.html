@@ -3,239 +3,291 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Maß-Scan</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<title>Passform · Hosen live anprobieren</title>
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <style>
-/* Layout: Kamerabild als Hauptfläche. Rückmeldung auf drei Ebenen, damit sie aus drei
-   Metern ankommt: farbiger Rahmen, riesige Ziffer, Sprachausgabe.
-   Farbwelt: Indigo-Denim als Grund, Kreideweiß für Messlinien, Messing als Akzent. */
+/* Gestaltung: ruhig und hell wie Apple-Seiten (dunkel, wenn das Gerät dunkel eingestellt ist). Systemschrift (San Francisco auf
+   Apple-Geräten), große Überschriften, weiße Karten mit weichem Schatten, Blau als einzige Akzentfarbe, Kapseln als Knöpfe.
+   Auf der Kamera (Bühne) immer dunkles, durchscheinendes Glas mit weißer Schrift, egal ob hell oder dunkel.
+   Die Variablennamen sind historisch: --chalk = Text, --brass = Akzent. */
 :root{
-  --ground:#0c1119; --surface:#131c28; --surface-2:#1a2534; --line:#243245;
-  --chalk:#eef3f8; --chalk-dim:#8a9db5; --chalk-faint:#5d7191;
-  --brass:#d49a3f; --ok:#4fc281; --warn:#e5b449; --bad:#e2625a;
-  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
-  --sans:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
-  color-scheme:dark;
+  --ground:#f5f5f7; --surface:#ffffff; --surface-2:#f2f2f5; --line:rgba(0,0,0,.09); --line-2:rgba(0,0,0,.16);
+  --chalk:#1d1d1f; --chalk-dim:#6e6e73; --chalk-faint:#8e8e93;
+  --brass:#0071e3; --brass-hover:#0077ed; --on-brass:#fff; --accent-soft:rgba(0,113,227,.1);
+  --ok:#248a3d; --warn:#b25000; --bad:#d70015;
+  --ok-c:#34c759; --warn-c:#ff9f0a; --bad-c:#ff3b30;                       /* kräftige Signalfarben (Rahmen, Punkte) */
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 24px rgba(0,0,0,.06);
+  --glass:rgba(28,28,30,.55); --glass-line:rgba(255,255,255,.14); --glass-text:#fff; --glass-dim:rgba(255,255,255,.72);
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+  --r:18px; --r-s:12px;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --ground:#000; --surface:#1c1c1e; --surface-2:#2c2c2e; --line:rgba(255,255,255,.1); --line-2:rgba(255,255,255,.18);
+    --chalk:#f5f5f7; --chalk-dim:#a1a1a6; --chalk-faint:#7c7c80;
+    --brass:#0a84ff; --brass-hover:#409cff; --accent-soft:rgba(10,132,255,.16);
+    --ok:#30d158; --warn:#ffb340; --bad:#ff6961; --shadow:none; }
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 .hud-read:empty{display:none}
 html,body{margin:0;padding:0}
-body{background:var(--ground);color:var(--chalk);font-family:var(--sans);font-size:15px;line-height:1.5;padding:0 16px;padding-block:22px 48px;-webkit-text-size-adjust:100%}
+body{background:var(--ground);color:var(--chalk);font-family:var(--sans);font-size:16px;line-height:1.47;letter-spacing:-.01em;
+  padding:0 16px;padding-block:28px 56px;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
 body.locked{overflow:hidden}
-.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
-header{display:flex;flex-direction:column;gap:5px}
-h1{font-size:clamp(26px,6vw,34px);font-weight:800;letter-spacing:-.02em;margin:0;text-wrap:balance}
-.sub{color:var(--chalk-dim);font-size:14px;margin:0;max-width:52ch}
-.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:13px}
-.card h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--chalk-dim);margin:0}
-label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--chalk-dim);min-width:0}
-input[type=number],input[type=text]{background:var(--surface-2);border:1px solid var(--line);border-radius:7px;color:var(--chalk);font-family:var(--mono);font-size:16px;padding:10px 11px;width:100%;font-variant-numeric:tabular-nums}
+.wrap{max-width:740px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-direction:column;gap:6px;padding:4px 4px 8px}
+.eyebrow{font-size:14px;font-weight:600;color:var(--brass);letter-spacing:0}
+h1{font-size:clamp(32px,8vw,48px);font-weight:700;letter-spacing:-.03em;line-height:1.06;margin:0;text-wrap:balance}
+.sub{color:var(--chalk-dim);font-size:17px;margin:0;max-width:46ch;line-height:1.45}
+.card{background:var(--surface);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.card h2{font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--chalk);margin:0}
+label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--chalk-dim);min-width:0}
+input[type=number],input[type=text],input[type=url]{background:var(--surface-2);border:1px solid transparent;border-radius:var(--r-s);color:var(--chalk);
+  font-family:var(--sans);font-size:17px;padding:12px 14px;width:100%;font-variant-numeric:tabular-nums;transition:border-color .15s,box-shadow .15s}
+input::placeholder{color:var(--chalk-faint)}
+input:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 4px var(--accent-soft)}
 input[type=range]{width:100%;accent-color:var(--brass)}
-input:focus-visible,button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+input[type=checkbox]{accent-color:var(--brass)}
+input[type=file]{font-size:14px;color:var(--chalk-dim);max-width:100%}
+input[type=file]::file-selector-button{font-family:var(--sans);font-size:14px;font-weight:500;border:none;border-radius:999px;padding:8px 14px;margin-right:10px;
+  background:var(--surface-2);color:var(--brass);cursor:pointer}
+button:focus-visible,select:focus-visible,summary:focus-visible,.drop:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
 .row{display:flex;flex-wrap:wrap;gap:10px}
-.row>*{flex:1 1 140px;min-width:0}
-button{font-family:var(--sans);font-size:15px;font-weight:600;border-radius:7px;border:1px solid var(--line);background:var(--surface-2);color:var(--chalk);padding:11px 16px;cursor:pointer;min-height:44px}
-button:hover:not(:disabled){border-color:var(--brass)}
+.row>*{flex:1 1 150px;min-width:0}
+.row>.tag{flex:0 0 auto;align-self:flex-end;margin-bottom:12px}
+button{font-family:var(--sans);font-size:16px;font-weight:500;letter-spacing:-.01em;border-radius:999px;border:none;background:var(--surface-2);color:var(--brass);
+  padding:12px 20px;cursor:pointer;min-height:46px;transition:background .15s,opacity .15s,transform .1s}
+button:hover:not(:disabled){background:color-mix(in srgb,var(--surface-2) 85%,var(--chalk))}
+button:active:not(:disabled){transform:scale(.98)}
 button:disabled{opacity:.4;cursor:not-allowed}
-button.primary{background:var(--brass);border-color:var(--brass);color:#1a1205}
-.toggle{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--chalk-dim)}
-.g3dbox{margin:10px 0;text-align:center}
-.g3dbox canvas{width:100%;max-width:360px;aspect-ratio:360/460;border-radius:10px;background:radial-gradient(ellipse at 50% 35%,#4a4339,#211d18);touch-action:pan-y;cursor:grab}   /* waagrecht ziehen dreht, senkrecht scrollt die Seite weiter */
-.g3dbox .sub{font-size:12.5px;color:var(--chalk-faint);margin:4px 0 8px}
-.toggle input{width:20px;height:20px;accent-color:var(--brass);flex:none}
+button.primary{background:var(--brass);color:var(--on-brass)}
+button.primary:hover:not(:disabled){background:var(--brass-hover)}
+.toggle{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--chalk)}
+.toggle input{width:22px;height:22px;flex:none}
+select{background:var(--surface-2);border:1px solid transparent;border-radius:var(--r-s);color:var(--chalk);font-family:var(--sans);font-size:17px;padding:12px 14px;width:100%}
+.g3dbox{margin:4px 0;text-align:center}
+.g3dbox canvas{width:100%;max-width:380px;aspect-ratio:360/460;border-radius:var(--r);touch-action:pan-y;cursor:grab;
+  background:radial-gradient(ellipse at 50% 30%,#ffffff,#e8e8ed 70%)}   /* waagrecht ziehen dreht, senkrecht scrollt die Seite weiter */
+@media (prefers-color-scheme:dark){ .g3dbox canvas{background:radial-gradient(ellipse at 50% 30%,#3a3a3c,#1c1c1e 70%)} }
+.g3dbox .sub{font-size:13px;color:var(--chalk-faint);margin:6px auto 10px}
 
-/* ---- Bühne ---- */
-.stage{position:relative;width:100%;aspect-ratio:3/4;max-height:76vh;background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.stage.full{position:fixed;inset:0;width:100vw;height:100dvh;max-height:none;aspect-ratio:auto;border:none;border-radius:0;z-index:900}
+/* ---- Bühne (Kamera) ---- */
+.stage{position:relative;width:100%;aspect-ratio:3/4;max-height:78vh;background:#000;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.stage.full{position:fixed;inset:0;width:100vw;height:100dvh;max-height:none;aspect-ratio:auto;border-radius:0;z-index:900}
 /* Anprobe wie im Shop: Vollbild, nur die Hose, ein ✕ oben rechts (frei von Kerbe und abgerundeten Ecken) */
 .shopx{display:none;position:absolute;z-index:30;top:calc(env(safe-area-inset-top,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);
-  width:52px;height:52px;min-height:0;padding:0;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:26px;line-height:52px;text-align:center}
+  width:44px;height:44px;min-height:0;padding:0;border-radius:50%;background:var(--glass);color:#fff;font-size:20px;line-height:44px;text-align:center;
+  -webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6)}
 .stage.shop .shopx{display:block}
 .stage.shop .cleanhint{display:none!important}
-/* im Shop nur die Ansagen (Geh zurück, Dreh dich), keine Messwerte und Knöpfe */
+/* im Shop nur die Ansagen (Geh zurück), keine Messwerte und Knöpfe */
 .stage.shop.clean .hud:not([hidden]){display:flex!important;justify-content:flex-start;padding-top:calc(env(safe-area-inset-top,0px) + 76px)}
 .stage.shop .hud-top,.stage.shop .hud-bottom{display:none!important}
 .stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .stage.mirror video,.stage.mirror canvas{transform:scaleX(-1)}
-.stage .placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--chalk-dim);font-size:14px}
+.stage .placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:rgba(255,255,255,.6);font-size:15px}
 
-/* Ampelrahmen — Farbe liest man quer durchs Zimmer, Text nicht */
-.frame{position:absolute;inset:0;pointer-events:none;border:0 solid transparent;transition:border-color .18s linear;z-index:2}
-.stage.lit .frame{border-width:clamp(10px,3.2vw,22px)}
-.frame.bad{border-color:var(--bad)}
-.frame.warn{border-color:var(--warn)}
-.frame.ok{border-color:var(--ok)}
+/* Rahmen in der Signalfarbe — Farbe liest man quer durchs Zimmer, Text nicht */
+.frame{position:absolute;inset:0;pointer-events:none;border:0 solid transparent;transition:border-color .2s linear;z-index:2;border-radius:inherit}
+.stage.lit .frame{border-width:clamp(6px,2vw,14px)}
+.frame.bad{border-color:var(--bad-c)}
+.frame.warn{border-color:var(--warn-c)}
+.frame.ok{border-color:var(--ok-c)}
 
-.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;z-index:3}
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;z-index:3;color:var(--glass-text)}
 .hud>*{pointer-events:auto}
-.hud-top{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:clamp(14px,4vw,22px);padding-top:calc(clamp(14px,4vw,22px) + env(safe-area-inset-top,0px))}
-.pill{background:rgba(12,17,25,.85);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:8px;backdrop-filter:blur(8px);max-width:62%}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--chalk-dim);flex:none}
-.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
-.iconbtn{background:rgba(12,17,25,.85);border:1px solid var(--line);color:var(--chalk);border-radius:999px;width:46px;height:46px;min-height:46px;padding:0;display:grid;place-items:center;backdrop-filter:blur(8px)}
+.hud-top{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:clamp(12px,3.5vw,20px);padding-top:calc(clamp(12px,3.5vw,20px) + env(safe-area-inset-top,0px))}
+.pill,.iconbtn,.chip,.hud-read,.nearhint,.cleanhint,.hud .szchip,.szshop .szchip{background:var(--glass);border:1px solid var(--glass-line);color:var(--glass-text);
+  -webkit-backdrop-filter:blur(20px) saturate(1.6);backdrop-filter:blur(20px) saturate(1.6)}
+.pill{border-radius:999px;padding:8px 14px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;max-width:62%}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--glass-dim);flex:none}
+.dot.ok{background:var(--ok-c)}.dot.warn{background:var(--warn-c)}.dot.bad{background:var(--bad-c)}
+.iconbtn{border-radius:50%;width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center}
+.iconbtn:hover:not(:disabled){background:rgba(58,58,60,.7)}
 .stage.clean .hud,.stage.clean .frame{display:none!important}
-.cleanhint{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:4;background:rgba(12,17,25,.85);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;white-space:nowrap;pointer-events:none}
-.nearhint{align-self:flex-start;background:rgba(12,17,25,.85);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:13px;color:var(--chalk);backdrop-filter:blur(8px)}
+.cleanhint{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:4;border-radius:999px;padding:8px 14px;font-size:13px;white-space:nowrap;pointer-events:none}
+.nearhint{align-self:flex-start;border-radius:999px;padding:8px 14px;font-size:14px;font-weight:500}
 
-/* Anweisung in der Bildmitte, auf Lesbarkeit aus drei Metern ausgelegt */
-.coach{align-self:center;text-align:center;pointer-events:none;padding:0 14px;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:100%}
-.coach .big{font-size:clamp(30px,11vw,86px);font-weight:900;letter-spacing:-.025em;line-height:1.02;text-transform:uppercase;text-wrap:balance;text-shadow:0 3px 22px #000,0 0 6px #000,0 1px 2px #000}
-.coach .small{font-size:clamp(15px,4.6vw,30px);font-weight:600;opacity:.92;text-shadow:0 2px 14px #000,0 0 4px #000}
-.coach .count{font-size:clamp(90px,34vw,240px);font-weight:900;line-height:.86;font-variant-numeric:tabular-nums;color:var(--ok);text-shadow:0 4px 30px #000,0 0 8px #000}
-.coach .turn{font-size:clamp(54px,20vw,150px);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 4px 26px #000,0 0 8px #000}
+/* Ansage in der Bildmitte, auf Lesbarkeit aus drei Metern ausgelegt */
+.coach{align-self:center;text-align:center;pointer-events:none;padding:0 16px;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:100%}
+.coach .big{font-size:clamp(28px,9vw,64px);font-weight:700;letter-spacing:-.03em;line-height:1.05;text-wrap:balance;text-shadow:0 2px 24px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.5)}
+.coach .small{font-size:clamp(16px,4.4vw,26px);font-weight:500;opacity:.95;text-shadow:0 1px 12px rgba(0,0,0,.6)}
 
-.hud-bottom{display:flex;flex-direction:column;gap:9px;padding:clamp(12px,3.5vw,20px);padding-bottom:calc(clamp(12px,3.5vw,20px) + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,rgba(12,17,25,.92),rgba(12,17,25,0))}
-.chips{display:flex;gap:7px;flex-wrap:wrap}
-.chip{background:rgba(12,17,25,.85);border:1px solid var(--line);color:var(--chalk-dim);border-radius:999px;padding:8px 13px;font-size:13px;min-height:42px;font-weight:500}
-.chip[aria-pressed=true]{background:var(--brass);border-color:var(--brass);color:#1a1205;font-weight:600}
+.hud-bottom{display:flex;flex-direction:column;gap:10px;padding:clamp(12px,3.5vw,20px);padding-bottom:calc(clamp(12px,3.5vw,20px) + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,rgba(0,0,0,.45),rgba(0,0,0,0))}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border-radius:999px;padding:9px 15px;font-size:14px;min-height:40px;font-weight:500;color:var(--glass-dim)}
+.chip[aria-pressed=true]{background:rgba(255,255,255,.92);border-color:transparent;color:#1d1d1f;font-weight:600}
 .chip:disabled{opacity:.35}
-.szrow{display:flex;gap:7px;flex-wrap:wrap}
-.szchip{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:58px;min-height:52px;padding:6px 10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);color:var(--chalk);line-height:1.15}
-.szchip b{font-size:17px;font-weight:700}
-.szchip span{font-size:11.5px;color:var(--chalk-dim);white-space:nowrap}
-.szchip[aria-pressed=true]{border-color:var(--brass);background:#2a2214}
-.szchip.f0 span{color:var(--ok)}.szchip.f-1 span,.szchip.f1 span{color:var(--warn)}.szchip.f-2 span,.szchip.f2 span{color:var(--bad)}
-.szchip.best{box-shadow:inset 0 0 0 2px var(--ok)}
-.szmsg{font-size:14px;color:var(--chalk-dim);margin-top:8px;line-height:1.45}
-.szmsg b{color:var(--chalk)}
-.gsizes{margin:12px 0}
-#szchips,.szshop{flex-wrap:nowrap}
-.hud .szchip,.szshop .szchip{background:rgba(12,17,25,.85);min-width:0;flex:1 1 0;max-width:96px;min-height:46px;padding:5px 6px}
-.hud .szchip[aria-pressed=true],.szshop .szchip[aria-pressed=true]{background:rgba(42,34,20,.92)}
-.szshop{display:none;position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);justify-content:center;z-index:6;padding:0 12px}
-.stage.shop .szshop:not(:empty){display:flex}
-.hud-read{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;background:rgba(12,17,25,.85);border:1px solid var(--line);border-radius:8px;padding:8px 11px;backdrop-filter:blur(8px)}
+.hud-read{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;border-radius:var(--r-s);padding:9px 12px}
 .hud-read span{white-space:nowrap;font-variant-numeric:tabular-nums}
-.hud-read b{color:var(--brass);font-weight:500}
+.hud-read b{color:var(--glass-dim);font-weight:500}
 
-.readout{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:14px}
-.readout dt{color:var(--chalk-dim);min-width:0}
-.readout dd{margin:0;font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
-.steps{display:flex;gap:8px;flex-wrap:wrap}
-.step{flex:1 1 150px;min-width:0;border:1px solid var(--line);border-radius:7px;padding:10px 12px;background:var(--surface-2);display:flex;flex-direction:column;gap:3px}
-.step.done{border-color:var(--ok)}
-.step .n{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--brass)}
-.step .t{font-size:13.5px;font-weight:600}
-.step .v{font-family:var(--mono);font-size:12px;color:var(--chalk-dim);font-variant-numeric:tabular-nums}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{text-align:right;padding:7px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+/* Größen */
+.szrow{display:flex;gap:8px;flex-wrap:wrap}
+.szchip{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:64px;min-height:56px;padding:6px 12px;border-radius:14px;
+  background:var(--surface-2);border:1px solid transparent;color:var(--chalk);line-height:1.15}
+.szchip b{font-size:17px;font-weight:600}
+.szchip span{font-size:12px;color:var(--chalk-dim);white-space:nowrap}
+.szchip[aria-pressed=true]{border-color:var(--brass);background:var(--accent-soft)}
+.szchip.f0 span{color:var(--ok)}.szchip.f-1 span,.szchip.f1 span{color:var(--warn)}.szchip.f-2 span,.szchip.f2 span{color:var(--bad)}
+.szchip.best{box-shadow:inset 0 0 0 2px var(--ok-c)}
+.szmsg{font-size:15px;color:var(--chalk-dim);margin-top:10px;line-height:1.45}
+.szmsg b{color:var(--chalk);font-weight:600}
+.gsizes{margin:6px 0}
+#szchips,.szshop{flex-wrap:nowrap}
+.hud .szchip,.szshop .szchip{min-width:0;flex:1 1 0;max-width:96px;min-height:48px;padding:5px 6px;color:#fff}
+.hud .szchip span,.szshop .szchip span{color:var(--glass-dim)}
+.hud .szchip[aria-pressed=true],.szshop .szchip[aria-pressed=true]{background:rgba(255,255,255,.92);color:#1d1d1f}
+.hud .szchip[aria-pressed=true] span,.szshop .szchip[aria-pressed=true] span{color:#3a3a3c}
+.hud .szchip.f0 span,.szshop .szchip.f0 span{color:#7ee2a0}.hud .szchip.f-1 span,.hud .szchip.f1 span,.szshop .szchip.f-1 span,.szshop .szchip.f1 span{color:#ffd28a}
+.hud .szchip.f-2 span,.hud .szchip.f2 span,.szshop .szchip.f-2 span,.szshop .szchip.f2 span{color:#ff9d97}
+.szshop{display:none;position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);justify-content:center;z-index:6;padding:0 12px}
+.stage.shop .szshop:not(:empty){display:flex}
+
+/* Werte, Schritte, Tabellen */
+.readout{display:grid;grid-template-columns:1fr auto;gap:0;font-size:15px;margin:0}
+.readout dt{color:var(--chalk-dim);min-width:0;padding:10px 0;border-bottom:1px solid var(--line)}
+.readout dd{margin:0;font-weight:500;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;padding:10px 0;border-bottom:1px solid var(--line)}
+.steps{display:flex;gap:10px;flex-wrap:wrap}
+.step{flex:1 1 150px;min-width:0;border-radius:var(--r-s);padding:12px 14px;background:var(--surface-2);display:flex;flex-direction:column;gap:2px;border:1px solid transparent}
+.step.done{border-color:var(--ok-c);background:color-mix(in srgb,var(--ok-c) 10%,var(--surface))}
+.step .n{font-size:12px;font-weight:600;color:var(--chalk-faint);letter-spacing:.02em}
+.step .t{font-size:15px;font-weight:600}
+.step .v{font-size:13px;color:var(--chalk-dim);font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:right;padding:9px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
-th{color:var(--chalk-dim);font-weight:500;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase}
-td{font-family:var(--mono);font-variant-numeric:tabular-nums}
+th{color:var(--chalk-dim);font-weight:600;font-size:12px}
+td{font-variant-numeric:tabular-nums}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .diff.ok{color:var(--ok)}.diff.warn{color:var(--warn)}.diff.bad{color:var(--bad)}
-.hint{font-size:13px;color:var(--chalk-dim);margin:0}
-.hint strong{color:var(--chalk)}
-ul.tips{margin:0;padding-left:18px;color:var(--chalk-dim);font-size:13px;display:flex;flex-direction:column;gap:4px}
-.err{background:#2a1512;border:1px solid var(--bad);color:#f3c4bf;border-radius:7px;padding:11px;font-size:13px;font-family:var(--mono)}
-.note{background:var(--surface-2);border-left:3px solid var(--warn);border-radius:0 7px 7px 0;padding:11px 13px;font-size:13px;color:var(--chalk-dim)}
-.note strong{color:var(--chalk)}
-/* Dateien hochladen */
-.drop{border:2px dashed var(--line);border-radius:12px;padding:20px 16px;text-align:center;cursor:pointer;background:var(--surface-2)}
-.drop:hover,.drop:focus-visible,.drop.over{border-color:var(--brass);background:#20293a}
-.dropbig{font-size:20px;font-weight:700;color:var(--chalk)}
-.dropsub{font-size:13px;color:var(--chalk-dim);margin-top:4px}
-.droplist{display:flex;flex-direction:column;gap:6px}
+.hint{font-size:14px;color:var(--chalk-dim);margin:0;line-height:1.45}
+.hint strong{color:var(--chalk);font-weight:600}
+ul.tips{margin:0;padding-left:20px;color:var(--chalk-dim);font-size:14px;display:flex;flex-direction:column;gap:6px}
+.err{background:color-mix(in srgb,var(--bad-c) 10%,var(--surface));border-radius:var(--r-s);color:var(--bad);padding:12px 14px;font-size:14px}
+.note{background:var(--surface-2);border-radius:var(--r-s);padding:14px 16px;font-size:14px;color:var(--chalk-dim)}
+.note strong{color:var(--chalk);font-weight:600}
+
+/* Einklappbare Bereiche (Feineinstellungen, Einzel-Formular, Ton) */
+details.adv{border-top:1px solid var(--line);padding-top:4px}
+details.adv>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;font-size:16px;font-weight:500;color:var(--chalk)}
+details.adv>summary::-webkit-details-marker{display:none}
+details.adv>summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--chalk-faint);border-bottom:2px solid var(--chalk-faint);transform:rotate(45deg) translateY(-2px);transition:transform .2s;flex:none;margin-right:4px}
+details.adv[open]>summary::after{transform:rotate(225deg) translateY(-2px)}
+details.adv>.advbody{display:flex;flex-direction:column;gap:14px;padding:4px 0 8px}
+
+/* Hose anlegen: Link, Dateien */
+.linkrow{display:flex;gap:8px}
+.linkrow input{flex:1 1 auto;min-width:0}
+.linkrow button{flex:0 0 auto;width:52px;padding:0;font-size:20px;background:var(--brass);color:var(--on-brass)}
+.drop{border:2px dashed var(--line-2);border-radius:var(--r);padding:26px 18px;text-align:center;cursor:pointer;background:transparent;transition:background .15s,border-color .15s}
+.drop:hover,.drop.over{border-color:var(--brass);background:var(--accent-soft)}
+.dropbig{font-size:19px;font-weight:600;color:var(--brass)}
+.dropsub{font-size:14px;color:var(--chalk-dim);margin-top:6px;line-height:1.45}
+.droplist{display:flex;flex-direction:column;gap:8px}
 .droplist:empty{display:none}
-.ditem{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
-.ditem img,.ditem .dicon{width:44px;height:44px;object-fit:contain;border-radius:4px;flex:none;display:grid;place-items:center;color:var(--chalk-dim);font-size:22px;background:#0e141d}
-.ditem .dtxt{flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--chalk-dim);overflow-wrap:anywhere;line-height:1.3}
+.ditem{display:flex;align-items:center;gap:12px;background:var(--surface-2);border-radius:var(--r-s);padding:8px 10px}
+.ditem img,.ditem .dicon{width:46px;height:46px;object-fit:contain;border-radius:8px;flex:none;display:grid;place-items:center;color:var(--chalk-dim);font-size:22px;background:var(--surface)}
+.ditem .dtxt{flex:1 1 auto;min-width:0;font-size:13px;color:var(--chalk-dim);overflow-wrap:anywhere;line-height:1.35}
 .ditem .dtxt b{color:var(--chalk);font-weight:600}
 .ditem.none .dtxt b{color:var(--warn)}
 .ditem.wait .dtxt b{color:var(--chalk-faint)}
-.ditem button{min-height:0;width:36px;height:36px;padding:0;border-radius:50%;flex:none;background:transparent;border:1px solid var(--line);color:var(--chalk-dim)}
+.ditem button{min-height:0;width:36px;height:36px;padding:0;border-radius:50%;flex:none;background:var(--surface);color:var(--chalk-dim);font-size:15px}
 .droprow{align-items:flex-end}
-.linkrow{display:flex;gap:8px;margin-bottom:10px}
-.linkrow input{flex:1 1 auto;min-width:0;font-size:16px;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--chalk)}
-.linkrow button{flex:0 0 auto;width:52px;font-size:20px}
 .droprow>button{flex:0 0 auto}
-.dropmsg{font-size:13.5px;color:var(--chalk-dim);line-height:1.5}
+.dropmsg{font-size:14px;color:var(--chalk-dim);line-height:1.5}
 .dropmsg:empty{display:none}
-.dropmsg b{color:var(--chalk)}
-.dropfit{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.dropmsg b{color:var(--chalk);font-weight:600}
+.dropfit{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
 .dropfit figure{margin:0}
-.dropfit img{width:100%;border-radius:8px;display:block;background:#0e141d}
-.dropfit figcaption{font-size:12px;color:var(--chalk-dim);text-align:center;margin-top:3px}
-.dropfit p{grid-column:1/-1;margin:0;font-size:13px;color:var(--chalk-dim)}
-.dbad{color:#f3c4bf;background:#2a1512;border:1px solid var(--bad);border-radius:7px;padding:9px 11px}
+.dropfit img{width:100%;border-radius:var(--r-s);display:block;background:var(--surface-2)}
+.dropfit figcaption{font-size:12px;color:var(--chalk-dim);text-align:center;margin-top:4px}
+.dropfit p{grid-column:1/-1;margin:0;font-size:14px;color:var(--chalk-dim)}
+.dbad{color:var(--bad);background:color-mix(in srgb,var(--bad-c) 9%,var(--surface));border-radius:var(--r-s);padding:10px 12px}
 .dwarn{color:var(--warn)}
-.gwrap{display:flex;gap:8px;flex-wrap:wrap}
-.gbtn{flex:1 1 110px;min-width:0;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;min-height:auto}
-.gbtn[aria-pressed=true]{border-color:var(--brass);background:#20293a}
-.gbtn img{height:62px;width:auto;max-width:100%;object-fit:contain}
-.gbtn span{font-size:11.5px;font-weight:500;color:var(--chalk-dim);text-align:center;line-height:1.25}
-.gbtn[aria-pressed=true] span{color:var(--chalk)}
-.gitem{flex:1 1 110px;min-width:0;position:relative;display:flex}
-.gitem .gbtn{flex:1 1 auto}
-.gdel{position:absolute;top:4px;right:4px;width:34px;height:34px;min-height:0;padding:0;border-radius:50%;background:rgba(12,17,25,.85);border:1px solid var(--line);color:var(--chalk-dim);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
-.gdel:hover,.gdel:focus-visible{border-color:var(--bad);color:var(--bad)}
-.gdel.sure{width:auto;padding:0 12px;border-radius:17px;background:var(--bad);border-color:var(--bad);color:#fff;font-size:14px;font-weight:700}
-.gbtn .warnb{color:var(--warn)}
-.gdims{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
-.gdims .sub{color:var(--chalk-faint);font-size:11.5px}
-.gdims input.bad{border-color:var(--bad)}
-.dim{display:flex;flex-direction:column;gap:5px;min-width:0}
-.dim label{gap:2px}
-.dimstate{display:flex;align-items:center;gap:8px;min-height:28px}
-.tag{font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px;border:1px solid var(--line);color:var(--chalk-dim)}
-.tag.est{color:var(--warn);border-color:rgba(229,180,73,.5)}
-.tag.man{color:var(--ok);border-color:rgba(79,194,129,.5)}
-.tag.mes{color:#64d2ff;border-color:rgba(100,210,255,.5)}
-.reset{min-height:0;padding:3px 9px;font-size:12px;border-radius:999px;background:transparent;border:1px solid var(--line);color:var(--chalk-dim)}
-.gmsg{min-height:1.3em;font-size:13px;color:var(--warn);margin-top:4px}
-select{background:var(--surface-2);border:1px solid var(--line);border-radius:7px;color:var(--chalk);font-size:16px;padding:10px 11px;width:100%}
-.guide{margin-top:10px;font-size:13px;color:var(--chalk-dim)}
-.guide summary{cursor:pointer;color:var(--chalk);font-weight:600;padding:6px 0}
-.guide ol{margin:6px 0 0;padding-left:20px;display:grid;gap:5px}
-.chk{flex-direction:row;align-items:center;gap:8px;font-size:13.5px;color:var(--chalk-dim)}
-.chk input{width:20px;height:20px}
-.rotrow{align-items:center;gap:6px;flex-wrap:wrap}
-.rotrow button{min-height:36px;padding:6px 10px;font-size:13px}
-.rotrow .sub{color:var(--chalk-faint);font-size:12px;flex-basis:100%}
-.dlg{position:fixed;inset:0;background:rgba(5,8,12,.82);z-index:50;display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
-.dlg[hidden]{display:none}
-.dlgbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;width:min(940px,100%);display:flex;flex-direction:column;gap:10px}
-.dlghead{font-weight:700;color:var(--chalk);font-size:16px}
-#refCv{touch-action:none;border-radius:8px;background:#111;align-self:center}
-.dlgtext{font-size:14px;color:var(--chalk-dim);min-height:2.6em}
-.dlgbtns button{flex:1}
-#segCv{touch-action:none;border-radius:8px;background:#111;align-self:center}
-#segAdd[aria-pressed="true"],#segSub[aria-pressed="true"]{background:var(--brass);color:#1a1205;border-color:var(--brass);font-weight:700}
 
-#refOk:not(:disabled){background:var(--brass);color:#1a1205;border-color:var(--brass);font-weight:700}
-footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
-@media (prefers-reduced-motion:reduce){.frame{transition:none}}
+/* Hosenliste */
+.gwrap{display:flex;gap:10px;flex-wrap:wrap}
+.gbtn{flex:1 1 112px;min-width:0;background:var(--surface-2);border:2px solid transparent;border-radius:16px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;min-height:auto;color:var(--chalk)}
+.gbtn:hover:not(:disabled){background:var(--surface-2);border-color:var(--line-2)}
+.gbtn[aria-pressed=true]{border-color:var(--brass);background:var(--accent-soft)}
+.gbtn img{height:66px;width:auto;max-width:100%;object-fit:contain}
+.gbtn span{font-size:12.5px;font-weight:500;color:var(--chalk-dim);text-align:center;line-height:1.3}
+.gbtn[aria-pressed=true] span{color:var(--chalk)}
+.gitem{flex:1 1 112px;min-width:0;position:relative;display:flex}
+.gitem .gbtn{flex:1 1 auto}
+.gdel{position:absolute;top:6px;right:6px;width:28px;height:28px;min-height:0;padding:0;border-radius:50%;background:var(--surface);color:var(--chalk-dim);font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.gdel:hover,.gdel:focus-visible{color:var(--bad)}
+.gdel.sure{width:auto;padding:0 12px;border-radius:14px;background:var(--bad-c);color:#fff;font-size:13px;font-weight:600}
+.gbtn .warnb{color:var(--warn)}
+.gdims{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:6px}
+.gdims .sub{color:var(--chalk-faint);font-size:12px;line-height:1.35}
+.gdims input.bad{border-color:var(--bad-c)}
+.dim{display:flex;flex-direction:column;gap:6px;min-width:0}
+.dim label{gap:2px;color:var(--chalk);font-size:14px;font-weight:500}
+.dimstate{display:flex;align-items:center;gap:8px;min-height:28px}
+.tag{font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;background:var(--surface-2);color:var(--chalk-dim)}
+.tag.est{color:var(--warn);background:color-mix(in srgb,var(--warn-c) 14%,var(--surface))}
+.tag.man{color:var(--ok);background:color-mix(in srgb,var(--ok-c) 14%,var(--surface))}
+.tag.mes{color:var(--brass);background:var(--accent-soft)}
+.reset{min-height:0;padding:4px 10px;font-size:13px;border-radius:999px;background:transparent;color:var(--brass)}
+.gmsg{min-height:1.3em;font-size:14px;color:var(--warn);margin-top:2px}
+.gmsg:empty{display:none}
+.guide{font-size:14px;color:var(--chalk-dim)}
+.guide summary{cursor:pointer;color:var(--brass);font-weight:500;padding:6px 0}
+.guide ol{margin:6px 0 0;padding-left:20px;display:grid;gap:6px}
+.chk{flex-direction:row;align-items:center;gap:10px;font-size:15px;color:var(--chalk)}
+.chk input{width:22px;height:22px;flex:none}
+.rotrow{align-items:center;gap:8px;flex-wrap:wrap}
+.rotrow button{min-height:38px;padding:7px 12px;font-size:14px;flex:0 1 auto}
+.rotrow .sub{color:var(--chalk-faint);font-size:13px;flex-basis:100%}
+
+/* Fenster (Karte markieren, Umriss prüfen) */
+.dlg{position:fixed;inset:0;background:rgba(0,0,0,.4);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);z-index:50;display:flex;align-items:center;justify-content:center;padding:12px;overflow:auto}
+.dlg[hidden]{display:none}
+.dlgbox{background:var(--surface);border-radius:22px;padding:16px;width:min(940px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.dlghead{font-weight:700;color:var(--chalk);font-size:19px;letter-spacing:-.02em}
+#refCv{touch-action:none;border-radius:var(--r-s);background:#111;align-self:center}
+.dlgtext{font-size:15px;color:var(--chalk-dim);min-height:2.6em}
+.dlgbtns button{flex:1}
+#segCv{touch-action:none;border-radius:var(--r-s);background:#111;align-self:center}
+#segAdd[aria-pressed="true"],#segSub[aria-pressed="true"]{background:var(--brass);color:var(--on-brass)}
+#refOk:not(:disabled),#segOk{background:var(--brass);color:var(--on-brass)}
+footer{color:var(--chalk-faint);font-size:13px;text-align:center;padding:10px 12px 0;line-height:1.5}
+@media (prefers-reduced-motion:reduce){.frame,button,.drop,input{transition:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <span class="eyebrow">Prototyp · Experiment 1 + 2</span>
-    <h1>Maß-Scan</h1>
-    <p class="sub">Handy aufstellen, ins Bild stellen, zuhören. Der Rahmen wird grün, dann zählt es herunter. Alles läuft von selbst.</p>
+    <span class="eyebrow">Passform</span>
+    <h1>Hosen live anprobieren.</h1>
+    <p class="sub">Größe eingeben, Kamera starten, ganz ins Bild stellen. Nach einer Sekunde sitzt die Hose. Dann frei bewegen und näher kommen.</p>
   </header>
 
   <div id="error" class="err" hidden></div>
 
   <section class="card">
-    <h2>1 · Person</h2>
+    <h2>Du</h2>
     <div class="row">
       <label>Größe in cm<input type="text" autocomplete="off" id="height" placeholder="z. B. 178" inputmode="decimal"></label>
       <label>Name oder Kürzel<input type="text" id="person" placeholder="z. B. Flo"></label>
     </div>
-    <div class="toggle"><input type="checkbox" id="voice" checked><span>Sprachansagen und Töne</span></div>
-    <label>Stimme
-      <select id="voiceSel" style="width:100%"><option value="">Standard</option></select></label>
     <div class="row">
       <button id="start" class="primary">Kamera starten</button>
-      <button id="quick">Jakob · 179 cm · sofort starten</button>
+      <button id="quick" title="Testperson Jakob, 179 cm, Kamera sofort starten">Jakob · 179 cm</button>
     </div>
-    <p class="hint">Die Größe ist der Maßstab. <strong>Ohne Schuhe messen.</strong> Ton anlassen, dann musst du den Bildschirm nicht lesen.</p>
+    <p class="hint">Die Größe ist der Maßstab, <strong>ohne Schuhe</strong>.</p>
+    <details class="adv"><summary>Ton und Stimme</summary><div class="advbody">
+      <div class="toggle"><input type="checkbox" id="voice" checked><span>Sprachansagen und Töne</span></div>
+      <label>Stimme
+        <select id="voiceSel" style="width:100%"><option value="">Standard</option></select></label>
+    </div></details>
   </section>
 
   <div class="stage" id="stage">
@@ -256,8 +308,6 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
         </div>
       </div>
       <div class="coach" id="coach">
-        <div class="count" id="coachCount" hidden></div>
-        <div class="turn" id="coachTurn" hidden></div>
         <div class="big" id="coachBig"></div>
         <div class="small" id="coachSmall"></div>
       </div>
@@ -277,33 +327,9 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
   </div>
   <p class="hint">Tippe ins Bild, um die letzte Ansage zu wiederholen.</p>
 
-  <section class="card">
-    <h2>2 · Messwerte</h2>
-    <dl class="readout">
-      <dt>Maßstab aus</dt><dd id="r-scale">–</dd>
-      <dt>Schulterbreite</dt><dd id="r-shoulder">–</dd>
-      <dt>Taillenbreite</dt><dd id="r-waist">–</dd>
-      <dt>Hüftbreite</dt><dd id="r-hip">–</dd>
-      <dt>Oberschenkel, links / rechts</dt><dd id="r-thigh">–</dd>
-      <dt>Knie, links / rechts</dt><dd id="r-knee">–</dd>
-      <dt>Schrittlänge, Schritt bis Boden</dt><dd id="r-inseam">–</dd>
-      <dt>Hüfte bis Boden</dt><dd id="r-leg">–</dd>
-    </dl>
-    <div class="steps">
-      <div class="step" id="step-cal"><span class="n">AUTOMATISCH</span><span class="t">Kalibrierung</span><span class="v" id="v-cal">offen</span></div>
-      <div class="step" id="step-side"><span class="n">AUTOMATISCH</span><span class="t">Seitlich</span><span class="v" id="v-side">offen</span></div>
-    </div>
-    <div class="row"><button id="reset" disabled>Alles zurücksetzen</button></div>
-    <ul class="tips">
-      <li>Handy aufstellen, etwa auf Hüfthöhe, und so weit weggehen, bis du ganz im Bild bist.</li>
-      <li>Der Rahmen zeigt den Zustand: <strong>rot</strong> geht nicht, <strong>gelb</strong> fast, <strong>grün</strong> zählt herunter.</li>
-      <li>Nach der Kalibrierung <strong>um 90 Grad drehen, Arme vor der Brust</strong>. Die große Zahl zeigt, wie weit du gedreht bist.</li>
-      <li>Die Schrittlänge braucht Füße etwa 20 cm auseinander, blockiert die Kalibrierung aber nicht mehr.</li>
-    </ul>
-  </section>
 
   <section class="card">
-    <h2>3 · Anprobe</h2>
+    <h2>Hose</h2>
     <form class="linkrow" id="link-form" autocomplete="off" novalidate>
       <input type="url" id="link-in" inputmode="url" placeholder="🔗 Link zur Hose im Shop einfügen" aria-label="Link zur Hose im Shop">
       <button id="link-go" type="submit" title="Seite holen: Bilder, Maßtabelle und Model-Größe übernehmen" aria-label="Seite holen">⇩</button>
@@ -326,9 +352,39 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
       <figure><img id="fit-b" alt="Die 3D-Hose in derselben Haltung auf dem Foto"><figcaption>3D-Hose, gleiche Haltung</figcaption></figure>
       <p id="fit-txt"></p>
     </div>
-    <div class="note" id="ownBox">
-      <strong>Oder einzeln, mit Maßband-Werten und Maßstab.</strong> Hose flach hinlegen, glatt streichen, das Handy genau senkrecht über die Mitte halten
-      (schräg fotografiert wird die Hose unten oder oben zu breit). Untergrund egal, er muss sich nur farblich von der Hose abheben. Das 3D-Modell entsteht hier im Browser, es wird nichts hochgeladen.
+    <div class="gwrap" id="gwrap"></div>
+    <div id="g3dbox" class="g3dbox" hidden>
+      <canvas id="g3dview" width="360" height="460" aria-label="3D-Modell der gewählten Hose, mit dem Finger oder der Maus drehbar"></canvas>
+      <div class="sub">3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen</div>
+      <div class="row">
+        <button id="tryon" class="primary" title="So würde es im Shop aussehen: Kamera im Vollbild, nur die Hose, ✕ schließt">▶ Anprobieren wie im Shop</button>
+        <button id="g-glb" title="3D-Datei (glTF/GLB) der Hose sichern: für Shopify (3D-Modell am Produkt), Blender oder jeden 3D-Betrachter">⇩ 3D-Datei (.glb)</button>
+      </div>
+    </div>
+    <div class="gsizes" id="g-sizes" hidden>
+      <div class="szrow" id="g-szrow" role="group" aria-label="Größe wählen"></div>
+      <div class="szmsg" id="g-szmsg" aria-live="polite"></div>
+    </div>
+    <div class="gdims" id="gdims">
+      <div class="dim"><label for="g-len">Hosenlänge, cm <span class="sub">außen, vom Bund bis zum Saum</span></label>
+        <input type="text" autocomplete="off" id="g-len" inputmode="decimal" disabled>
+        <div class="dimstate"><span class="tag" id="tag-len"></span><button class="reset" data-k="len" hidden aria-label="Länge wieder schätzen">↺ schätzen</button></div></div>
+      <div class="dim"><label for="g-waist">Bundweite, cm <span class="sub">Bund flach, von Kante zu Kante</span></label>
+        <input type="text" autocomplete="off" id="g-waist" inputmode="decimal" disabled>
+        <div class="dimstate"><span class="tag" id="tag-waist"></span><button class="reset" data-k="waist" hidden aria-label="Bund wieder schätzen">↺ schätzen</button></div></div>
+      <div class="dim"><label for="g-hemw">Saumweite, cm <span class="sub">ein Bein unten flach, wo der Fuß herauskommt</span></label>
+        <input type="text" autocomplete="off" id="g-hemw" inputmode="decimal" disabled>
+        <div class="dimstate"><span class="tag" id="tag-hem"></span><button class="reset" data-k="hem" hidden aria-label="Saum wieder schätzen">↺ schätzen</button></div></div>
+    </div>
+    <div class="row"><label>Stoff <select id="g-fab" disabled></select></label><span class="tag" id="tag-fab"></span></div>
+    <div id="g-msg" class="gmsg" aria-live="polite"></div>
+    <div class="row">
+      <button id="g-clear">Anprobe aus</button>
+    </div>
+    <details class="adv"><summary>Einzeln mit Maßband und Maßstab</summary>
+    <div id="ownBox" class="advbody">
+      <p class="hint">Hose flach hinlegen, glatt streichen, das Handy genau senkrecht über die Mitte halten
+      (schräg fotografiert wird die Hose unten oder oben zu breit). Untergrund egal, er muss sich nur farblich von der Hose abheben. Das 3D-Modell entsteht hier im Browser, es wird nichts hochgeladen.</p>
       <div class="row" style="margin-top:10px">
         <label>Foto Vorderseite<input type="file" id="own-front" accept="image/*,.heic,.heif"></label>
         <label>Foto Rückseite <span style="color:var(--chalk-faint)">(optional)</span><input type="file" id="own-back" accept="image/*,.heic,.heif"></label>
@@ -369,41 +425,9 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
       <canvas id="own-prev" width="320" height="320" hidden style="width:100%;max-width:320px;border-radius:8px;margin-top:8px"></canvas>
       <div id="own-msg" style="margin-top:6px"></div>
     </div>
-    <div class="gwrap" id="gwrap"></div>
-    <div class="row" id="gsammel">
-      <button id="g-export" title="Alle Hosen als Datei hosen.json sichern: auf ein anderes Gerät mitnehmen oder neben index.html legen">⇩ Alle Hosen als Datei</button>
-      <button id="g-importbtn" title="Hosen aus einer Datei hosen.json dazuladen">⇧ Hosen aus Datei laden</button>
-      <input type="file" id="g-import" accept=".json,application/json" hidden>
-    </div>
-    <div id="g3dbox" class="g3dbox" hidden>
-      <canvas id="g3dview" width="360" height="460" aria-label="3D-Modell der gewählten Hose, mit dem Finger oder der Maus drehbar"></canvas>
-      <div class="sub">3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen</div>
-      <div class="row">
-        <button id="tryon" class="primary" title="So würde es im Shop aussehen: Kamera im Vollbild, nur die Hose, ✕ schließt">▶ Anprobieren wie im Shop</button>
-        <button id="g-glb" title="3D-Datei (glTF/GLB) der Hose sichern: für Shopify (3D-Modell am Produkt), Blender oder jeden 3D-Betrachter">⇩ 3D-Datei (.glb)</button>
-      </div>
-    </div>
-    <div class="gsizes" id="g-sizes" hidden>
-      <div class="szrow" id="g-szrow" role="group" aria-label="Größe wählen"></div>
-      <div class="szmsg" id="g-szmsg" aria-live="polite"></div>
-    </div>
-    <div class="gdims" id="gdims">
-      <div class="dim"><label for="g-len">Hosenlänge, cm <span class="sub">außen, vom Bund bis zum Saum</span></label>
-        <input type="text" autocomplete="off" id="g-len" inputmode="decimal" disabled>
-        <div class="dimstate"><span class="tag" id="tag-len"></span><button class="reset" data-k="len" hidden aria-label="Länge wieder schätzen">↺ schätzen</button></div></div>
-      <div class="dim"><label for="g-waist">Bundweite, cm <span class="sub">Bund flach, von Kante zu Kante</span></label>
-        <input type="text" autocomplete="off" id="g-waist" inputmode="decimal" disabled>
-        <div class="dimstate"><span class="tag" id="tag-waist"></span><button class="reset" data-k="waist" hidden aria-label="Bund wieder schätzen">↺ schätzen</button></div></div>
-      <div class="dim"><label for="g-hemw">Saumweite, cm <span class="sub">ein Bein unten flach, wo der Fuß herauskommt</span></label>
-        <input type="text" autocomplete="off" id="g-hemw" inputmode="decimal" disabled>
-        <div class="dimstate"><span class="tag" id="tag-hem"></span><button class="reset" data-k="hem" hidden aria-label="Saum wieder schätzen">↺ schätzen</button></div></div>
-    </div>
-    <div class="row"><label>Stoff <select id="g-fab" disabled></select></label><span class="tag" id="tag-fab"></span></div>
-    <div id="g-msg" class="gmsg" aria-live="polite"></div>
-    <div class="row">
-      <button id="g-clear">Anprobe aus</button>
+    </details>
+    <details class="adv"><summary>Feineinstellungen</summary><div class="advbody">
       <label class="chk"><input type="checkbox" id="g-debug"> Debug-Ansicht (Achsen, Box, Maße)</label>
-    </div>
     <div class="row rotrow" id="g-rot" aria-label="Hose von Hand drehen (Notlösung)">
       <span class="sub">Falls die Hose falsch liegt:</span>
       <button data-r="x" title="Um die rote X-Achse drehen">↻ X 90°</button><button data-r="y" title="Um die grüne Y-Achse drehen">↻ Y 90°</button>
@@ -422,10 +446,43 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
       <dt>Hosenbein flach, oben / unten</dt><dd id="f-leg">–</dd>
       <dt>Erkannte Drehung</dt><dd id="f-yaw">–</dd>
     </dl>
+    <div class="row" id="gsammel">
+      <button id="g-export" title="Alle Hosen als Datei hosen.json sichern: auf ein anderes Gerät mitnehmen oder neben index.html legen">⇩ Alle Hosen als Datei</button>
+      <button id="g-importbtn" title="Hosen aus einer Datei hosen.json dazuladen">⇧ Hosen aus Datei laden</button>
+      <input type="file" id="g-import" accept=".json,application/json" hidden>
+    </div>
+    </div></details>
+  </section>
+
+  <section class="card">
+    <h2>Deine Maße</h2>
+    <dl class="readout">
+      <dt>Maßstab aus</dt><dd id="r-scale">–</dd>
+      <dt>Schulterbreite</dt><dd id="r-shoulder">–</dd>
+      <dt>Taillenbreite</dt><dd id="r-waist">–</dd>
+      <dt>Hüftbreite</dt><dd id="r-hip">–</dd>
+      <dt>Oberschenkel, links / rechts</dt><dd id="r-thigh">–</dd>
+      <dt>Knie, links / rechts</dt><dd id="r-knee">–</dd>
+      <dt>Schrittlänge, Schritt bis Boden</dt><dd id="r-inseam">–</dd>
+      <dt>Hüfte bis Boden</dt><dd id="r-leg">–</dd>
+    </dl>
+    <div class="steps">
+      <div class="step" id="step-cal"><span class="n">Scan</span><span class="t">Von vorn</span><span class="v" id="v-cal">offen</span></div>
+      <div class="step" id="step-side"><span class="n">Nebenbei</span><span class="t">Von der Seite</span><span class="v" id="v-side">offen</span></div>
+    </div>
+    <div class="row"><button id="reset" disabled>Alles zurücksetzen</button></div>
+    <details class="adv"><summary>So geht der Scan</summary><div class="advbody">
+    <ul class="tips">
+      <li>Handy aufstellen, etwa auf Hüfthöhe, und so weit weggehen, bis du einmal ganz im Bild bist. Nach etwa einer Sekunde ruhig stehen ist der Scan fertig.</li>
+      <li>Die Hose liegt schon vorher auf, auch nah an der Kamera. Danach kannst du dich frei bewegen und näher kommen.</li>
+      <li>Drehst du dich einmal ganz im Bild zur Seite und hältst kurz still, misst die Seite nebenbei die Tiefe (für die Umfänge und die Größenempfehlung).</li>
+      <li>Der Rahmen zeigt den Zustand: <strong>rot</strong> geht nicht, <strong>orange</strong> fast, <strong>grün</strong> passt.</li>
+    </ul>
+    </div></details>
   </section>
 
   <section class="card" id="resultCard" hidden>
-    <h2>4 · Umfänge</h2>
+    <h2>Umfänge</h2>
     <dl class="readout">
       <dt>Taille, Umfang geschätzt</dt><dd id="o-waist">–</dd>
       <dt>Hüfte, Umfang geschätzt</dt><dd id="o-hip">–</dd>
@@ -434,7 +491,7 @@ footer{color:var(--chalk-dim);font-size:12px;border-top:1px solid var(--line);pa
   </section>
 
   <section class="card" id="compareCard" hidden>
-    <h2>5 · Gegen das Maßband prüfen</h2>
+    <h2>Gegen das Maßband prüfen</h2>
     <div class="row">
       <label>Taille gemessen, cm<input type="text" autocomplete="off" id="t-waist" inputmode="decimal"></label>
       <label>Hüfte gemessen, cm<input type="text" autocomplete="off" id="t-hip" inputmode="decimal"></label>
@@ -502,6 +559,7 @@ const cam={fk:.8};
 const g={key:null,img:null,flat:null,len:null,off:0,opa:1,est:false,hem:null,yaw:0};     // Deckkraft 100 %: die Hose deckt ganz
 
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const UIFONT='-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';   // Schrift auf dem Kamerabild
 const fmt=(v,u="cm")=>v==null||!isFinite(v)?"–":v.toFixed(1)+" "+u;
 const ellipse=(w,d)=>{const a=w/2,b=d/2;return Math.PI*(3*(a+b)-Math.sqrt((3*a+b)*(a+3*b)));};
 const showError=m=>{$("error").hidden=false;$("error").textContent=m;};
@@ -538,9 +596,10 @@ function clearSm(){ for(const k in oe) delete oe[k]; for(const k in bt) delete b
 function stability(hipCm,shCm){
   const t=performance.now();
   if(hipCm!=null) hist.push({t,h:hipCm,s:shCm});
-  while(hist.length&&t-hist[0].t>WIN_MS+400) hist.shift();
-  const w=hist.filter(x=>t-x.t<=WIN_MS);
-  if(w.length<4||t-w[0].t<WIN_MS*.7) return null;           // mindestens 4 Bilder (langsame Geräte: ~7 Bilder/s)
+  while(hist.length&&t-hist[0].t>1500) hist.shift();
+  // Ruhe im Zeitfenster; auf langsamen Geräten (weniger als 4 Bilder im Fenster) die letzten 4 Bilder, höchstens 1,5 s
+  let w=hist.filter(x=>t-x.t<=WIN_MS); if(w.length<4) w=hist.slice(-4);
+  if(w.length<4||t-w[0].t<WIN_MS*.7) return null;
   const hs=w.map(x=>x.h), ss=w.map(x=>x.s).filter(x=>x!=null);
   return Math.max(Math.max(...hs)-Math.min(...hs),
                   ss.length?Math.max(...ss)-Math.min(...ss):0);
@@ -958,7 +1017,6 @@ function analyse(res){
   // Kurze Aussetzer brechen den Scan nicht ab: erst nach 0,45 s ohne Ruhe von vorn
   if(ok) badSince=0; else if(!badSince) badSince=nowT;
   const counting=!held&&phase==="cal"&&(ok||(stableSince>0&&nowT-badSince<450));
-  $("coachTurn").hidden=true; $("coachCount").hidden=true;
   if(counting){
     if(!stableSince) stableSince=nowT;
     setStatus("Scan …","ok");
@@ -1036,9 +1094,9 @@ function render(s){
 
 /* ---------- Zeichnen ---------- */
 function draw(L,b,ys,bands,legs,cmPerUnit,vw,vh){
-  const X=n=>n*vw, Y=n=>n*vh, chalk="#eef3f8", brass="#d49a3f";
+  const X=n=>n*vw, Y=n=>n*vh, chalk="#ffffff", brass="#ffd60a";
   const F=Math.round(vw/46);
-  ctx.font=`600 ${F}px "IBM Plex Mono", monospace`; ctx.textBaseline="middle"; ctx.lineJoin="round";
+  ctx.font=`600 ${F}px ${UIFONT}`; ctx.textBaseline="middle"; ctx.lineJoin="round";
 
   if(b.topN!=null&&phase!=="near"){
     const tx=vw*.045;
@@ -1059,11 +1117,11 @@ function draw(L,b,ys,bands,legs,cmPerUnit,vw,vh){
 
   // Messlinien immer zeichnen, notfalls blass und gestrichelt
   const lines=[];
-  if(mode!=="leg") lines.push([bands.waistBand,ys.waistY,"TAILLE",false]);
-  lines.push([bands.hipBand,ys.hipY,"HÜFTE",false]);
+  if(mode!=="leg") lines.push([bands.waistBand,ys.waistY,"Taille",false]);
+  lines.push([bands.hipBand,ys.hipY,"Hüfte",false]);
   if(mode!=="top") legs.forEach((lg,i)=>{
-    lines.push([lg.thigh,lg.thighY,i?"OBERSCHENKEL":"",!lg.straight],
-               [lg.knee,lg.kneeY,i?"KNIE":"",!lg.straight]); });
+    lines.push([lg.thigh,lg.thighY,i?"Oberschenkel":"",!lg.straight],
+               [lg.knee,lg.kneeY,i?"Knie":"",!lg.straight]); });
   lines.forEach(([band,ny,label,weak])=>{
     if(!band||ny==null) return;
     const stale=band.age>400||weak||band.unsure;
@@ -1077,14 +1135,14 @@ function draw(L,b,ys,bands,legs,cmPerUnit,vw,vh){
     ctx.restore();
   });
 
-  if(ys.crotchY!=null&&mode!=="top"&&phase!=="side"){
+  if(ys.crotchY!=null&&mode!=="top"){
     ctx.save(); ctx.globalAlpha=ys.crotchFresh?1:.45;
     ctx.strokeStyle=brass; ctx.lineWidth=Math.max(2.5,vw/400); ctx.setLineDash([vw/90,vw/90]);
     ctx.beginPath(); ctx.moveTo(vw*.2,Y(ys.crotchY)); ctx.lineTo(vw*.8,Y(ys.crotchY)); ctx.stroke();
-    ctx.setLineDash([]); ctx.fillStyle=brass; fillT("SCHRITT",vw*.2,Y(ys.crotchY)-F*1.1);
+    ctx.setLineDash([]); ctx.fillStyle=brass; fillT("Schritt",vw*.2,Y(ys.crotchY)-F*1.1);
     ctx.restore();
   }
-  ctx.fillStyle="rgba(212,154,63,.75)";
+  ctx.fillStyle="rgba(255,214,10,.75)";
   (mode==="top"?[11,12,23,24]:[23,24,25,26,27,28]).forEach(i=>{
     ctx.beginPath(); ctx.arc(X(L[i].x),Y(L[i].y),Math.max(3,vw/300),0,Math.PI*2); ctx.fill(); });
 }
@@ -1151,15 +1209,15 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
   }
   if(clean) return;                          // nur die Kleidung, keine Beschriftung
 
-  ctx.strokeStyle="rgba(212,154,63,.95)"; ctx.lineWidth=Math.max(2.5,vw/400);
+  ctx.strokeStyle="rgba(255,214,10,.95)"; ctx.lineWidth=Math.max(2.5,vw/400);
   ctx.setLineDash([vw/70,vw/70]);
   ctx.beginPath(); ctx.moveTo(cx-wPx*.6,topY+hPx); ctx.lineTo(cx+wPx*.6,topY+hPx); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.font=`600 ${Math.round(vw/46)}px "IBM Plex Mono", monospace`; ctx.textBaseline="middle";
+  ctx.font=`600 ${Math.round(vw/46)}px ${UIFONT}`; ctx.textBaseline="middle";
   if(botN!=null){
     g.hem=(botN*vh-(topY+hPx))/pxPerCm;
-    ctx.fillStyle="rgba(212,154,63,.95)";
-    fillT(`SAUM ${g.hem>0?g.hem.toFixed(0)+" cm über Boden":"am Boden"}`, cx-wPx*.6, topY+hPx-vw/32);
+    ctx.fillStyle="rgba(255,214,10,.95)";
+    fillT(`Saum ${g.hem>0?g.hem.toFixed(0)+" cm über Boden":"am Boden"}`, cx-wPx*.6, topY+hPx-vw/32);
     if(g.est){ ctx.fillStyle="rgba(229,180,73,.95)";
       fillT("MASSSTAB GESCHÄTZT — BUND NACHMESSEN", cx-wPx*.6, topY+hPx-vw/32-vw/26); }
   }
@@ -1382,10 +1440,12 @@ const PASSFORM={
   fallAusstellen:1.6,    // der Stoffstapel stellt sich höchstens so weit aus (× Abstand zur Knöchelachse in der Ruheform)
   fallBodenWeit:1.25,    // am Boden (unterste 5 cm) höchstens so weit vom Knöchel wie der Saum × diesen Wert: keine flachen Lappen
   fallSaumWeit:1.15,     // die untersten 4 cm (umgenähter Saum) höchstens so weit: bleibt eine Röhre statt Hutkrempe
+  fallInnen:.85,         // im Stapel nicht enger als dieser Anteil der Ruheform (Seitenwände knicken nicht zum Knöchel ein)
   shirtDarueber:true,    // Oberteil über der Hose erkennen (Farbwechsel Bauch → eigene Hose) und die 3D-Hose darunter verschwinden lassen
   beinTiefe:.8,          // Querschnitt des Hosenbeins: Tiefe/Breite. 1 = rund (von vorn 64 % der flachen Breite); lose Hosen hängen
                          // flacher (Seitennähte wie flach gelegt), von vorn breiter. Je Hose aus dem Foto mit Model (G.ql)
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
+  gesaessFallCm:18,      // so weit unter dem Schritt läuft die Tiefe vom Becken auf die Beintiefe aus (enge Hosen 80 % davon)
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
   innenKante:40,         // so deutlich muss der Farbwechsel sein (sonst ist es der normale Bund, nicht die Innenseite)
@@ -1651,8 +1711,12 @@ function pose3d(M,P){
   const q=.62, ek=Math.PI*(3*(1+q)-Math.sqrt((3+q)*(1+3*q)));
   const ell=hw=>{ const a=4*hw/ek; return [a,a*q]; };
   // Querschnitt über dem Schritt: hinten das Gesäß tiefer, vorne etwas flacher; der Umfang bleibt genau 4·hw
-  const RQ=x=>Math.PI*(3*(1+x)-Math.sqrt((3+x)*(1+3*x))), seatF=u=>Math.exp(-(((u-uSeat)/.3)**2));
+  // unter der stärksten Stelle hängt der Stoff vom Gesäß herab: die Wölbung bleibt bis zum Schritt zu 70 % (vorher fiel sie wie
+  // eine Glocke ab, in der Seitenansicht stand das Gesäß wie ein Brett über dem Bein)
+  const RQ=x=>Math.PI*(3*(1+x)-Math.sqrt((3+x)*(1+3*x))), seatF=u=>u<uSeat?Math.exp(-(((u-uSeat)/.3)**2)):1-.3*clamp((u-uSeat)/Math.max(.05,1-uSeat),0,1);
   const ell2=(hw,u)=>{ const sf=seatF(u), qf=q*(1-.06*sf), qb=q*(1+.22*sf), a=8*hw/(RQ(qf)+RQ(qb)); return [a,a*qf,a*qb]; };
+  // unter dem Gesäß nie tiefer als am Gesäß selbst (die Hose wird dort laut Foto breiter, das Gesäß bleibt die tiefste Stelle)
+  const iSeat=Math.max(0,M.v.findIndex(v=>v>=uSeat*M.vc)), bBs=ell2(hwU(Math.min(iSeat,ic-1))*S,uSeat)[2], capB=(bBv,u)=>u>uSeat?Math.min(bBv,bBs*seatF(u)):bBv;
   let dvMin=1; for(let i=ic;i<NR-1;i++) dvMin=Math.min(dvMin,M.v[i+1]-M.v[i]); dvMin=Math.max(1e-4,dvMin);
   const now=performance.now(), dtRaw=(now-(g3.last||now))/1000, dt=clamp(dtRaw,0,.1); g3.last=now;   // lange Pause: Physik neu ansetzen
   const delta=5*ppc;
@@ -1677,10 +1741,10 @@ function pose3d(M,P){
     for(let i=0;i<NR;i++){
       const below=i>=ic, hwPx=(below?M.hw[i]*legK(i):hwU(i))*S, dOut=seamOut(i);
       let cT,a,b,bB,uS,sCm=0;
-      if(!below){ cT=v3.add(top,v3.mul(dn,yIn(M.v[i]))); uS=M.v[i]/M.vc; [a,b,bB]=ell2(hwPx,uS); }
-      else { const sPx=(M.v[i]-M.vc)*SV; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); uS=1; [a,b,bB]=ell2(hwU(ic-1)*S,1); }
+      if(!below){ cT=v3.add(top,v3.mul(dn,yIn(M.v[i]))); uS=M.v[i]/M.vc; [a,b,bB]=ell2(hwPx,uS); bB=capB(bB,uS); }
+      else { const sPx=(M.v[i]-M.vc)*SV; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); uS=1; [a,b,bB]=ell2(hwU(ic-1)*S,1); bB=capB(bB,1); }
       // Dieselbe Höhe am Bein: so viele Bildpunkte unter dem Hüftgelenk, entlang der Knochen
-      let d=v3.dot(v3.sub(cT,ch[0]),dn), cL=null,r=null,fl=null,R=0,Rx=0,Rz=0,wdev=0,wband=below?sstep(0,PASSFORM.bandCm,sCm):0;
+      let d=v3.dot(v3.sub(cT,ch[0]),dn), cL=null,r=null,fl=null,R=0,Rx=0,Rz=0,exB=0,exF=0,wdev=0,wband=below?sstep(0,PASSFORM.bandCm,sCm):0;
       const onLeg=!rock&&d>0;                          // ein Rock wird nicht ans Bein gezogen (die Beine schieben ihn nur, cloth3d)
       if(onLeg){
         if(cS<1&&d>z0) d=z0+(d-z0)*cS;                      // zu lange Beine stauchen sich am Schuh
@@ -1695,6 +1759,12 @@ function pose3d(M,P){
           if(lat>latMax) cL=v3.add(cL,v3.mul(r,-sg*(lat-latMax))); }
         R=below?hwPx/Math.PI:Rc;
         if(below){ Rx=2*hwPx/RQ(qlP); Rz=Rx*qlP; } else { Rx=Rz=Rc; }
+        // Gesäßfall: der Stoff fällt vom Gesäß nach unten, statt unter dem Schritt stufig auf die Beintiefe einzuspringen.
+        // Hinten läuft die Tiefe von der des Gesäßes über gesaessFallCm (weite Hosen länger) aus (vorne nicht: dort rollt die
+        // Mitte am Schritt ein, eine Verlängerung stand als Beule am Oberschenkel vor).
+        if(below&&!rock){ const loose=clamp((2*hwPx/ppc-.31*(P.heightCm||175))/18,0,1), FC=PASSFORM.gesaessFallCm*(.8+.2*loose);
+          const kF=1-sstep(0,FC,sCm), cLf=v3.dot(v3.sub(cL,cr),fw);
+          exB=kF*Math.max(0,.78*bB-(Rz-cLf)); }
         // Steht das Bein, bleibt oben die Beckenform. Hebt oder spreizt es sich, zieht es den Stoff mit.
         const stand=v3.add(v3.add(ch[0],v3.mul(dn,d)),v3.mul(r,sg*off));
         wdev=sstep(.15,1,v3.len(v3.sub(cL,stand))/Rc);
@@ -1706,7 +1776,11 @@ function pose3d(M,P){
           // Schrittbogen: im untersten Teil der Leibhöhe rollen Mitte vorne und hinten zur Schrittmitte ein (wie am Körper);
           // unter dem Schritt bleibt das so, bis die Beine rund sind (sonst springt die Mitte vorne am Schritt wieder nach vorn)
           const curl=rock?0:.88*sstep(1-PASSFORM.einrollen,1,uS)*(1-t)*(1-t);
-          const bq=f?bB:b, ps=psiArc(bq/a,t), ca=a*Math.sin(ps)*sg, cb=bq*Math.cos(ps)*fs*(1-curl);
+          const bq=f?bB:b, ps=psiArc(bq/a,t), ca=a*Math.sin(ps)*sg;
+          let cb=bq*Math.cos(ps)*fs*(1-curl);
+          // hinten unter dem Gesäß: die Backen (etwas neben der Mitte) halten die Tiefe bis zum Schritt (78 %), während die
+          // Mitte zum Schritt einrollt; so fällt der Stoff vom Gesäß herab statt einzuspringen
+          if(f&&!rock&&uS>uSeat-.05){ const bk=bq*.92*Math.exp(-(((t-.32)/.22)**2))*(1-.15*sstep(uSeat,1,uS))*sstep(uSeat-.05,uSeat+.1,uS); if(bk>-cb) cb=-bk; }
           // hinten sitzt der Bund höher (längere hintere Schrittnaht), vorne etwas tiefer; zur Seitennaht hin auslaufend
           const bR=(f?2:-.8)*ppc*Math.pow(1-t,1.5)*(1-sstep(0,f?.6:.5,uS));
           // Außen läuft die Naht tiefer als innen am Schritt (wO): so bleibt die Außenlänge wie gemessen und der Schritt sitzt oben
@@ -1716,7 +1790,7 @@ function pose3d(M,P){
             const wL=Math.max(wband,wdev*sstep(0,.45,t));
             if(wL>0){
               // Ellipse nach Bogenlänge: innen (t=0) über die Mitte vorne/hinten nach außen (t=1)
-              const qq=Rz/(Rx||1), hp=t<.5?psiArc(qq,1-2*t):psiArc(qq,2*t-1), cr_=(t<.5?-1:1)*Math.sin(hp)*sg*Rx, cf=Math.cos(hp)*fs*Rz, wO=dOut*sstep(.15,1,t);
+              const qq=Rz/(Rx||1), hp=t<.5?psiArc(qq,1-2*t):psiArc(qq,2*t-1), cr_=(t<.5?-1:1)*Math.sin(hp)*sg*Rx, cf=Math.cos(hp)*fs*(Rz+(f?exB:exF)), wO=dOut*sstep(.15,1,t);
               const tx=cL[0]+r[0]*cr_+fl[0]*cf+dn[0]*wO, ty=cL[1]+r[1]*cr_+fl[1]*cf+dn[1]*wO, tz=cL[2]+r[2]*cr_+fl[2]*cf+dn[2]*wO;
               x+=(tx-x)*wL; y+=(ty-y)*wL; z+=(tz-z)*wL;
             }
@@ -1939,11 +2013,20 @@ function drape3d(G,Hc){
   for(let s=0;s<2;s++){ const a=bone[s][2]; let m=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=id(s,NR-1,f,j); m=Math.max(m,Math.hypot(RL[k*3]-a[0],RL[k*3+2]-a[2])); } hemR[s]=m; }
   const flare=[]; for(let p=0;p<np;p++){ if(!W[p]||M.v[row[p]]<.8) continue; const k=first[p], s=Math.floor(k/(NR*2*C)), a=bone[s][2];
     const r=Math.hypot(RL[k*3]-a[0],RL[k*3+2]-a[2]), hem=M.v[row[p]]>=vHem;
-    flare.push([p,a[0],a[2],r*(hem?PASSFORM.fallSaumWeit:PASSFORM.fallAusstellen)+ppc,hemR[s]*PASSFORM.fallBodenWeit+ppc,hem?r*.8:0]);
+    // nach innen höchstens bis fallInnen × Ruheabstand: sonst knicken die Seitenwände beim Stauchen zum Knöchel ein und das
+    // Bein wird unten schmal und tief wie ein Fass (gemessen: 20,7 × 16,4 cm → 13,9 × 20,8 cm)
+    flare.push([p,a[0],a[2],r*(hem?PASSFORM.fallSaumWeit:PASSFORM.fallAusstellen)+ppc,hemR[s]*PASSFORM.fallBodenWeit+ppc,r*(hem?.8:PASSFORM.fallInnen)]);
     if(hem) W[p]=.5; }                                      // Saum doppelt gelegt: doppelt so schwer
   for(let p=0;p<np;p++) if(W[p]&&M.v[row[p]]>.6){ const r=Math.sin(p*12.9898)*43758.5453, u=(r-Math.floor(r))-.5, k=first[p];
     for(let c=0;c<3;c++) X[p*3+c]+=NO[k*3+c]*u*.5*ppc; }
   const grav=981*ppc, dt=1/75, STEPS=100, IT=9, floor=Fy-.25*ppc;
+  // Längenbegrenzung je Stoffbahn (long range attachment): kein Punkt weiter vom festen Rand darüber, als der Stoff dazwischen
+  // lang ist. Sonst dehnt sich die Hose unter ihrem Gewicht (PBD gibt nach): eine 98-cm-Hose lag mit 3–4 cm zu tiefem Saum auf.
+  const lra=[]; for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const a0=id(s,iS-1,f,j), A=pid[a0]; if(W[A]) continue; let dist=0;
+    for(let i=iS;i<NR;i++){ const k=id(s,i,f,j), kp=id(s,i-1,f,j); dist+=Math.hypot(RL[k*3]-RL[kp*3],RL[k*3+1]-RL[kp*3+1],RL[k*3+2]-RL[kp*3+2]); const q=pid[k]; if(W[q]) lra.push(q,A,dist); } }
+  const LRA=Float32Array.from(lra), nL=LRA.length/3;
+  const lraPass=()=>{ for(let c=0;c<nL;c++){ const q=LRA[c*3]*3, a=LRA[c*3+1]*3, dmax=LRA[c*3+2];
+      const dx=X[q]-X[a], dy=X[q+1]-X[a+1], dz=X[q+2]-X[a+2], l=Math.sqrt(dx*dx+dy*dy+dz*dz); if(l>dmax){ const k=dmax/l; X[q]=X[a]+dx*k; X[q+1]=X[a+1]+dy*k; X[q+2]=X[a+2]+dz*k; } } };
   // Stoff gegen Stoff (nur unten, wo sich Falten stapeln): Punkte, die sich näher als die Stoffdicke kommen und nicht
   // Nachbarn im Netz sind, werden auseinandergeschoben. Raster mit Zellen von 1,5 cm.
   const dick=.55*ppc, cell=1.5*ppc, lowP=[]; for(let p=0;p<np;p++) if(W[p]&&M.v[row[p]]>.55) lowP.push(p);
@@ -1975,6 +2058,7 @@ function drape3d(G,Hc){
         if(X[q+1]>floor){ const fr=PASSFORM.fallReibung; X[q+1]=floor; X[q]=X[q]*(1-fr)+Pr[q]*fr; X[q+2]=X[q+2]*(1-fr)+Pr[q+2]*fr; }   // Boden, mit Reibung
       }
     }
+    lraPass();
     if(PASSFORM.fallSelbst&&st%2===0) selfPush();
     // unten nicht weiter ausstellen als ein Viertel über die eigene Weite: sonst klappt der Saum wie Flügel auf den Boden
     for(const [p,ax,az,r0,rh,rmin] of flare){ const q=p*3, dx=X[q]-ax, dz=X[q+2]-az, r=Math.hypot(dx,dz);
@@ -2112,7 +2196,7 @@ function drawDebug3d(B,foc,pc,ppc,vw){
   const cs=[]; for(const x of [lo[0],hi[0]]) for(const y of [lo[1],hi[1]]) for(const z of [lo[2],hi[2]]) cs.push(W(x,y,z));
   for(const [a,b] of [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]]) line(cs[a],cs[b],"rgba(255,214,10,.9)");
   // Gelenke mit Tiefe
-  ctx.fillStyle="#fff"; ctx.font=`600 ${Math.round(vw/60)}px "IBM Plex Mono", monospace`; ctx.textBaseline="middle";
+  ctx.fillStyle="#fff"; ctx.font=`600 ${Math.round(vw/60)}px ${UIFONT}`; ctx.textBaseline="middle";
   const nm=["Hüfte","Knie","Knöchel"];
   B.forEach((ch,s)=>ch.forEach((p,j)=>{ const q=P(p); ctx.beginPath(); ctx.arc(q[0],q[1],vw/220,0,7); ctx.fill();
     if(j) fillT(`${nm[j]} z ${(p[2]/ppc).toFixed(0)}`,q[0]+(s?-1:1)*vw/18-(s?vw/10:0),q[1]); }));
@@ -2122,9 +2206,9 @@ function drawDebug3d(B,foc,pc,ppc,vw){
   // Mittig oben im sichtbaren Teil: die Bühne zeigt das Kamerabild beschnitten (object-fit: cover). Schrift so klein, dass sie passt,
   // erste Zeile unter der Leiste mit Status und Knöpfen.
   const vh=cv.height, r=stage.getBoundingClientRect(), visW=Math.min(vw,vh*r.width/r.height), visH=Math.min(vh,vw*r.height/r.width);
-  let fs=Math.round(vw/40); ctx.font=`700 ${fs}px "IBM Plex Mono", monospace`;
+  let fs=Math.round(vw/40); ctx.font=`700 ${fs}px ${UIFONT}`;
   const wMax=Math.max(...txt.map(t=>ctx.measureText(t).width));
-  if(wMax+fs>visW*.94){ fs=Math.max(8,Math.floor(fs*visW*.94/(wMax+fs))); ctx.font=`700 ${fs}px "IBM Plex Mono", monospace`; }
+  if(wMax+fs>visW*.94){ fs=Math.max(8,Math.floor(fs*visW*.94/(wMax+fs))); ctx.font=`700 ${fs}px ${UIFONT}`; }
   txt.forEach((t,i)=>{ const y=(vh-visH)/2+visH*.16+fs*1.6*i, tw=ctx.measureText(t).width, x0=(vw-tw)/2; ctx.fillStyle="rgba(0,0,0,.6)"; ctx.fillRect(x0-fs*.5,y-fs*.75,tw+fs,fs*1.5);
     ctx.fillStyle=i===1&&tiltPCA>30?"#ff453a":"#fff"; fillT(t,x0,y); });
   ctx.restore();
@@ -2231,10 +2315,10 @@ function draw3d(M,P,vw,vh,tint){
   if(g3.aoFor!==Dr){ g3.aoFor=Dr; const ao=g3.aoArr.slice();
     if(Dr){ const NR=M.nr, C=K3+1, vZ=1-12/Math.max(30,P.cmL||100);
       for(let s=0;s<2;s++) for(let i=0;i<NR;i++){ const w=sstep(vZ,1-.4*(1-vZ),M.v[i]); if(!w) continue;
-        const y=o=>o*(1-w)-.5*w;
+        const y=o=>o*(1-w)-.15*w;
         for(let f=0;f<2;f++){ for(let j=0;j<C;j++){ const k=((s*NR+i)*2+f)*C+j; ao[k*2+1]=y(ao[k*2+1]); }
           const k=g3.nRing+(s*NR+i)*2+f; ao[k*2+1]=y(ao[k*2+1]); } }
-      for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(const r of [4,5]) for(let j=0;j<C;j++) ao[(g3.nRing+g3.nWall+((s*2+f)*6+r)*C+j)*2+1]=.12; }
+      for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(const r of [4,5]) for(let j=0;j<C;j++) ao[(g3.nRing+g3.nWall+((s*2+f)*6+r)*C+j)*2+1]=.5; }
     gl.bindBuffer(gl.ARRAY_BUFFER,g3.ab); gl.bufferData(gl.ARRAY_BUFFER,ao,gl.STATIC_DRAW); }
   gl.viewport(0,0,vw,vh); gl.clearColor(0,0,0,0); gl.clearDepth(1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);

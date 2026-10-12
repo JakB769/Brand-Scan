@@ -25,7 +25,9 @@ ersetze('const visionBundle=()=>import(MP_URL+"/vision_bundle.mjs");','const vis
 ersetze('if(V(11)&&V(12)&&V(23)&&V(24)&&video.videoWidth){','if(V(11)&&V(12)&&V(23)&&V(24)&&window.__shirtBild){');
 ersetze('vw=video.videoWidth, vh=video.videoHeight;\n      if(!shirt.c)','vw=window.__shirtBild.width, vh=window.__shirtBild.height;\n      if(!shirt.c)');
 ersetze('shirt.x.drawImage(video,x0*vw','shirt.x.drawImage(window.__shirtBild,x0*vw');
-// 9. Einblick für die Tests
+// 9. Einklappbare Bereiche (Feineinstellungen, Einzel-Formular, Ton) offen: die Tests tippen dort hinein
+s=s.replace(/<details class="adv">/g,'<details class="adv" open>');
+// 10. Einblick für die Tests
 s=s.replace(/loadOwn\(\);\s*buildPicker\(\);/,'loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null,wornMask:typeof wornMask!=="undefined"?wornMask:null,wornSeeds:typeof wornSeeds!=="undefined"?wornSeeds:null,loadAiSeg:typeof loadAiSeg!=="undefined"?loadAiSeg:null}; buildPicker();');
 if(!s.includes('window.__dbg')) throw new Error('Einblick nicht eingefügt');
 fs.writeFileSync(hier+'testseite-mit-simulierter-person.html',s);

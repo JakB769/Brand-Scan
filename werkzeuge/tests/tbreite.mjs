@@ -10,6 +10,9 @@ const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.mess
 await p.goto('file://'+hier+'testseite-mit-simulierter-person.html'); await p.waitForTimeout(500);
 await p.setInputFiles('#own-front',fotos+'front.jpg'); await p.setInputFiles('#own-back',fotos+'back.jpg');
 await p.fill('#own-waist','40'); await p.click('#own-go'); await p.waitForTimeout(1500);
+// ohne Stoff-Fall: eine zu lange Hose staucht sich auf dem Schuh absichtlich bis 15 % weiter (PASSFORM.fallSaumWeit),
+// geprüft wird hier nur, ob verrauschte Tiefe die gerechnete Form verbreitert
+await p.evaluate(()=>{ window.__dbg.PASSFORM.fall=false; });
 await p.click('#quick'); await p.waitForTimeout(3000);
 await p.click('#clean'); await p.waitForTimeout(2500);
 // Breite eines Beins in cm am Saum und kurz unter dem Schritt, so wie sie im Bild erscheint

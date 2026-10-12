@@ -49,7 +49,7 @@ await p.fill("#height", groesse);
 if (link) { await p.fill("#link-in", link); await p.click("#link-go");
   for (let t = 0; t < 240; t++) { await p.waitForTimeout(500); const m = await p.evaluate(() => document.getElementById("drop-msg").innerText);
     if (/Fertig|keine realistische|lässt keine|ließ sich|geht hier noch nicht/.test(m) && !/wird|berechnet/.test(m)) { console.log("HOSE:", m.replace(/\n/g, " / ").slice(0, 400)); break; } } }
-await p.addStyleTag({ content: "#coachBig,#coachSmall,#coachCount,#coachTurn{display:none!important}" });
+await p.addStyleTag({ content: "#coachBig,#coachSmall{display:none!important}" });
 await p.click("#start"); await p.waitForTimeout(+sek * 1000);
 if (debug !== "1") await p.click("#clean");
 const st = await p.$("#stage"); await st.scrollIntoViewIfNeeded(); await st.screenshot({ path: A + "pruefstand.png" });
