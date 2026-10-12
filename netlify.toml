@@ -1,4 +1,4 @@
-# Netlify, mit GitHub verbunden: die Seite liegt in app/, der Server-Teil für „Link einfügen“ in netlify/functions/.
+# Netlify, mit GitHub verbunden: die Seite liegt in app/, die Server-Teile (Link einfügen, Sammlung der Hosen) in netlify/functions/.
 # Kein Build-Schritt. Die Test-Werkzeuge (Playwright usw.) werden nicht installiert.
 [build]
   publish = "app"
@@ -11,3 +11,4 @@
 
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"          # bündelt @netlify/blobs (Sammlung der Hosen) in die Funktion

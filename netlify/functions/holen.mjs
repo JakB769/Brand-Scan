@@ -203,7 +203,7 @@ async function seite(url) {
   if (r.status >= 400 && !(r.status >= 500 && html.length > 100000)) throw fehler(`Die Seite gibt es nicht (Fehler ${r.status})`, 502, { status: r.status });
   if (!/html|xml|json/.test(r.type) && r.type) throw fehler("Der Link führt nicht zu einer Seite, sondern zu einer Datei. Bilder bitte direkt hineinziehen.");
   const base = r.url, meta = metaTags(html), ld = jsonLd(html), notes = [];
-  let name = null, beschreibung = "", material = null, bilder = [], shop = null;
+  let name = null, beschreibung = "", material = null, bilder = [], shop = null, groessen = null;
 
   // Shopify (die Shops unserer Kunden): /products/<name>.js liefert alle Produktbilder und die Beschreibung
   const sp = /\/products\/([^/?#]+)/.exec(new URL(base).pathname);
@@ -213,6 +213,13 @@ async function seite(url) {
       const p = JSON.parse(j.body.toString("utf8"));
       name = p.title || null; beschreibung = p.description ? textOf(p.description) : "";
       bilder = (p.images || []).map(u => absolut(u, base)).filter(Boolean); shop = "shopify";
+      // Größen aus den Varianten (Maße zeigen viele Shops erst nach Auswahl einer Größe): Weite und Länge zusammen („30/32“)
+      const opts = (p.options || []).map((o, i) => typeof o === "string" ? { name: o, pos: i + 1 } : { name: String(o && o.name || ""), pos: o && o.position || i + 1 });
+      const istW = n => /size|gr(ö|oe)(ß|ss)e|taille|weite|waist|bund/i.test(n), istL = n => /l(ä|ae)nge|length|inseam|beinl/i.test(n);
+      const ow = opts.find(o => istW(o.name)) || (opts.length === 1 ? opts[0] : null), ol = opts.find(o => istL(o.name) && o !== ow);
+      const werte = [...new Set((p.variants || []).map(v => { const a = ow && v["option" + ow.pos], b = ol && v["option" + ol.pos]; return a && b ? `${a}/${b}` : a || null; })
+        .filter(x => x && String(x).length <= 12))];
+      if (werte.length >= 2) groessen = werte.slice(0, 40);
       if (beschreibung) notes.push("Shopify-Beschreibung gelesen");
     } catch {}
   }
@@ -274,7 +281,7 @@ async function seite(url) {
   }
   return {
     ok: true, url: base, shop, name: name ? String(name).trim().slice(0, 120) : null, beschreibung: beschreibung.slice(0, 4000), material,
-    bilder: liste.slice(0, 12), text, tabellen: tabellen.slice(0, 40000), tabellenLinks: gelesen, model,
+    bilder: liste.slice(0, 12), text, tabellen: tabellen.slice(0, 40000), tabellenLinks: gelesen, model, groessen,
     geschlecht: geschlecht(base, name, text.slice(0, 3000), [...links].join(" ")), notes
   };
 }

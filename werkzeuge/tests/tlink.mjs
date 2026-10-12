@@ -28,7 +28,7 @@ const srv=http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/api/holen'){ const r=await holen(new Request(u.href)); res.writeHead(r.status,Object.fromEntries(r.headers)); res.end(Buffer.from(await r.arrayBuffer())); return; }
   if(u.pathname==='/gesperrt'){ res.writeHead(403,{'content-type':'text/html'}); res.end('<html><body>Access denied</body></html>'); return; }
-  let f=u.pathname==='/products/test-jeans'?shop+'shopify.html':u.pathname==='/products/test-jeans.js'?shop+'shopify.json'
+  let f=/^\/products\/test-(jeans|varianten)$/.test(u.pathname)?shop+'shopify.html':u.pathname==='/products/test-jeans.js'?shop+'shopify.json':u.pathname==='/products/test-varianten.js'?shop+'shopify-varianten.json'
     :u.pathname.startsWith('/shop/')?shop+u.pathname.slice(6):R+decodeURIComponent(u.pathname.slice(1));
   f=path.resolve(f); if(!f.startsWith(R.slice(0,-1))||!fs.existsSync(f)||fs.statSync(f).isDirectory()){ res.writeHead(404); res.end(); return; }
   res.writeHead(200,{'content-type':TYP[path.extname(f)]||'application/octet-stream'}); fs.createReadStream(f).pipe(res);
@@ -77,6 +77,14 @@ pruefe(G&&Math.abs(G.waist-41.9)<.2&&Math.abs(G.len-(32*2.54+.62*41.9))<.6,`aus 
 z=await link(B+'/products/test-jeans'); G=await hose();
 pruefe(G&&G.label==='Shopify Testjeans'&&z.l.includes('Vorderseite, flach'),'Shopify-Seite: '+(G&&G.label)+' · '+z.l.join(', '));
 pruefe(G&&G.waist===41&&G.len===108,`Tabelle aus der Shopify-Beschreibung: Bund ${G&&G.waist}, Länge ${G&&G.len}`);
+// Shopify mit Varianten (Weite/Länge), Maße nur für 32/32: übrige Größen hochgerechnet und als geschätzt markiert
+z=await link(B+'/products/test-varianten'); G=await hose();
+const sz=await p.evaluate(()=>{ const G=window.__dbg.GARMENTS[window.__dbg.g.key]; return G&&G.sizes?G.sizes.map(z=>({n:z.n,w:z.waist,l:z.len,est:!!z.est})):[]; });
+console.log('Größen:',sz.map(z=>`${z.est?'≈':''}${z.n} ${z.w}/${z.l}`).join(' · '));
+const s32=sz.find(z=>z.n==='32/32'), s28=sz.find(z=>z.n==='28/30');
+pruefe(sz.length===8&&s32&&!s32.est&&s32.w===42&&s32.l===108,'Shopify-Varianten als Größen, 32/32 gemessen (Bund 42, Länge 108)');
+pruefe(s28&&s28.est&&Math.abs(s28.w-(42-5.08))<.1&&Math.abs(s28.l-(108-4*.79-5.08))<.2&&sz.filter(z=>z.est).length===7,`übrige hochgerechnet und geschätzt: 28/30 Bund ${s28&&s28.w}, Länge ${s28&&s28.l}`);
+pruefe(G&&G.waist===42&&G.len===108&&/hochgerechnet/.test(z.m),'vorgewählt die Größe mit Maßen (32/32), Hinweis „hochgerechnet“: '+(G&&G.waist)+' / '+(G&&G.len));
 
 // Shop sperrt automatische Abrufe
 z=await link(B+'/gesperrt'); pruefe(/lässt keine automatischen Abrufe zu/.test(z.m),'gesperrter Shop: '+z.m.slice(0,90));

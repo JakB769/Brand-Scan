@@ -1,4 +1,4 @@
-window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0};
+window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
 (function(){
   const mc=document.createElement('canvas'); mc.width=256; mc.height=144; const mx=mc.getContext('2d',{willReadFrequently:true});
   function pose(){
@@ -21,7 +21,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0};
     // armHoch: linker Arm über den Kopf gestreckt
     if(md.armHoch){ L[13]=P(24,170); L[15]=P(22,188); L[17]=P(22,193); L[19]=P(21,194); L[21]=P(23,192); }
     L[23]=P(9,95); L[24]=P(-9,95);
-    const kl=md.knee?P(11,95-20,36):P(9+md.wide*14,50), al=md.knee?P(10,95-58,22):P(9+md.wide*30,8);
+    // kneeWave: linkes Knie hebt und senkt sich laufend (Periode in s), wie beim Gehen auf der Stelle
+    const kw=md.kneeWave?(1-Math.cos(2*Math.PI*t/md.kneeWave))/2:0, mixP=(a,b,u)=>({...a,x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u,z:a.z+(b.z-a.z)*u});
+    const kl=md.knee?P(11,95-20,36):kw?mixP(P(9,50),P(11,95-20,36),kw):P(9+md.wide*14,50), al=md.knee?P(10,95-58,22):kw?mixP(P(9,8),P(10,95-58,22),kw):P(9+md.wide*30,8);
     L[25]=kl; L[27]=al; L[26]=P(-9-md.wide*14,50); L[28]=P(-9-md.wide*30,8);
     // zn: Tiefenfehler wie bei echter Pose-Erkennung (Knie und Knöchel scheinbar näher an der Kamera), zr: zusätzlich zittern
     if(md.zn||md.zr){ for(const [i,k] of [[25,.5],[26,.5],[27,1],[28,1],[29,1],[30,1],[31,1],[32,1]]){
