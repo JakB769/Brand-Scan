@@ -20,15 +20,25 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     if(md.hand){ L[13]=P(25,116,8); L[15]=P(14,90,16); L[17]=P(9,84,17); L[19]=P(7,83,18); L[21]=P(10,86,17); }
     // armHoch: linker Arm über den Kopf gestreckt
     if(md.armHoch){ L[13]=P(24,170); L[15]=P(22,188); L[17]=P(22,193); L[19]=P(21,194); L[21]=P(23,192); }
+    // ohneArme: Arme nicht erkannt (Seitenansicht ohne Ausschnitt für den Arm, der im Testbild fehlt)
+    if(md.ohneArme) for(let i=13;i<=22;i++) L[i]={...L[i],visibility:0};
     L[23]=P(9,95); L[24]=P(-9,95);
     // kneeWave: linkes Knie hebt und senkt sich laufend (Periode in s), wie beim Gehen auf der Stelle
     const kw=md.kneeWave?(1-Math.cos(2*Math.PI*t/md.kneeWave))/2:0, mixP=(a,b,u)=>({...a,x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u,z:a.z+(b.z-a.z)*u});
     const kl=md.knee?P(11,95-20,36):kw?mixP(P(9,50),P(11,95-20,36),kw):P(9+md.wide*14,50), al=md.knee?P(10,95-58,22):kw?mixP(P(9,8),P(10,95-58,22),kw):P(9+md.wide*30,8);
     L[25]=kl; L[27]=al; L[26]=P(-9-md.wide*14,50); L[28]=P(-9-md.wide*30,8);
+    // kneeHigh: linker Oberschenkel waagrecht nach vorn, Unterschenkel senkrecht (Knie ganz hoch, Ferse unter dem Knie)
+    // fersePo: linke Ferse zum Gesäß (Oberschenkel senkrecht, Knie ganz gebeugt); kneeHigh und fersePo zusammen: Knie hoch und ganz gebeugt
+    if(md.kneeHigh||md.fersePo){ const kh=md.kneeHigh||0, fp=md.fersePo||0;
+      const th=kh*Math.PI/2*.95, kx=9+2*kh, kHg=95-45*Math.cos(th), kF=45*Math.sin(th);
+      // Unterschenkel gegen die Senkrechte (vorn +): Knie hoch allein → senkrecht, mit fersePo im Knie um 153° gebeugt
+      const sa=th-Math.max(th,fp*Math.PI*.85), aHg=kHg-42*Math.cos(sa), aF=kF+42*Math.sin(sa);
+      L[25]=P(kx,kHg,kF); L[27]=P(kx-1,aHg,aF); }
     // zn: Tiefenfehler wie bei echter Pose-Erkennung (Knie und Knöchel scheinbar näher an der Kamera), zr: zusätzlich zittern
     if(md.zn||md.zr){ for(const [i,k] of [[25,.5],[26,.5],[27,1],[28,1],[29,1],[30,1],[31,1],[32,1]]){
       L[i]={...L[i],z:L[i].z-(md.zn||0)*k+(md.zr||0)*(Math.random()-.5)}; } }
     L[29]=P(9+md.wide*30,3,-4); L[30]=P(-9-md.wide*30,3,-4); L[31]=P(9+md.wide*30,2,14); L[32]=P(-9-md.wide*30,2,14);
+    if(md.kneeHigh||md.fersePo){ const a=L[27]; L[29]={...a,y:a.y+3*cmN*zm}; L[31]={...a,x:a.x+(14*s)*cmN/A*zm,z:a.z-14*c*cmN/A*zm}; }
     // Gelenke außerhalb des Bildes wie bei MediaPipe: Lage geraten, Sicherheit gering (rand:'raten'),
     // oder an den unteren Bildrand geklebt mit mittlerer Sicherheit (rand:'kleben')
     for(let i=0;i<33;i++){ const q=L[i]; if(q.y<=1) continue;

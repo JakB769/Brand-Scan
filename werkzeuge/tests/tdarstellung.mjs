@@ -1,4 +1,4 @@
-// 3D-Darstellung: Hand vor der Hose schneidet sie aus (Kamerabild scheint durch), Saumstauchung ohne übereinanderliegende
+// 3D-Darstellung: Tiefe von der Seite mindestens wie der Körper, Hand vor der Hose schneidet sie aus (Kamerabild scheint durch), Saumstauchung ohne übereinanderliegende
 // Zeilen, Bund hinten höher als vorne, Bund/Saum mit Dicke, Schatten nur auf dem Körper (kein Schleier auf dem Hintergrund),
 // keine WebGL-Fehler. Aufruf: node tdarstellung.mjs [Testseite]
 import { chromium } from 'playwright';
@@ -63,6 +63,9 @@ const geo=await p.evaluate(()=>{
   const nRim=g3.nv-g3.nRing-g3.nWall;
   return {minStep,hinten,bad,nRim,glErr:g3.gl.getError()};
 });
+// Seitenansicht: die Hose umschließt den Körper (vorher Tiefe nur 0,62 × Breite, am Gesäß 23 cm bei 26 cm Körper)
+const tf=await p.evaluate(()=>window.__dbg.g3.form.tiefe);
+pruefe(tf.gesaess>=tf.koerper.hip+1&&tf.schenkel>=tf.koerper.thigh+.5,`Tiefe von der Seite: Gesäß ${tf.gesaess.toFixed(1)} cm (Körper ${tf.koerper.hip.toFixed(1)}), Oberschenkel ${tf.schenkel.toFixed(1)} cm (Körper ${tf.koerper.thigh.toFixed(1)})`);
 await p.evaluate(()=>{ window.__dbg.PASSFORM.fall=true; });
 pruefe(geo.minStep>=.25,`Saum (gerechnete Form): jede Zeile liegt tiefer als die vorige (kleinster Abstand ${geo.minStep.toFixed(2)} cm)`);
 pruefe(geo.hinten>1.5&&geo.hinten<4,`Bund hinten ${geo.hinten.toFixed(1)} cm höher als vorne`);

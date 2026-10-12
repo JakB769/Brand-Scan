@@ -1,5 +1,6 @@
 // Bedienung: drei Testpersonen in der Schnellauswahl (Jakob 1,79 m, Fabian 1,87 m, Philip 1,70 m), Personenwechsel verwirft
-// den alten Scan; Sprachausgabe standardmäßig aus, Lautsprecher-Knopf (bei „Du“ und im Kamerabild) schaltet sie an und wieder aus.
+// den alten Scan; Sprachausgabe standardmäßig aus, Lautsprecher-Knopf (bei „Du“ und im Kamerabild) schaltet sie an und wieder aus;
+// kein farbiger Rahmen um das Kamerabild.
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
 const hier=fileURLToPath(new URL('.',import.meta.url));
@@ -47,6 +48,8 @@ pruefe(!s.voice&&s.vh==='false'&&s.gesagt.length===n&&await p.evaluate(()=>windo
 // neu laden: wieder aus (nicht gespeichert)
 await p.click('#voiceBtn'); await p.reload(); await p.waitForTimeout(400); s=await z();
 pruefe(!s.voice&&s.vb==='false','nach dem Neuladen wieder aus');
+// orangefarbener Rahmen um das Kamerabild ist weg (Wunsch 12.10.)
+pruefe(await p.evaluate(()=>getComputedStyle(document.getElementById('frame')).display==='none'),'kein farbiger Rahmen um das Kamerabild');
 pruefe(!errs.length,'keine Skriptfehler'+(errs.length?': '+errs.slice(0,3).join(' | '):''));
 await b.close();
 if(fehler){ console.log(`${fehler} Fehler`); process.exit(1); }

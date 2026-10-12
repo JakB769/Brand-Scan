@@ -1,6 +1,6 @@
 // Folgt die 3D-Hose den erkannten Punkten ohne Verzögerung? Die Attrappe hebt das linke Knie laufend (kneeWave) und mit
 // einem Ruck (knee). Gemessen je Bild: erkanntes Knie, Knie des Hosen-Skeletts und Lage des Hosenbeins am Knie (Mitte des
-// Rings), daraus die Verzögerung (Kreuzkorrelation) und wie weit das Hosen-Skelett nach einem Ruck noch daneben liegt.
+// Rings) und am Saum, daraus die Verzögerung (Kreuzkorrelation) und wie weit das Hosen-Skelett nach einem Ruck noch daneben liegt.
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
 const hier=fileURLToPath(new URL('.',import.meta.url)), fotos=hier+'../../material/produktfotos/';
@@ -21,22 +21,24 @@ await p.evaluate(()=>{ const g3=window.__dbg.g3, M=g3.M, NR=M.nr, C=13, e=window
     const d=Math.hypot(x-e.bone[0],y-e.bone[1]); if(d<bd){ bd=d; best=i; } } window.__lagRow=best; });
 const lauf=async(ms,setup)=>{ await p.evaluate(()=>{ window.__lagLog=[]; }); await p.evaluate(setup); await p.waitForTimeout(ms); return p.evaluate(()=>window.__lagLog.filter(e=>e.mesh)); };
 // Verzögerung per Kreuzkorrelation (y-Lage), in ms, auf 10 ms gerastert
-const verz=(log,key)=>{
+const verz=(log,key,ref='raw')=>{
   const t0=log[0].t, T=log[log.length-1].t-t0;
   const at=(k,t)=>{ const i=log.findIndex(e=>e.t-t0>=t); if(i<=0) return log[Math.max(0,i)][k][1];
     const a=log[i-1], b2=log[i], u=(t-(a.t-t0))/((b2.t-a.t)||1); return a[k][1]+(b2[k][1]-a[k][1])*u; };
   const ys=k=>{ const o=[]; for(let t=0;t<T;t+=10) o.push(at(k,t)); return o; };
-  const R=ys('raw'), K=ys(key), m=a=>a.reduce((x,y)=>x+y,0)/a.length, mr=m(R), mk=m(K); let best=0, bv=-1e18;
+  const R=ys(ref), K=ys(key), m=a=>a.reduce((x,y)=>x+y,0)/a.length, mr=m(R), mk=m(K); let best=0, bv=-1e18;
   for(let d=0;d<=40;d++){ let s=0; for(let i=50;i+d<K.length;i++) s+=(R[i]-mr)*(K[i+d]-mk); if(s>bv){ bv=s; best=d*10; } }
   return best; };
 const log=await lauf(5000,()=>{ window.__mode.kneeWave=1.2; });
 const fps=log.length/((log[log.length-1].t-log[0].t)/1000);
-const dB=verz(log,'bone'), dM=verz(log,'mesh');
+const dB=verz(log,'bone'), dM=verz(log,'mesh'), dS=verz(log,'saum','ank');
 const amp=k=>{ const ys=log.map(e=>e[k][1]); return Math.max(...ys)-Math.min(...ys); };
 console.log(`Bildrate ${fps.toFixed(1)}/s, Knie hebt sich um ${amp('raw').toFixed(0)} px; Skelett ${amp('bone').toFixed(0)} px, Hosenbein ${amp('mesh').toFixed(0)} px`);
 pruefe(dB<=40,`Hosen-Skelett folgt dem Knie mit ${dB} ms Verzögerung (≤ 40)`);
 pruefe(dM<=80,`Hosenbein folgt dem Knie mit ${dM} ms Verzögerung (≤ 80)`);
 pruefe(amp('bone')>.9*amp('raw')&&amp('mesh')>.75*amp('raw'),'Hose geht beim Kniehub ganz mit (Ausschlag ≥ 90 % bzw. 75 %)');
+// Saum am Knöchel: Stoffphysik schwingt nach, darf aber nicht sichtbar nachziehen
+pruefe(dS<=100&&amp('saum')>.7*amp('ank'),`Saum folgt dem Knöchel mit ${dS} ms Verzögerung (≤ 100), Ausschlag ${(100*amp('saum')/amp('ank')).toFixed(0)} %`);
 // Ruck: Knie in einem Bild ganz oben; nach 2 Bildern muss das Hosen-Skelett nah dran sein
 await p.evaluate(()=>{ window.__mode.kneeWave=0; }); await p.waitForTimeout(1200);
 const ruck=await lauf(1500,()=>{ setTimeout(()=>{ window.__mode.knee=1; },300); });   // erst ein paar Bilder im Stand, dann der Ruck

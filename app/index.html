@@ -90,12 +90,9 @@ select{background:var(--surface-2);border:1px solid transparent;border-radius:va
 .stage.mirror video,.stage.mirror canvas{transform:scaleX(-1)}
 .stage .placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:rgba(255,255,255,.6);font-size:15px}
 
-/* Rahmen in der Signalfarbe — Farbe liest man quer durchs Zimmer, Text nicht */
-.frame{position:absolute;inset:0;pointer-events:none;border:0 solid transparent;transition:border-color .2s linear;z-index:2;border-radius:inherit}
-.stage.lit .frame{border-width:clamp(6px,2vw,14px)}
-.frame.bad{border-color:var(--bad-c)}
-.frame.warn{border-color:var(--warn-c)}
-.frame.ok{border-color:var(--ok-c)}
+/* Farbiger Rahmen um das Kamerabild (rot/orange/grün) auf Wunsch des Nutzers entfernt (12.10. abends): der Zustand steht
+   im Punkt oben links und in der Ansage */
+.frame{display:none}
 
 .hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;z-index:3;color:var(--glass-text)}
 .hud>*{pointer-events:auto}
@@ -518,7 +515,7 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
       <li>Handy aufstellen, etwa auf Hüfthöhe, und so weit weggehen, bis du einmal ganz im Bild bist. Nach etwa einer Sekunde ruhig stehen ist der Scan fertig.</li>
       <li>Die Hose liegt schon vorher auf, auch nah an der Kamera. Danach kannst du dich frei bewegen und näher kommen.</li>
       <li>Drehst du dich einmal ganz im Bild zur Seite und hältst kurz still, misst die Seite nebenbei die Tiefe (für die Umfänge und die Größenempfehlung).</li>
-      <li>Der Rahmen zeigt den Zustand: <strong>rot</strong> geht nicht, <strong>orange</strong> fast, <strong>grün</strong> passt.</li>
+      <li>Der Punkt oben links zeigt den Zustand: <strong>rot</strong> geht nicht, <strong>orange</strong> fast, <strong>grün</strong> passt.</li>
     </ul>
     </div></details>
   </section>
@@ -1326,6 +1323,31 @@ function draw(L,b,ys,bands,legs,cmPerUnit,vw,vh){
     ctx.beginPath(); ctx.arc(X(L[i].x),Y(L[i].y),Math.max(3,vw/300),0,Math.PI*2); ctx.fill(); });
 }
 
+/* Gelenke, wie ein Körper sie kann. Die Tiefe von Knie und Knöchel kommt aus der Verkürzung im Bild, das Vorzeichen aus der
+   unruhigen Tiefenschätzung; kleine Verkürzungen zählen nicht (Rauschen). Bei stark gebeugtem Knie reicht das nicht: der
+   Unterschenkel lag dann in der Bildebene (Ferse zum Gesäß, schräg zur Kamera) und stach durch den Oberschenkel. Das Knie ist
+   ein Scharnier: der Unterschenkel liegt in der Ebene des Beins (senkrecht zur Hüftachse) und beugt sich nach hinten.
+   Bei gebeugtem Knie bekommt der Knöchel die Tiefe, die das erfüllt (im Bild bleibt er, wo er ist), überblendet mit der
+   Beugung. Die Hüfte streckt sich höchstens etwa 30° nach hinten: zeigt der Oberschenkel weiter nach hinten, ist die
+   Tiefe falsch herum (gespiegelt, Knie und Knöchel mit). */
+function legHinge(B,h,upRef,okT,okS){
+  const up=v3.norm(v3.sub(upRef,v3.mul(h,v3.dot(upRef,h)))), fw=v3.cross(h,up);
+  for(let s=0;s<2;s++){ const c=B[s];
+    if(okT[s]){ const t=v3.sub(c[1],c[0]), lt=v3.len(t);
+      if(lt>1&&v3.dot(t,fw)/lt<-.5&&Math.abs(t[2])>.2*lt){ const dz=-2*t[2]; c[1][2]+=dz; c[2][2]+=dz; } }
+    if(!okS[s]) continue;
+    const t=v3.sub(c[1],c[0]), lt=v3.len(t); if(lt<1) continue; const tD=v3.mul(t,1/lt);
+    const hT0=v3.sub(h,v3.mul(tD,v3.dot(h,tD))), lh=v3.len(hT0); if(lh<.3) continue;
+    const hT=v3.mul(hT0,1/lh), Bk=v3.cross(hT,tD);          // Richtung, in die sich das Knie beugt (stehend: nach hinten)
+    const sv=v3.sub(c[2],c[1]), ls=v3.len(sv)||1, w=sstep(.75,.3,v3.dot(sv,tD)/ls);
+    if(w<=0) continue;
+    const Ls=Math.max(ls,.9*lt), dxy=Math.hypot(sv[0],sv[1]), zMax=Math.sqrt(Math.max(0,(1.1*Ls)**2-dxy*dxy));
+    let z=null;
+    if(Math.abs(hT[2])>.3){ const zq=-(sv[0]*hT[0]+sv[1]*hT[1])/hT[2]; if(sv[0]*Bk[0]+sv[1]*Bk[1]+zq*Bk[2]>=0) z=clamp(zq,-zMax,zMax); }
+    if(z==null){ const zl=Math.sqrt(Math.max(0,Ls*Ls-dxy*dxy)); z=(sv[0]*Bk[0]+sv[1]*Bk[1]+zl*Bk[2])>=(sv[0]*Bk[0]+sv[1]*Bk[1]-zl*Bk[2])?zl:-zl; }
+    c[2][2]=c[1][2]+sv[2]+(z-sv[2])*w;
+  }
+}
 function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
   if(!g.key||!g.img) return;
   const G=GARMENTS[g.key], Wcm=garmentWidthCm();
@@ -1350,8 +1372,10 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
       const belt=[cx+(sp[0]-hp[0])*kB-sr*g.off*pxPerCm, anchorY*vh+cr*g.off*pxPerCm, 0];
       const dC=yCrotch-hp[1], crotchP=[cx-sr*dC, hp[1]+cr*dC, 0];
       // Gelenke liegen im Bild schon perspektivisch richtig: zurückrechnen, damit sie nach der Projektion wieder dort landen
-      const B=bone.map((c,s)=>c.map(p=>{ const z=(s?-1:1)*ext.half*sy+(p.zr||0), k=(foc+z)/foc;
-        return [pc[0]+(p.x-pc[0])*k, pc[1]+(p.y-pc[1])*k, z]; }));
+      // Knie als Scharnier, Hüfte begrenzt (legHinge): im Bild, vor dem Zurückrechnen, damit die Gelenke im Bild bleiben, wo sie sind
+      const B0=bone.map((c,s)=>c.map(p=>[p.x,p.y,(s?-1:1)*ext.half*sy+(p.zr||0)]));
+      legHinge(B0,h,upRef,bone.map(c=>c[0].ok&&c[1].ok),bone.map(c=>c[1].ok&&c[2].ok));
+      const B=B0.map(c=>c.map(([x,y,z])=>{ const k=(foc+z)/foc; return [pc[0]+(x-pc[0])*k, pc[1]+(y-pc[1])*k, z]; }));
       const m=clamp(1+.68*(scene.lum/Math.max(20,G.base.lum)-1),.35,1.45);
       const mx=Math.max(scene.r,scene.g,scene.b)||1;
       const tint=[scene.r,scene.g,scene.b].map(v=>(1-(1-v/mx)*.45)*m);
@@ -1624,6 +1648,8 @@ const PASSFORM={
   hueftKorrektur:.8,     // Hüftgelenk zur Anatomie hin nachführen (0 = MediaPipe unverändert, 1 = ganz), siehe hipFix
   fallInnen:.85,         // im Stapel nicht enger als dieser Anteil der Ruheform (Seitenwände knicken nicht zum Knöchel ein)
   shirtDarueber:true,    // Oberteil über der Hose erkennen (Farbwechsel Bauch → eigene Hose) und die 3D-Hose darunter verschwinden lassen
+  leiste:true,           // Leistenfalte beim Heben des Oberschenkels (skin3d): Vorderteil wird zwischen Falte und Bein zusammengeschoben
+  tiefeZugabeCm:2,       // Körper als Mindesttiefe (Seitenansicht): die Hose ist vorn–hinten mindestens so tief wie der Körper plus so viel
   beinTiefe:.8,          // Querschnitt des Hosenbeins: Tiefe/Breite. 1 = rund (von vorn 64 % der flachen Breite); lose Hosen hängen
                          // flacher (Seitennähte wie flach gelegt), von vorn breiter. Je Hose aus dem Foto mit Model (G.ql)
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
@@ -1846,6 +1872,15 @@ const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 /* Viertelellipse (x = sin ψ, z = q·cos ψ) gleichmäßig nach Bogenlänge: ψ zum Anteil t der Bogenlänge.
    Tabellen je q werden zwischengespeichert. */
 const _psi=new Map();
+/* Körpertiefe (cm, von vorn nach hinten) an Taille, Gesäß und Bein: aus der Seitenmessung des Scans, sonst aus Verhältnissen
+   zur Körpergröße (Erwachsene, Mittel aus Anthropometrie-Tabellen: Taille 0,125, Gesäß 0,145, Oberschenkel 0,095, Knie 0,062,
+   Wade 0,068, Knöchel 0,045 × Größe). Für die Hose als Mindesttiefe: von der Seite umschließt sie den Körper. */
+function bodyDepth(Hc){
+  const d={waist:.125*Hc,hip:.145*Hc,thigh:.095*Hc,knee:.062*Hc,calf:.068*Hc,ankle:.045*Hc}, sd=caps.side;
+  if(sd&&sd.hip>12&&sd.hip<70){ const k=clamp(sd.hip/d.hip,.8,1.4); d.hip=sd.hip; d.thigh*=k; d.knee*=Math.sqrt(k); d.calf*=Math.sqrt(k); }
+  if(sd&&sd.waist>12&&sd.waist<70) d.waist=sd.waist;
+  return d;
+}
 function psiArc(q,t){
   const key=Math.round(q*200); let T=_psi.get(key);
   if(!T){ const N=64, qq=key/200; T=new Float32Array(N+1); let sum=0;
@@ -1896,15 +1931,29 @@ function pose3d(M,P){
   // unter der stärksten Stelle hängt der Stoff vom Gesäß herab: die Wölbung bleibt bis zum Schritt zu 70 % (vorher fiel sie wie
   // eine Glocke ab, in der Seitenansicht stand das Gesäß wie ein Brett über dem Bein)
   const RQ=x=>Math.PI*(3*(1+x)-Math.sqrt((3+x)*(1+3*x))), seatF=u=>u<uSeat?Math.exp(-(((u-uSeat)/.3)**2)):1-.3*clamp((u-uSeat)/Math.max(.05,1-uSeat),0,1);
-  const ell2=(hw,u)=>{ const sf=seatF(u), qf=q*(1-.06*sf), qb=q*(1+.22*sf), a=8*hw/(RQ(qf)+RQ(qb)); return [a,a*qf,a*qb]; };
+  // Mindesttiefe aus dem Körper (bodyDepth): am Bund zwischen Taille und Gesäß, ab dem Gesäß die Gesäßtiefe, plus Zugabe.
+  // Vorher war die Tiefe nur 0,62 × Breite: bei 43 cm Bund etwa 22 cm, der Körper hat am Gesäß 25–28 cm (Seitenansicht zu dünn).
+  const BD=bodyDepth(P.heightCm||175), zug=PASSFORM.tiefeZugabeCm*ppc;
+  const dReq=u=>(u<uSeat?(BD.waist+BD.hip)/2+((BD.hip-(BD.waist+BD.hip)/2)*sstep(0,1,u/Math.max(.05,uSeat))):BD.hip)*ppc+zug;
+  const ell2=(hw,u)=>{ const sf=seatF(u); let qf=q*(1-.06*sf), qb=q*(1+.22*sf), a=8*hw/(RQ(qf)+RQ(qb));
+    const Dm=rock?0:dReq(u); if(a*(qf+qb)<Dm){ const k=Dm/(a*(qf+qb)); qf*=k; qb*=k; }
+    return [a,a*qf,a*qb]; };
   // unter dem Gesäß nie tiefer als am Gesäß selbst (die Hose wird dort laut Foto breiter, das Gesäß bleibt die tiefste Stelle)
   const iSeat=Math.max(0,M.v.findIndex(v=>v>=uSeat*M.vc)), bBs=ell2(hwU(Math.min(iSeat,ic-1))*S,uSeat)[2], capB=(bBv,u)=>u>uSeat?Math.min(bBv,bBs*seatF(u)):bBv;
   let dvMin=1; for(let i=ic;i<NR-1;i++) dvMin=Math.min(dvMin,M.v[i+1]-M.v[i]); dvMin=Math.max(1e-4,dvMin);
   const now=performance.now(), dtRaw=(now-(g3.last||now))/1000, dt=clamp(dtRaw,0,.1); g3.last=now;   // lange Pause: Physik neu ansetzen
+  // Fuß angehoben (Knie hoch, Ferse zum Gesäß, Schritt): 4–12 cm über dem tieferen Knöchel steht er nicht mehr auf dem Boden.
+  // haengt: das Hosenbein hängt nur frei, wenn der Unterschenkel nach unten zeigt; zeigt er nach oben (Ferse zum Gesäß), rutscht
+  // der überlange Stoff zum Knöchel und staucht sich dort (vorher ragte der Saum gerade weiter, über den Bund hinaus)
+  const down=P.bone.map(c=>v3.dot(v3.sub(c[2],c[0]),dn)), dMax=Math.max(down[0],down[1]), boden=down.map(d=>1-sstep(4*ppc,12*ppc,dMax-d));
+  const haengt=P.bone.map((c,s)=>(1-boden[s])*sstep(.3,.8,v3.dot(v3.norm(v3.sub(c[2],c[1])),dn)));
   const delta=5*ppc;
   const kH=P.kHem||1, legK=i=>1+(kH-1)*clamp((M.v[i]-M.vc)/(1-M.vc),0,1);
   const Rc=M.hw[Math.min(ic,NR-1)]*S/Math.PI;          // Radius des Hosenbeins direkt unter dem Schritt
   const qlP=clamp(P.ql||PASSFORM.beinTiefe,.35,1), Rxc=2*M.hw[Math.min(ic,NR-1)]*S/RQ(qlP);   // halbe Breite dort (flacher Querschnitt)
+  // vorne über dem Schritt: die Oberschenkel halten die Tiefe des Beins (sonst rollt die Mitte ein und in der Seitenansicht
+  // entsteht vorn am Schritt eine Delle, unter der das Bein wieder vorsteht)
+  const rzTop=Math.max(Rxc*qlP,(BD.thigh*ppc+.75*zug)/2);
   // 1. Hose in Ruhepose bauen: Beine gerade nach unten, mit den Knochenlängen von jetzt. 2. Mit den Knochen in die
   // aktuelle Haltung drehen (Skinning). So knickt der Stoff an Leiste und Knie wie echter Stoff, statt sich aufzublähen.
   const restB=P.bone.map(c=>{ const Lt=v3.len(v3.sub(c[1],c[0])), Ls=v3.len(v3.sub(c[2],c[1]));
@@ -1915,7 +1964,8 @@ function pose3d(M,P){
     // Zu lange Hose: was über den Schuh hinausreicht (ex), wird gleichmäßig auf die untersten 10 cm verteilt (Faktor cS).
     // Jede Zeile bleibt mindestens 0,3 cm unter der vorigen; die Falten dazu entstehen unten aus der Stauchung.
     const dEnd=v3.dot(v3.sub(cr,ch[0]),dn)+(1-M.vc)*SV, dStop=cl+5*ppc, hS=(P.stackCm||16)*ppc, ex=dEnd-dStop, z0=dStop-hS;
-    const cS=ex>0&&!P.noStack?Math.min(1,Math.max(hS/(hS+ex),.3*ppc/(SV*dvMin))):1;
+    // Fuß angehoben und Unterschenkel nach unten (haengt): das Hosenbein hängt frei, statt sich zu stauchen
+    const cS0=ex>0&&!P.noStack?Math.min(1,Math.max(hS/(hS+ex),.3*ppc/(SV*dvMin))):1, cS=cS0+(1-cS0)*haengt[s];
     // Stoff fällt außen gerade von der Hüfte: das Hosenbein liegt nicht mittig um den Knochen, sondern so weit außen,
     // dass seine Außenkante unter dem Schritt dort weiterläuft, wo die Hüfte endet. Sonst entsteht eine Beule an der Hüfte.
     const dC=v3.dot(v3.sub(cr,ch[0]),dn), bC=walk3(ch,Math.max(0,dC));
@@ -1940,7 +1990,11 @@ function pose3d(M,P){
         if(below){ const lat=v3.dot(v3.sub(cL,cr),h)*sg, latMax=Math.max(ell(hwU(ic-1)*S)[0]+ppc-2*hwPx/RQ(qlP),.3*hwPx/Math.PI);
           if(lat>latMax) cL=v3.add(cL,v3.mul(r,-sg*(lat-latMax))); }
         R=below?hwPx/Math.PI:Rc;
-        if(below){ Rx=2*hwPx/RQ(qlP); Rz=Rx*qlP; } else { Rx=Rz=Rc; }
+        if(below){ Rx=2*hwPx/RQ(qlP); Rz=Rx*qlP;
+          // Bein von der Seite mindestens so tief wie das Bein des Körpers (Oberschenkel → Knie → Wade → Knöchel) plus Zugabe
+          const lp=clamp(d/Math.max(1,cl),0,1), bdL=lp<.3?BD.thigh:lp<.5?BD.thigh+(BD.knee-BD.thigh)*(lp-.3)/.2:lp<.7?BD.knee+(BD.calf-BD.knee)*(lp-.5)/.2:BD.calf+(BD.ankle-BD.calf)*(lp-.7)/.3;
+          const rzMin=(bdL*ppc+.75*zug)/2; if(Rz<rzMin) Rz=rzMin; }
+        else { Rx=Rz=Rc; }
         // Gesäßfall: der Stoff fällt vom Gesäß nach unten, statt unter dem Schritt stufig auf die Beintiefe einzuspringen.
         // Hinten läuft die Tiefe von der des Gesäßes über gesaessFallCm (weite Hosen länger) aus (vorne nicht: dort rollt die
         // Mitte am Schritt ein, eine Verlängerung stand als Beule am Oberschenkel vor).
@@ -1963,6 +2017,7 @@ function pose3d(M,P){
           // hinten unter dem Gesäß: die Backen (etwas neben der Mitte) halten die Tiefe bis zum Schritt (78 %), während die
           // Mitte zum Schritt einrollt; so fällt der Stoff vom Gesäß herab statt einzuspringen
           if(f&&!rock&&uS>uSeat-.05){ const bk=bq*.92*Math.exp(-(((t-.32)/.22)**2))*(1-.15*sstep(uSeat,1,uS))*sstep(uSeat-.05,uSeat+.1,uS); if(bk>-cb) cb=-bk; }
+          if(!f&&!rock&&uS>.5){ const fk=rzTop*Math.exp(-(((t-.42)/.24)**2))*sstep(.5,.9,uS); if(fk>cb) cb=fk; }
           // hinten sitzt der Bund höher (längere hintere Schrittnaht), vorne etwas tiefer; zur Seitennaht hin auslaufend
           const bR=(f?2:-.8)*ppc*Math.pow(1-t,1.5)*(1-sstep(0,f?.6:.5,uS));
           // Außen läuft die Naht tiefer als innen am Schritt (wO): so bleibt die Außenlänge wie gemessen und der Schritt sitzt oben
@@ -1984,15 +2039,20 @@ function pose3d(M,P){
       }
     }
   }
+  // Tiefe von der Seite in Ruhe (cm, Debug und Tests): am Gesäß beide Hälften, am Oberschenkel unter dem Übergang ein Bein
+  const tiefe=(i,s1)=>{ let lo=1e9,hi=-1e9; for(let s=0;s<=s1;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=(((s*NR+i)*2+f)*C+j)*3,
+      z=(pos[k]-top[0])*fw[0]+(pos[k+1]-top[1])*fw[1]+(pos[k+2]-top[2])*fw[2]; if(z<lo) lo=z; if(z>hi) hi=z; } return (hi-lo)/ppc; };
+  const iS=clamp(M.v.findIndex(v=>v>=uSeat*M.vc),0,ic-1), iT=M.v.findIndex(v=>v>M.vc&&(v-M.vc)*SV/ppc>PASSFORM.bandCm+1);
+  const tiefeCm={gesaess:tiefe(iS,1),schenkel:iT>0?tiefe(iT,0):null,koerper:BD};
   // Fall des Stoffs aus der Simulation in Ruhehaltung (drape3d): Versatz je Punkt im Körper-Koordinatensystem, vor dem Skinning
   const Dr=P.drape&&P.drape.nr===NR&&P.drape.n===g3.nRing?P.drape:null;
-  if(Dr){ const Dd=Dr.D, dw=ppc*(P.drapeW??1);
-    for(let k=0;k<g3.nRing;k++){ const a=Dd[k*3]*dw, b=Dd[k*3+1]*dw, c=Dd[k*3+2]*dw; if(a===0&&b===0&&c===0) continue;
+  if(Dr){ const Dd=Dr.D, dw0=ppc*(P.drapeW??1), half=NR*2*C, dwS=boden.map(b=>dw0*b);   // angehobener Fuß: Stapel vom Boden löst sich
+    for(let k=0;k<g3.nRing;k++){ const dw=dwS[k<half?0:1], a=Dd[k*3]*dw, b=Dd[k*3+1]*dw, c=Dd[k*3+2]*dw; if(a===0&&b===0&&c===0) continue;
       pos[k*3]+=h[0]*a+up[0]*b+fw[0]*c; pos[k*3+1]+=h[1]*a+up[1]*b+fw[1]*c; pos[k*3+2]+=h[2]*a+up[2]*b+fw[2]*c; }
     for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const w=(g3.nRing+(s*NR+i)*2+f)*3, src=(((s*NR+i)*2+f)*C)*3;
       pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2]; }
   }
-  skin3d(M,P,restB,dn);
+  skin3d(M,P,restB,dn,fw);
   // Notlösung von Hand: Drehung im Koordinatensystem der Hose (X Breite, Y nach oben, Z zur Kamera), um die Bundmitte
   // Drehpunkt ist die Mitte der Hose, damit sie beim Umdrehen an ihrem Platz bleibt
   const Rm=P.rot; let piv=top;
@@ -2014,14 +2074,14 @@ function pose3d(M,P){
   // Ruheabstand der Zeilen; das Paar über den Schritt hinweg hat oben den Leib-, unten den Bein-Maßstab
   const lam=(P.foldCm||5)*ppc, rest=(i,t)=>{ const a=M.v[i], b=M.v[i+1], w=sstep(.15,1,t);
     return (yIn(b)-yIn(a))*(1-w)+(yOut(b)-yOut(a))*w; };
-  let anyF=false; const amp=g3.amp||(g3.amp=new Float32Array(g3.nRing));
+  let anyF=false; const amp=g3.amp||(g3.amp=new Float32Array(g3.nRing)), cmpA=g3.cmp&&g3.cmp.length===g3.nRing?g3.cmp:(g3.cmp=new Float32Array(g3.nRing));
   for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){
     let arc=0;
     for(let i=0;i<NR;i++){
       const k=((s*NR+i)*2+f)*C+j, cmp=e=>{ if(e<0||e>=NR-1) return 1; const a=(((s*NR+e)*2+f)*C+j)*3, b=(((s*NR+e+1)*2+f)*C+j)*3;
-        return Math.hypot(pos[b]-pos[a],pos[b+1]-pos[a+1],pos[b+2]-pos[a+2])/Math.max(1e-6,Dr&&Dr.rest&&(P.drapeW??1)>=1?Dr.rest[((s*NR+e)*2+f)*C+j]*ppc:rest(e,j/K3)); };
+        return Math.hypot(pos[b]-pos[a],pos[b+1]-pos[a+1],pos[b+2]-pos[a+2])/Math.max(1e-6,Dr&&Dr.rest&&(P.drapeW??1)>=1&&boden[s]>.99?Dr.rest[((s*NR+e)*2+f)*C+j]*ppc:rest(e,j/K3)); };
       const c=clamp((cmp(i-1)+2*cmp(i)+cmp(i+1))/4,.05,1);
-      const A=P.noFold?0:Math.min(.22*lam,lam/Math.PI*Math.sqrt(c*(1-c)))*(P.foldK??1)*sstep(.01,.04,M.v[i]);
+      const A=P.noFold?0:Math.min(.22*lam,lam/Math.PI*Math.sqrt(c*(1-c)))*(P.foldK??1)*sstep(4.5,7,M.v[i]*(P.cmL||100));   // Bund und Bundbeleg (4 cm) bleiben glatt: Falten dort stachen durch den Beleg
       if(i>0) arc+=rest(i-1,j/K3);
       // Winkel rundherum, an allen Nähten stetig (vorne π·t, hinten 2π−π·t; nur ganze Vielfache): sonst klaffen die
       // Falten an den Nähten auseinander. Die Falten laufen schräg und unregelmäßig statt als gleichmäßige Ringe.
@@ -2029,6 +2089,8 @@ function pose3d(M,P){
       const ph=2*Math.PI*arc/lam+2.6*Math.sin(psi+1.7*sl+i*.13)+1.1*Math.sin(2*psi+i*.29+.9*sl);
       const am=.5+.5*Math.sin(psi+2.3+1.1*sl+i*.17);         // mal tiefer, mal flacher: keine gleichmäßigen Ringe
       amp[k]=A>.02*ppc?A*am*Math.sin(ph):0; if(amp[k]) anyF=true;
+      // Schatten im gestauchten Stoff (draw3d): etwas bei starker Stauchung, vor allem in den Faltentälern (nicht als Ringe)
+      cmpA[k]=c>=.9?1:(.82+.18*sstep(.3,.9,c))*(1-.45*clamp(-amp[k]/(.1*lam),0,1));
     }
   }
   if(anyF){
@@ -2045,7 +2107,7 @@ function pose3d(M,P){
   g3.frame={top,h,up,fw}; g3.S=S; g3.lastLen=rise+(1-M.vc)*SV; g3.lastPpc=ppc;
   rim3d(M,ppc);
   // Kennwerte in cm (Debug-Ansicht und Tests): Leibhöhe am Körper, bis zum Körperschritt, flach im Foto
-  g3.form={leib:rise/ppc,koerper:riseB/ppc,flach:M.vc*S/ppc,sitz:PASSFORM.sitzCm,gesaess:uSeat*rise/ppc,rock,eng};
+  g3.form={leib:rise/ppc,koerper:riseB/ppc,flach:M.vc*S/ppc,sitz:PASSFORM.sitzCm,gesaess:uSeat*rise/ppc,rock,eng,tiefe:tiefeCm};
   g3.riseB=riseB;
   return {top,S:rise+(1-M.vc)*SV,SW:S,rs:kR};
 }
@@ -2334,18 +2396,32 @@ function rotAbout(o,k,a,x,y,z,out){
    Überblendet wird der Drehwinkel, nicht die Lage (wie Dual-Quaternion-Skinning bei einem Gelenk): ein Punkt mit halbem
    Gewicht dreht sich um den halben Winkel und behält seinen Abstand zum Gelenk. Lineares Mischen der Lagen ließ den Stoff an
    Leiste und Kniekehle einfallen und warf beim angehobenen Knie einen Lappen. */
-function skin3d(M,P,rest,dn){
+function skin3d(M,P,rest,dn,fw){
   if(M.rock) return;                                   // Rock: bleibt in seiner Form, die Beine schieben ihn nur (cloth3d)
-  const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos, o=[0,0,0];
+  const NR=M.nr, C=K3+1, ic=g3.ic, pos=g3.pos, o=[0,0,0], ppc=P.ppc||1;
   for(let s=0;s<2;s++){
     const ch=P.bone[s], J=ch[0], K=ch[1], A=ch[2];
     const Lt=v3.len(v3.sub(K,J))||1, tD=v3.norm(v3.sub(K,J)), T=axisAngle(dn,tD,P.h), S=axisAngle(tD,v3.norm(v3.sub(A,K)),P.h);
+    // Leistenfalte: hebt sich der Oberschenkel nach vorn (Beugung thF), dreht sich das Hosenbein um das Hüftgelenk nach oben.
+    // Das breite Vorderteil darüber bliebe davor stehen, das Bein käme dahinter hervor, dazwischen sah man in die Hose.
+    // Wie echter Stoff wird das Vorderteil zwischen Falte und Bein zusammengeschoben (die Stauchfalten machen daraus den
+    // Wulst in der Leiste). Die Falte liegt dort, wo die Oberkante des gedrehten Beins das Vorderteil trifft (Beugung 90°:
+    // knapp unter dem Bund, 30°: nahe am Schritt). Mitte vorne und Seitennaht bleiben, wo sie sind (sonst reißt die Naht).
+    const fwd=fw||[0,0,-1], rx=q=>(pos[q]-J[0])*fwd[0]+(pos[q+1]-J[1])*fwd[1]+(pos[q+2]-J[2])*fwd[2], ry=q=>(pos[q]-J[0])*dn[0]+(pos[q+1]-J[1])*dn[1]+(pos[q+2]-J[2])*dn[2];
+    const thF=Math.atan2(v3.dot(tD,fwd),v3.dot(tD,dn)), flexK=PASSFORM.leiste?sstep(.25,1.2,thF):0;
+    let yC=0; const yR=flexK>0?(g3.yR&&g3.yR.length>=(ic+1)*C?g3.yR:(g3.yR=new Float32Array((ic+1)*C))):null;
+    if(flexK>0){ let xL=-1e9; for(let j=0;j<C;j++) xL=Math.max(xL,rx((((s*NR+ic)*2)*C+j)*3));
+      const yCr=ry((((s*NR+ic)*2)*C)*3), yTop=ry((((s*NR)*2)*C)*3);
+      yC=clamp(-xL*Math.sin(thF)+yCr*Math.cos(thF),yTop+5*ppc,yCr);   // nicht über dem Bundbeleg innen (4 cm), sonst steht er vor
+      for(let i=0;i<=ic;i++) for(let j=0;j<C;j++) yR[i*C+j]=ry((((s*NR+i)*2)*C+j)*3); }
     for(let i=0;i<NR;i++){
       const ib=clamp((i-(ic-4))/4,0,1);                 // ab kurz über dem Schritt gehören auch die Mittelpunkte zum Bein
       for(let f=0;f<2;f++) for(let j=0;j<C;j++){
         const q=(((s*NR+i)*2+f)*C+j)*3, x=pos[q], y0=pos[q+1], z=pos[q+2];
         const y=(x-J[0])*dn[0]+(y0-J[1])*dn[1]+(z-J[2])*dn[2];
-        const lat=i<ic?ib+(1-ib)*sstep(0,.6,j/K3):1, wt=sstep(-.2*Lt,.45*Lt,y)*lat;
+        // vorne über dem Hüftgelenk dreht nichts mit: dort würde der Stoff beim Heben des Beins nach innen wandern (Hebel)
+        // und der Bundbeleg durchstechen; hinten dehnt sich das Gesäß über die ganze Breite des Übergangs
+        const lat=i<ic?ib+(1-ib)*sstep(0,.6,j/K3):1, wt=sstep(i<ic&&!f?0:-.2*Lt,.45*Lt,y)*lat;
         if(wt<=0) continue;
         rotAbout(J,T.k,T.a*wt,x,y0,z,o);
         const ws=sstep(.8*Lt,1.15*Lt,y);
@@ -2354,6 +2430,13 @@ function skin3d(M,P,rest,dn){
       }
       for(let f=0;f<2;f++){ const w=(g3.nRing+(s*NR+i)*2+f)*3, src=(((s*NR+i)*2+f)*C)*3;
         pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2]; }
+    }
+    if(flexK>0) for(let j=1;j<K3;j++){
+      const t=j/K3, k=flexK*sstep(0,.3,t)*(1-sstep(.7,1,t)); if(k<=0) continue;
+      let iC=0; while(iC<ic-1&&yR[iC*C+j]<yC) iC++;
+      const a=(((s*NR+iC)*2)*C+j)*3, b=(((s*NR+ic)*2)*C+j)*3, ya=yR[iC*C+j], yb=yR[ic*C+j];
+      for(let i=iC+1;i<ic;i++){ const q=(((s*NR+i)*2)*C+j)*3, u=clamp((yR[i*C+j]-ya)/Math.max(1e-3,yb-ya),0,1);
+        for(let c=0;c<3;c++) pos[q+c]+=(pos[a+c]+(pos[b+c]-pos[a+c])*u-pos[q+c])*k; }
     }
   }
 }
@@ -2542,7 +2625,13 @@ function draw3d(M,P,vw,vh,tint){
         for(let f=0;f<2;f++){ for(let j=0;j<C;j++){ const k=((s*NR+i)*2+f)*C+j; ao[k*2+1]=y(ao[k*2+1]); }
           const k=g3.nRing+(s*NR+i)*2+f; ao[k*2+1]=y(ao[k*2+1]); } }
       for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(const r of [4,5]) for(let j=0;j<C;j++) ao[(g3.nRing+g3.nWall+((s*2+f)*6+r)*C+j)*2+1]=.5; }
-    gl.bindBuffer(gl.ARRAY_BUFFER,g3.ab); gl.bufferData(gl.ARRAY_BUFFER,ao,gl.STATIC_DRAW); }
+    g3.aoBase=ao; g3.aoDyn=true; }
+  // Gestauchter Stoff (Leiste, Kniekehle, Ellbogen der Falte) liegt im Schatten: Verdeckung aus der Stauchung (pose3d, g3.cmp)
+  { const cm=g3.cmp, base=g3.aoBase; let any=false;
+    if(cm&&base) for(let k=0;k<g3.nRing;k++) if(cm[k]<.99){ any=true; break; }
+    if(any||g3.aoDyn){ const ao=any?(g3.aoTmp&&g3.aoTmp.length===base.length?g3.aoTmp:(g3.aoTmp=new Float32Array(base.length))):base;
+      if(any){ ao.set(base); for(let k=0;k<g3.nRing;k++) if(cm[k]<.99) ao[k*2]*=cm[k]; }
+      gl.bindBuffer(gl.ARRAY_BUFFER,g3.ab); gl.bufferData(gl.ARRAY_BUFFER,ao,gl.DYNAMIC_DRAW); g3.aoDyn=any; } }
   gl.viewport(0,0,cw,ch); gl.clearColor(0,0,0,0); gl.clearDepth(1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND);
@@ -2745,7 +2834,11 @@ function bodyYaw(L,V,vw,vh,ppc){
     // Breite im Verhältnis zur Rumpflänge: die ändert sich beim Drehen nicht und hängt nicht am Maßstab
     const torso=Math.hypot((X(11)+X(12)-X(23)-X(24))/2,(Y(11)+Y(12)-Y(23)-Y(24))/2)||1;
     const rs=(X(11)-X(12))/torso, rh=(X(23)-X(24))/torso;
+    if(!fc.as){ fc.as=Math.abs(rs); fc.ah=Math.abs(rh); }
     fc.as+=(Math.abs(rs)-fc.as)*.15; fc.ah+=(Math.abs(rh)-fc.ah)*.15;
+    // Nach dem Scan: breiter als „von vorn“ geht nicht. Kam der Scan, bevor die Glättung eingeschwungen war (langsame Geräte:
+    // wenige Bilder in 0,7 s), war die Eichung zu schmal und jede Drehung bis etwa 45° galt als frontal.
+    if(fc.cal){ fc.ks=Math.max(fc.ks,Math.min(.9,fc.as)); fc.kh=Math.max(fc.kh,Math.min(.48,fc.ah)); }
     if(!fc.cal){                                   // vor dem Frontal-Scan: größte gesehene Breite, die langsam vergisst
       fc.ks=clamp(Math.max(fc.ks-(fc.ks-.74)*.004,fc.as),.6,.9);
       fc.kh=clamp(Math.max(fc.kh-(fc.kh-.36)*.004,fc.ah),.26,.48);
@@ -4960,6 +5053,31 @@ function pocketEdges(F){
     for(const [u0,u1] of [[.08,.45],[.55,.92]]) for(let x=Math.round(sp[0]+u0*w);x<Math.round(sp[0]+u1*w);x++){ n++; if(E(y*CW+x)>thr) k++; } }
   return n?k/n:null;
 }
+/* Schräge Nähte oben: Passe (hinten) gegen Eingriff der Vordertaschen (vorne). Die Passe läuft von den Seiten zur Mitte
+   nach unten (V), links im Bild also „\“, rechts „/“; der Eingriff der Vordertaschen läuft vom Bund nach außen zur Seitennaht
+   hinunter, links „/“, rechts „\“ – genau umgekehrt. Gezählt werden starke, schräge Kanten (Richtung aus dem Helligkeitsgefälle)
+   im Streifen 3–22 % unter dem Bund, ohne die Mitte (Schlitz vorne, Mittelnaht hinten: beide senkrecht, sagen nichts).
+   Ergebnis −1 (alles wie Vordertaschen) bis +1 (alles wie Passe); null, wenn dort kaum schräge Kanten sind. */
+function sideSlope(F){
+  const {CW,CH}=GEN, d=F.d, mm=F.mm, top=F.top, Hh=Math.max(1,F.bot-F.top), N=CW*CH;
+  const Y=new Float32Array(N); for(let i=0;i<N;i++) Y[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+  const T=new Float32Array(N), B=new Float32Array(N);
+  for(let y=0;y<CH;y++) for(let x=0;x<CW;x++){ const i=y*CW+x; T[i]=(Y[i-(x>0)]+2*Y[i]+Y[i+(x<CW-1)])/4; }
+  for(let y=0;y<CH;y++) for(let x=0;x<CW;x++){ const i=y*CW+x; B[i]=(T[i-(y>0?CW:0)]+2*T[i]+T[i+(y<CH-1?CW:0)])/4; }
+  const G=i=>[(B[i+1]-B[i-1])/2,(B[i+CW]-B[i-CW])/2];
+  const leg=[]; for(let y=top+Math.round(.55*Hh);y<top+Math.round(.8*Hh);y++) for(let x=1;x<CW-1;x++){ const i=y*CW+x; if(mm[i]){ const g=G(i); leg.push(Math.hypot(g[0],g[1])); } }
+  if(leg.length<100) return null;
+  leg.sort((a,b)=>a-b); const thr=leg[Math.floor(leg.length*.9)];
+  let E=0,A=0,n=0;
+  for(let y=Math.max(1,top+Math.round(.03*Hh));y<top+Math.round(.22*Hh)&&y<CH-1;y++){
+    let l=-1,r=-1; for(let x=0;x<CW;x++) if(mm[y*CW+x]){ if(l<0) l=x; r=x; } if(l<0) continue;
+    const w=r-l, c=(l+r)/2;
+    for(let x=Math.max(1,Math.round(l+.03*w));x<Math.min(CW-1,Math.round(r-.03*w));x++){ if(Math.abs(x-c)<.06*w) continue;
+      const i=y*CW+x; if(!mm[i]) continue; n++; const [gx,gy]=G(i), m=Math.hypot(gx,gy); if(m<thr) continue;
+      const wt=m*Math.min(Math.abs(gx),Math.abs(gy))/m, sg=Math.sign(gx*gy)*(x<c?-1:1);
+      E+=sg*wt; A+=wt; } }
+  return A>.002*n*thr?E/A:null;
+}
 /* Kleiner Fingerabdruck des Fotos (Helligkeit über dem Schritt, 12 × 20): zweimal dasselbe Foto erkennen */
 function photoPrint(F){
   const {CW}=GEN, d=F.d, Hh=F.bot-F.top, v=[];
@@ -4973,8 +5091,12 @@ function flatSideScore(it){
   try{
     const F=cropGarment(it.cv,it.S,false,true); findGaps(F);
     if(F.inner&&F.inner.ok) sc+=2;
-    it.pk=pocketEdges(F); it.print=photoPrint(F);
+    it.pk=pocketEdges(F); it.print=photoPrint(F); it.slope=sideSlope(F);
     if(it.pk!=null) sc+=clamp((.105-it.pk)/.025,-2,2);        // Gesäßtaschen sprechen für hinten
+    // Passe gegen Eingriff der Vordertaschen (sideSlope), gemessen an drei echten Paaren (Bershka; Fotos des Nutzers 7267/68,
+    // auch weich verkleinert wie in Safari): vorne −0,00…0,08, hinten 0,15…0,41. Beim schräg fotografierten Paar 7264/65
+    // unentschieden (0,065 / 0,052); darum schwächer gewichtet als die Gesäßtaschen
+    if(it.slope!=null) sc+=clamp((.11-it.slope)/.06,-1,1);
     const {CW}=GEN, d=F.d, Hg=F.bot-F.top, r=F.rows[1].runs, xl=r[0][0], xr=r[r.length-1][1], cx=(xl+xr)/2, half=(xr-xl)*.13;
     // Lederpatch: bräunlich, deutlich anders als der Stoff, im oberen Zehntel außerhalb der Mitte
     const y0=F.top+Math.round(.012*Hg), y1=F.top+Math.round(.1*Hg), px=[];
@@ -4985,7 +5107,7 @@ function flatSideScore(it){
       const i=(y*CW+x)*4, R=d[i],G=d[i+1],B=d[i+2], L=(R+G+B)/3;
       if(Math.abs(R-R0)+Math.abs(G-G0)+Math.abs(B-B0)>90&&R-B>(R0-B0)+40&&R>G&&G>B&&L<L0+60) patch++; }
     if(patch>=25) sc-=1.5;
-    it.dbg={inner:!!(F.inner&&F.inner.ok),patch,pk:it.pk};
+    it.dbg={inner:!!(F.inner&&F.inner.ok),patch,pk:it.pk,slope:it.slope};
   }catch(_){}
   return sc;
 }
@@ -5568,9 +5690,12 @@ async function upAdd(files,texts=[],opt={}){
   if(fix) fresh[0].fix=fix;
   UP.items.push(...fresh); $("drop-row").hidden=false; upRender();
   await Promise.all(fresh.map(it=>upAnalyse(it).catch(e=>{ it.kind="none"; it.note=e&&e.message?e.message:"nicht lesbar"; })));
-  // Kommt eine zweite flache Vorderseite, ist das eine andere Hose: von vorn anfangen
+  // Neue flache Fotos zu einer fertigen Hose: Gab es bisher nur die Vorderseite, ist ein einzelnes neues Foto ihre Rückseite
+  // (vorher begann hier eine neue Hose und die Vorderseite fiel weg: Modell nur aus einem Foto). Eine andere Hose beginnt erst,
+  // wenn schon Vorder- und Rückseite da waren oder zwei neue Fotos kommen (oder mit „Neue Hose“).
   const fl=UP.items.filter(i=>i.kind==="flat"), oldFlat=fl.filter(i=>i.batch!==batch), newFlat=fl.filter(i=>i.batch===batch);
-  if(!fix&&UP.key&&oldFlat.length&&newFlat.length){ UP.items=UP.items.filter(i=>i.batch===batch); UP.key=null; UP.size=-1; UP.art=null;
+  if(!fix&&UP.key&&oldFlat.length===1&&newFlat.length===1){ /* dieselbe Hose, zweite Seite: welche vorne ist, entscheidet upAssign */ }
+  else if(!fix&&UP.key&&oldFlat.length&&newFlat.length){ UP.items=UP.items.filter(i=>i.batch===batch); UP.key=null; UP.size=-1; UP.art=null;
     if(!fresh.some(i=>i.link)) UP.link=null; }                // andere Hose von Hand: Name und Model-Größe des Links gelten nicht mehr
   upAssign(); upRender(); await upBuild();
 }
@@ -5621,13 +5746,32 @@ async function classifyFlat(it,noPose=false){
   // flache Hose war weg. Haut ist aber glatt (Helligkeitssprung zum Nachbarpunkt im Median 3–9 an Model-Fotos), Denim und
   // Holz sind körnig (30–33). Gezählt wird also nur glatte Hautfarbe. (Den Untergrund am Bildrand auszunehmen ging nicht: bei
   // Model-Fotos ab der Hüfte reichen die Beine bis an den Rand.)
-  { const d=it.cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,S.w,S.h).data; let n=0,k=0;
-    for(let y=S.y0;y<S.y1;y+=2) for(let x=S.x0;x<S.x1;x+=2){ const i=y*S.w+x; if(!S.m[i]) continue; n++;
-      const r=d[i*4], g=d[i*4+1], b=d[i*4+2]; if(!isSkin(r,g,b)||x+1>=S.w||y+1>=S.h) continue;
-      const Y=j=>.299*d[j*4]+.587*d[j*4+1]+.114*d[j*4+2];
-      if(Math.abs(Y(i)-Y(i+1))+Math.abs(Y(i)-Y(i+S.w))<12) k++; }
-    if(n&&k/n>.06){ it.kind="worn"; it.person={L:null,side:"vorne",legs:false,crop:true}; return; }
-    if(S.y0<=1){ it.kind="none"; it.note="oben abgeschnitten: die Hose muss ganz im Bild sein"; return; } }
+  // 12.10. abends: auch das reichte nicht. Fotos des Nutzers auf Holzboden: 41–45 % der Hosenfläche hautfarben, davon 2–6 %
+  // „glatt“ – je nachdem, wie weich der Browser das Foto verkleinert (Safari glatter als Chromium). Über 6 % galt die Rückseite
+  // als Model-Foto und fiel weg, die Hose bekam eine geschätzte Rückseite. Ein echtes Model-Foto ab der Hüfte hat 24 % glatte
+  // Haut, und zwar in großen zusammenhängenden Flächen (Beine, Hände); bei Denim ist sie verstreut. Jetzt zählt nur Haut in
+  // zusammenhängenden Flächen ab 0,4 % der Hose, und es braucht mehr als 12 %. Ein Foto im Feld „Vorderseite“/„Rückseite“
+  // wird nie als Model-Foto verworfen.
+  if(!it.fix){ const d=it.cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,S.w,S.h).data;
+    const gw=Math.ceil((S.x1-S.x0)/2), gh=Math.ceil((S.y1-S.y0)/2), G=new Uint8Array(gw*gh); let n=0,k=0;
+    const Y=j=>.299*d[j*4]+.587*d[j*4+1]+.114*d[j*4+2];
+    for(let gy=0;gy<gh;gy++) for(let gx=0;gx<gw;gx++){ const x=S.x0+2*gx, y=S.y0+2*gy, i=y*S.w+x; if(!S.m[i]) continue; n++;
+      if(!isSkin(d[i*4],d[i*4+1],d[i*4+2])||x+1>=S.w||y+1>=S.h) continue;
+      if(Math.abs(Y(i)-Y(i+1))+Math.abs(Y(i)-Y(i+S.w))<12){ k++; G[gy*gw+gx]=1; } }
+    let big=0; const st=[], minA=Math.max(20,.004*n);
+    for(let s0=0;s0<G.length;s0++){ if(G[s0]!==1) continue; let a=0; G[s0]=2; st.push(s0);
+      while(st.length){ const q=st.pop(), qx=q%gw; a++;
+        for(const r of [qx>0?q-1:-1,qx<gw-1?q+1:-1,q-gw,q+gw]) if(r>=0&&r<G.length&&G[r]===1){ G[r]=2; st.push(r); } }
+      if(a>=minA) big+=a; }
+    // Berührt der Umriss den Bildrand (Anteil der Randlänge je Seite)? Eine flach fotografierte Hose liegt ganz im Bild.
+    const rand=[0,0,0,0]; for(let x=0;x<S.w;x++){ rand[0]+=S.m[x]; rand[1]+=S.m[(S.h-1)*S.w+x]; } for(let y=0;y<S.h;y++){ rand[2]+=S.m[y*S.w]; rand[3]+=S.m[y*S.w+S.w-1]; }
+    const randMax=Math.max(rand[0]/S.w,rand[1]/S.w,rand[2]/S.h,rand[3]/S.h);
+    it.skin={glatt:n?+(k/n).toFixed(3):0,flaechen:n?+(big/n).toFixed(3):0,rand:+randMax.toFixed(3)};
+    if(n&&k/n>.12&&big/n>.06){ it.kind="worn"; it.person={L:null,side:"vorne",legs:false,crop:true};
+      // sieht der Umriss trotzdem wie eine flach hingelegte Hose aus, nicht still verwerfen (Knopf „als Rückseite verwenden“)
+      try{ const sh=pantsShape(S); it.flatLike=sh.legs>=2||(sh.fill>.45&&sh.fill<.92&&sh.aspect>.7&&sh.aspect<3.6); }catch(_){}
+      return; } }
+  if(S.y0<=1){ it.kind="none"; it.note="oben abgeschnitten: die Hose muss ganz im Bild sein"; return; }
   for(let k=0;k<2;k++){ const t=garmentTurn(S); if(!t) break; it.cv=rotateCanvas(it.cv,t); S=segGarment(it.cv); }
   const sh=pantsShape(S);
   if(sh.legs>=2||(sh.fill>.45&&sh.fill<.92&&sh.aspect>.7&&sh.aspect<3.6)){ it.kind="flat"; it.S=S; it.score=flatSideScore(it); }
@@ -5648,7 +5792,7 @@ function upAssign(){
 function upKindText(i){
   if(i.kind==="wait") return i.note||"wird geprüft …";
   if(i.kind==="flat") return i.extra?"flach, nicht gebraucht (schon zwei Seiten)":`${i.side==="vorne"?"Vorderseite":"Rückseite"}, flach`+(i.ref?` · ${REFS[i.ref].name} als Maßstab`:"");
-  if(i.kind==="worn") return i.person.crop?"Foto mit Person, angeschnitten (nicht gebraucht)":`Foto mit Person, von ${i.side}`+(!i.person.legs?" (Beine nicht ganz im Bild, nicht gebraucht)":i.side==="hinten"?"":" (nicht gebraucht)");
+  if(i.kind==="worn") return i.person.crop?(i.flatLike?"als Foto mit Person eingestuft, nicht gebraucht. Ist es eine flache Hose? ↪ tippen":"Foto mit Person, angeschnitten (nicht gebraucht; ist es die Rückseite? ↪)"):`Foto mit Person, von ${i.side}`+(!i.person.legs?" (Beine nicht ganz im Bild, nicht gebraucht)":i.side==="hinten"?"":" (nicht gebraucht)");
   if(i.kind==="table"){ const R=i.tab.rows, k=Object.keys(R), body=k.length&&k.every(x=>R[x].sect==="body"||x==="waistB"||x==="hip");
     return k.length?`Maßtabelle${i.tab.sizes.length>1?" ("+i.tab.sizes.join(" ")+")":""}${body?", nur Körpermaße":""}`:"Material: "+i.tab.material; }
   return "nicht verwendet: "+(i.note||"nicht erkannt");
@@ -5671,8 +5815,16 @@ function upRender(){
     +(i.thumb?`<img src="${i.thumb}" alt="">`:`<span class="dicon">${i.isText?"≡":"▢"}</span>`)
     +`<span class="dtxt">${escH(i.name)}<br><b>${escH(upKindText(i))}</b></span>`
     +(i.kind==="flat"&&!i.extra?`<button class="dsw" data-sw="${i.id}" title="Vorne und hinten tauschen" aria-label="Vorne und hinten tauschen">⇄</button>`:"")
+    +((i.kind==="worn"&&i.person&&i.person.crop)||(i.kind==="none"&&i.cv&&!i.isText)?`<button class="dsw" data-back="${i.id}" title="Dieses Foto als Rückseite verwenden" aria-label="${escH(i.name)} als Rückseite verwenden">↪</button>`:"")
     +`<button class="ddel" data-rm="${i.id}" title="Entfernen" aria-label="${escH(i.name)} entfernen">✕</button></div>`).join("");
   $("drop-list").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ UP.items=UP.items.filter(i=>i.id!==+b.dataset.rm); upAssign(); upRender(); upBuild(); });
+  // „als Rückseite verwenden“: wie ins Feld „Rückseite“ gelegt (wird dann nie als Model-Foto verworfen)
+  $("drop-list").querySelectorAll("[data-back]").forEach(b=>b.onclick=async()=>{ const it=UP.items.find(i=>i.id===+b.dataset.back); if(!it) return;
+    for(const i of UP.items){ if(i.fix==="hinten") i.fix=null; if(i!==it&&i.kind==="flat"&&i.side==="hinten") i.extra=true; }
+    it.fix="hinten"; it.kind="wait"; it.note="wird als Rückseite geprüft …"; it.person=null; upRender();
+    try{ await classifyFlat(it); if(it.kind==="flat"){ try{ it.ref=refInPhoto(it.cv); }catch(_){ it.ref=""; } } }catch(e){ it.kind="none"; it.note="nicht lesbar"; }
+    UP.items=UP.items.filter(i=>!(i!==it&&i.kind==="flat"&&i.side==="hinten"));
+    upAssign(); upRender(); upBuild(); });
   $("drop-list").querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{ const it=UP.items.find(i=>i.id===+b.dataset.sw); if(!it) return;
     const other=UP.items.find(i=>i.kind==="flat"&&i!==it&&!i.extra), to=it.side==="vorne"?"hinten":"vorne";
     for(const i of UP.items) i.fix=null; it.fix=to; if(other) other.fix=to==="vorne"?"hinten":"vorne"; upAssign(); upRender(); upBuild(); });
@@ -5727,6 +5879,8 @@ async function upBuild(){
   }
   have.push("Vorderseite: flach");
   const sideWarn=sideCheck(front,back); if(sideWarn) have.push(`<span class="dwarn">${sideWarn}</span>`);
+  const verworfen=!back&&!wornB&&its.find(i=>i.kind==="worn"&&i.person&&i.person.crop);
+  if(verworfen) have.push(`<span class="dwarn">„${escH(verworfen.name)}“ wurde als Foto mit Person eingestuft und nicht benutzt. Ist es die Rückseite? In der Liste ↪ tippen.</span>`);
   have.push(back?"Rückseite: flach":wornB?"Rückseite: aus dem Foto mit Person":"Rückseite: <span class=\"dwarn\">geschätzt</span> (aus der Vorderseite, ohne Schlitz, Knopf und Vordertaschen; für die echte Rückseite ein Foto von hinten dazu)");
   upMsg(`${have.join(" · ")}<br>Modell wird berechnet …`);
   let r=null; window.__ownCheck=$("own-check").checked;      // „Umriss immer prüfen“ gilt auch hier
