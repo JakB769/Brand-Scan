@@ -16,6 +16,9 @@ let fehler=0; const pruefe=(ok,text)=>{ console.log((ok?'ok    ':'FEHLER')+' '+t
 const frag=async(u,env)=>{ const alt=process.env.HOLEN_LOKAL; process.env.HOLEN_LOKAL=env; try{ const r=await holen(new Request('http://x/api/holen?url='+encodeURIComponent(u))); return {s:r.status,j:await r.json()}; } finally{ process.env.HOLEN_LOKAL=alt; } };
 let a=await frag('http://127.0.0.1:9/x','0'); pruefe(a.s===400&&/nicht erlaubt/.test(a.j.error),'Adresse im eigenen Netz gesperrt: '+a.j.error);
 a=await frag('http://169.254.169.254/latest/meta-data/','0'); pruefe(a.s===400&&/nicht erlaubt/.test(a.j.error),'Metadaten-Adresse gesperrt');
+// IPv4 in IPv6 verpackt (die URL schreibt [::ffff:127.0.0.1] als [::ffff:7f00:1]), NAT64, 6to4, Zahlen-Schreibweisen
+for(const u of ['http://[::ffff:127.0.0.1]/','http://[::ffff:169.254.169.254]/latest/meta-data/','http://[::127.0.0.1]/','http://[64:ff9b::a9fe:a9fe]/','http://[2002:7f00:1::]/','http://[fe80::1]/','http://0x7f000001/','http://127.1/'])
+  { a=await frag(u,'0'); pruefe(a.s===400&&/nicht erlaubt/.test(a.j.error),'gesperrt: '+u); }
 a=await frag('file:///etc/passwd','0'); pruefe(a.s===400&&/http/.test(a.j.error),'file:-Link abgelehnt: '+a.j.error);
 a=await frag('kein link','0'); pruefe(a.s===400,'Unsinn abgelehnt: '+a.j.error);
 

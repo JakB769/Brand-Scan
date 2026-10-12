@@ -1,0 +1,7 @@
+/* Knopf „Live anprobieren“ auf der Produktseite. Bewusst schlicht, damit er zu jedem Theme passt. */
+.passform-anprobe{margin:12px 0}
+.passform-anprobe__knopf{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border-radius:999px;
+  background:var(--pf-farbe,#0071e3);color:#fff;font-weight:600;font-size:16px;text-decoration:none;line-height:1.2}
+.passform-anprobe__knopf:hover{filter:brightness(1.08)}
+.passform-anprobe__knopf:focus-visible{outline:3px solid var(--pf-farbe,#0071e3);outline-offset:3px}
+.passform-anprobe__hinweis{margin:6px 0 0;font-size:13px;opacity:.7}

@@ -1,0 +1,4 @@
+# Theme App Extension: der Knopf „Live anprobieren“ als App-Block für die Produktseite.
+# https://shopify.dev/docs/apps/build/online-store/theme-app-extensions/configuration
+name = "passform-anprobe"
+type = "theme"

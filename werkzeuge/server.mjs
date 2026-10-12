@@ -22,7 +22,8 @@ export function starte(port = 8888) {
         res.writeHead(r.status, Object.fromEntries(r.headers)); res.end(Buffer.from(await r.arrayBuffer())); return;
       }
       let p = path.normalize(path.join(ROOT, decodeURIComponent(u.pathname)));
-      if (!p.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
+      // nur innerhalb des Repos (ein Nachbarordner wie „Brand-Scan-alt“ fängt auch mit ROOT an), nichts aus .git
+      if ((p !== ROOT && !p.startsWith(ROOT + path.sep)) || p.split(path.sep).includes(".git")) { res.writeHead(403); res.end(); return; }
       if (fs.existsSync(p) && fs.statSync(p).isDirectory()) p = path.join(p, "index.html");
       if (!fs.existsSync(p)) { res.writeHead(404); res.end("nicht gefunden"); return; }
       // Testseiten können einen Shop-Fehler nachstellen: Dateien mit .403 im Namen antworten mit 403
@@ -31,7 +32,8 @@ export function starte(port = 8888) {
       fs.createReadStream(p).pipe(res);
     } catch (e) { res.writeHead(500); res.end(String(e && e.message)); }
   });
-  return new Promise(ok => srv.listen(port, () => ok(srv)));
+  // nur auf diesem Rechner erreichbar (sonst könnte jeder im WLAN die Dateien des Repos lesen)
+  return new Promise(ok => srv.listen(port, "localhost", () => ok(srv)));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {

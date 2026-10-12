@@ -1,0 +1,13 @@
+{
+  "name": "passform-shopify",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "shopify app dev",
+    "deploy": "shopify app deploy",
+    "test": "node server/signatur.test.mjs && node server/server.test.mjs"
+  },
+  "devDependencies": {
+    "@shopify/cli": "^3"
+  }
+}

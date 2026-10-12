@@ -259,6 +259,11 @@ details.adv>.advbody{display:flex;flex-direction:column;gap:14px;padding:4px 0 8
 #refOk:not(:disabled),#segOk{background:var(--brass);color:var(--on-brass)}
 footer{color:var(--chalk-faint);font-size:13px;text-align:center;padding:10px 12px 0;line-height:1.5}
 @media (prefers-reduced-motion:reduce){.frame,button,.drop,input{transition:none}}
+/* Kunden-Modus im Shop (window.PASSFORM_KUNDE, gesetzt vom Shopify-Server): keine Händler-Werkzeuge */
+body.kunde #quick,body.kunde label:has(#person),body.kunde #link-form,body.kunde #drop,body.kunde #drop-list,body.kunde #drop-row,
+body.kunde #drop-msg,body.kunde #drop-fit,body.kunde .gdel,body.kunde #gdims,body.kunde .row:has(#g-fab),body.kunde #g-glb,
+body.kunde .row:has(#g-clear),body.kunde details.adv:has(#ownBox),body.kunde details.adv:has(#g-debug),body.kunde #compareCard,
+body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!important}
 </style>
 <style>#video{filter:grayscale(1) contrast(.15) brightness(1.5)}</style></head>
 <body>
@@ -2139,10 +2144,12 @@ function drape3d(G,Hc){
 }
 /* Fall des Stoffs für diese Hose und Körpergröße: aus dem Zwischenspeicher oder neu gerechnet (dann einmal kurz Rechenzeit).
    ms: Rechenzeit für dieses Bild; ohne ms wird fertig gerechnet. Solange er nicht fertig ist: null (Hose ohne Fall). */
+const M3ID=new WeakMap(); let m3n=0; const m3Id=m=>M3ID.get(m)||(M3ID.set(m,++m3n),m3n);
 function drapeFor(G,Hc,ms){
   if(!G||!G.m3||G.rot||!g3.M||!PASSFORM.fall) return null;
   const D=garmentDims(G), fab=stoffVon(G);
-  const key=[g3.key,Math.round(Hc),D.len.toFixed(1),D.cmW.toFixed(2),D.hem.toFixed(1),fab.name,G.ql||"",G.offK??"",G.m3.rock?1:0].join("|");
+  // m3Id: dieselbe Hose neu gebaut (⇄, Rückseite dazu) hat dasselbe Kürzel und oft dieselben Maße, aber ein anderes Netz
+  const key=[g3.key,m3Id(G.m3),Math.round(Hc),D.len.toFixed(1),D.cmW.toFixed(2),D.hem.toFixed(1),fab.name,G.ql||"",G.offK??"",G.m3.rock?1:0].join("|");
   const c=g3.drape||(g3.drape=new Map()); let j=c.get(key);
   if(!j){ try{ j=drape3d(G,Hc); }catch(e){ console.warn("Drape",e); }
     if(!j) j={done:true,res:null};
@@ -2590,7 +2597,9 @@ async function heicToJpeg(file){
       heicLib=b=>M.heicTo({blob:b,type:"image/jpeg",quality:.92}); }
     catch(_){
       await new Promise((ok,no)=>{ const sc=document.createElement("script");
-        sc.src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"; sc.onload=ok; sc.onerror=()=>no(new Error("x")); document.head.appendChild(sc); });
+        sc.src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js";
+        // Prüfsumme: eine veränderte Datei auf dem CDN wird nicht ausgeführt
+        sc.integrity="sha384-OTofQ0MEeiSgh62havBcemCIK0gqj809wX6UA0uPISNMRnR6NZyCdGzX3SbLrgwL"; sc.crossOrigin="anonymous"; sc.onload=ok; sc.onerror=()=>no(new Error("x")); document.head.appendChild(sc); });
       heicLib=async b=>{ const r=await window.heic2any({blob:b,toType:"image/jpeg",quality:.92}); return Array.isArray(r)?r[0]:r; };
     }
   }
@@ -3910,11 +3919,15 @@ async function importGarmentFile(file){
     +(r.voll?`. ${r.voll} davon passen nicht mehr in den Speicher des Geräts und sind nach dem Neuladen weg (alte Hosen löschen oder hosen.json neben die Seite legen).`:".");
 }
 async function loadSharedGarments(){
-  if(location.protocol==="file:") return;            // ohne Server gibt es keine Datei daneben
+  if(location.protocol==="file:"&&!KUNDE) return;   // ohne Server gibt es keine Datei daneben
   try{
-    const res=await fetch("hosen.json",{cache:"no-store"}); if(!res.ok) return;
-    const list=garmentList(await res.json()); if(!list.length) return;
-    const r=mergeGarments(list,true); if(!r.neu) return;
+    const keine=()=>{ if(KUNDE) $("g-msg").textContent="Für dieses Produkt gibt es die Anprobe noch nicht."; };
+    const res=await fetch(KUNDE&&typeof KUNDE.hosen==="string"?KUNDE.hosen:"hosen.json",{cache:"no-store"}); if(!res.ok) return keine();
+    const list=garmentList(await res.json()); if(!list.length) return keine();
+    const r=mergeGarments(list,true);
+    // im Shop: die Hose dieses Produkts gleich zeigen (auch wenn sie von einem früheren Besuch schon im Gerät ist)
+    if(KUNDE){ const k=list.map(o=>o.key).find(k=>GARMENTS[k]&&!GARMENTS[k].bad); buildPicker(); if(k) pickGarment(k,false); else keine(); return; }
+    if(!r.neu) return;
     buildPicker(); $("g-msg").textContent=`${r.neu} ${r.neu===1?"Hose":"Hosen"} aus hosen.json neben der Seite geladen.`;
   }catch(_){}
 }
@@ -3953,7 +3966,7 @@ function buildPicker(){
   $("gwrap").innerHTML=E.length?E.map(([k,v])=>
     `<div class="gitem"><button class="gbtn" data-g="${esc(k)}" aria-pressed="false"><img src="${esc(v.src)}" alt=""><span>${esc(v.label)}<br>`
     +(v.bad?`<b class="warnb">⚠ bitte neu erstellen</b>`:(v.waist?"Bund "+v.waist+" cm":"Bund geschätzt"))+`</span></button>`
-    +`<button class="gdel" data-del="${k}" aria-label="${esc(v.label)} löschen" title="Löschen">✕</button></div>`).join("")
+    +`<button class="gdel" data-del="${esc(k)}" aria-label="${esc(v.label)} löschen" title="Löschen">✕</button></div>`).join("")
     :`<div style="color:var(--chalk-faint);font-size:13.5px">Noch keine Hose. Oben Fotos hochladen.</div>`;
   $("gwrap").querySelectorAll(".gbtn").forEach(b=>b.addEventListener("click",()=>pickGarment(b.dataset.g)));
   // Löschen: erster Tipp fragt nach („Löschen?“), zweiter Tipp löscht. Kein Browser-Dialog, der eingebettet gesperrt sein kann.
@@ -4242,7 +4255,7 @@ const saveSeries=a=>{try{localStorage.setItem(STORE,JSON.stringify(a));}catch(_)
 function renderSeries(){
   const rows=loadSeries();
   $("seriesCard").hidden=rows.length===0;
-  $("seriesBody").innerHTML=rows.map(r=>`<tr><td>${r.person||"–"}</td><td>${r.height}</td><td>${r.scanWaist??"–"} / ${r.tapeWaist??"–"}</td><td>${r.scanHip??"–"} / ${r.tapeHip??"–"}</td><td>${r.scanInseam??"–"} / ${r.tapeInseam??"–"}</td></tr>`).join("");
+  $("seriesBody").innerHTML=rows.map(r=>`<tr><td>${escH(r.person||"–")}</td><td>${escH(r.height)}</td><td>${r.scanWaist??"–"} / ${r.tapeWaist??"–"}</td><td>${r.scanHip??"–"} / ${r.tapeHip??"–"}</td><td>${r.scanInseam??"–"} / ${r.tapeInseam??"–"}</td></tr>`).join("");
   const d=[];
   rows.forEach(r=>[["scanWaist","tapeWaist"],["scanHip","tapeHip"],["scanInseam","tapeInseam"]].forEach(([a,b])=>{ if(r[a]!=null&&r[b]!=null) d.push(Math.abs(r[a]-r[b])); }));
   $("verdict").textContent=d.length
@@ -5299,7 +5312,7 @@ async function linkImport(url){
     if(!j.ok){ upMsg(`<div class="dbad">${escH(j.error||"Die Seite ließ sich nicht lesen.")}</div>`); return; }
     UP.link={url:j.url,name:j.name,model:j.model||{},geschlecht:j.geschlecht};
     const info=[j.name?`<b>${escH(j.name)}</b>`:"Seite gelesen", `${j.bilder.length} Bilder`];
-    if(j.model&&j.model.height) info.push(`Model ${j.model.height} cm${j.model.size?", trägt "+escH(j.model.size):""}`);
+    if(j.model&&j.model.height) info.push(`Model ${escH(j.model.height)} cm${j.model.size?", trägt "+escH(j.model.size):""}`);
     upMsg(info.join(" · ")+"<br>Bilder werden geholt …");
     const files=[];
     await Promise.all(j.bilder.map(async(b,i)=>{ try{
@@ -5343,6 +5356,10 @@ function upDrop(){ if(UP.key&&GARMENTS[UP.key]){ deleteGarment(UP.key); } UP.key
   $("drop-art").addEventListener("click",()=>{ UP.art=UP.rock?"hose":"rock"; upBuild(); });
   $("drop-size").addEventListener("change",e=>{ UP.size=+e.target.value; upBuild(); });
 }
+/* Kunden-Modus (Shopify, shopify/server): der Server setzt vor dieses Skript window.PASSFORM_KUNDE={hosen:"<Adresse der Hose>"}.
+   Dann zeigt die Seite nur Größe, die Hose des Produkts, die Größen und „Anprobieren“, keine Händler-Werkzeuge. */
+const KUNDE=window.PASSFORM_KUNDE&&typeof window.PASSFORM_KUNDE==="object"?window.PASSFORM_KUNDE:null;
+if(KUNDE){ document.body.classList.add("kunde"); $("tryon").textContent="▶ Anprobieren"; }
 loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null,wornMask:typeof wornMask!=="undefined"?wornMask:null,wornSeeds:typeof wornSeeds!=="undefined"?wornSeeds:null,loadAiSeg:typeof loadAiSeg!=="undefined"?loadAiSeg:null}; buildPicker(); renderSeries(); loadSharedGarments();
 </script>
 </body>

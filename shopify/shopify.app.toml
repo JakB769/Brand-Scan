@@ -1,0 +1,31 @@
+# Konfiguration der Shopify-App „Passform“. Werte in <…> beim Einrichten ersetzen (siehe doku/shopify-einrichten.md).
+# Mit Shopify CLI: „shopify app config link“ füllt client_id aus, „shopify app deploy“ überträgt diese Datei.
+# https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration
+
+client_id = "<CLIENT_ID aus dem Dev Dashboard>"
+name = "Passform"
+# Adresse, unter der shopify/server/start.mjs öffentlich per https erreichbar ist
+application_url = "https://<deine-app-adresse>"
+embedded = true
+
+[access_scopes]
+# write_app_proxy: nötig für den App-Proxy (/apps/passform/…)
+scopes = "write_app_proxy"
+
+[app_proxy]
+# Kunde öffnet https://<shop>/apps/passform/anprobe → Shopify leitet signiert an <application_url>/proxy/anprobe weiter
+url = "https://<deine-app-adresse>/proxy"
+prefix = "apps"
+subpath = "passform"
+
+[webhooks]
+api_version = "2025-10"
+
+  # Pflicht für den App Store: Datenschutz-Anfragen (Kunde will seine Daten / Löschung, Shop gelöscht)
+  # https://shopify.dev/docs/apps/build/compliance/privacy-law-compliance
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+  uri = "https://<deine-app-adresse>/webhooks"
+
+[auth]
+redirect_urls = [ "https://<deine-app-adresse>/auth/callback" ]

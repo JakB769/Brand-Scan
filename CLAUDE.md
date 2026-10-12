@@ -25,7 +25,7 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 | `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 330 KB, kein Build-Schritt. |
 | `netlify/functions/holen.mjs`, `netlify.toml` | **Server-Teil für „Link einfügen“** (10.10.): holt Shop-Seite, Bilder, Größentabelle, Model-Größe. Läuft nur, wenn Netlify mit GitHub verbunden ist (Netlify Drop kann keine Funktionen), Anleitung `doku/netlify-einrichten.md`. |
 | `werkzeuge/server.mjs` | Lokaler Server wie Netlify (Dateien + `/api/holen`), `NODE_USE_ENV_PROXY=1` hinter dem Cloud-Proxy. |
-| `shopify/` | **Shopify-Gerüst** (siehe `doku/shopify-einrichten.md`). |
+| `shopify/` | **Shopify-Gerüst** (12.10.): App-Block „Live anprobieren“ (Theme App Extension), Server für App-Proxy und Pflicht-Webhooks, Signaturprüfung, Skript zum Zuordnen einer Hose zu einem Produkt. Einrichten und Offenes: `doku/shopify-einrichten.md`. |
 | `werkzeuge/pruefstand.mjs` | **Prüfstand**: echte Seite und echte Erkennung mit einem Foto als Kamerabild (`node werkzeuge/pruefstand.mjs foto.jpg 180 [link]`), Bild nach `werkzeuge/tests/ausgabe/pruefstand.png`, Messwerte in der Konsole. Braucht ffmpeg. |
 | `prototypen/` | Sieben ältere Stände, nummeriert und datiert. Nur zum Nachschlagen. |
 | `werkzeuge/tests/testseite-mit-simulierter-person.html` | Aktuelle Seite mit Attrappe statt MediaPipe (siehe „Testen“). |
@@ -127,6 +127,9 @@ und Maßstab (A4/Bankkarte). Nach dem Bauen mit Foto mit Model: **Abgleich** (Sh
 | Gesäßfall in `pose3d` (11.10. abends) | Seitenansicht: hinten halten die Backen (neben der Mitte) bis zum Schritt 78 % der Gesäßtiefe, darunter läuft die Tiefe am Bein über `gesaessFallCm` (18, enge Hosen 80 %) aus; unter dem Gesäß nie tiefer als am Gesäß (`capB`). Vorher sprang die Rückseite stufig vom Gesäß aufs Bein. |
 | `drape3d`: Längenbegrenzung, `fallInnen` (11.10. abends) | Je Stoffbahn kein Punkt weiter vom festen Rand, als der Stoff lang ist (long range attachment): die Hose dehnt sich nicht mehr 3–4 cm unter ihrem Gewicht. Im Stapel nicht enger als 85 % der Ruheform: die Seitenwände knicken nicht zum Knöchel ein (vorher wurden die Beine unten fassförmig). Innenseiten im Saum dunkles Denim statt Schwarz. |
 | Gestaltung (11.10. abends) | Apple-artig: hell (dunkel nach Geräteeinstellung), Systemschrift (keine Google Fonts mehr), große Überschriften, weiße Karten, Blau als Akzent, Kapsel-Knöpfe; auf der Kamera dunkles Glas mit weißer Schrift, gelbe Messlinien (iOS). Technisches in einklappbaren Bereichen (`details.adv`: „Ton und Stimme“, „Einzeln mit Maßband und Maßstab“, „Feineinstellungen“, „So geht der Scan“); die Testseite öffnet sie (`baue-testseite.mjs`). Variablennamen historisch: `--chalk` = Text, `--brass` = Akzent. Reihenfolge: Du, Kamera, Hose, Deine Maße. |
+| Kunden-Modus, `KUNDE` (12.10.) | Setzt der Shopify-Server `window.PASSFORM_KUNDE={hosen:"hose?produkt=ID"}` vor das Skript, zeigt die Seite nur Größe, die Hose des Produkts (gleich gewählt), Größen und „▶ Anprobieren“; Händler-Werkzeuge per CSS (`body.kunde`) weg. Ohne Hose: „Für dieses Produkt gibt es die Anprobe noch nicht.“ Hosen-Datei statt `hosen.json` aus `KUNDE.hosen`. |
+| `shopify/server/start.mjs`, `signatur.mjs` (12.10.) | `/proxy/anprobe` (Seite im Kunden-Modus, bei jeder Anfrage frisch aus `app/index.html`), `/proxy/hose` (Datei `daten/<shop>/<produkt>.json`), `/webhooks` (Pflicht-Webhooks, `shop/redact` löscht die Hosen des Shops). App-Proxy-Signatur (HMAC hex über sortierte Parameter) und Zeitstempel ≤ 1 h, Webhook-Signatur (HMAC base64 über den rohen Inhalt), beides in konstanter Zeit verglichen. Shop-Name und Produkt-ID streng geprüft (kein Pfad nach außen). |
+| `drapeFor`-Schlüssel mit `m3Id` (12.10.) | Der Zwischenspeicher des Stoff-Falls kennt das Modell-Objekt: dieselbe Hose neu gebaut (⇄, Rückseite dazu) mit gleichen Maßen bekam vorher den alten Fall. |
 
 Weitere `localStorage`-Schlüssel: `massScanSerie` (Messreihe), `massScanPerson`, `massScanKoerper` (letzter Scan: Taille, Hüfte), `massScanStimme`, `massScanDebug`, `massScanWeg` (gelöschte Hosen aus `hosen.json`).
 
@@ -336,8 +339,36 @@ verteilt), Shirt-Erkennung bei gemusterten Oberteilen, Händen am Bauch, schlech
 (Schwellen sind Erfahrungswerte). Grenzen: Größenurteil braucht Körpermaße (Scan mit Seite oder Maßband); ohne Tabelle sind die
 Größen nur abgeleitet; Länge ändert sich bei W-Größen nur mit der Leibhöhe (Innenbein bleibt).
 
+### Feinschliff, Sicherheit, Shopify (11./12.10., Sprachnachricht des Nutzers)
+
+Wunsch: 3D so gut wie möglich, Erkennung am getragenen Foto besser, Sicherheitslücken prüfen, Shopify-tauglich, aufräumen,
+Design wie Apple, Punkte auch bei wilden Bewegungen (Backflip), schneller Scan, nicht zur Seite drehen müssen, sofort näher gehen.
+Gemacht (siehe Tabelle oben): Scan-Ablauf, `torsoRoll` bis Handstand, `emaV`, `personBounds`, `wornRefine`, Gesäßfall,
+Längenbegrenzung und `fallInnen` im Stoff-Fall, Gestaltung, Kunden-Modus, Shopify-Gerüst.
+**Sicherheit** (selbst geprüft; die Prüf-Agenten brachen am Nutzungslimit ab):
+- `holen.mjs`: Die Sperre für das eigene Netz ließ IPv4 in IPv6 verpackt durch. Die URL schreibt `[::ffff:127.0.0.1]` als
+  `[::ffff:7f00:1]`, der alte Vergleich sah darin keine IPv4. Ebenso NAT64 und 6to4 (z. B. `[::ffff:169.254.169.254]`, Cloud-Metadaten).
+  Jetzt zerlegt `v6Bytes` jede IPv6 in 16 Bytes, `privat` prüft die eingebettete IPv4. In `tlink` abgesichert.
+  Cookies einer Weiterleitung gehen nur noch an den Shop, der sie gesetzt hat.
+- `werkzeuge/server.mjs`: Mit `%2F..%2F` kam man in einen Nachbarordner, dessen Name mit dem Repo-Namen anfängt
+  (geprüft: Datei aus `Brand-Scan-x` gelesen). Jetzt ist das gesperrt, ebenso `.git`, und der Server ist nur noch auf diesem Rechner erreichbar.
+- Seite: fremde Texte werden beim Anzeigen maskiert (Prüfung bestätigt). Nachgezogen: Schlüssel in der Hosenliste,
+  Model-Größe, Name in der Messreihe. `heic2any` vom CDN mit Prüfsumme (`integrity`, sha384, gleich der Datei in node_modules).
+  Die übrigen CDN-Teile werden per `import()` geladen; dafür gibt es keine Prüfsumme, die Versionen sind fest.
+- Offen: DNS-Rebinding in `holen.mjs` (Adresse wird vor dem Verbinden geprüft, nicht beim Verbinden; auf Netlify nur Port
+  80/443 und kein Metadaten-Dienst, auf einem eigenen Server Firewall), `?bild=` ist ein offener Bild-Abruf für öffentliche
+  Bilder (Kosten, keine Daten), keine Zugriffsgrenze je Nutzer, keine Content-Security-Policy (Hauptskript ist eingebettet).
+**Fehlersuche:** Stoff-Fall nach Neubau derselben Hose (siehe `m3Id`), alle `$("id")` der Seite vorhanden, keine doppelten
+ids, keine in Safari fehlenden Funktionen (kein `ctx.filter`, `structuredClone`, `OffscreenCanvas`).
+**Aufräumen:** alte Testskripte `t.mjs`–`te.mjs`, tote Coach-Elemente, alte Seiten-Phase. `tbreite` misst ohne Stoff-Fall
+(eine zu lange Hose staucht sich gewollt bis 15 % weiter).
+**Verworfen:** Glockenfalten im Rock per Anfangswelle im Stoff-Fall. Die Simulation glättet sie wieder weg, auf dem schwarzen
+Testrock ist ohnehin nichts zu sehen.
+**Nicht geprüft:** echte Kamera und Handys (wie bisher), Shopify mit echtem Shop/CLI/Theme-Editor, Kamera über die Shop-Adresse.
+
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
 
+- **Shopify: Anprobe über den App-Proxy unter der Shop-Adresse, nicht als iframe und nicht als Kopie im App-Block** (Kamera ohne iframe-Freigabe; Liquid-Grenze 100 KB, Seite 330 KB). Hosen als Datei je Shop/Produkt auf dem App-Server, nicht als Metafeld (json-Metafeld max. 128 KB, Hose ≈ 120 KB).
 - **Netlify Drop kann keine Server-Funktionen.** Für „Link einfügen“ muss Netlify mit dem GitHub-Repo verbunden sein.
 - **Länge am Foto mit Model: Saumposition, nicht sichtbarer Bund.** Bund ist meist unter dem Oberteil, bei weiten Hosen staucht
   der Saum auf dem Schuh und der Schritt hängt tief; gemessen wird ab der Bundlinie der Anprobe, so endet der Saum bei der
@@ -405,6 +436,8 @@ Die Shirt-Erkennung arbeitet in der Testseite nur auf `window.__shirtBild` (sons
 | `toberteil.mjs` | Shirt über dem Bund (gemaltes Kamerabild `window.__shirtBild`): Saum erkannt, Hose darüber weg und darunter da, kurzes Shirt, gleiche Farbe, ausschaltbar |
 | `tgroessen.mjs` | Größen aus der Tabelle und aus der US-Größe des Models, Urteil je Größe (nie enger mit der Größe, eine Empfehlung), Antippen setzt die Maße, Sitz, Knöpfe in Anprobe/Shop, Speichern und Prüfen beim Laden |
 | `tscan.mjs` | Scan-Ablauf: nah ohne Scan aber mit Hose, gescannt in < 2,5 s ohne Drehen, näher/zurück (Maßstab 1,75×/1,00×), Gegenstand im Hintergrund und Arm über dem Kopf ändern den Maßstab nicht, Seite nebenbei, Neigung ±30° und Handstand, schneller Sprung |
+| `shopify/server/signatur.test.mjs` | Signatur des App-Proxys (signierter Text wie in der Shopify-Doku, geändert/ohne/kaputt/falsches Secret abgelehnt, Zeitstempel) und der Webhooks |
+| `shopify/server/server.test.mjs` | Shopify-Server mit „Shopify-Attrappe“ (signiert wie der App-Proxy): ohne Signatur/alt/geändert 401, unsinniger Shop 400, Hose des Produkts, Kundenseite im Browser (Hose gewählt, keine Händler-Werkzeuge, Meldung ohne Hose), Pflicht-Webhooks |
 | `tlaenge.mjs` | Länge mit A4/Bankkarte (Testbilder aus `werkzeuge/python/testmassstab.py`, echt 105 cm, gerade und 15° schräg), echte iPhone-Fotos des Nutzers, Vorrang der eingetragenen Länge |
 
 ## Vorschlag für die nächsten Schritte
@@ -412,5 +445,5 @@ Die Shirt-Erkennung arbeitet in der Testseite nur auf `window.__shirtBild` (sons
 1. Echte Handyfotos des Nutzers besorgen und daran die neue Freistellung prüfen; mit echter Kamera bestätigen, dass die Hose nicht mehr nach unten breiter wird.
 2. Die eine Datei in Module zerlegen (Kamera, Pose, Messung, Generator, Darstellung, Oberfläche), mit einem einfachen Build. Erst danach wird es in Claude Code angenehm zu ändern.
 3. Passform sichtbar machen: Hose dort einfärben, wo ihr Umfang kleiner ist als der gemessene Körperumfang. Die Körpermaße liegen aus dem Scan schon vor.
-4. Shopify-Gerüst: App-Vorlage, Theme App Extension, Modell als Datei am Produkt speichern.
+4. Shopify: Gerüst steht (`shopify/`). Als Nächstes mit echtem Entwicklungs-Shop ausprobieren, dann Händler-Seite im Admin (App Home mit ID-Token-Anmeldung, Hosen hochladen statt `hose-ablegen.mjs`) und Pläne mit Shopify App Pricing (siehe `doku/shopify-einrichten.md`).
 5. Messgenauigkeit mit 20–30 Personen gegen das Maßband prüfen (die Messreihe in der Seite ist dafür da).
