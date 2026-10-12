@@ -1,4 +1,5 @@
-// Drehbare 3D-Ansicht ohne Kamera: erscheint mit der gewählten Hose, dreht sich beim Ziehen, verschwindet während der Anprobe
+// Drehbare 3D-Ansicht ohne Kamera: erscheint mit der gewählten Hose, dreht sich beim Ziehen, verschwindet während der Anprobe,
+// kommt nach „Anprobe aus“ wieder (drei Wege, mehrmals hintereinander, alle Kamera-Spuren gestoppt)
 // Aufruf: node tansicht.mjs [Testseite]
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -10,6 +11,8 @@ const b=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fak
 const p=await (await b.newContext({permissions:['camera'],viewport:{width:900,height:1000},acceptDownloads:true})).newPage(); const errs=[];
 p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error'&&!/GL Driver/.test(m.text())) errs.push(m.text()); });
 let fehler=0; const pruefe=(ok,text)=>{ console.log((ok?'ok    ':'FEHLER')+' '+text); if(!ok) fehler++; };
+await p.addInitScript(()=>{ const g=navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); window.__spuren=[];
+  if(g) navigator.mediaDevices.getUserMedia=async c=>{ const st=await g(c); window.__spuren.push(...st.getTracks()); return st; }; });
 await p.goto('file://'+(process.argv[2]||hier+'testseite-mit-simulierter-person.html')); await p.waitForTimeout(400);
 pruefe(await p.evaluate(()=>document.getElementById('g3dbox').hidden),'Ohne Hose keine 3D-Ansicht');
 await p.setInputFiles('#own-front',fotos+'front.jpg'); await p.setInputFiles('#own-back',fotos+'back.jpg'); await p.fill('#own-waist','40'); await p.click('#own-go');
@@ -37,6 +40,22 @@ pruefe(rep.issues.numErrors===0&&rep.issues.numWarnings===0&&rep.info.hasTexture
 pruefe(hoch>85&&hoch<120&&breit>35&&breit<90&&tief>15&&tief<60&&acc.min[1]>-0.05,`3D-Datei in Metern, Boden bei 0: ${hoch.toFixed(0)} × ${breit.toFixed(0)} × ${tief.toFixed(0)} cm (Höhe × Breite × Tiefe)`);
 await p.click('#quick'); await p.waitForTimeout(1500);
 pruefe(await p.evaluate(()=>document.getElementById('g3dbox').hidden),'Während der Anprobe mit Kamera ist die 3D-Ansicht aus');
+// Anprobe aus und wieder an, mehrmals: Kamera und Erkennung stoppen, danach ist die 3D-Ansicht wieder da (vorher ging die Anprobe nie aus)
+const lage=()=>p.evaluate(()=>({box:!document.getElementById('g3dbox').hidden,hud:!document.getElementById('hud').hidden,src:!!document.getElementById('video').srcObject,
+  start:document.getElementById('start').textContent,aus:!document.getElementById('g-clear').hidden}));
+let L0=await lage();
+pruefe(L0.hud&&L0.src&&/beenden/.test(L0.start)&&L0.aus,'Anprobe läuft: Knopf „'+L0.start+'“, „Anprobe aus“ in der Hosenkarte sichtbar');
+for(const [k,wie] of [[1,'#g-clear'],[2,'#camOff'],[3,'#start']]){
+  await p.click(wie); await p.waitForTimeout(400); await box.scrollIntoViewIfNeeded(); await p.waitForTimeout(1200);
+  const z=await lage(), bl=(await bild()).blau, tr=await p.evaluate(()=>window.__spuren?window.__spuren.filter(t=>t.readyState==='live').length:-1);
+  const alle=await p.evaluate(()=>window.__spuren.length); pruefe(!z.hud&&!z.src&&z.box&&bl>3000&&/starten/.test(z.start)&&!z.aus&&tr===0&&alle>=k,`${k}. Aus über ${wie}: Kamera aus (${tr} von ${alle} Spuren live), 3D-Ansicht wieder da (${bl} Hosen-Bildpunkte)`);
+  await p.click('#start'); await p.waitForTimeout(1500); const an=await lage();
+  pruefe(an.hud&&an.src&&!an.box,`${k}. wieder an: Kamera läuft, 3D-Ansicht aus`);
+}
+// Doppeltipp auf „Kamera starten“ schaltet nicht gleich wieder aus
+await p.click('#start'); await p.waitForTimeout(600); await p.dblclick('#start'); await p.waitForTimeout(1200);
+L0=await lage(); pruefe(L0.hud&&L0.src,'Doppeltipp: Anprobe bleibt an');
+await p.click('#start'); await p.waitForTimeout(800); L0=await lage(); pruefe(!L0.hud&&L0.box,'und geht mit einem Tipp aus');
 pruefe(errs.length===0,'keine Skriptfehler'+(errs.length?': '+[...new Set(errs)].slice(0,3).join(' | '):''));
 await b.close();
 if(fehler) process.exit(1);

@@ -68,6 +68,20 @@ for(const r of [.5,-.6,Math.PI]){
 }
 await (await p.$('#stage')).screenshot({path:hier+'ausgabe/scan_handstand.png'});
 await p.evaluate(()=>{ window.__mode.roll=0; }); await p.waitForTimeout(2000);
+// 5b) Fehlerkennung (12.10., Bild vom Nutzer): Skelett springt in einem Bild auf den Kopf → Hose bleibt erst aufrecht;
+//     Knie und Knöchel über der Hüfte bei aufrechtem Rumpf → Beine hängen trotzdem nach unten
+const lage=()=>p.evaluate(()=>{ const g=window.__dbg.g3, M=g.M, NR=M.nr, C=g.nRing/(4*NR); let b=0,h=0,n=0;
+  for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){ b+=g.pos[(((s*NR)*2+f)*C+j)*3+1]; h+=g.pos[(((s*NR+NR-1)*2+f)*C+j)*3+1]; n++; }
+  return {bund:b/n,saum:h/n,vh:document.getElementById('overlay').height}; });
+await p.evaluate(()=>{ window.__mode.roll=Math.PI; }); await p.waitForTimeout(450);
+z=await zustand(); let w5=Math.atan2(z.frame.up[0],-z.frame.up[1]), L5=await lage();
+pruefe(Math.abs(w5)<.3&&L5.saum>L5.bund,`Skelett springt auf den Kopf: Hose bleibt erst aufrecht (${(w5*180/Math.PI).toFixed(0)}°, Saum unter dem Bund)`);
+await p.evaluate(()=>{ window.__mode.roll=0; }); await p.waitForTimeout(1500);
+await p.evaluate(()=>{ window.__mode.beineOben=1; }); await p.waitForTimeout(1500);
+z=await zustand(); w5=Math.atan2(z.frame.up[0],-z.frame.up[1]); L5=await lage();
+await (await p.$('#stage')).screenshot({path:hier+'ausgabe/scan_beine_oben.png'});
+pruefe(Math.abs(w5)<.2&&L5.saum-L5.bund>.25*L5.vh,`Knie/Knöchel fälschlich über der Hüfte: Hose aufrecht, Beine hängen nach unten (Saum ${Math.round(L5.saum-L5.bund)} px unter dem Bund)`);
+await p.evaluate(()=>{ window.__mode.beineOben=0; }); await p.waitForTimeout(1000);
 
 // 6) Schneller Sprung zur Seite: die Hose ist nach wenigen Bildern dort
 const x0=(await zustand()).frame.top[0];

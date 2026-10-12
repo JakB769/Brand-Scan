@@ -22,7 +22,7 @@ const L=await p.evaluate(()=>Object.values(window.__dbg.GARMENTS).map(G=>({n:G.l
 for(const x of L) pruefe(x.bad?true:(x.len>=90&&x.len<=125),`alter Speicher, ${x.n}: `+(x.bad?'markiert „bitte neu erstellen“ ('+x.bad+')':`Länge ${x.len} cm`));
 pruefe(L[1]&&!L[1].bad,'Blob-Hose aus altem Speicher wird repariert statt verworfen');
 await p.click('#quick'); await p.waitForTimeout(3000); await p.click('#clean'); await p.waitForTimeout(500);
-for(const [i,x] of L.entries()){ await p.click(`#gwrap .gbtn >> nth=${i}`); await p.waitForTimeout(1500); await (await p.$('#stage')).screenshot({path:hier+`ausgabe/blob_${i}.png`}); await p.click('#g-clear'); }
+for(const [i,x] of L.entries()){ await p.click(`#gwrap .gbtn >> nth=${i}`); await p.waitForTimeout(1500); await (await p.$('#stage')).screenshot({path:hier+`ausgabe/blob_${i}.png`}); await p.evaluate(()=>{ const b=document.querySelector('#gwrap .gbtn[aria-pressed=true]'); if(b) b.click(); }); }   // Hose abwählen, Anprobe läuft weiter
 console.log(errs.length?'FEHLER: '+[...new Set(errs)].slice(0,5).join(' | '):'keine Skriptfehler');
 await b.close();
 if(fehler||errs.length) process.exit(1);

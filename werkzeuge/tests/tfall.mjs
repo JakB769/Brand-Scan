@@ -1,5 +1,6 @@
 // Fall des Stoffs (drape3d): einmal in Ruhehaltung simulieren, dann mitbewegen. Geprüft in der drehbaren 3D-Ansicht
-// (Puppe 179 cm): zu lange Hose liegt auf dem Boden auf, ohne flache Lappen daneben; kurze Hose hängt frei; Rechnung in
+// (Puppe 179 cm): zu lange Hose liegt auf dem Boden auf, ohne flache Lappen daneben, Saum gerade und mittig um den Knöchel,
+// vorn auf dem Schuh, Beine nicht ineinander; kurze Hose hängt frei; Rechnung in
 // Stücken (Anprobe ruckelt nicht) gibt dasselbe wie am Stück; ausschaltbar; keine ungültigen Werte.
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -21,13 +22,22 @@ const form=()=>p.evaluate(()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key], c=d
   const Hc=179, beltH=.52*Hc+.045*Hc, len=+document.getElementById('g-len').value.replace(',','.'), ppc=H*.9/Math.max(beltH+6,len+10), floor=H*.955, half=.05*Hc*ppc;
   const M=d.g3.M, NR=M.nr, n=d.g3.nRing, C=n/(4*NR), P=d.g3.pos; let ok=true;
   for(let k=0;k<d.g3.nv*3;k++) if(!isFinite(P[k])) ok=false;
-  const o={ok,minH:1e9,saumMin:1e9,saumMax:-1e9,rBoden:0,rSaum:0,rOben:0};
+  const o={ok,minH:1e9,saumMin:1e9,saumMax:-1e9,rBoden:0,rSaum:0,rOben:0,vorUnten:-1e9,vorOben:-1e9,kreuz:0,mitte:[],vh:[],hinten:0};
   for(let s=0;s<2;s++){ const ax=W/2+(s?-1:1)*half;
     for(let i=0;i<NR;i++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=((s*NR+i)*2+f)*C+j, h=(floor-P[k*3+1])/ppc, r=Math.hypot(P[k*3]-ax,P[k*3+2])/ppc;
       o.minH=Math.min(o.minH,h);
       if(i===NR-1){ o.saumMin=Math.min(o.saumMin,h); o.saumMax=Math.max(o.saumMax,h); o.rSaum=Math.max(o.rSaum,r); }
       if(h<5) o.rBoden=Math.max(o.rBoden,r);
-      if(M.v[i]>.7&&M.v[i]<.75) o.rOben=Math.max(o.rOben,r); } }
+      if(M.v[i]>.7&&M.v[i]<.75) o.rOben=Math.max(o.rOben,r);
+      // wie weit nach vorn (vorne ist -z): unten (< 10 cm über dem Boden) gegenüber dem Schienbein
+      if(h<10) o.vorUnten=Math.max(o.vorUnten,-P[k*3+2]/ppc); if(M.v[i]>.7&&M.v[i]<.75) o.vorOben=Math.max(o.vorOben,-P[k*3+2]/ppc);
+      // Beine gehen nicht ineinander (unter dem Schritt): Bein 0 rechts der Mitte, Bein 1 links
+      if(i>d.g3.ic+3) o.kreuz=Math.max(o.kreuz,(s?P[k*3]-W/2:W/2-P[k*3])/ppc); }
+    // Saumring: Mitte waagrecht gegenüber dem Knöchel, Höhe vorne und hinten in der Mitte
+    let mx=0,mz=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=((s*NR+NR-1)*2+f)*C+j; mx+=P[k*3]; mz+=P[k*3+2]; }
+    o.mitte.push([(mx/(2*C)-ax)/ppc,-mz/(2*C)/ppc]);
+    const hk=f=>(floor-P[(((s*NR+NR-1)*2+f)*C+(C>>1))*3+1])/ppc; o.vh.push([hk(0),hk(1)]);
+    for(let j=2;j<C-2;j++) o.hinten=Math.max(o.hinten,(floor-P[(((s*NR+NR-1)*2+1)*C+j)*3+1])/ppc); }
   const j=[...d.g3.drape.values()].pop(); o.ms=j&&j.res?j.res.ms:null; o.has=!!(j&&j.res);
   return o; });
 
@@ -38,6 +48,15 @@ pruefe(F.ok&&F.has,`Fall gerechnet (${F.ms} ms Rechenzeit), keine ungültigen We
 pruefe(Math.abs(F.minH)<1.2,`Hose reicht bis auf den Boden (tiefster Punkt ${F.minH.toFixed(1)} cm)`);
 pruefe(F.saumMax<14,`Saum liegt auf Schuh und Boden (höchster Saumpunkt ${F.saumMax.toFixed(1)} cm, Rist)`);
 pruefe(F.rBoden<1.3*F.rOben+1.5,`am Boden nicht weiter als 1,3 × Bein (${F.rBoden.toFixed(1)} cm, Bein ${F.rOben.toFixed(1)} cm): keine Lappen`);
+// Saum gerade über dem Fuß (12.10.: vorher rutschte der Stapel vorn über den Schuh, in der Seitenansicht wie ein Stiefel)
+const vor=F.vorUnten-F.vorOben, mi=F.mitte.map(m=>Math.abs(m[1]));
+pruefe(vor<2.5,`unten nicht nach vorn verschoben: Vorderkante unten ${vor.toFixed(1)} cm vor der am Schienbein`);
+// seitlich steht ein weites Bein gewollt etwas außerhalb des Knöchels (fällt gerade von der Hüfte), vorn/hinten nicht
+pruefe(Math.max(...mi)<1.5,`Saumring vorn/hinten mittig um den Knöchel: Mitte ${F.mitte.map(m=>m.map(v=>v.toFixed(1)).join('/')).join(', ')} cm (seitlich/vorn)`);
+pruefe(F.hinten<2,`hinten liegt der Saum am Boden (höchstens ${F.hinten.toFixed(1)} cm), nicht umgeklappt obenauf`);
+pruefe(F.vh.every(v=>v[0]>v[1]+1.5),`Saum liegt vorn auf dem Schuh, hinten tiefer: ${F.vh.map(v=>v.map(x=>x.toFixed(1)).join(' / ')).join(', ')} cm (vorn / hinten)`);
+pruefe(F.kreuz<.6,`Beine gehen nicht ineinander (höchstens ${F.kreuz.toFixed(1)} cm über die Mitte)`);
+await p.evaluate(()=>{ const v=window.__dbg.v3d; v.yaw=Math.PI/2; }); await p.waitForTimeout(1200); await box.screenshot({path:hier+'ausgabe/fall_112_seite.png'});
 
 // 2) passende Länge (98 cm): hängt frei über dem Boden
 await laenge(98); F=await form();

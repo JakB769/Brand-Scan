@@ -39,7 +39,7 @@ for(const [id,v] of [['#g-len',''],['#g-len','-5'],['#g-waist','500'],['#g-hemw'
   const bad=await p.evaluate(i=>document.querySelector(i).classList.contains('bad'),id);
   pruefe(Math.abs(c.len/bW.len-1)<.01&&Math.abs(c.saum/bW.saum-1)<.01&&Math.abs(c.bund/bW.bund-1)<.01&&bad,`ungültig ${id}="${v}": Hose unverändert, Feld rot markiert`);
 }
-await p.click('#g-clear'); await p.waitForTimeout(200);
+await p.evaluate(()=>{ const b=document.querySelector('#gwrap .gbtn[aria-pressed=true]'); if(b) b.click(); }); await p.waitForTimeout(200);   // Hose abwählen
 // andere Hose wählen: eigene Werte, keine von der vorigen
 await p.click('#gwrap .gbtn >> nth=0'); await p.waitForTimeout(300); const fE=await felder();
 pruefe(fE[1]==='40'&&fE[0]!=='70','Jede Hose hat eigene Werte: Erste hat Bund '+fE[1]+', Länge '+fE[0]);

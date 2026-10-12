@@ -106,6 +106,14 @@ select{background:var(--surface-2);border:1px solid transparent;border-radius:va
 .dot{width:8px;height:8px;border-radius:50%;background:var(--glass-dim);flex:none}
 .dot.ok{background:var(--ok-c)}.dot.warn{background:var(--warn-c)}.dot.bad{background:var(--bad-c)}
 .iconbtn{border-radius:50%;width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center}
+@media (max-width:440px){ .hud-top .iconbtn{width:40px;height:40px;min-height:40px} .hud-top>div[style]{gap:5px!important} .hud-top .pill{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis} }
+.row>.iconbtn{flex:0 0 auto;width:52px;height:52px;min-height:52px;background:var(--surface-2);color:var(--brass);border:1px solid transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.quickrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.quickrow .quickp{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:8px 4px;line-height:1.2;min-width:0}
+.quickp b{font-weight:600}.quickp span{font-size:13px;opacity:.75}
+.quickp[aria-pressed=true]{border-color:var(--brass);background:var(--accent-soft)}
+.voicebtn .won,.voicebtn[aria-pressed=true] .woff{display:none}.voicebtn[aria-pressed=true] .won{display:inline}
+.voicebtn[aria-pressed=true]{border-color:var(--brass)}
 .iconbtn:hover:not(:disabled){background:rgba(58,58,60,.7)}
 .stage.clean .hud,.stage.clean .frame{display:none!important}
 .cleanhint{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:4;border-radius:999px;padding:8px 14px;font-size:13px;white-space:nowrap;pointer-events:none}
@@ -189,6 +197,17 @@ details.adv>.advbody{display:flex;flex-direction:column;gap:14px;padding:4px 0 8
 .drop:hover,.drop.over{border-color:var(--brass);background:var(--accent-soft)}
 .dropbig{font-size:19px;font-weight:600;color:var(--brass)}
 .dropsub{font-size:14px;color:var(--chalk-dim);margin-top:6px;line-height:1.45}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.slot{border:2px dashed var(--line-2);border-radius:var(--r);padding:10px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;transition:background .15s,border-color .15s}
+.slot:hover,.slot.over{border-color:var(--brass);background:var(--accent-soft)}
+.slot.full{border-style:solid;border-color:var(--line)}
+.slot.est{border-style:dashed}
+.slot b{font-size:16px;color:var(--chalk)}
+.slotsub{font-size:12px;color:var(--chalk-dim);line-height:1.3}
+.slotimg{width:100%;max-width:120px;aspect-ratio:3/4;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden}
+.slotimg img{width:100%;height:100%;object-fit:contain}
+.slotimg span{font-size:30px;color:var(--brass)}
+.slot.est .slotimg img{opacity:.45}
 .droplist{display:flex;flex-direction:column;gap:8px}
 .droplist:empty{display:none}
 .ditem{display:flex;align-items:center;gap:12px;background:var(--surface-2);border-radius:var(--r-s);padding:8px 10px}
@@ -286,11 +305,16 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     </div>
     <div class="row">
       <button id="start" class="primary">Kamera starten</button>
-      <button id="quick" title="Testperson Jakob, 179 cm, Kamera sofort starten">Jakob · 179 cm</button>
+      <button class="iconbtn voicebtn" id="voiceBtn" aria-pressed="false" aria-label="Sprachausgabe" title="Sprachausgabe an/aus"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="won" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="woff" d="M17 9l5 6M22 9l-5 6"/></svg></button>
+    </div>
+    <div class="row quickrow" role="group" aria-label="Testpersonen: Größe eintragen und Kamera sofort starten">
+      <button id="quick" class="quickp" data-n="Jakob" data-h="179" title="Testperson Jakob, 179 cm, Kamera sofort starten"><b>Jakob</b><span>1,79 m</span></button>
+      <button class="quickp" data-n="Fabian" data-h="187" title="Testperson Fabian, 187 cm, Kamera sofort starten"><b>Fabian</b><span>1,87 m</span></button>
+      <button class="quickp" data-n="Philip" data-h="170" title="Testperson Philip, 170 cm, Kamera sofort starten"><b>Philip</b><span>1,70 m</span></button>
     </div>
     <p class="hint">Die Größe ist der Maßstab, <strong>ohne Schuhe</strong>.</p>
     <details class="adv"><summary>Ton und Stimme</summary><div class="advbody">
-      <div class="toggle"><input type="checkbox" id="voice" checked><span>Sprachansagen und Töne</span></div>
+      <div class="toggle"><input type="checkbox" id="voice"><span>Sprachansagen und Töne</span></div>
       <label>Stimme
         <select id="voiceSel" style="width:100%"><option value="">Standard</option></select></label>
     </div></details>
@@ -310,6 +334,8 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
         <div style="display:flex;gap:7px;flex:none">
           <button class="iconbtn" id="flip" aria-label="Kamera wechseln" title="Kamera wechseln" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a8 8 0 0 1 14-4.5L20 9"/><path d="M20 4v5h-5"/><path d="M20 13a8 8 0 0 1-14 4.5L4 15"/><path d="M4 20v-5h5"/></svg></button>
           <button class="iconbtn" id="clean" aria-label="Anzeigen ausblenden" title="Nur die Kleidung zeigen"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg></button>
+          <button class="iconbtn voicebtn" id="voiceHud" aria-pressed="false" aria-label="Sprachausgabe" title="Sprachausgabe an/aus"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="won" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="woff" d="M17 9l5 6M22 9l-5 6"/></svg></button>
+          <button class="iconbtn" id="camOff" aria-label="Anprobe beenden" title="Anprobe beenden: Kamera aus, danach das 3D-Modell"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
           <button class="iconbtn" id="full" aria-label="Vollbild" title="Vollbild"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-7 7"/><path d="M10 20H4v-6"/><path d="M4 20l7-7"/></svg></button>
         </div>
       </div>
@@ -340,9 +366,17 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
       <input type="url" id="link-in" inputmode="url" placeholder="🔗 Link zur Hose im Shop einfügen" aria-label="Link zur Hose im Shop">
       <button id="link-go" type="submit" title="Seite holen: Bilder, Maßtabelle und Model-Größe übernehmen" aria-label="Seite holen">⇩</button>
     </form>
+    <div class="slots" id="drop-slots" role="group" aria-label="Fotos der Hose: Vorderseite und Rückseite">
+      <div class="slot" id="slot-vorne" data-side="vorne" tabindex="0" role="button" aria-label="Foto der Vorderseite wählen (flach, von oben)">
+        <input type="file" accept="image/*,.heic,.heif" hidden>
+        <div class="slotimg"><span>＋</span></div><b>Vorderseite</b><span class="slotsub">flach, von oben · Schlitz, Knopf</span></div>
+      <div class="slot" id="slot-hinten" data-side="hinten" tabindex="0" role="button" aria-label="Foto der Rückseite wählen (flach, von oben)">
+        <input type="file" accept="image/*,.heic,.heif" hidden>
+        <div class="slotimg"><span>＋</span></div><b>Rückseite</b><span class="slotsub">flach, von oben · Gesäßtaschen</span></div>
+    </div>
     <div class="drop" id="drop" tabindex="0" role="button" aria-label="Dateien hochladen: Fotos der Hose und Maßtabelle">
       <input type="file" id="drop-in" multiple accept="image/*,.heic,.heif,.txt,.csv,text/plain" hidden>
-      <div class="dropbig">⇪ Dateien hochladen</div>
+      <div class="dropbig">⇪ Weitere Dateien oder alles auf einmal</div>
       <div class="dropsub">Fotos der Hose (vorne flach, hinten flach oder getragen), ganze Shop-Screenshots, Maßtabelle als Bild oder Text.
         Hineinziehen, antippen oder einfügen (Strg+V). Die Seite sortiert selbst und sagt, was fehlt.</div>
     </div>
@@ -362,7 +396,7 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     <div class="gwrap" id="gwrap"></div>
     <div id="g3dbox" class="g3dbox" hidden>
       <canvas id="g3dview" width="360" height="460" aria-label="3D-Modell der gewählten Hose, mit dem Finger oder der Maus drehbar"></canvas>
-      <div class="sub">3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen</div>
+      <div class="sub" id="g3dSub">3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen</div>
       <div class="row">
         <button id="tryon" class="primary" title="So würde es im Shop aussehen: Kamera im Vollbild, nur die Hose, ✕ schließt">▶ Anprobieren wie im Shop</button>
         <button id="g-glb" title="3D-Datei (glTF/GLB) der Hose sichern: für Shopify (3D-Modell am Produkt), Blender oder jeden 3D-Betrachter">⇩ 3D-Datei (.glb)</button>
@@ -386,7 +420,7 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     <div class="row"><label>Stoff <select id="g-fab" disabled></select></label><span class="tag" id="tag-fab"></span></div>
     <div id="g-msg" class="gmsg" aria-live="polite"></div>
     <div class="row">
-      <button id="g-clear">Anprobe aus</button>
+      <button id="g-clear" hidden title="Kamera und Erkennung aus, danach erscheint das 3D-Modell">■ Anprobe aus</button>
     </div>
     <details class="adv"><summary>Einzeln mit Maßband und Maßstab</summary>
     <div id="ownBox" class="advbody">
@@ -642,6 +676,18 @@ function stability(hipCm,shCm){
 /* ---------- Ton und Sprache ---------- */
 let actx=null, spoken="", spokeAt=0;
 const voiceOn=()=>$("voice").checked;
+/* Sprachausgabe: standardmäßig aus (nicht gespeichert, jede Sitzung beginnt still). Der Lautsprecher-Knopf (bei „Du“ und im
+   Kamerabild) und das Häkchen unter „Ton und Stimme“ schalten dasselbe. Einschalten ist eine Nutzeraktion: iOS gibt die
+   Sprachausgabe erst danach frei, darum gleich ein kurzes „Ton an“. */
+function setVoice(on){
+  $("voice").checked=on;
+  for(const id of ["voiceBtn","voiceHud"]){ const b=$(id); b.setAttribute("aria-pressed",String(on)); b.title=on?"Sprachausgabe aus":"Sprachausgabe an"; b.setAttribute("aria-label",on?"Sprachausgabe ausschalten":"Sprachausgabe einschalten"); }
+  if(!on){ try{ speechSynthesis.cancel(); }catch(_){} return; }
+  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(_){}
+  spoken=""; spokeAt=0; say("Ton an");
+}
+for(const id of ["voiceBtn","voiceHud"]) $(id).addEventListener("click",e=>{ e.stopPropagation(); setVoice(!voiceOn()); });
+$("voice").addEventListener("change",e=>setVoice(e.target.checked));
 function beep(f=880,ms=160,vol=.32){
   if(!voiceOn()) return;
   try{ actx||=new (window.AudioContext||window.webkitAudioContext)();
@@ -790,7 +836,7 @@ async function startCamera(){
   const h=num($("height").value);
   if(!(h>=120&&h<=230)){ showError("Bitte zuerst eine Körpergröße zwischen 120 und 230 cm eintragen.");
     $("height").focus(); $("height").scrollIntoView({block:"center"}); return; }
-  starting=true; $("error").hidden=true; $("start").disabled=true;
+  starting=true; $("error").hidden=true; camT0=performance.now(); camUI();
   const gen=++camGen;                              // wird die Kamera unterwegs wieder ausgemacht (✕ in der Shop-Anprobe), hier aufhören
   // Ton und Sprache brauchen auf iOS eine echte Nutzeraktion zum Freischalten
   try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(_){}
@@ -800,20 +846,21 @@ async function startCamera(){
   try{ await openStream(); if(aus()) return; }
   catch(e){
     showError("Kamera nicht verfügbar: "+e.message+" — die Seite muss über https:// laufen und die Kamera muss im Browser erlaubt sein.");
-    $("start").disabled=false; starting=false; return;
+    starting=false; camUI(); return;
   }
   $("placeholder").hidden=true; $("hud").hidden=false;
   stage.scrollIntoView({behavior:"smooth",block:"center"});
   try{ if(!landmarker){ coach("Einen Moment","Erkennung wird geladen","warn",true); await loadModel(); } if(aus()) return; }
   catch(e){
     showError("Die Erkennung konnte nicht geladen werden: "+e.message+" — Internetverbindung prüfen und neu starten.");
-    coach("Erkennung nicht geladen","Internet prüfen, dann „Kamera neu starten“","bad",true); setStatus("Erkennung nicht geladen","bad");
-    $("start").disabled=false; starting=false; return;
+    coach("Erkennung nicht geladen","Internet prüfen, dann Anprobe beenden und neu starten","bad",true); setStatus("Erkennung nicht geladen","bad");
+    starting=false; camUI(); return;
   }
-  $("reset").disabled=false; $("start").textContent="Kamera neu starten"; $("start").disabled=false;
+  $("reset").disabled=false;
   starting=false; clearSm();
   coach("Geh ein paar Schritte zurück","","warn",true); cue("Geh ein paar Schritte zurück",true);
   if(!running){ running=true; $("g3dbox").hidden=true; requestAnimationFrame(loop); }   // 3D-Ansicht teilt sich die Grafik mit der Anprobe
+  camUI();
 }
 
 /* ---------- Silhouette ---------- */
@@ -1029,6 +1076,7 @@ function analyse(res){
   const bounds=personBounds(m,L);
 
   const aspect=vw/vh;
+  L=legSanity(L);                             // Bein-Punkte über der Hüfte bei aufrechtem Rumpf: Fehlerkennung, nicht verwenden
   L=hipFix(L,aspect);                         // Hüftgelenke anatomisch nachgeführt (gezeichnet, gemessen und für die Hose)
   // Seitlich (Breite im Bild = Körpertiefe): aus der Drehung des letzten Bildes; vor dem ersten Scan gilt „von vorn“
   const isSide=phase!=="cal"&&Math.abs(Math.sin(fc.yaw))>.7;
@@ -1566,11 +1614,13 @@ const PASSFORM={
   fallStapelCm:28,       // Startform der Simulation: überzählige Länge auf so viel cm über dem Schuh verteilt
   fallBiege:2.2,         // Biegesteifigkeit in der Simulation (× Wert aus dem Stoff)
   fallReibung:.85,       // Reibung am Boden (0 = glatt, 1 = klebt)
-  fallSchuhCm:4.5,       // Schuh: Ferse bis Rist mit diesem Radius (Höhe am Rist etwa 2×), davor flacher die Spitze
+  fallSchuhCm:7.5,       // Schuh: Höhe am Rist in cm (bei 175 cm Körpergröße); Ferse, Spitze und Breite im Verhältnis, siehe shoeH
   fallSelbst:true,       // Stoff gegen Stoff (der Faltenstapel fällt sonst flach in sich zusammen)
-  fallAusstellen:1.6,    // der Stoffstapel stellt sich höchstens so weit aus (× Abstand zur Knöchelachse in der Ruheform)
-  fallBodenWeit:1.25,    // am Boden (unterste 5 cm) höchstens so weit vom Knöchel wie der Saum × diesen Wert: keine flachen Lappen
-  fallSaumWeit:1.15,     // die untersten 4 cm (umgenähter Saum) höchstens so weit: bleibt eine Röhre statt Hutkrempe
+  fallAusstellen:1.25,   // der Stoffstapel stellt sich höchstens so weit aus (× Abstand zur Knöchelachse in der Ruheform). 1,6 ließ den
+                         // Stapel vorn über den Schuh rutschen: der Saum stand in der Seitenansicht wie ein Stiefel nach vorn (12.10.)
+  fallBodenWeit:1,       // am Boden (unterste 5 cm) höchstens so weit vom Knöchel wie der Saum × diesen Wert (+3 mm): keine flachen Lappen
+  fallSaumWeit:1.08,     // die untersten 4 cm (umgenähter Saum) bleiben ein Ring zwischen 95 % und so viel × Ruheweite (+3 mm):
+                         // keine Hutkrempe, kein Umklappen hinter der Ferse (dunkle Innenseite als Lappen am Boden)
   hueftKorrektur:.8,     // Hüftgelenk zur Anatomie hin nachführen (0 = MediaPipe unverändert, 1 = ganz), siehe hipFix
   fallInnen:.85,         // im Stapel nicht enger als dieser Anteil der Ruheform (Seitenwände knicken nicht zum Knöchel ein)
   shirtDarueber:true,    // Oberteil über der Hose erkennen (Farbwechsel Bauch → eigene Hose) und die 3D-Hose darunter verschwinden lassen
@@ -2129,12 +2179,16 @@ function drape3d(G,Hc){
   }
   for(let s=0;s<2;s++) for(let i=iS-1;i<NR;i++){ add(id(s,i,0,1),id(s,i,1,1),B); add(id(s,i,0,K3-1),id(s,i,1,K3-1),B); }
   const nc=ca.length, CA=Int32Array.from(ca), CB=Int32Array.from(cb), RLc=Float32Array.from(rl), CK=Float32Array.from(ck);
-  // Hindernisse: Beine (wie in cloth3d), Schuh als Kapsel von der Ferse zur Spitze, Boden
+  // Hindernisse: Beine (wie in cloth3d), Schuh, Boden
   const rb=u=>(u<.5?.31+(.21-.31)*u/.5:.21+(.125-.21)*(u-.5)/.5)*Hc/(2*Math.PI)*ppc;
-  const capsS=[[],[]]; for(const [si,ch] of bone.entries()){ const caps=capsS[si]; caps.push([ch[0],ch[1],rb(0),rb(.5)]); caps.push([ch[1],ch[2],rb(.5),rb(1)]);
-    // Schuh: Ferse bis Rist (der Saum liegt vorne auf dem Rist auf), davor flacher die Spitze; vorne ist -z
-    const a=ch[2], sr=PASSFORM.fallSchuhCm*ppc;
-    caps.push([[a[0],Fy-sr,a[2]+4*ppc],[a[0],Fy-1.15*sr,a[2]-7*ppc],sr,1.05*sr]); caps.push([[a[0],Fy-1.15*sr,a[2]-7*ppc],[a[0],Fy-.6*sr,a[2]-17*ppc],.75*sr,.55*sr]); }
+  const capsS=[[],[]]; for(const [si,ch] of bone.entries()){ const caps=capsS[si]; caps.push([ch[0],ch[1],rb(0),rb(.5)]); caps.push([ch[1],ch[2],rb(.5),rb(1)]); }
+  // Schuh als Höhenform (Sohle bis Oberfläche), nicht als Kapsel: der Fuß geht durch die Saumöffnung nach vorn hinaus, der Saum
+  // liegt vorne auf dem Rist und fällt seitlich und hinten bis zum Boden. Stoff über dem Schuh wird nur nach oben geschoben.
+  // Die alte Kapsel drückte von ihrer Achse weg: der Saum rutschte nach hinten unter die Ferse oder vorn über die Spitze, darüber
+  // knickte der Stoff ein (12.10., Seitenansicht wie ein Stiefel). Maße (cm, vorne negativ, bei 175 cm): Ferse +5, Spitze −18.
+  const sk=Hc/175, SZ=[5,3.5,-1,-6,-11,-16,-18].map(z=>z*sk), SH=[.5,.87,1,.93,.73,.47,.2], sw=4.3*sk, shTop=PASSFORM.fallSchuhCm*sk;
+  const shoeH=(dx,dz)=>{ if(dz>SZ[0]||dz<SZ[6]||Math.abs(dx)>=sw) return 0; let i=0; while(i<5&&dz<SZ[i+1]) i++;
+    const t=(dz-SZ[i])/(SZ[i+1]-SZ[i]), h=SH[i]+(SH[i+1]-SH[i])*t, e=dx/sw; return shTop*h*Math.sqrt(1-e*e*e*e); };
   // kleine, feste Unregelmäßigkeit unten (sonst falten alle Beine gleich): entlang der Normale
   const first=new Int32Array(np).fill(-1); for(let k=0;k<n;k++) if(first[pid[k]]<0) first[pid[k]]=k;
   const side=new Uint8Array(np); for(let p=0;p<np;p++) side[p]=Math.floor(first[p]/(NR*2*C));
@@ -2147,11 +2201,29 @@ function drape3d(G,Hc){
     const r=Math.hypot(RL[k*3]-a[0],RL[k*3+2]-a[2]), hem=M.v[row[p]]>=vHem;
     // nach innen höchstens bis fallInnen × Ruheabstand: sonst knicken die Seitenwände beim Stauchen zum Knöchel ein und das
     // Bein wird unten schmal und tief wie ein Fass (gemessen: 20,7 × 16,4 cm → 13,9 × 20,8 cm)
-    flare.push([p,a[0],a[2],r*(hem?PASSFORM.fallSaumWeit:PASSFORM.fallAusstellen)+ppc,hemR[s]*PASSFORM.fallBodenWeit+ppc,r*(hem?.8:PASSFORM.fallInnen)]);
+    // der umgenähte Saum selbst ist steif (doppelter Stoff): ein Ring fast in Ruheweite, er klappt weder hinter der Ferse um
+    // noch nach innen; vorn liegt er auf dem Schuh, hinten und seitlich am Boden
+    flare.push([p,a[0],a[2],hem?r*PASSFORM.fallSaumWeit+.3*ppc:r*PASSFORM.fallAusstellen+ppc,hemR[s]*PASSFORM.fallBodenWeit+.3*ppc,r*(hem?.95:PASSFORM.fallInnen)]);
     if(hem) W[p]=.5; }                                      // Saum doppelt gelegt: doppelt so schwer
+  // Unterste 6 cm: kein Punkt weiter außen als der Punkt darüber (+4 % und 3 mm). Sonst klappt der Saum bei viel Überlänge nach
+  // außen um und liegt als flacher Lappen (Innenseite oben) vor dem Schuh oder zwischen den Beinen; so hängt er als Röhre.
+  const vLow=1-6/Math.max(30,Lc), tube=[];
+  for(let s=0;s<2;s++) for(let i=1;i<NR;i++){ if(M.v[i]<vLow) continue; const a=bone[s][2];
+    for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const p=pid[id(s,i,f,j)], u=pid[id(s,i-1,f,j)]; if(W[p]&&p!==u) tube.push(p,u,a[0],a[2]); } }
+  const TUBE=Float32Array.from(tube), nT=TUBE.length/4;
+  // Der Saum ist in jeder Stoffbahn der tiefste Punkt der untersten 8 cm: nichts faltet sich unter ihn. Sonst hob der Schuh
+  // vorn den steifen Saumring an, der Stoff darüber fiel hinten an ihm vorbei auf den Boden und der Saum lag hinten 6 cm hoch
+  // umgeklappt obenauf (dunkle Innenseite von hinten zu sehen)
+  const v8=1-8/Math.max(30,Lc), i8=Math.max(iS,M.v.findIndex(v=>v>=v8)), cols=[];
+  for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const hp=pid[id(s,NR-1,f,j)]; if(!W[hp]) continue;
+    const L=[]; for(let i=i8;i<NR-2;i++){ const q=pid[id(s,i,f,j)]; if(q!==hp&&W[q]) L.push(q); } cols.push(hp,L.length,...L); }
+  const COLS=Int32Array.from(cols);
+  const hemLowest=()=>{ for(let c=0;c<COLS.length;){ const hp=COLS[c]*3, n=COLS[c+1]; let ymax=-1e9;
+      for(let t=0;t<n;t++){ const y=X[COLS[c+2+t]*3+1]; if(y>ymax) ymax=y; } c+=2+n;
+      if(ymax>X[hp+1]) X[hp+1]=Math.min(floor,ymax); } };
   for(let p=0;p<np;p++) if(W[p]&&M.v[row[p]]>.6){ const r=Math.sin(p*12.9898)*43758.5453, u=(r-Math.floor(r))-.5, k=first[p];
     for(let c=0;c<3;c++) X[p*3+c]+=NO[k*3+c]*u*.5*ppc; }
-  const grav=981*ppc, dt=1/75, STEPS=100, IT=9, floor=Fy-.25*ppc;
+  const grav=981*ppc, dt=1/75, STEPS=100, IT=9, floor=Fy-.25*ppc, mid=.3*ppc;
   // Längenbegrenzung je Stoffbahn (long range attachment): kein Punkt weiter vom festen Rand darüber, als der Stoff dazwischen
   // lang ist. Sonst dehnt sich die Hose unter ihrem Gewicht (PBD gibt nach): eine 98-cm-Hose lag mit 3–4 cm zu tiefem Saum auf.
   const lra=[]; for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const a0=id(s,iS-1,f,j), A=pid[a0]; if(W[A]) continue; let dist=0;
@@ -2187,23 +2259,34 @@ function drape3d(G,Hc){
           const ex=X[q]-(a[0]+ab0*t), ey=X[q+1]-(a[1]+ab1*t), ez=X[q+2]-(a[2]+ab2*t), el=Math.sqrt(ex*ex+ey*ey+ez*ez);
           if(el<r&&el>1e-6){ const k=r/el-1; X[q]+=ex*k; X[q+1]+=ey*k; X[q+2]+=ez*k;
             X[q]=X[q]*.6+Pr[q]*.4; X[q+2]=X[q+2]*.6+Pr[q+2]*.4; } }                           // Reibung am Schuh/Bein
+        const a=bone[side[p]][2], hs=shoeH((X[q]-a[0])/ppc,(X[q+2]-a[2])/ppc);
+        if(hs>0&&X[q+1]>Fy-hs*ppc){ X[q+1]=Fy-hs*ppc; X[q]=X[q]*.6+Pr[q]*.4; X[q+2]=X[q+2]*.6+Pr[q+2]*.4; }       // auf dem Schuh, mit Reibung
         if(X[q+1]>floor){ const fr=PASSFORM.fallReibung; X[q+1]=floor; X[q]=X[q]*(1-fr)+Pr[q]*fr; X[q+2]=X[q+2]*(1-fr)+Pr[q+2]*fr; }   // Boden, mit Reibung
       }
     }
-    lraPass();
+    lraPass(); hemLowest();
     if(PASSFORM.fallSelbst&&st%2===0) selfPush();
     // unten nicht weiter ausstellen als ein Viertel über die eigene Weite: sonst klappt der Saum wie Flügel auf den Boden
+    // die Beine gehen nicht ineinander: jedes bleibt auf seiner Seite der Mitte (sonst fällt der Stapel weiter Hosen als flacher
+    // Lappen zwischen die Beine)
+    if(!M.rock) for(let p=0;p<np;p++){ if(!W[p]) continue; const q=p*3, sg=side[p]?-1:1; if(X[q]*sg<mid){ X[q]=sg*mid; } }
     for(const [p,ax,az,r0,rh,rmin] of flare){ const q=p*3, dx=X[q]-ax, dz=X[q+2]-az, r=Math.hypot(dx,dz);
       // am Boden (unterste 5 cm) bleibt der Stoff nah am Schuh: das Überzählige staucht sich darüber, statt flach wegzurutschen;
       // der Saum selbst bleibt ein Ring (klappt nicht nach innen unter das Bein und wieder heraus)
       const rm=X[q+1]>floor-5*ppc?Math.min(r0,rh):r0, k=r>rm?rm/r:r<rmin&&r>1e-6?rmin/r:1; if(k!==1){ X[q]=ax+dx*k; X[q+2]=az+dz*k; } }
+    for(let c=0;c<nT;c++){ const q=TUBE[c*4]*3, u=TUBE[c*4+1]*3, ax=TUBE[c*4+2], az=TUBE[c*4+3];
+      const ru=Math.hypot(X[u]-ax,X[u+2]-az), dx=X[q]-ax, dz=X[q+2]-az, r=Math.hypot(dx,dz), rm=ru*1.04+.3*ppc;
+      if(r>rm){ const k=rm/r; X[q]=ax+dx*k; X[q+2]=az+dz*k; } }
     for(let p=0;p<np;p++){ if(!W[p]) continue; const q=p*3; for(let c=0;c<3;c++) V[q+c]=(X[q+c]-Pr[q+c])/dt*.985; }
   };
   const finish=()=>{
   // Versatz je Punkt in cm, Körper-Koordinaten: h = +x, oben = -y, vorne = -z; dazu die Ruheabstände längs für die Faltenregel
   const Dd=new Float32Array(n*3), Rb=new Float32Array(n);
   for(let k=0;k<n;k++){ const p=pid[k], q=p*3;
-    if(W[p]){ Dd[k*3]=(X[q]-X0[k*3])/ppc; Dd[k*3+1]=-(X[q+1]-X0[k*3+1])/ppc; Dd[k*3+2]=-(X[q+2]-X0[k*3+2])/ppc; } }
+    if(W[p]){ Dd[k*3]=(X[q]-X0[k*3])/ppc; Dd[k*3+1]=-(X[q+1]-X0[k*3+1])/ppc; Dd[k*3+2]=-(X[q+2]-X0[k*3+2])/ppc;
+      // seitlich nur wenig (unten 1 cm, darüber 2,5 cm): die Simulation gibt Falten und den Sitz auf Schuh und Boden, die Form
+      // bleibt die gerechnete. Ohne diese Grenze klappte bei viel Überlänge mal hier, mal da ein Stück Saum als Lappen um.
+      const mx=M.v[row[p]]>=vLow?1:2.5, hl=Math.hypot(Dd[k*3],Dd[k*3+2]); if(hl>mx){ Dd[k*3]*=mx/hl; Dd[k*3+2]*=mx/hl; } } }
   for(let s=0;s<2;s++) for(let i=0;i<NR-1;i++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){
     const a=pid[id(s,i,f,j)]*3, b=pid[id(s,i+1,f,j)]*3; Rb[id(s,i,f,j)]=Math.hypot(X[b]-X[a],X[b+1]-X[a+1],X[b+2]-X[a+2])/ppc; }
   for(let k=0;k<n*3;k++) if(!isFinite(Dd[k])) return null;
@@ -2368,14 +2451,18 @@ function rim3d(M,ppc){
     for(let f=0;f<2;f++) for(let j=0;j<C;j++){
       const a=id(s,0,f,j), z=id(s,NR-1,f,j), pa=g(a), na=gn(a), pz=g(z), nz=gn(z);
       const zU=id(s,Math.max(0,NR-3),f,j), dz=v3.sub(pz,g(zU)), dnZ=v3.len(dz)>1e-6?v3.norm(dz):[0,1,0];
-      const lipA=v3.add(v3.sub(pa,v3.mul(na,th)),v3.mul(upA,.12*ppc)), lipZ=v3.add(v3.sub(pz,v3.mul(nz,th)),v3.mul(dnZ,.12*ppc));
       const bA=along(s,f,j,0,1,4), bZ=along(s,f,j,NR-1,-1,3);
+      // innen am Saum: zur Mitte des Saumrings (waagrecht), nicht gegen die Normale. Im gestauchten, schräg auf dem Schuh
+      // liegenden Saum kippen die Normalen; der dunkle Umschlag stach dann als Streifen durch die Hosenwand nach außen
+      const cZ=mid(s,NR-1), pb=g(bZ), inZ=(q=>{ const v=[cZ[0]-q[0],0,cZ[2]-q[2]], l=Math.hypot(v[0],v[2]); return l>1e-6?[v[0]/l,0,v[2]/l]:v3.mul(nz,-1); });
+      const iz=inZ(pz), ib=inZ(pb);
+      const lipA=v3.add(v3.sub(pa,v3.mul(na,th)),v3.mul(upA,.12*ppc)), lipZ=v3.add(v3.add(pz,v3.mul(iz,th)),v3.mul(dnZ,.12*ppc));
       put(rid(s,f,0,j),lipA,v3.norm(v3.add(upA,v3.mul(na,.4))),a);
       put(rid(s,f,1,j),lipA,v3.mul(na,-1),a);
       put(rid(s,f,2,j),v3.sub(g(bA),v3.mul(gn(bA),th)),v3.mul(gn(bA),-1),a);
-      put(rid(s,f,3,j),lipZ,v3.norm(v3.add(dnZ,v3.mul(nz,.4))),z);
-      put(rid(s,f,4,j),lipZ,v3.mul(nz,-1),z);
-      put(rid(s,f,5,j),v3.sub(g(bZ),v3.mul(gn(bZ),th)),v3.mul(gn(bZ),-1),z);
+      put(rid(s,f,3,j),lipZ,v3.norm(v3.add(dnZ,v3.mul(iz,-.4))),z);
+      put(rid(s,f,4,j),lipZ,iz,z);
+      put(rid(s,f,5,j),v3.add(pb,v3.mul(ib,th)),ib,z);
     }
   }
 }
@@ -2583,6 +2670,8 @@ function view3dFrame(now){
   const box=$("g3dbox"), cvs=$("g3dview"), G=g.key&&GARMENTS[g.key];
   const show=!!(G&&G.m3&&!G.bad&&!running&&init3d());
   box.hidden=!show; if(!show||!v3d.vis) return;
+  const sub="3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen"+(G.backEst?" · Rückseite geschätzt (kein Foto von hinten)":"");
+  if($("g3dSub").textContent!==sub) $("g3dSub").textContent=sub;
   const dt=clamp((now-(v3d.last||now))/1000,0,.1); v3d.last=now;
   if(!v3d.drag&&now-v3d.idle>2500) v3d.yaw+=dt*.5;           // dreht sich langsam, bis jemand zieht
   mesh3d(g.key,G.m3);
@@ -2616,10 +2705,34 @@ const fc={yaw:0,ks:.74,kh:.36,as:0,ah:0,cal:false,half:0,sgn:1,pend:0,t:0};
 const wrapA=a=>{ while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a; };
 /* Neigung des Rumpfs in der Bildebene aus der Richtung Hüfte → Schultern (Bildpunkte). Geglättet als Richtung (kein Sprung
    bei ±180°), unter 7° gilt aufrecht (die Hose wackelt im Stehen nicht), ohne Schultern im Bild langsam zurück zu aufrecht. */
-const tro={x:0,y:-1,t:0,seen:0};
+const tro={x:0,y:-1,t:0,seen:0,flip:0};
+/* Steht der Rumpf aufrecht (Schultern deutlich über der Hüfte), können Knöchel nicht über der Hüfte und Knie nicht weit über
+   ihr liegen: dann hat die Erkennung die Beine falsch gesetzt (12.10.: Knöchel oben im Bild, die Hose stand kopf). Solche
+   Punkte gelten als nicht sichtbar; die Hose setzt die Beine dann gerade fort wie bei Gelenken außerhalb des Bildes. */
+function legSanity(L){
+  const ok=i=>L[i]&&(L[i].visibility??1)>=.4;
+  if(!(ok(11)&&ok(12)&&ok(23)&&ok(24))) return L;
+  const sy=(L[11].y+L[12].y)/2, hy=(L[23].y+L[24].y)/2, sx=(L[11].x+L[12].x)/2, hx=(L[23].x+L[24].x)/2, t=Math.hypot(hx-sx,hy-sy);
+  // Rumpf springt gerade um mehr als 100° (siehe torsoRoll): solange das nicht bestätigt ist, auch den Beinen nicht trauen
+  const sprung=t>.02&&Math.hypot(tro.x,tro.y)>.5&&Math.abs(wrapA(Math.atan2(sx-hx,-(sy-hy))-Math.atan2(tro.x,-tro.y)))>1.75&&(!tro.flip||performance.now()-tro.flip<1000);
+  if(!sprung&&!(t>.02&&hy-sy>.7*t)) return L;              // nicht aufrecht (geneigt, Handstand): keine Regel
+  let out=L;
+  for(const [k,a,he,to] of [[25,27,29,31],[26,28,30,32]]){
+    const bad=sprung||(ok(a)&&L[a].y<hy-.05*t)||(ok(k)&&L[k].y<hy-.35*t);
+    if(!bad) continue;
+    if(out===L) out=L.map(p=>({...p}));
+    for(const i of [k,a,he,to]) out[i].visibility=0;
+  }
+  return out;
+}
 function torsoRoll(tx,ty,ok){
   const now=performance.now(), dt=clamp((now-(tro.t||now))/1000,0,.25); tro.t=now;
   const l=Math.hypot(tx,ty);
+  // Sprung um mehr als 100° von einem Bild zum nächsten: meist hat die Erkennung das Skelett verkehrt herum gelegt (nah an der
+  // Kamera, Kopf nicht im Bild, Kind oder Hund daneben; 12.10. vom Nutzer: Hose stand kopf). Ein echter Handstand oder Salto
+  // dreht durch die Lagen dazwischen. Erst glauben, wenn die neue Lage 1 s anhält.
+  if(ok&&l>1){ const d=Math.abs(wrapA(Math.atan2(tx,-ty)-Math.atan2(tro.x,-tro.y)));
+    if(d>1.75&&Math.hypot(tro.x,tro.y)>.5){ if(!tro.flip) tro.flip=now; if(now-tro.flip<1000) ok=false; } else tro.flip=0; }
   if(ok&&l>1){ tro.seen=now; const a=1-Math.exp(-dt/.06); tro.x+=(tx/l-tro.x)*a; tro.y+=(ty/l-tro.y)*a; }
   else if(now-tro.seen>800){ const a=1-Math.exp(-dt/.6); tro.x+=(0-tro.x)*a; tro.y+=(-1-tro.y)*a; }
   const r=Math.atan2(tro.x,-tro.y), ar=Math.abs(r);
@@ -3818,6 +3931,50 @@ async function loadGarmentPhoto(file,say,refKind="",title="Foto"){
 function garmentProf(M,aspect){
   return {bund:{y:.015,w:M.wf*aspect,c:.5},huefte:{y:.2,w:2*M.hw[Math.round(M.nr*.2)]*aspect,c:.5}};
 }
+/* Rückseite ohne Foto von hinten: die gespiegelte Vorderseite, aber ohne das, was es nur vorne gibt (Schlitz, Knopf,
+   Vordertaschen, Etikett). Über dem Schritt wird der Stoff geglättet (große Helligkeitsverläufe wie Abnutzung und Falten
+   bleiben), die Körnung kommt aus dem Bein derselben Spalte; der Bund bleibt, nur waagrecht geglättet (Knopf weg).
+   Unten wird weich in die Beine übergeblendet. Ergebnis wird als „Rückseite geschätzt“ gekennzeichnet. */
+function plainBack(B,vc){
+  const {CW,CH}=GEN, d=B.d, mm=B.mm, top=B.top, bot=B.bot, Hh=Math.max(1,bot-top), N=CW*CH;
+  const L=new Float32Array(N*3); for(let i=0;i<N;i++){ L[i*3]=d[i*4]; L[i*3+1]=d[i*4+1]; L[i*3+2]=d[i*4+2]; }
+  // Glätten nur innerhalb des Umrisses (normalisiert), getrennt waagrecht und senkrecht
+  const blur=(src,r,horiz,vert)=>{ let a=src;
+    const pass=(h)=>{ const o=new Float32Array(N*3), st=Math.max(1,r>>3);
+      for(let y=0;y<CH;y++) for(let x=0;x<CW;x++){ let sr=0,sg=0,sb=0,n=0;
+        for(let k=-r;k<=r;k+=st){ const xx=h?x+k:x, yy=h?y:y+k; if(xx<0||yy<0||xx>=CW||yy>=CH) continue; const j=yy*CW+xx; if(!mm[j]) continue;
+          sr+=a[j*3]; sg+=a[j*3+1]; sb+=a[j*3+2]; n++; }
+        const i=y*CW+x; if(n){ o[i*3]=sr/n; o[i*3+1]=sg/n; o[i*3+2]=sb/n; } else { o[i*3]=a[i*3]; o[i*3+1]=a[i*3+1]; o[i*3+2]=a[i*3+2]; } }
+      a=o; };
+    if(horiz) pass(true); if(vert) pass(false); return a; };
+  // starke einzelne Abweichungen (Etikett, Knopf, Nähte, Taschenkanten) vor dem Glätten durch die Umgebung ersetzen
+  const S1=blur(L,20,true,true), Lc=new Float32Array(L);
+  for(let i=0;i<N;i++){ const dv=Math.abs(L[i*3]-S1[i*3])+Math.abs(L[i*3+1]-S1[i*3+1])+Math.abs(L[i*3+2]-S1[i*3+2]);
+    if(dv>60){ Lc[i*3]=S1[i*3]; Lc[i*3+1]=S1[i*3+1]; Lc[i*3+2]=S1[i*3+2]; } }
+  const S2=blur(Lc,16,true,true), SH=blur(Lc,16,true,false), F2=blur(L,2,true,true);
+  const yWb=top+Math.round(.045*Hh), yEnd=top+Math.round(Math.min(.62,vc+.04)*Hh), yFade=Math.round(.06*Hh);
+  // Körnung aus den Beinen: Spalte nach Anteil der Breite auf das linke bzw. rechte Bein abgebildet, Zeilen hin und her
+  // (keine Sprungkante), nur die feine Abweichung vom leicht geglätteten Bild
+  const legY0=top+Math.round(.6*Hh), legY1=top+Math.round(.82*Hh), span=Math.max(2,legY1-legY0);
+  const runsOf=y=>{ const r=[]; let s0=-1; for(let x=0;x<=CW;x++){ const on=x<CW&&mm[y*CW+x]; if(on&&s0<0) s0=x; if(!on&&s0>=0){ if(x-s0>4) r.push([s0,x-1]); s0=-1; } } return r; };
+  const legRuns=[]; for(let y=legY0;y<=legY1;y++) legRuns.push(runsOf(y));
+  const rowSpan=y=>{ const r=runsOf(y); return r.length?[r[0][0],r[r.length-1][1]]:null; };
+  for(let y=top;y<Math.min(CH,yEnd+yFade);y++){
+    const w=y<=yEnd?1:1-(y-yEnd)/yFade, sp=rowSpan(y); if(!sp) continue;
+    const q=(y-top)%(2*span), ly=legY0+(q<span?q:2*span-1-q), lr=legRuns[ly-legY0]||[];
+    for(let x=sp[0];x<=sp[1];x++){ const i=y*CW+x; if(!mm[i]) continue;
+      let r,g,b;
+      if(y<yWb){ r=SH[i*3]; g=SH[i*3+1]; b=SH[i*3+2]; }                 // Bund: nur waagrecht glätten (Knopf, Schlaufe vorn)
+      else {
+        let gr=[0,0,0];
+        if(lr.length){ const u=(x-sp[0])/Math.max(1,sp[1]-sp[0]), leg=u<.5?lr[0]:lr[lr.length-1], uu=u<.5?u*2:(u-.5)*2;
+          const sx=Math.round(leg[0]+uu*(leg[1]-leg[0])), j=ly*CW+sx; gr=[L[j*3]-F2[j*3],L[j*3+1]-F2[j*3+1],L[j*3+2]-F2[j*3+2]]; }
+        r=S2[i*3]+.8*gr[0]; g=S2[i*3+1]+.8*gr[1]; b=S2[i*3+2]+.8*gr[2]; }
+      d[i*4]=clamp(Math.round(d[i*4]*(1-w)+r*w),0,255); d[i*4+1]=clamp(Math.round(d[i*4+1]*(1-w)+g*w),0,255); d[i*4+2]=clamp(Math.round(d[i*4+2]*(1-w)+b*w),0,255); }
+  }
+  const x=B.c.getContext("2d"); const id=x.getImageData(0,0,CW,CH); id.data.set(d); x.putImageData(id,0,0);
+  return true;
+}
 async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   const {CW,CH,NR}=GEN;
   // refKind: für beide Fotos gleich ("card"/"a4") oder je Foto {front,back} (Dateien hochladen: Karte nur, wo sie erkannt ist).
@@ -3860,6 +4017,9 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   // Ohne flaches Rückenfoto, aber mit Foto von hinten getragen: Form der gespiegelten Vorderseite, Stoff aus dem Foto
   let wornBack=null;
   if(!bp&&opts.worn){ say("Rückseite wird aus dem Foto mit Person übernommen …"); try{ wornBack=paintWornBack(B,opts.worn,VC); }catch(e){ console.warn(e); wornBack={ok:false,why:"Fehler beim Übernehmen"}; } }
+  // ohne Foto von hinten (und ohne brauchbares Foto mit Person von hinten): Rückseite geschätzt, ohne Vorderseiten-Details
+  let backEst=false;
+  if(!bp&&!(wornBack&&wornBack.ok)){ try{ backEst=plainBack(B,rock?.45:VC); }catch(e){ console.warn("Rückseite",e); } }
   const pf=garmentProfile(F,VC,0), pb=alignRows(garmentProfile(B,rock?VC:vcBack,CW),rock?VC:vcBack,VC);
   for(let i=NR-3;i<NR;i++){ pf.hw[i]=pf.hw[NR-4]; pb.hw[i]=pb.hw[NR-4]; }
   // Vorder- und Rückseite haben denselben Umriss. Beide mitteln: Reste von Schräglage (die meist an
@@ -3895,8 +4055,8 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   // Füllgrad des Umrisses (Hose: etwa 0,5–0,85; ein Rechteck nahe 1)
   let fillN=0; const S0=fp.S; for(let y=S0.y0;y<S0.y1;y++) for(let x=S0.x0;x<S0.x1;x++) fillN+=S0.m[y*S0.w+x];
   return {G:{label:"Eigene Hose",size:"–",kind:"pants",aspect,prof:garmentProf(m3,aspect),
-             elastic:false,estFlat:40,waist:null,len:null,hem:null,meas,base,src:th.toDataURL("image/jpeg",.8),m3,own:true,bad:nz.bad},
-          info:{split,hasBack:!!backFile,trimmed:nz.changed||fp.cut||!!(bp&&bp.cut),turned:fp.turned||(bp&&bp.turned)||0,
+             elastic:false,estFlat:40,waist:null,len:null,hem:null,meas,base,src:th.toDataURL("image/jpeg",.8),m3,own:true,bad:nz.bad,backEst:backEst||undefined},
+          info:{split,hasBack:!!backFile,backEst,trimmed:nz.changed||fp.cut||!!(bp&&bp.cut),turned:fp.turned||(bp&&bp.turned)||0,
                 both,innen:!!(F.inner&&F.inner.ok),vcSpreiz:!rock&&VC!==(vcF??vcB),wornBack,rock,rockWhy:rs[0].why,belt:[F.belt||null,B.belt||null],fill:fillN/((S0.x1-S0.x0)*(S0.y1-S0.y0)),tilt:[fp.tilt,bp?bp.tilt:null],ref:[fp.ref,bp?bp.ref:null],refKind:typeof refKind==="object"?refName:refKind,loaded,warn:[...fp.warn,...(bp?bp.warn:[])],ki:[fp.ki,bp?bp.ki:false],hand:[fp.hand,bp?bp.hand:false]}};
 }
 /* Eigene Hosen: Liste im Gerät merken */
@@ -3937,6 +4097,7 @@ function checkGarment(G){
     if(G.sizes&&G.sizes.length<2) G.sizes=null;
     G.size=G.sizes&&Number.isInteger(G.size)&&G.size>=0&&G.size<G.sizes.length?G.size:null; G.sizesEst=!!G.sizes&&G.sizesEst===true;
     G.waistFoto=G.waistFoto===true; if(typeof G.link!=="string"||!/^https?:\/\//.test(G.link)) delete G.link;
+    if(G.backEst!==true) delete G.backEst;
     if(!STOFFE[G.fabric]) G.fabric=null; G.material=typeof G.material==="string"?G.material:"";
     G.label=String(G.label||"Hose"); G.src=safeImg(G.src)?G.src:"";
     if(!safeImg(G.m3.atlas)) throw new Error("Atlas"); G.estFlat=G.estFlat>0?G.estFlat:40;
@@ -4216,8 +4377,9 @@ function pickGarment(k,scroll=true){
   g.key=k; g.img=null;
   const im=new Image(); im.onload=()=>{ if(g.key===k) g.img=im; }; im.src=G.src;
   syncG(G);
-  $("g-msg").textContent=G.repaired?"Diese Hose wurde automatisch repariert (oben ragte etwas aus dem Foto). Bitte Länge und Bund mit dem Maßband prüfen und hier eintragen."
-    :g.est?"Länge und Bund sind nur grob geschätzt. Am besten die Länge mit dem Maßband messen und eintragen.":"";
+  $("g-msg").textContent=(G.repaired?"Diese Hose wurde automatisch repariert (oben ragte etwas aus dem Foto). Bitte Länge und Bund mit dem Maßband prüfen und hier eintragen."
+    :g.est?"Länge und Bund sind nur grob geschätzt. Am besten die Länge mit dem Maßband messen und eintragen.":"")
+    +(G.backEst?(G.repaired||g.est?" ":"")+"Rückseite geschätzt (kein Foto von hinten): ohne Gesäßtaschen und Passe.":"");
   fillDims(); markGarment(); $("fitRead").hidden=false; updateFit(); showFab(); view3dKick();
   if(scroll) stage.scrollIntoView({behavior:"smooth",block:"center"});
   cue("Hose liegt auf.",true);
@@ -4416,7 +4578,19 @@ function renderSeries(){
 }
 
 /* ---------- Ereignisse ---------- */
-$("start").addEventListener("click",startCamera);
+/* Ein Knopf für die Anprobe: an → Kamera und Erkennung, aus → alles stoppen, danach erscheint wieder das 3D-Modell.
+   Auch während des Startens (Freigabe-Frage, Modell lädt) lässt sie sich abbrechen; ein schneller zweiter Tipp (Doppeltipp
+   auf dem Handy) zählt nicht als Aus. */
+let camT0=0;
+function camOn(){ return running||starting; }
+function camUI(){
+  const on=camOn(), b=$("start");
+  b.textContent=on?"■ Anprobe beenden":"Kamera starten"; b.classList.toggle("primary",!on); b.setAttribute("aria-pressed",String(on));
+  $("g-clear").hidden=!on;
+}
+function endTryon(){ if(shopMode){ if(history.state&&history.state.shop) history.back(); else closeShop(); } else stopCamera(); }
+$("start").addEventListener("click",()=>{ if(!camOn()) return startCamera(); if(performance.now()-camT0<600) return; endTryon(); });
+$("camOff").addEventListener("click",e=>{ e.stopPropagation(); endTryon(); });
 $("voiceSel").addEventListener("change",e=>{
   const v=(speechSynthesis.getVoices()||[]).find(x=>x.name===e.target.value); if(!v) return;
   deVoice=v; try{ localStorage.setItem(VKEY,v.name); }catch(_){}
@@ -4424,12 +4598,21 @@ $("voiceSel").addEventListener("change",e=>{
 });
 /* Testperson mit einem Druck, und die zuletzt eingetragene Person bleibt stehen */
 const PKEY="massScanPerson";
-$("quick").addEventListener("click",()=>{ $("person").value="Jakob"; $("height").value="179";
-  try{ localStorage.setItem(PKEY,JSON.stringify({n:"Jakob",h:"179"})); }catch(_){}
-  startCamera(); });
+// Testpersonen: Name und Größe eintragen, Kamera starten (läuft sie schon, gilt ab jetzt die neue Größe)
+function quickPerson(n,h){
+  const vorher=$("person").value.trim()+"|"+$("height").value.trim();
+  $("person").value=n; $("height").value=h; markQuick();
+  try{ localStorage.setItem(PKEY,JSON.stringify({n,h})); }catch(_){}
+  if(vorher!==n+"|"+h&&(ref||caps.cal)) $("reset").click();   // andere Person: ihr alter Scan gilt nicht mehr
+  view3dKick(); if(!camOn()) startCamera();
+}
+function markQuick(){ document.querySelectorAll(".quickp").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.h===$("height").value.trim()&&b.dataset.n===$("person").value.trim()))); }
+document.querySelectorAll(".quickp").forEach(b=>b.addEventListener("click",()=>quickPerson(b.dataset.n,b.dataset.h)));
+["person","height"].forEach(id=>$(id).addEventListener("input",markQuick));
 ["person","height"].forEach(id=>$(id).addEventListener("change",()=>{
   try{ localStorage.setItem(PKEY,JSON.stringify({n:$("person").value,h:$("height").value})); }catch(_){} }));
 try{ const o=JSON.parse(localStorage.getItem(PKEY)||"null"); if(o){ if(!$("person").value) $("person").value=o.n||""; if(!$("height").value) $("height").value=o.h||""; } }catch(_){}
+markQuick();
 /* ---------- Anprobe wie im Shop (Vorschau für die Shopify-App): Vollbild, Kamera, nur die gewählte Hose, ✕ oder Zurück schließt ----------
    Auf dem iPhone gibt es kein echtes Vollbild für Seitenteile; die Bühne füllt dann einfach den ganzen Bildschirm. */
 let shopMode=false;
@@ -4453,11 +4636,12 @@ function closeShop(){
 /* Kamera aus: Bild weg, Erkennung ruht; danach läuft wieder die 3D-Ansicht */
 let camGen=0;
 function stopCamera(){
-  camGen++; starting=false; $("start").disabled=false;
-  running=false; try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null;
-  try{ video.srcObject=null; }catch(_){}
+  camGen++; starting=false; running=false; lastTime=-1;
+  try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null;
+  try{ video.pause(); video.srcObject=null; }catch(_){}
+  try{ speechSynthesis.cancel(); }catch(_){}
   ctx.clearRect(0,0,cv.width,cv.height); $("placeholder").hidden=false; $("hud").hidden=true;
-  $("start").textContent="Kamera starten"; coach("","",null,true); view3dKick();
+  coach("","",null,true); camUI(); view3dKick();
 }
 $("tryon").addEventListener("click",openShop);
 $("shopClose").addEventListener("click",e=>{ e.stopPropagation(); if(history.state&&history.state.shop) history.back(); else closeShop(); });
@@ -4511,7 +4695,7 @@ for(const [id,k] of [["g-len","len"],["g-waist","waist"],["g-hemw","hem"]]){
     if($(id).classList.contains("bad")) $("g-msg").textContent="";
     $(id).classList.remove("bad"); fillDims(); });
 }
-$("g-clear").addEventListener("click",clearGarment);
+$("g-clear").addEventListener("click",endTryon);
 // KI-Freistellung schon laden, während man das zweite Foto sucht
 for(const id of ["own-front","own-back"]) $(id).addEventListener("change",()=>loadAiSeg());
 fillFabSelect($("own-fab"),true); fillFabSelect($("g-fab"),true);
@@ -4599,7 +4783,7 @@ $("own-go").addEventListener("click",async()=>{
     info.tilt.forEach((t,i)=>{ if(t!=null&&t>=1.5) notes.push(`${i?"Rückseite":"Vorderseite"} war ${t.toFixed(0)}° schräg fotografiert und wurde gerade gerechnet`); });
     if(info.refKind) info.ref.forEach((r,i)=>{ if(i&&!info.hasBack) return; notes.push(r?`${REFS[info.refKind].name} auf der ${i?"Rückseite":"Vorderseite"} vermessen`:`${REFS[info.refKind].name} auf der ${i?"Rückseite":"Vorderseite"} nicht markiert`); });
     if(info.turned) notes.push("Foto lag "+(info.turned%180?"quer":"auf dem Kopf")+" und wurde gedreht");
-    if(!info.hasBack) notes.push("Ohne Rückenfoto ist die Rückseite die gespiegelte Vorderseite");
+    if(!info.hasBack) notes.push("Ohne Rückenfoto ist die Rückseite geschätzt (gespiegelte Vorderseite ohne Schlitz, Knopf und Vordertaschen)");
     else if(info.both) notes.push("Umriss aus Vorder- und Rückseite gemittelt");
     if(!info.split) notes.push("Schritt nicht erkannt (berühren sich die Säume?), Standardwert benutzt. Prüfe beim Anprobieren, ob der Bund oben ist; sonst „Umdrehen“ drücken oder mit einer Handbreit Abstand zwischen den Säumen neu fotografieren");
     if(info.hand.some(Boolean)) notes.push("Umriss von Hand geprüft");
@@ -4756,6 +4940,32 @@ function pantsShape(S){
 /* Vorne oder hinten (flach)? Vorne: Innenbund mit Etikett über dem vorderen Bund. Hinten: Lederpatch oben seitlich.
    Dazu der Dateiname und die Lage im Screenshot (Shops zeigen vorne links); sonst gilt die Reihenfolge.
    (Ein Knopf oben in der Mitte war kein brauchbares Zeichen: helle Etiketten und Nieten hinten zählten genauso.) */
+/* Gesäßtaschen: Anteil starker Kanten (Nähte, Taschenränder) im Bereich der Gesäßtaschen (10–34 % der Höhe, je Hälfte
+   8–45 % der Breite), gemessen gegen die Kanten am Bein (95. Perzentil zwischen 55 und 80 % der Höhe). Gemessen an drei
+   Fotopaaren (Fotos des Nutzers, Bershka): vorne 0,05–0,10, hinten 0,13–0,17, hinten immer mindestens 1,6 × vorne.
+   Schlitz, Knopf und Vordertaschen liegen weiter oben bzw. außen und zählen kaum. */
+function pocketEdges(F){
+  const {CW,CH}=GEN, d=F.d, mm=F.mm, top=F.top, Hh=Math.max(1,F.bot-F.top), N=CW*CH;
+  const Y=new Float32Array(N); for(let i=0;i<N;i++) Y[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+  const T=new Float32Array(N), B=new Float32Array(N);                       // leicht glätten (1-2-1)
+  for(let y=0;y<CH;y++) for(let x=0;x<CW;x++){ const i=y*CW+x; T[i]=(Y[i-(x>0)]+2*Y[i]+Y[i+(x<CW-1)])/4; }
+  for(let y=0;y<CH;y++) for(let x=0;x<CW;x++){ const i=y*CW+x; B[i]=(T[i-(y>0?CW:0)]+2*T[i]+T[i+(y<CH-1?CW:0)])/4; }
+  const E=i=>{ const x=i%CW, y=(i/CW)|0; if(x<1||y<1||x>=CW-1||y>=CH-1) return 0; return Math.hypot((B[i+1]-B[i-1])/2,(B[i+CW]-B[i-CW])/2); };
+  const span=y=>{ let l=-1,r=-1; for(let x=0;x<CW;x++) if(mm[y*CW+x]){ if(l<0) l=x; r=x; } return l<0?null:[l,r]; };
+  const leg=[]; for(let y=top+Math.round(.55*Hh);y<top+Math.round(.8*Hh);y++) for(let x=0;x<CW;x++){ const i=y*CW+x; if(mm[i]) leg.push(E(i)); }
+  if(leg.length<100) return null;
+  leg.sort((a,b)=>a-b); const thr=leg[Math.floor(leg.length*.95)];
+  let n=0,k=0;
+  for(let y=top+Math.round(.1*Hh);y<top+Math.round(.34*Hh);y++){ const sp=span(y); if(!sp) continue; const w=sp[1]-sp[0];
+    for(const [u0,u1] of [[.08,.45],[.55,.92]]) for(let x=Math.round(sp[0]+u0*w);x<Math.round(sp[0]+u1*w);x++){ n++; if(E(y*CW+x)>thr) k++; } }
+  return n?k/n:null;
+}
+/* Kleiner Fingerabdruck des Fotos (Helligkeit über dem Schritt, 12 × 20): zweimal dasselbe Foto erkennen */
+function photoPrint(F){
+  const {CW}=GEN, d=F.d, Hh=F.bot-F.top, v=[];
+  for(let a=0;a<20;a++) for(let b=0;b<12;b++){ const y=F.top+Math.round((.03+.32*a/19)*Hh), x=Math.round((.08+.84*b/11)*(CW-1)), i=(y*CW+x)*4; v.push(.299*d[i]+.587*d[i+1]+.114*d[i+2]); }
+  const m=v.reduce((p,q)=>p+q,0)/v.length, sd=Math.sqrt(v.reduce((p,q)=>p+(q-m)**2,0)/v.length)||1; return v.map(q=>(q-m)/sd);
+}
 function flatSideScore(it){
   let sc=0; const nm=(it.name||"").toLowerCase();
   if(/vorn|front|vorder/.test(nm)) sc+=3; if(/hint|back|r[üu]e?ck|rear/.test(nm)) sc-=3;
@@ -4763,6 +4973,8 @@ function flatSideScore(it){
   try{
     const F=cropGarment(it.cv,it.S,false,true); findGaps(F);
     if(F.inner&&F.inner.ok) sc+=2;
+    it.pk=pocketEdges(F); it.print=photoPrint(F);
+    if(it.pk!=null) sc+=clamp((.105-it.pk)/.025,-2,2);        // Gesäßtaschen sprechen für hinten
     const {CW}=GEN, d=F.d, Hg=F.bot-F.top, r=F.rows[1].runs, xl=r[0][0], xr=r[r.length-1][1], cx=(xl+xr)/2, half=(xr-xl)*.13;
     // Lederpatch: bräunlich, deutlich anders als der Stoff, im oberen Zehntel außerhalb der Mitte
     const y0=F.top+Math.round(.012*Hg), y1=F.top+Math.round(.1*Hg), px=[];
@@ -4773,7 +4985,7 @@ function flatSideScore(it){
       const i=(y*CW+x)*4, R=d[i],G=d[i+1],B=d[i+2], L=(R+G+B)/3;
       if(Math.abs(R-R0)+Math.abs(G-G0)+Math.abs(B-B0)>90&&R-B>(R0-B0)+40&&R>G&&G>B&&L<L0+60) patch++; }
     if(patch>=25) sc-=1.5;
-    it.dbg={inner:!!(F.inner&&F.inner.ok),patch};
+    it.dbg={inner:!!(F.inner&&F.inner.ok),patch,pk:it.pk};
   }catch(_){}
   return sc;
 }
@@ -5346,16 +5558,19 @@ const realText=(err,warn=[])=>`Das ergibt keine realistische Hose (${err.join(";
 
 /* ---------- Ablauf: Dateien annehmen, einordnen, Modell bauen ---------- */
 function upItem(o){ return {id:++UP.n,kind:"wait",side:null,note:"",...o}; }
-async function upAdd(files,texts=[]){
-  const fresh=[], batch=++UP.batch;
+async function upAdd(files,texts=[],opt={}){
+  const fresh=[], batch=++UP.batch, fix=opt.fix||null;
+  // Feld „Vorderseite“/„Rückseite“: das Foto ersetzt das bisherige dieser Seite, dieselbe Hose wird neu gebaut
+  if(fix){ UP.items=UP.items.filter(i=>!(i.kind==="flat"&&(i.side===fix||i.fix===fix))&&!(fix==="hinten"&&i.kind==="worn"&&i.fix==="hinten")); for(const i of UP.items) if(i.fix===fix) i.fix=null; }
   for(const t of texts) fresh.push(upItem({name:t.name||"eingefügter Text",text:t.text??t,isText:true,batch,shop:!!t.name}));
   for(const f of files){ if(/^text\/|\.(txt|csv|tsv)$/i.test(f.type+" "+f.name)) fresh.push(upItem({name:f.name,text:null,file:f,isText:true,batch})); else fresh.push(upItem({name:f.name||"Bild",file:f,batch,link:!!UP.link})); }
   if(!fresh.length) return;
+  if(fix) fresh[0].fix=fix;
   UP.items.push(...fresh); $("drop-row").hidden=false; upRender();
   await Promise.all(fresh.map(it=>upAnalyse(it).catch(e=>{ it.kind="none"; it.note=e&&e.message?e.message:"nicht lesbar"; })));
   // Kommt eine zweite flache Vorderseite, ist das eine andere Hose: von vorn anfangen
   const fl=UP.items.filter(i=>i.kind==="flat"), oldFlat=fl.filter(i=>i.batch!==batch), newFlat=fl.filter(i=>i.batch===batch);
-  if(UP.key&&oldFlat.length&&newFlat.length){ UP.items=UP.items.filter(i=>i.batch===batch); UP.key=null; UP.size=-1; UP.art=null;
+  if(!fix&&UP.key&&oldFlat.length&&newFlat.length){ UP.items=UP.items.filter(i=>i.batch===batch); UP.key=null; UP.size=-1; UP.art=null;
     if(!fresh.some(i=>i.link)) UP.link=null; }                // andere Hose von Hand: Name und Model-Größe des Links gelten nicht mehr
   upAssign(); upRender(); await upBuild();
 }
@@ -5438,7 +5653,20 @@ function upKindText(i){
     return k.length?`Maßtabelle${i.tab.sizes.length>1?" ("+i.tab.sizes.join(" ")+")":""}${body?", nur Körpermaße":""}`:"Material: "+i.tab.material; }
   return "nicht verwendet: "+(i.note||"nicht erkannt");
 }
+function renderSlots(){
+  const fl=UP.items.filter(i=>i.kind==="flat"&&!i.extra), wait=UP.items.some(i=>i.kind==="wait");
+  const wornB=UP.items.find(i=>i.kind==="worn"&&i.side==="hinten"&&i.person&&i.person.legs);
+  for(const side of ["vorne","hinten"]){
+    const el=$("slot-"+side), it=fl.find(i=>i.side===side)||(side==="hinten"&&wornB)||null, front=fl.find(i=>i.side==="vorne");
+    const est=side==="hinten"&&!it&&!!front&&!wait, img=el.querySelector(".slotimg"), sub=el.querySelector(".slotsub");
+    const th=it?it.thumb:est?front.thumb:null;
+    img.innerHTML=th?`<img src="${th}" alt=""${est?' style="transform:scaleX(-1)"':""}>`:`<span>${UP.items.some(i=>i.kind==="wait"&&i.fix===side)?"…":"＋"}</span>`;
+    el.classList.toggle("full",!!it); el.classList.toggle("est",est);
+    sub.textContent=it?(it.kind==="worn"?"aus dem Foto mit Person":(it.name||"Foto")):est?"geschätzt aus der Vorderseite · tippen für ein Foto":side==="vorne"?"flach, von oben · Schlitz, Knopf":"flach, von oben · Gesäßtaschen";
+  }
+}
 function upRender(){
+  renderSlots();
   $("drop-list").innerHTML=UP.items.map(i=>`<div class="ditem ${i.kind}" data-id="${i.id}">`
     +(i.thumb?`<img src="${i.thumb}" alt="">`:`<span class="dicon">${i.isText?"≡":"▢"}</span>`)
     +`<span class="dtxt">${escH(i.name)}<br><b>${escH(upKindText(i))}</b></span>`
@@ -5472,6 +5700,18 @@ function upTable(){
   if(T.sizes.length<2&&Object.keys(T.part).length>=2) T.sizes=Object.keys(T.part).sort((a,b)=>parseFloat(a)-parseFloat(b)||0);
   return T;
 }
+/* Passen Vorder- und Rückseite zusammen? Nur Hinweise, nichts wird gesperrt (Merkmale an drei Fotopaaren geprüft, siehe
+   pocketEdges): vertauscht (Gesäßtaschen auf dem Foto „Vorderseite“), zweimal dieselbe Seite, zweimal dasselbe Foto. */
+function sideCheck(front,back){
+  if(!front||!back) return "";
+  if(front.file&&back.file&&front.file.name===back.file.name&&front.file.size===back.file.size) return "Zweimal dasselbe Foto. Für die Rückseite bitte ein Foto von hinten.";
+  if(front.print&&back.print){ let c=0; for(let k=0;k<front.print.length;k++) c+=front.print[k]*back.print[k]; if(c/front.print.length>.97) return "Die beiden Fotos sind fast gleich (zweimal dieselbe Seite?). Für die Rückseite bitte ein Foto von hinten."; }
+  const f=front.pk, b=back.pk; if(f==null||b==null) return "";
+  if(f>1.25*b&&f>.1) return "Vorder- und Rückseite vertauscht? Auf dem Foto „Vorderseite“ sind Gesäßtaschen zu sehen. Mit ⇄ tauschen.";
+  if(f<.095&&b<.095) return "Beide Fotos sehen wie die Vorderseite aus (keine Gesäßtaschen zu sehen). Ist das zweite wirklich die Rückseite?";
+  if(f>.125&&b>.125&&Math.max(f,b)<1.25*Math.min(f,b)) return "Beide Fotos sehen wie die Rückseite aus (Gesäßtaschen auf beiden). Ist das erste wirklich die Vorderseite?";
+  return "";
+}
 async function upBuild(){
   const gen=++UP.gen, its=UP.items;
   if(!its.length){ upMsg(""); return; }
@@ -5486,7 +5726,8 @@ async function upBuild(){
     upMsg(`<div class="dbad">${lack.join("<br>")}</div>`); return;
   }
   have.push("Vorderseite: flach");
-  have.push(back?"Rückseite: flach":wornB?"Rückseite: aus dem Foto mit Person":"Rückseite: <span class=\"dwarn\">fehlt, gespiegelte Vorderseite</span>");
+  const sideWarn=sideCheck(front,back); if(sideWarn) have.push(`<span class="dwarn">${sideWarn}</span>`);
+  have.push(back?"Rückseite: flach":wornB?"Rückseite: aus dem Foto mit Person":"Rückseite: <span class=\"dwarn\">geschätzt</span> (aus der Vorderseite, ohne Schlitz, Knopf und Vordertaschen; für die echte Rückseite ein Foto von hinten dazu)");
   upMsg(`${have.join(" · ")}<br>Modell wird berechnet …`);
   let r=null; window.__ownCheck=$("own-check").checked;      // „Umriss immer prüfen“ gilt auch hier
   // aus der Datei selbst bauen (Neigungsdaten des iPhones, Maßstab im Foto), Ausschnitte aus Screenshots aus dem Bild
@@ -5555,7 +5796,7 @@ async function upBuild(){
   const err=realismus(G,info);
   if(err.length){ upMsg(`<div class="dbad">${escH(realText(err,[...info.warn,...notes]))}</div>`); upDrop(); return; }
   if(info.belt.some(Boolean)) notes.push("Gürtel erkannt und entfernt (gehört nicht zum Teil)");
-  if(info.wornBack&&!info.wornBack.ok) notes.push(`Foto mit Person nicht benutzt: ${info.wornBack.why}; Rückseite ist die gespiegelte Vorderseite`);
+  if(info.wornBack&&!info.wornBack.ok) notes.push(`Foto mit Person nicht benutzt: ${info.wornBack.why}; Rückseite ist geschätzt (aus der Vorderseite)`);
   if(!info.split&&!info.rock) notes.push("Schritt nicht erkannt (Säume berühren sich?), Standardwert benutzt. Ist es ein Rock, tippe „Rock“");
   for(const w of info.warn) notes.push(w);
   // anlegen oder die Hose dieses Uploads ersetzen
@@ -5624,13 +5865,21 @@ async function linkImport(url){
 function upDrop(){ if(UP.key&&GARMENTS[UP.key]){ deleteGarment(UP.key); } UP.key=null; }
 /* Hineinziehen, Antippen, Einfügen */
 {
+  for(const el of document.querySelectorAll(".slot")){ const side=el.dataset.side, fi=el.querySelector("input");
+    el.addEventListener("click",()=>fi.click());
+    el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fi.click(); } });
+    fi.addEventListener("change",()=>{ const f=[...fi.files]; fi.value=""; if(f.length) upAdd(f.slice(0,1),[],{fix:side}); });
+    el.addEventListener("dragover",e=>{ e.preventDefault(); e.stopPropagation(); el.classList.add("over"); });
+    el.addEventListener("dragleave",()=>el.classList.remove("over"));
+    el.addEventListener("drop",e=>{ e.preventDefault(); e.stopPropagation(); el.classList.remove("over"); $("drop").classList.remove("over");
+      const f=[...(e.dataTransfer&&e.dataTransfer.files||[])].filter(x=>/^image\//.test(x.type)||/\.hei[cf]$/i.test(x.name)); if(f.length) upAdd(f.slice(0,1),[],{fix:side}); }); }
   const box=$("drop"), inp=$("drop-in");
   box.addEventListener("click",()=>inp.click());
   box.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
   inp.addEventListener("change",()=>{ const f=[...inp.files]; inp.value=""; upAdd(f); });
   // Dateien irgendwo auf die Seite gezogen: nicht öffnen, sondern hier annehmen
   // (außer direkt auf die Foto-Felder des Einzel-Formulars: dort wie gewohnt ins Feld)
-  const ownInput=e=>e.target&&e.target.tagName==="INPUT"&&e.target.type==="file"&&e.target.id!=="drop-in";
+  const ownInput=e=>e.target&&((e.target.tagName==="INPUT"&&e.target.type==="file"&&e.target.id!=="drop-in")||(e.target.closest&&e.target.closest(".slot")));
   addEventListener("dragover",e=>{ const ty=[...(e.dataTransfer&&e.dataTransfer.types||[])]; if(!ownInput(e)&&(ty.includes("Files")||ty.includes("text/uri-list"))){ e.preventDefault(); box.classList.add("over"); } });
   addEventListener("dragleave",e=>{ if(!e.relatedTarget) box.classList.remove("over"); });
   addEventListener("drop",e=>{ box.classList.remove("over"); if(ownInput(e)||!e.dataTransfer) return;

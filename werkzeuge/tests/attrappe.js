@@ -47,6 +47,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     if(md.gegenstand) mx.fillRect(8,6,14,130);
     const d=mx.getImageData(0,0,256,144).data, f=new Float32Array(256*144);
     for(let i=0;i<f.length;i++) f[i]=d[i*4]/255;
+    // beineOben: Fehlerkennung wie beim Nutzer (12.10., nah an der Kamera, Kind und Hund im Bild): Knie, Knöchel und Füße
+    // landen über der Hüfte, die Person (Maske) steht aber normal
+    if(md.beineOben){ const hy=(L[23].y+L[24].y)/2; for(const i of [25,26,27,28,29,30,31,32]) L[i]={...L[i],y:2*hy-L[i].y}; }
     return {landmarks:[L],segmentationMasks:[{getAsFloat32Array:()=>f,width:256,height:144}],close(){}};
   }
   window.__mc=mc; window.__stub={FilesetResolver:{forVisionTasks:async()=>({})},
