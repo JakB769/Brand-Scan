@@ -5767,10 +5767,8 @@ async function classifyFlat(it,noPose=false){
     const rand=[0,0,0,0]; for(let x=0;x<S.w;x++){ rand[0]+=S.m[x]; rand[1]+=S.m[(S.h-1)*S.w+x]; } for(let y=0;y<S.h;y++){ rand[2]+=S.m[y*S.w]; rand[3]+=S.m[y*S.w+S.w-1]; }
     const randMax=Math.max(rand[0]/S.w,rand[1]/S.w,rand[2]/S.h,rand[3]/S.h);
     it.skin={glatt:n?+(k/n).toFixed(3):0,flaechen:n?+(big/n).toFixed(3):0,rand:+randMax.toFixed(3)};
-    if(n&&k/n>.12&&big/n>.06){ it.kind="worn"; it.person={L:null,side:"vorne",legs:false,crop:true};
-      // sieht der Umriss trotzdem wie eine flach hingelegte Hose aus, nicht still verwerfen (Knopf „als Rückseite verwenden“)
-      try{ const sh=pantsShape(S); it.flatLike=sh.legs>=2||(sh.fill>.45&&sh.fill<.92&&sh.aspect>.7&&sh.aspect<3.6); }catch(_){}
-      return; } }
+    // nicht still verwerfen: Liste und Meldung bieten „als Rückseite verwenden“ (↪) an
+    if(n&&k/n>.12&&big/n>.06){ it.kind="worn"; it.person={L:null,side:"vorne",legs:false,crop:true}; return; } }
   if(S.y0<=1){ it.kind="none"; it.note="oben abgeschnitten: die Hose muss ganz im Bild sein"; return; }
   for(let k=0;k<2;k++){ const t=garmentTurn(S); if(!t) break; it.cv=rotateCanvas(it.cv,t); S=segGarment(it.cv); }
   const sh=pantsShape(S);
@@ -5792,7 +5790,7 @@ function upAssign(){
 function upKindText(i){
   if(i.kind==="wait") return i.note||"wird geprüft …";
   if(i.kind==="flat") return i.extra?"flach, nicht gebraucht (schon zwei Seiten)":`${i.side==="vorne"?"Vorderseite":"Rückseite"}, flach`+(i.ref?` · ${REFS[i.ref].name} als Maßstab`:"");
-  if(i.kind==="worn") return i.person.crop?(i.flatLike?"als Foto mit Person eingestuft, nicht gebraucht. Ist es eine flache Hose? ↪ tippen":"Foto mit Person, angeschnitten (nicht gebraucht; ist es die Rückseite? ↪)"):`Foto mit Person, von ${i.side}`+(!i.person.legs?" (Beine nicht ganz im Bild, nicht gebraucht)":i.side==="hinten"?"":" (nicht gebraucht)");
+  if(i.kind==="worn") return i.person.crop?"Foto mit Person, angeschnitten (nicht gebraucht; doch eine flache Rückseite? ↪ tippen)":`Foto mit Person, von ${i.side}`+(!i.person.legs?" (Beine nicht ganz im Bild, nicht gebraucht)":i.side==="hinten"?"":" (nicht gebraucht)");
   if(i.kind==="table"){ const R=i.tab.rows, k=Object.keys(R), body=k.length&&k.every(x=>R[x].sect==="body"||x==="waistB"||x==="hip");
     return k.length?`Maßtabelle${i.tab.sizes.length>1?" ("+i.tab.sizes.join(" ")+")":""}${body?", nur Körpermaße":""}`:"Material: "+i.tab.material; }
   return "nicht verwendet: "+(i.note||"nicht erkannt");
