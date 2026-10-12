@@ -10,7 +10,7 @@ const seite=process.argv[2]||hier+'testseite-mit-simulierter-person.html';
 const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
 let fehler=0; const pruefe=(ok,text)=>{ console.log((ok?'ok    ':'FEHLER')+' '+text); if(!ok) fehler++; };
 const neu=async url=>{ const ctx=await b.newContext({viewport:{width:1000,height:950},acceptDownloads:true}); const p=await ctx.newPage(); const errs=[];
-  p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error'&&!/GL Driver/.test(m.text())) errs.push(m.text()); });
+  p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error'&&!/GL Driver/.test(m.text())&&!/\/api\/hosen/.test((m.location()||{}).url||'')) errs.push(m.text()+' '+((m.location()||{}).url||'')); });   // /api/hosen fehlt hier wie bei Netlify Drop: 404 gewollt
   await p.goto(url); await p.waitForTimeout(500); return {ctx,p,errs}; };
 const anlegen=async(p,front,back,name,mat)=>{ await p.setInputFiles('#own-front',front); await p.setInputFiles('#own-back',back?[back]:[]);
   await p.fill('#own-waist','40'); await p.fill('#own-name',name); await p.fill('#own-mat',mat||'');
