@@ -20,7 +20,9 @@ const msg=()=>p.evaluate(()=>document.getElementById('drop-msg').innerText.repla
 const fertig=async()=>{ for(let t=0;t<240;t++){ await p.waitForTimeout(500);
     if(await p.evaluate(()=>!document.getElementById('refDlg').hidden)){ await p.click('#refOk'); continue; }
     const m=await msg(); if(/Fertig|fehlt|keine realistische/.test(m)&&!/berechnet|wird/.test(m)&&await p.evaluate(()=>window.__dbg.UP.items.every(i=>i.kind!=='wait'))) return m; } return msg(); };
-const feld=async(side,f)=>{ await p.setInputFiles(`#slot-${side} input`,f); };
+// wartet, bis das Foto im Feld angekommen ist (sonst las fertig() manchmal noch den Stand mit nur einem Foto)
+const feld=async(side,f)=>{ const n=await p.evaluate(()=>window.__dbg.UP.gen||0); await p.setInputFiles(`#slot-${side} input`,f);
+  await p.waitForFunction(([side,n])=>window.__dbg.UP.items.some(i=>i.fix===side)&&(window.__dbg.UP.gen||0)>n,[side,n],{timeout:30000}).catch(()=>{}); };
 const neu=()=>p.evaluate(()=>document.getElementById('drop-new').click());
 const slots=()=>p.evaluate(()=>['vorne','hinten'].map(s=>{ const e=document.getElementById('slot-'+s); return {txt:e.innerText.replace(/\n/g,' '),img:!!e.querySelector('img'),est:e.classList.contains('est')}; }));
 const liste=()=>p.evaluate(()=>[...document.querySelectorAll('#drop-list .dtxt b')].map(e=>e.textContent));
