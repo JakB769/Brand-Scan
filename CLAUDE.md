@@ -120,6 +120,9 @@ Aus dem offiziellen Anthropic-Marktplatz, für alle im Team eingeschaltet:
   Die Prüfung nach jeder Antwort ist aus (`ENABLE_STOP_REVIEW=0`) und beide Prüfungen laufen auf Sonnet, um Usage zu sparen.
 - `frontend-design`: für Oberfläche und Gestaltung (ruhig, „wie Apple“).
 - `claude-security`: gründlicher Sicherheits-Scan auf Abruf, vor dem App Store und vor dem Freelancer-Review laufen lassen.
+- `superpowers`: erst planen, dann in kleinen Schritten mit Tests bauen, Review zwischendurch.
+- `liquid-skills` (von Shopify): Liquid und Theme-Erweiterungen, z. B. `shopify/extensions/passform-anprobe/blocks/anprobe.liquid`.
+- `netlify-skills` (von Netlify): Funktionen, Deploy, Blobs, Rate Limits in `netlify/`.
 
 ## Testen
 

@@ -283,4 +283,4 @@ Nicht geprüft: Safari/WebKit (hier nicht installiert), echte Kamera, echte Hand
   Der offene Punkt „keine Zugriffsgrenze je Nutzer“ aus dem 11./12.10. ist damit erledigt. Weiter offen: DNS-Rebinding, CSP.
 - Schlüssel-Schutz: `werkzeuge/geheimnis-pruefung.mjs` als erster Schritt von `npm test`, `.gitignore` für `.env`, `*.pem`, `*.key`.
   Der ganze Git-Verlauf (36 Commits) wurde einmal nach Schlüsseln durchsucht: nichts gefunden.
-- Plugins in `.claude/settings.json`: `security-guidance`, `frontend-design`, `claude-security`.
+- Plugins in `.claude/settings.json`: `security-guidance`, `frontend-design`, `claude-security`, dazu (Wunsch des Nutzers) `superpowers`, `liquid-skills`, `netlify-skills`.
