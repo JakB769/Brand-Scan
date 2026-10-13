@@ -1,0 +1,18 @@
+[
+ {"name":"stehen-vorne-clip","clip":"assets/referenz/videos/clips/v2-01_stehen-neutral-vorne.mp4","t":2.0,"pose":"Stand vorne"},
+ {"name":"stehen-vorne-foto","foto":"assets/referenz/fotos/posen/stehen-vorne_IMG7319.jpg","pose":"Stand vorne"},
+ {"name":"knie-hoch-vorne","clip":"assets/referenz/videos/clips/v1-02_knie-heben-vorne.mp4","t":5.0,"pose":"Kniehub vorne"},
+ {"name":"knie-hoch-seitlich","clip":"assets/referenz/videos/clips/v2-04_knie-heben-seitlich.mp4","t":2.0,"pose":"Kniehub seitlich"},
+ {"name":"hocke-vorne","clip":"assets/referenz/videos/clips/v2-05_hocke-vorne.mp4","t":2.0,"pose":"Hocke vorne"},
+ {"name":"hocke-seitlich","clip":"assets/referenz/videos/clips/v2-06_hocke-seitlich.mp4","t":3.0,"pose":"Hocke seitlich"},
+ {"name":"hocke-seitlich-foto","foto":"assets/referenz/fotos/posen/hocke-seitlich_IMG7318.jpg","pose":"Hocke seitlich"},
+ {"name":"halbe-hocke-vorne","clip":"assets/referenz/videos/clips/v1-06_halbe-hocke-vorne.mp4","t":3.0,"pose":"halbe Hocke vorne"},
+ {"name":"seitlich-stehen","clip":"assets/referenz/videos/clips/v2-06_hocke-seitlich.mp4","t":0.0,"pose":"Stand seitlich"},
+ {"name":"ausfallschritt","clip":"assets/referenz/videos/clips/v1-03_seitlich-und-ausfallschritt.mp4","t":3.5,"pose":"Ausfallschritt/Grätsche"},
+ {"name":"bein-seitlich","clip":"assets/referenz/videos/clips/v1-05_bein-seitlich-strecken.mp4","t":1.5,"pose":"Bein seitlich"},
+ {"name":"hinten-stehen","clip":"assets/referenz/videos/clips/v2-07_von-hinten-bein-heben-buecken.mp4","t":1.0,"pose":"Stand hinten"},
+ {"name":"hinten-bein-heben","clip":"assets/referenz/videos/clips/v2-07_von-hinten-bein-heben-buecken.mp4","t":2.25,"pose":"Bein heben hinten"},
+ {"name":"buecken-hinten","clip":"assets/referenz/videos/clips/v2-07_von-hinten-bein-heben-buecken.mp4","t":6.0,"pose":"Bücken hinten"},
+ {"name":"drehung-seite","clip":"assets/referenz/videos/clips/v2-02_drehung-360.mp4","t":2.0,"pose":"Drehung Seite"},
+ {"name":"drehung-hinten","clip":"assets/referenz/videos/clips/v2-02_drehung-360.mp4","t":4.0,"pose":"Drehung hinten"}
+]

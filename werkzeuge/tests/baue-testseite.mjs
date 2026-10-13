@@ -1,20 +1,26 @@
 // Erzeugt die Testseite aus app/index.html: MediaPipe wird durch eine simulierte Person ersetzt.
-// Aufruf: node werkzeuge/tests/baue-testseite.mjs (läuft auch automatisch vor npm test)
+// Aufruf: node werkzeuge/tests/baue-testseite.mjs [ziel.html] (läuft auch automatisch vor npm test)
+//         node werkzeuge/tests/baue-testseite.mjs --echt [ziel.html]: echte Erkennung (MediaPipe), echtes Kamerabild für Licht
+//         und Oberteil, nur die Einblicke für Tests; für werkzeuge/vergleich.mjs (Referenzbilder als Kamera)
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 const hier=fileURLToPath(new URL('.',import.meta.url));
+const argv=process.argv.slice(2), echt=argv.includes('--echt'), ziel=argv.find(a=>!a.startsWith('--'));
 let s=fs.readFileSync(hier+'../../app/index.html','utf8');
 const ersetze=(alt,neu)=>{ if(!s.includes(alt)) throw new Error('Stelle nicht gefunden: '+alt.slice(0,60)); s=s.replace(alt,neu); };
 // 1. Schriften nicht aus dem Netz laden
 s=s.replace(/<link[^>]*fonts\.(googleapis|gstatic)\.com[^>]*>/g,'');
 // 2. Graues Testvideo statt grünem, damit die Lichtanpassung nichts einfärbt
+if(!echt){
 ersetze('</head>','<style>#video{filter:grayscale(1) contrast(.15) brightness(1.5)}</style></head>');
 // 3. Attrappe vor das Modul-Skript
 ersetze('<script type="module">','<script>\n'+fs.readFileSync(hier+'attrappe.js','utf8')+'</script>\n<script type="module">');
 // 4. MediaPipe durch die Attrappe ersetzen
 s=s.replace(/const M=await import\("[^"]*vision_bundle\.mjs"\);/,'const M=window.__stub;');
+}
 // 5. Fehler bei der Erkennung sichtbar machen
 ersetze('catch(_){ setStatus("Fehler bei der Erkennung","bad"); }','catch(e){ console.error("ANALYSE",e&&e.stack||e); setStatus("Fehler bei der Erkennung","bad"); }');
+if(!echt){
 // 6. Feste graue Umgebungsfarbe
 ersetze('scn.x.drawImage(video,0,0,24,24);',"scn.x.fillStyle='rgb(150,146,140)'; scn.x.fillRect(0,0,24,24);");
 // 7. KI-Freistellung und Personenerkennung in Einzelbildern nur mit window.__kiTest (tki.mjs, tdateien.mjs: MediaPipe aus node_modules); sonst gar nicht erst
@@ -25,6 +31,7 @@ ersetze('const visionBundle=()=>import(MP_URL+"/vision_bundle.mjs");','const vis
 ersetze('if(V(11)&&V(12)&&V(23)&&V(24)&&video.videoWidth){','if(V(11)&&V(12)&&V(23)&&V(24)&&window.__shirtBild){');
 ersetze('vw=video.videoWidth, vh=video.videoHeight;\n      if(!shirt.c)','vw=window.__shirtBild.width, vh=window.__shirtBild.height;\n      if(!shirt.c)');
 ersetze('shirt.x.drawImage(video,x0*vw','shirt.x.drawImage(window.__shirtBild,x0*vw');
+}
 // Tempo-Anpassung (leichtes Modell, kleinere 3D-Fläche) nur, wenn ein Test sie ausdrücklich will (tkamera.mjs): sonst
 // hinge das Bild von der Rechenzeit der Testmaschine ab
 ersetze('function perfTick(ms){','function perfTick(ms){ if(!window.__perfTest) return;');
@@ -41,5 +48,5 @@ s=s.replace(/<details class="adv">/g,'<details class="adv" open>');
 // 10. Einblick für die Tests
 s=s.replace(/loadOwn\(\);\s*buildPicker\(\);/,'loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,parseSizeText:typeof parseSizeText!=="undefined"?parseSizeText:null,sizeSeries:typeof sizeSeries!=="undefined"?sizeSeries:null,tableDims:typeof tableDims!=="undefined"?tableDims:null,PERF:typeof PERF!=="undefined"?PERF:null,HIPF:typeof HIPF!=="undefined"?HIPF:null,segGarment:typeof segGarment!=="undefined"?segGarment:null,isSkin:typeof isSkin!=="undefined"?isSkin:null,kmeans:typeof kmeans!=="undefined"?kmeans:null,fileToCanvas:typeof fileToCanvas!=="undefined"?fileToCanvas:null,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null,wornMask:typeof wornMask!=="undefined"?wornMask:null,wornSeeds:typeof wornSeeds!=="undefined"?wornSeeds:null,loadAiSeg:typeof loadAiSeg!=="undefined"?loadAiSeg:null,cropGarment:typeof cropGarment!=="undefined"?cropGarment:null,findGaps:typeof findGaps!=="undefined"?findGaps:null,flatSideScore:typeof flatSideScore!=="undefined"?flatSideScore:null,GEN:typeof GEN!=="undefined"?GEN:null}; buildPicker();');
 if(!s.includes('window.__dbg')) throw new Error('Einblick nicht eingefügt');
-fs.writeFileSync(process.argv[2]||hier+'testseite-mit-simulierter-person.html',s);   // anderer Ort: z. B. während eine Testreihe läuft
-console.log('Testseite neu erzeugt.');
+fs.writeFileSync(ziel||hier+(echt?'vergleichsseite.html':'testseite-mit-simulierter-person.html'),s);   // anderer Ort: z. B. während eine Testreihe läuft
+console.log(echt?'Vergleichsseite (echte Erkennung) neu erzeugt.':'Testseite neu erzeugt.');
