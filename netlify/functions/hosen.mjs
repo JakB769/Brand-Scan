@@ -15,7 +15,9 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
-export const config = { path: "/api/hosen" };
+/* Rate Limiting (Netlify, je IP und Website): beim ersten Öffnen holt die Seite die Liste und jede Hose einzeln (bis ANZAHL = 400).
+   600 pro Minute lassen das zu und begrenzen Massen-Schreiben oder -Löschen. Darüber: 429. */
+export const config = { path: "/api/hosen", rateLimit: { windowLimit: 600, windowSize: 60, aggregateBy: ["ip", "domain"] } };
 const KEY = /^[\w-]{1,40}$/, MAX = 2e6, ANZAHL = 400;
 
 let st = null;
