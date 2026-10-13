@@ -21,6 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { proxySignaturOk, proxyFrisch, webhookOk } from "./signatur.mjs";
+import { zugriffsGrenze } from "./grenze.mjs";
 
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const SEITE = path.resolve(HIER, "../../app/index.html");
@@ -45,8 +46,10 @@ export function kundenSeite(html, produkt) {
   return html.replace(marke, `<script>window.PASSFORM_KUNDE=${cfg};</script>\n${marke}`);
 }
 
-export function erstelleServer({ secret, daten = path.join(HIER, "daten"), seite = SEITE, maxAlterSek = 3600 } = {}) {
+export function erstelleServer({ secret, daten = path.join(HIER, "daten"), seite = SEITE, maxAlterSek = 3600, grenzeProMinute = 600 } = {}) {
   if (!secret) throw new Error("SHOPIFY_API_SECRET fehlt (Client secret der App)");
+  // je Shop höchstens grenzeProMinute Anfragen (eine Anprobe sind zwei: Seite und Hose); schützt Server und spätere bezahlte Dienste
+  const erlaubt = zugriffsGrenze({ max: grenzeProMinute });
   return http.createServer(async (req, res) => {
     try {
       const u = new URL(req.url, "http://x"), q = u.searchParams;
@@ -56,6 +59,7 @@ export function erstelleServer({ secret, daten = path.join(HIER, "daten"), seite
         if (!proxySignaturOk(q, secret) || !proxyFrisch(q, maxAlterSek)) return text(res, 401, "Nicht von Shopify signiert");
         const shop = q.get("shop") || "", produkt = q.get("produkt") || "";
         if (!SHOP.test(shop) || !PRODUKT.test(produkt)) return text(res, 400, "Shop oder Produkt fehlt");
+        if (!erlaubt(shop)) { res.setHeader("retry-after", "60"); return text(res, 429, "Zu viele Anfragen, bitte gleich nochmal versuchen"); }
         if (u.pathname === "/proxy/anprobe") {
           const html = kundenSeite(await fs.promises.readFile(seite, "utf8"), produkt);
           res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return res.end(html);

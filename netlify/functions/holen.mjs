@@ -11,7 +11,9 @@
 import dns from "node:dns/promises";
 import net from "node:net";
 
-export const config = { path: "/api/holen" };
+/* Rate Limiting (Netlify, je IP und Website): ein „Link einfügen“ braucht etwa 16 Abrufe (Seite, bis 12 Bilder, bis 3 Tabellen).
+   120 pro Minute reichen für mehrere Links hintereinander und bremsen Missbrauch als offener Abruf-Dienst. Darüber: 429. */
+export const config = { path: "/api/holen", rateLimit: { windowLimit: 120, windowSize: 60, aggregateBy: ["ip", "domain"] } };
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const lokal = () => process.env.HOLEN_LOKAL === "1";
