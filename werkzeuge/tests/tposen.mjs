@@ -1,4 +1,5 @@
 // Ganzkörper-Posen mit der Attrappe: Ausfallschritt, seitlicher Spagat, Längsspagat (von vorn und von der Seite), Liegestütz.
+// Seit 15.10. werden Ausfallschritt und Längsspagat (Hüftbeugung über 45°) ausgeblendet; geprüft wird dort nur das.
 // Geprüft: keine ungültigen Werte, Hose liegt auf beiden Beinen (Knie und Mitte Unterschenkel im Bild von Hose bedeckt), Stoff
 // klappt nicht um, man sieht über den Knien nicht in die Hose (Innenseite rot), beim Liegestütz wird die Hose ausgeblendet (g.trk → 0) und
 // danach im Stand wieder eingeblendet. Bilder nach ausgabe/posen_*.png. Aufruf: node tposen.mjs [Testseite]
@@ -53,6 +54,8 @@ for(const [n,m] of [['ausfall',{ausfall:1}],['ausfall_schraeg',{ausfall:1,yaw:.7
   if(r.bad||r.gl) ok=false;
   // Längsspagat genau von vorn: das vordere Bein zeigt in die Kamera, man sieht in die Saumöffnung (dort wäre der Fuß), das
   // hintere liegt hinter dem Becken. Das ist eine Grenzlage: dort nur, dass ein Bein bedeckt ist und nichts umklappt.
+  // seit 15.10.: Hüftbeugung über 45° (Ausfallschritt und Längsspagat: vorderes Bein 90°) → Hose ausgeblendet, nicht geprüft
+  if(n!=='spagat_seitlich'){ pruefe(r.trk<.01,`${n}: vorderes Bein über 45° gebeugt → Hose ausgeblendet (g.trk ${r.trk.toFixed(2)})`); continue; }
   const grenz=n==='spagat_laengs_vorn', beide=r.punkte.every(q=>q[0]&&q[1]), eines=r.punkte.some(q=>q[0]&&q[1]);
   pruefe(r.trk>.95&&(grenz||n==='spagat_laengs_seite'?eines:beide),`${n}: Hose sichtbar und auf den Beinen (Knie und Unterschenkel bedeckt: ${JSON.stringify(r.punkte)})`);
   // Oberschenkel 90° nach vorn (Ausfallschritt): an der Leiste knickt der Stoff wirklich (Bild geprüft, Bund bleibt ganz), darum

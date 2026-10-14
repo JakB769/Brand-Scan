@@ -8,7 +8,7 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     // zoom: Person kommt näher (Nahphase); um die Hüfte (95 cm hoch) vergrößert, Hüfte bei hueftY im Bild
     const zm=md.zoom||1, hy0=top+ph-95*cmN, ty=zm!==1?(md.hueftY??.42):hy0;
     // roll: ganze Person um die Hüfte in der Bildebene gedreht (Neigung, Handstand), shift: seitlich versetzt (schneller Sprung)
-    const rc=Math.cos(md.roll||0), rs=Math.sin(md.roll||0), sx=md.shift||0;
+    const rc=Math.cos(md.roll||0), rs=Math.sin(md.roll||0), sx=(md.shift||0)+(md.zappel?(Math.floor(t*30)%2?md.zappel:-md.zappel):0);   // zappel: Erkennung springt jedes Bild hin und her
     const P=(lat,hgt,fwd=0)=>{ let x=cx+(lat*c+fwd*s)*cmN/A*zm, y=ty+(top+ph-hgt*cmN-hy0)*zm;
       if(md.roll){ const dx=(x-cx)*A, dy=y-ty; x=cx+(dx*rc-dy*rs)/A; y=ty+(dx*rs+dy*rc); }
       return {x:x+sx, y, z:(md.zk==null?1:md.zk)*(lat*s-fwd*c)*cmN/A*zm, visibility:1}; };
@@ -25,7 +25,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     L[23]=P(9,95); L[24]=P(-9,95);
     // kneeWave: linkes Knie hebt und senkt sich laufend (Periode in s), wie beim Gehen auf der Stelle
     const kw=md.kneeWave?(1-Math.cos(2*Math.PI*t/md.kneeWave))/2:0, mixP=(a,b,u)=>({...a,x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u,z:a.z+(b.z-a.z)*u});
-    const kl=md.knee?P(11,95-20,36):kw?mixP(P(9,50),P(11,95-20,36),kw):P(9+md.wide*14,50), al=md.knee?P(10,95-58,22):kw?mixP(P(9,8),P(10,95-58,22),kw):P(9+md.wide*30,8);
+    // knee/kneeWave (seit 15.10.): Oberschenkel 40° nach vorn (über 45° wird die Hose ausgeblendet), Unterschenkel schräg zurück
+    const kO=P(11,95-45*Math.cos(.7),45*Math.sin(.7)), aO=P(10,95-45*Math.cos(.7)-40,45*Math.sin(.7)-14);
+    const kl=md.knee?kO:kw?mixP(P(9,50),kO,kw):P(9+md.wide*14,50), al=md.knee?aO:kw?mixP(P(9,8),aO,kw):P(9+md.wide*30,8);
     L[25]=kl; L[27]=al; L[26]=P(-9-md.wide*14,50); L[28]=P(-9-md.wide*30,8);
     // kneeHigh: linker Oberschenkel waagrecht nach vorn, Unterschenkel senkrecht (Knie ganz hoch, Ferse unter dem Knie)
     // fersePo: linke Ferse zum Gesäß (Oberschenkel senkrecht, Knie ganz gebeugt); kneeHigh und fersePo zusammen: Knie hoch und ganz gebeugt
@@ -34,6 +36,11 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
       // Unterschenkel gegen die Senkrechte (vorn +): Knie hoch allein → senkrecht, mit fersePo im Knie um 153° gebeugt
       const sa=th-Math.max(th,fp*Math.PI*.85), aHg=kHg-42*Math.cos(sa), aF=kF+42*Math.sin(sa);
       L[25]=P(kx,kHg,kF); L[27]=P(kx-1,aHg,aF); }
+    // beugeL/beugeR: Hüftbeugung in Grad (Oberschenkel nach vorn gehoben, gegen die Senkrechte), knieL/knieR: Kniebeugung in Grad
+    // (0 = gerades Bein; ohne Angabe hängt der Unterschenkel senkrecht). Links = Punkte 23/25/27, rechts = 24/26/28.
+    for(const [b,k,hx,ki,ai,sg] of [['beugeL','knieL',9,25,27,1],['beugeR','knieR',-9,26,28,-1]]){ if(md[b]==null&&md[k]==null) continue;
+      const th=(md[b]||0)*Math.PI/180, kb=md[k]==null?th:(md[k]||0)*Math.PI/180, kHg=95-45*Math.cos(th), kF=45*Math.sin(th), sa=th-kb;
+      L[ki]=P(hx+sg,kHg,kF); L[ai]=P(hx+sg,kHg-42*Math.cos(sa),kF+42*Math.sin(sa)); }
     // Ganzkörper-Posen (3D-Verbesserung 13.10.): Oberkörper (0–24) um tief cm abgesenkt, Beine neu gesetzt (Höhe, vorn +)
     // ausfall: Ausfallschritt, linkes Bein vorn (Oberschenkel waagrecht zur Kamera, Unterschenkel senkrecht), rechtes Knie
     //   hinten fast am Boden; spagat:1 seitlicher Spagat (Beine waagrecht zur Seite, Becken am Boden); spagat:2 Längsspagat
@@ -57,6 +64,8 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
       for(const [i,b] of [[17,15],[19,15],[21,15],[18,16],[20,16],[22,16]]) L[i]={...L[b]};
       L[23]=P2(9,35,-60); L[24]=P2(-9,35,-60); L[25]=P2(9,24,-105); L[26]=P2(-9,24,-105); L[27]=P2(9,12,-148); L[28]=P2(-9,12,-148);
       const vs=md.beineSicht??.35; for(const i of [23,24,25,26,27,28,29,30,31,32]) L[i]={...L[i],visibility:vs}; }
+    // hueftSicht: Sicherheit der Hüftpunkte (schlecht erkannt)
+    if(md.hueftSicht!=null) for(const i of [23,24]) L[i]={...L[i],visibility:md.hueftSicht};
     // zn: Tiefenfehler wie bei echter Pose-Erkennung (Knie und Knöchel scheinbar näher an der Kamera), zr: zusätzlich zittern
     if(md.zn||md.zr){ for(const [i,k] of [[25,.5],[26,.5],[27,1],[28,1],[29,1],[30,1],[31,1],[32,1]]){
       L[i]={...L[i],z:L[i].z-(md.zn||0)*k+(md.zr||0)*(Math.random()-.5)}; } }

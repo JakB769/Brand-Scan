@@ -128,7 +128,7 @@ for (const it of liste) {
     // 3D-Hose je Bein: Mitte der Ringe am Schritt, auf halber Beinlänge und am Saum (Bildpunkte), Sicherheit der Erkennung
     beine: d.g3 && d.g3.pos && d.g3.M ? [0, 1].map(s => { const M = d.g3.M, NR = M.nr, C = 13, ic = d.g3.ic;
       return [ic, Math.round((ic + NR - 1) / 2), NR - 1].map(i => { let x = 0, y = 0; for (let f = 0; f < 2; f++) for (let j = 0; j < C; j++) { const k = (((s * NR + i) * 2 + f) * C + j) * 3; x += d.g3.pos[k]; y += d.g3.pos[k + 1]; }
-        return [Math.round(x / 2 / C), Math.round(y / 2 / C)]; }); }) : null, trk: +(d.g.trk ?? 1).toFixed(2),
+        return [Math.round(x / 2 / C), Math.round(y / 2 / C)]; }); }) : null, trk: +(d.g.trk ?? 1).toFixed(2), grund: d.g.unsicher || "", beugung: d.trk ? d.trk.flexDeg.map(v => Math.round(v)) : null, kipp: d.trk ? Math.round(d.trk.kippDeg) : null,
     // Maßstab der Anprobe (Bildpunkte je cm) und gelernte Bein-Längen (cm): Beinknochen im Bild gegen die Hosenlänge
     ppc: d.g3 && d.g3.lastPpc ? +d.g3.lastPpc.toFixed(2) : null, legCm: d.legCm ? { n: d.legCm.n, th: +(+d.legCm.th || 0).toFixed(1), sh: +(+d.legCm.sh || 0).toFixed(1) } : null,
     // Oberteil über dem Bund: erkannt (Deckkraft) und Saum in Bildpunkten (Median über die Spalten)
@@ -143,6 +143,14 @@ for (const it of liste) {
     for (let y = Math.max(0, y0); y <= Math.min(M.h - 1, y1); y++) for (let xx = 0; xx < M.w; xx++) { const k = y * M.w + xx, e = M.d[k] > .5, d = a[k * 4 + 3] > 128;
       if (e && d) i++; if (e || d) u++; if (d) p3++; if (e) pe++; }
     return u ? { iou: +(i / u).toFixed(3), breite3d: +(p3 / (pe || 1)).toFixed(3) } : null; });
+  // --saum: Lage der untersten Zeilen je Bein, vorn (f=0) und hinten (f=1), Mitte und Seiten (Bildpunkte, Tiefe)
+  if (process.argv.includes("--saum")) console.log(it.name, "SAUM", JSON.stringify(await p.evaluate(() => { const g3 = window.__dbg.g3, M = g3.M, NR = M.nr, C = 13, P = g3.pos;
+    const pt = (s, i, f, j) => { const k = (((s * NR + i) * 2 + f) * C + j) * 3; return [Math.round(P[k]), Math.round(P[k + 1]), Math.round(P[k + 2])]; };
+    return [0, 1].map(s => ({ vorn: [NR - 6, NR - 3, NR - 1].map(i => pt(s, i, 0, 6)), hinten: [NR - 6, NR - 3, NR - 1].map(i => pt(s, i, 1, 6)), aussen: pt(s, NR - 1, 0, 12), innen: pt(s, NR - 1, 0, 0) })); })));
+  // --nurhose: die 3D-Hose allein (WebGL-Fläche) auf Magenta, Löcher im Stoff fallen sofort auf
+  if (process.argv.includes("--nurhose")) { const u = await p.evaluate(() => { const c = window.__dbg.g3.c, t = document.createElement("canvas"); t.width = c.width; t.height = c.height;
+      const x = t.getContext("2d"); x.fillStyle = "#f0f"; x.fillRect(0, 0, t.width, t.height); x.drawImage(c, 0, 0); return t.toDataURL("image/png"); });
+    fs.writeFileSync(OUT + it.name + "_hose.png", Buffer.from(u.split(",")[1], "base64")); }
   await p.evaluate(() => { window.__dbg.g.opa = 0; }); await p.waitForTimeout(450);
   const ohne = await st.screenshot();
   await p.evaluate(() => { window.__dbg.g.opa = 1; });

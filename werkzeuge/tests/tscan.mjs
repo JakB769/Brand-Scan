@@ -64,6 +64,8 @@ for(const r of [.5,-.6,Math.PI]){
   await p.evaluate(r=>{ window.__mode.roll=r; },r); await p.waitForTimeout(2200);
   z=await zustand(); const u=z.frame.up, w=Math.atan2(u[0],-u[1]), d=Math.abs(Math.atan2(Math.sin(w-r),Math.cos(w-r)));
   const bad=await p.evaluate(()=>{ const g=window.__dbg.g3; let n=0; for(let k=0;k<g.nv*3;k++) if(!isFinite(g.pos[k])) n++; return n; });
+  // seit 15.10.: Körper nicht aufrecht (über 55° gekippt, Handstand) → Hose ausgeblendet statt gedreht
+  if(Math.abs(r)>1){ const t=await p.evaluate(()=>window.__dbg.g.trk); pruefe(t<.01&&bad===0,`geneigt um ${(r*180/Math.PI).toFixed(0)}°: Hose ausgeblendet (g.trk ${t.toFixed(2)}), keine ungültigen Werte`); continue; }
   pruefe(d<.12&&bad===0,`geneigt um ${(r*180/Math.PI).toFixed(0)}°: Hose um ${(w*180/Math.PI).toFixed(0)}° gedreht, keine ungültigen Werte`);
 }
 await (await p.$('#stage')).screenshot({path:hier+'ausgabe/scan_handstand.png'});

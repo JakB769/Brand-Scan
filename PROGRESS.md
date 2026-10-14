@@ -174,3 +174,36 @@ Posen ≥ 4/5 (Seitenansicht 3, halbe Hocke 2–3, Knie hoch von vorn 3).
 5. Echte Handys (Safari, Pixel) prüfen; Bildrate am Gerät messen (`PERF`).
 6. Lizenzen der drei 3D-Modelle in `assets/pants/LIZENZEN.md` eintragen (Quelle unbekannt).
 
+
+## Sitzung 15.10. (Auftrag: Ausblenden, Drehung, Ferse, Modellqualität, Größen)
+
+Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer früher so festgelegt).
+
+### Entscheidungen
+- Hüftbeugung wird **gegen die Senkrechte** gemessen, nicht gegen den Rumpf: „Oberschenkel nach vorne heben“. Bücken mit
+  senkrechten Oberschenkeln bleibt sichtbar; Bücken mit gebeugten Knien (Oberschenkel über 45° vor) wird ausgeblendet.
+- Grenzen mit Hysterese: Beugung aus über 46°, an unter 39° (von vorn liest die Seite 45° als 41–42°, seitlich als 44°:
+  ausgeblendet wird ab etwa 46–50°). Rumpf aus über 55°, an unter 45°.
+- Hocke, halbe Hocke, Ausfallschritt und Längsspagat (vorderes Bein 90°) werden damit **ausgeblendet** (gewollt: „lieber
+  ausblenden als schlecht aussehen“). Seitlicher Spagat und Bein zur Seite bleiben sichtbar (Abspreizen ist keine Beugung).
+- Rückwärts gestrecktes Bein (Bein nach hinten heben) zählt nicht als Beugung.
+- Attrappe: „Knie hoch“ (`knee:1`, `kneeWave`) hebt seit heute 40° statt 61°, damit Tests die sichtbare Hose messen.
+
+### 1. Ausblenden
+- `trackSure`: Gründe Beugung, gekippt, liegt, verdeckt, Sprung (zweimal in 0,4 s), verzerrtes Netz (`g3.verz`); aus nach
+  100 ms in 0,2 s, an nach 350 ms in 0,3 s.
+- Gefunden und behoben: `legCm` lernte auch bei gehobenem Bein (verkürzter Oberschenkel 43,6 → 40,5 cm), die Beugung wurde
+  dadurch unterschätzt. Lernt jetzt nur bei gleich langen Beinen, danach langsamer.
+- Test `tausblenden` (Attrappe): 0/30/45° links und rechts, vorn und seitlich, mit Knie 95°: sichtbar, ruhig. 60°: aus.
+  43↔49° pendelnd: ein Wechsel. Liegestütz, Hinlegen, Aufstehen, schlecht erkannte Hüfte, zappelnde Erkennung: richtig.
+- Referenzclips (echte Erkennung): Kniehub, Hocke vorn/seitlich, halbe Hocke, Bücken mit gebeugten Knien → aus;
+  Stehen, Drehen, Ausfallschritt von hinten, Bein zur Seite, Bein nach hinten → sichtbar.
+
+### 3. Ferse
+- Ursache 1: Die Maske des Flachfotos nimmt den Boden zwischen den Beinen mit, Innennaht und Saum lagen im Stoffbild genau an
+  dieser Kante und zogen Bodenfarbe in die Hose. → `fillLegGap` (Spalt mit Stofffarbe, unter dem Saum letzte Zeile fortsetzen).
+- Ursache 2: Der Stoffstapel hinten an der Ferse war hell beleuchtet (heller Saum im Foto) und hatte fast die Farbe des
+  Bodens. → Kontaktschatten an den untersten 10 cm (hinten stärker).
+- Dazu: Fuß-Verdecker von der Ferse bis zu den Zehen (vorher kleine Kapsel); sonst sah man durch den schrägen Saum die
+  Innenseite als dunkles Band.
+- Geprüft: keine Löcher im Netz (Test `tferse`: 8 Lagen, 0 eingeschlossene durchsichtige Pixel), Referenz von hinten/seitlich.
