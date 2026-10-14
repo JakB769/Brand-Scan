@@ -330,3 +330,13 @@ Vorher/Nachher: `docs/vorher/`, `docs/nachher/`, Übersicht `docs/nachher/vorher
 Offen: Perspektive der Bodenkamera (Unterschenkel näher an der Kamera, wirken größer als die Hüfte) ist nicht modelliert;
 Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitlich hängt etwas als Sack.
 11. Seitenansicht weiter Hosen: Vorderkante hängt gerade vom Knie (`exF`), statt dem Schienbein nach hinten zu folgen.
+12. Drehung (15.10.): Hüpfen beim Drehen kam von der Seitenansicht: der Höhenunterschied der Schulter-/Hüftpunkte blieb als
+   Breite stehen (Drehung hing bei 67°, sprang auf 107°). Jetzt nur bei waagrecht breiter Linie; Glättung als Alpha-Beta-Filter
+   (Verzögerung 54 → 35 ms, Ruck 14 → 8), Ruhezone hinten weich. Werkzeug `drehung.mjs` repariert (Analysen gezählt, Scan
+   vorher, eine Erkennung je Bild) und `drehung-nachrechnen.mjs` zum Prüfen ohne Browser.
+13. Modellqualität (15.10.): Textur 1024 aus dem großen Foto (vermessen weiter in 900), Relief vorberechnet als zweite Textur
+   (3 statt 10 Zugriffe je Bildpunkt), Mipmaps immer, Handy 512. Netz bleibt (Stoff-Fall soll bleiben). Vorher/Nachher in
+   `docs/vergleich/`.
+14. Passform je Zone (15.10.): Bund, Hüfte, Oberschenkel, Knie, Länge mit Bewegungszugabe je Schnitt und Stretch, Empfehlung mit
+   Begründung (auch als Satz in der Shop-Ansicht), Körper notfalls aus der Größe. Handrechnung für Jakob/Fabian/Philip mit der
+   Testhose stimmt mit der App (W33 / W34 / W31, siehe PROGRESS.md).

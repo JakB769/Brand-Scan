@@ -153,6 +153,10 @@ select{background:var(--surface-2);border:1px solid transparent;border-radius:va
 .hud .szchip.f-2 span,.hud .szchip.f2 span,.szshop .szchip.f-2 span,.szshop .szchip.f2 span{color:#ff9d97}
 .szshop{display:none;position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);justify-content:center;z-index:6;padding:0 12px}
 .stage.shop .szshop:not(:empty){display:flex}
+/* Shop-Ansicht: Urteil der gewählten Größe in einem Satz über den Knöpfen („W33: Bund passt, Länge passt“) */
+.szwhy{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 76px);z-index:6;max-width:calc(100% - 32px);
+  padding:7px 14px;border-radius:14px;background:var(--glass);border:1px solid var(--glass-line);color:var(--glass-text);font-size:15px;line-height:1.35;text-align:center}
+.stage.shop .szwhy:not(:empty){display:block}
 
 /* Werte, Schritte, Tabellen */
 .readout{display:grid;grid-template-columns:1fr auto;gap:0;font-size:15px;margin:0}
@@ -324,6 +328,7 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     <div class="placeholder" id="placeholder">Kamera noch nicht gestartet</div>
     <div class="cleanhint" id="cleanHint" hidden>Tippen blendet alles wieder ein</div>
     <button class="shopx" id="shopClose" aria-label="Anprobe schließen" title="Schließen">✕</button>
+    <div class="szwhy" id="szwhy" aria-live="polite"></div>
     <div class="szrow szshop" id="szshop" role="group" aria-label="Größe wählen"></div>
     <div class="hud" id="hud" hidden>
       <div class="hud-top">
@@ -1139,12 +1144,8 @@ function analyse(res){
     if(inF(11)&&inF(12)&&inF(23)&&inF(24)) lim=Math.min(lim,rO*toC/Math.max(1e-4,len((L[11].x+L[12].x)/2,(L[11].y+L[12].y)/2,(L[23].x+L[24].x)/2,(L[23].y+L[24].y)/2)));
     const tNow=performance.now();
     const dtL=Math.min(.5,(tNow-scaleLim.t)/1000);
-    // Kommt die Grenze wieder (Punkte wieder sicher), beginnt sie beim jetzigen Maßstab statt sofort zu greifen; fällt sie weg,
-    // löst sie sich in etwa 1 s. Vorher sprang die Hose beim Drehen um sich selbst: +20 % in einem Bild beim Wiederkommen,
-    // −9 % je Bild beim Lösen (Referenzclip drehung-360, Maßstab je Bild)
-    if(isFinite(lim)){ if(scaleLim.v==null) scaleLim.v=Math.max(lim,cmPerUnit);
-      scaleLim.v+=(lim-scaleLim.v)*(1-Math.exp(-dtL/(lim<scaleLim.v?.12:.3))); }
-    else if(scaleLim.v!=null){ scaleLim.v*=Math.exp(dtL/1); if(scaleLim.v>2*cmPerUnit) scaleLim.v=null; }   // keine Grenze sichtbar: weich lösen
+    if(isFinite(lim)){ const a=scaleLim.v==null?1:1-Math.exp(-dtL/(lim<scaleLim.v?.12:.3)); scaleLim.v=scaleLim.v==null?lim:scaleLim.v+(lim-scaleLim.v)*a; }
+    else if(scaleLim.v!=null){ scaleLim.v*=Math.exp(dtL/.4); if(scaleLim.v>2*cmPerUnit) scaleLim.v=null; }   // keine Grenze sichtbar: weich lösen
     scaleLim.t=tNow;
     if(scaleLim.v!=null&&cmPerUnit>scaleLim.v){ cmPerUnit=scaleLim.v; scaleSrc=(scaleSrc?scaleSrc+", ":"")+"Bein-/Rumpflänge"; }
   }
@@ -1778,20 +1779,16 @@ vv=vec3((q-pc)/foc,1.);
 gl_Position=vec4(q.x/vp.x*2.-1.,1.-q.y/vp.y*2.,clamp(p.z/vp.x,-.95,.95),1.);}`;
 // va.x: Umgebungsverdeckung (negativ: Innenseite von Bund und Saum), va.y: wie offen das Innere hier ist.
 // upass 0 zeichnet die Außenseite, upass 1 die Innenseite (abgewandte Flächen, durch Bund- und Saumöffnung zu sehen).
-const FS3=`precision mediump float;uniform sampler2D t;uniform vec3 tint;uniform float bump;uniform float gloss;uniform float upass;uniform vec3 uin;
+const FS3=`precision mediump float;uniform sampler2D t;uniform sampler2D tg;uniform vec3 tint;uniform float bump;uniform float gloss;uniform float upass;uniform vec3 uin;
 varying vec3 vn;varying vec3 vv;varying vec2 vu;varying vec2 va;varying vec3 vtu;varying vec3 vtw;varying vec2 vu2;varying float vsd;
-float L(vec2 c){return dot(texture2D(t,c).rgb,vec3(.299,.587,.114));}
 void main(){vec3 n=normalize(vn);vec3 v=normalize(vv);float fz=dot(n,v);
 bool back=fz>0.;
 if(back){n=-n;fz=-fz;}
 bool inn=back||va.x<0.;
 if(inn!=(upass>.5))discard;
-// Relief aus dem Foto: helle Grate (Falten, Nähte, Taschenränder) stehen hervor, in zwei Größen. Die feine Größe nur schwach:
-// das Denim-Korn des Fotos wirkte sonst wie Sandpapier (Kamerabild ist weicher, Vergleich mit dem Referenzvideo 14.10.)
-vec2 a=vec2(1.5/640.,0.),b=vec2(0.,1.5/640.),A=a*3.,B=b*3.;
-vec3 ca=texture2D(t,vu+a).rgb,cb=texture2D(t,vu-a).rgb,cc=texture2D(t,vu+b).rgb,cd=texture2D(t,vu-b).rgb;
-const vec3 LW=vec3(.299,.587,.114);
-float gx=.35*dot(ca-cb,LW)+.6*(L(vu+A)-L(vu-A)), gy=.35*dot(cc-cd,LW)+.6*(L(vu+B)-L(vu-B));
+// Relief aus dem Foto: helle Grate (Falten, Nähte, Taschenränder) stehen hervor, in zwei Größen (beim Laden vorberechnet,
+// reliefMap: ein Zugriff statt acht je Bildpunkt). Die feine Größe nur schwach: das Denim-Korn wirkte sonst wie Sandpapier
+vec2 gr=texture2D(tg,vu).rg-.5; float gx=gr.x, gy=gr.y;
 vec3 nb=normalize(n-(inn?.3:1.)*.6*bump*(gx*vtu+gy*vtw));
 // Licht: Hauptlicht oben vorn links, schwaches Gegenlicht, Himmel von oben heller als vom Boden
 vec3 Ld=normalize(vec3(-.38,-.55,-.74));
@@ -1800,8 +1797,9 @@ float f=max(dot(nb,normalize(vec3(.65,-.05,-.76))),0.);
 float sky=.30+.14*(.5-.5*nb.y);
 float rim=smoothstep(.06,-.45,fz);
 // an der Seitennaht Vorder- und Rückseite überblenden, damit kein harter Wechsel zu sehen ist
-// Stoff etwas weicher als das Foto (wie im Kamerabild): Mitte zur Hälfte mit den vier Nachbarn gemischt
-vec3 al=mix(mix(texture2D(t,vu).rgb,.25*(ca+cb+cc+cd),.5),texture2D(t,vu2).rgb,vsd);
+// Stoff etwas weicher als das Foto (wie im Kamerabild): eine halbe Stufe gröber aus der Mipmap. Vorher fest gemischt mit
+// den Nachbarn im Abstand von 1,5/640: bei der feineren Textur hätte das die neuen Einzelheiten gleich wieder verwischt
+vec3 al=mix(texture2D(t,vu,.5).rgb,texture2D(t,vu2,.5).rgb,vsd);
 float ao=abs(va.x);
 vec3 c;
 if(inn){
@@ -1828,7 +1826,7 @@ function init3d(){
     g3.c=document.createElement("canvas");
     // Grafikspeicher entzogen (iPhone im Hintergrund, zu viele Tabs): beim nächsten Bild alles neu anlegen
     g3.c.addEventListener("webglcontextlost",e=>{ e.preventDefault();
-      Object.assign(g3,{ok:null,gl:null,prog:null,key:null,texReady:false,vb:null,nb:null,ub:null,ab:null,ib:null,tub:null,twb:null,u2b:null,sdb:null,tex:null,prog0:null,ovb:null,oib:null,oN:0,cOk:false}); });
+      Object.assign(g3,{ok:null,gl:null,prog:null,key:null,texReady:false,vb:null,nb:null,ub:null,ab:null,ib:null,tub:null,twb:null,u2b:null,sdb:null,tex:null,texG:null,prog0:null,ovb:null,oib:null,oN:0,cOk:false}); });
     const o={alpha:true,premultipliedAlpha:true,antialias:true,depth:true};
     const gl=g3.c.getContext("webgl2",o)||g3.c.getContext("webgl",o);
     if(!gl){ g3.ok=false; return false; }
@@ -1846,7 +1844,8 @@ function init3d(){
       g3.prog0=p0; g3.loc0={vp:gl.getUniformLocation(p0,"vp"),pc:gl.getUniformLocation(p0,"pc"),foc:gl.getUniformLocation(p0,"foc")}; }
     g3.loc={p:gl.getAttribLocation(pr,"p"),n:gl.getAttribLocation(pr,"n"),uv:gl.getAttribLocation(pr,"uv"),
             ao:gl.getAttribLocation(pr,"ao"),tu:gl.getAttribLocation(pr,"tu"),tw:gl.getAttribLocation(pr,"tw"),uv2:gl.getAttribLocation(pr,"uv2"),sd:gl.getAttribLocation(pr,"sd"),bump:gl.getUniformLocation(pr,"bump"),gloss:gl.getUniformLocation(pr,"gloss"),upass:gl.getUniformLocation(pr,"upass"),uin:gl.getUniformLocation(pr,"uin"),vp:gl.getUniformLocation(pr,"vp"),pc:gl.getUniformLocation(pr,"pc"),foc:gl.getUniformLocation(pr,"foc"),tint:gl.getUniformLocation(pr,"tint"),
-            t:gl.getUniformLocation(pr,"t")};
+            t:gl.getUniformLocation(pr,"t"),tg:gl.getUniformLocation(pr,"tg")};
+    g3.aniso=gl.getExtension("EXT_texture_filter_anisotropic")||gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
     g3.ok=true;
   }catch(e){ console.warn("3D nicht verfügbar",e); g3.ok=false; }
   return g3.ok;
@@ -1855,8 +1854,26 @@ function init3d(){
 /* Geometrie und Textur der bisherigen Hose auf der Grafikkarte freigeben */
 function free3d(){
   const gl=g3.gl;
-  if(gl){ for(const b of [g3.vb,g3.nb,g3.ub,g3.ab,g3.ib,g3.tub,g3.twb,g3.u2b,g3.sdb,g3.ovb,g3.oib]) if(b) gl.deleteBuffer(b); if(g3.tex) gl.deleteTexture(g3.tex); }
-  g3.vb=g3.nb=g3.ub=g3.ab=g3.ib=g3.tub=g3.twb=g3.u2b=g3.sdb=g3.tex=g3.ovb=g3.oib=null; g3.oN=0; g3.pos=g3.nor=g3.tu=g3.tw=null; g3.texReady=false; g3.key=null; g3.M=null; g3.row={}; g3.ni=0;
+  if(gl){ for(const b of [g3.vb,g3.nb,g3.ub,g3.ab,g3.ib,g3.tub,g3.twb,g3.u2b,g3.sdb,g3.ovb,g3.oib]) if(b) gl.deleteBuffer(b); if(g3.tex) gl.deleteTexture(g3.tex); if(g3.texG) gl.deleteTexture(g3.texG); }
+  g3.vb=g3.nb=g3.ub=g3.ab=g3.ib=g3.tub=g3.twb=g3.u2b=g3.sdb=g3.tex=g3.texG=g3.ovb=g3.oib=null; g3.oN=0; g3.pos=g3.nor=g3.tu=g3.tw=null; g3.texReady=false; g3.key=null; g3.M=null; g3.row={}; g3.ni=0;
+}
+/* Texturgröße je Gerät: Handy (grober Zeiger) oder dauerhaft langsam (leichtes Modell geladen) 512, sonst 1024 */
+const TEX_PX=()=>PERF.coarse||PERF.lite?512:1024;
+/* Relief aus dem Foto, einmal beim Laden statt in jedem Bildpunkt (vorher acht Zugriffe im Shader): Helligkeitsgefälle in zwei
+   Größen wie bisher (±1,5 und ±4,5 Punkte bezogen auf 640, gewichtet 0,35 und 0,6), in Rot/Grün um 0,5 gespeichert (±0,5).
+   Vorder- und Rückseite (linke/rechte Hälfte) getrennt, nicht über die Mitte hinweg. Mit Mipmaps: aus der Nähe fein, von weitem
+   ruhig (vorher flimmerte das feine Relief in der Ferne). */
+function reliefMap(c){
+  const W=c.width, H=c.height, h2=W>>1, d=c.getContext("2d",{willReadFrequently:true}).getImageData(0,0,W,H).data, Lm=new Float32Array(W*H);
+  for(let i=0,j=0;i<Lm.length;i++,j+=4) Lm[i]=(.299*d[j]+.587*d[j+1]+.114*d[j+2])/255;
+  const sc=H/640, a=Math.max(1,Math.round(1.5*sc)), A=Math.max(2,Math.round(4.5*sc));
+  const o=document.createElement("canvas"); o.width=W; o.height=H;
+  const ox=o.getContext("2d"), od=ox.createImageData(W,H), q=od.data;
+  for(let y=0;y<H;y++){ const ya=Math.min(H-1,y+a)*W, yb=Math.max(0,y-a)*W, yA=Math.min(H-1,y+A)*W, yB=Math.max(0,y-A)*W, r=y*W;
+    for(let x=0;x<W;x++){ const x0=x<h2?0:h2, x1=x<h2?h2-1:W-1, X=k=>Math.min(x1,Math.max(x0,x+k));
+      const gx=.35*(Lm[r+X(a)]-Lm[r+X(-a)])+.6*(Lm[r+X(A)]-Lm[r+X(-A)]), gy=.35*(Lm[ya+x]-Lm[yb+x])+.6*(Lm[yA+x]-Lm[yB+x]);
+      const k=(r+x)*4; q[k]=Math.round(clamp(127.5+255*gx,0,255)); q[k+1]=Math.round(clamp(127.5+255*gy,0,255)); q[k+2]=128; q[k+3]=255; } }
+  ox.putImageData(od,0,0); return o;
 }
 /* Vorder- und Rückfoto sind zwei Aufnahmen mit eigener Belichtung: Rückseite (rechte Atlashälfte) in Helligkeit und
    Kontrast an die Vorderseite angleichen, aber nicht ganz, damit echte Unterschiede (andere Taschen) bleiben */
@@ -1949,15 +1966,21 @@ function mesh3d(key,M){
   const im=new Image(), tok=g3.tok=(g3.tok||0)+1;
   im.onload=()=>{
     if(g3.key!==key||g3.tok!==tok) return;       // inzwischen andere Hose gewählt (oder dieselbe neu): alte Textur nicht mehr anlegen
-    const tx=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tx);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
-    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,matchHalves(im));
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-    if(g3.v2){ gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR); }
-    else gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
-    g3.tex=tx; g3.texReady=true;
+    // Auflösung je Gerät (TEX_PX): Handy 512, sonst 1024; immer eine Zweierpotenz, damit es auch in WebGL 1 Mipmaps gibt
+    // (ältere Hosen mit 640 × 640 werden umgerechnet)
+    const S=TEX_PX(), c=document.createElement("canvas"); c.width=c.height=S;
+    const cx=c.getContext("2d",{willReadFrequently:true}); cx.imageSmoothingQuality="high"; cx.drawImage(matchHalves(im),0,0,S,S);
+    const up=src=>{ const tx=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tx);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+      gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,src);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
+      // schräg gesehene Flächen (Seite des Beins) bleiben scharf
+      if(g3.aniso) gl.texParameterf(gl.TEXTURE_2D,g3.aniso.TEXTURE_MAX_ANISOTROPY_EXT,Math.min(PERF.coarse?2:8,gl.getParameter(g3.aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+      return tx; };
+    g3.tex=up(c); g3.texG=up(reliefMap(c)); g3.texPx=S; g3.texReady=true;
   };
   im.src=M.atlas;
 }
@@ -2831,6 +2854,7 @@ function draw3d(M,P,vw,vh,tint){
     gl.uniform1f(g3.loc.bump,P.bump??3.2); gl.uniform1f(g3.loc.gloss,P.fab?P.fab.gloss||0:0); gl.uniform1f(g3.loc.upass,pass);
     const ui=P.inner||[.6,.62,.66]; gl.uniform3f(g3.loc.uin,ui[0],ui[1],ui[2]);
     gl.uniform2f(g3.loc.vp,vw,vh); gl.uniform2f(g3.loc.pc,P.pc[0],P.pc[1]); gl.uniform1f(g3.loc.foc,P.foc); gl.uniform3f(g3.loc.tint,tint[0],tint[1],tint[2]);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,g3.texG); gl.uniform1i(g3.loc.tg,1);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,g3.tex); gl.uniform1i(g3.loc.t,0);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g3.ib);
     gl.drawElements(gl.TRIANGLES,g3.ni,gl.UNSIGNED_SHORT,0); };
@@ -3105,9 +3129,11 @@ function bodyYaw(L,V,vw,vh,ppc){
   if(es>.12) fc.sgn=1; else if(es<-.12) fc.sgn=-1;
   let m=Math.atan2(fc.sgn*Math.sqrt(1-c*c),c);
   fc.roh={c:+c.toFixed(3),es:+es.toFixed(3),sgn:fc.sgn,m:+m.toFixed(3)};   // Rohwerte für Fehlersuche und werkzeuge/drehung.mjs
-  // Ruhezone: steht jemand fast frontal oder fast mit dem Rücken, bleibt die Hose gerade
-  const am=Math.abs(m);
-  if(am<Math.PI/2) m*=sstep(.22,.62,am); else m=Math.sign(m||1)*(Math.PI-(Math.PI-am)*sstep(.22,.62,Math.PI-am));
+  // Ruhezone: steht jemand fast frontal oder fast mit dem Rücken, bleibt die Hose gerade. Vorn wie bisher (frontal liest die
+  // Breite oft 10–15° Drehung). Hinten weich (x²/√(x²+d²), Steigung höchstens 1,09): die Rohschätzung erreicht von hinten nur
+  // etwa 160°, genau im steilen Teil der alten Zone (Steigung bis 2,1); dort pendelte die Hose (Referenzclip nach dem Scan).
+  const am=Math.abs(m), weich=(x,d)=>x*x/Math.sqrt(x*x+d*d);
+  if(am<Math.PI/2) m*=sstep(.22,.62,am); else m=Math.sign(m||1)*(Math.PI-weich(Math.PI-am,.45));
   // Drehung mit Lage und Geschwindigkeit verfolgen (Alpha-Beta-Filter): dreht man sich gleichmäßig, läuft die Hose ohne den
   // Nachlauf des reinen Glättens mit; ein einzelner Ausreißer der Messung wird über einige Bilder verteilt statt als Ruck
   // übernommen. Die Geschwindigkeit klingt ab (0,5 s), damit die Hose beim Anhalten nicht weiterdreht.
@@ -3592,6 +3618,28 @@ function applyInnerCut(d,mm,CW,cut){
   }
 }
 /* Auf einheitliche Größe zuschneiden, Rand mit Stofffarbe auffüllen, Umriss Zeile für Zeile ablesen */
+/* Feinere Textur (15.10.): vermessen wird wie bisher im Foto mit 900 Punkten Höhe (GEN: 320 × 640 je Seite), die Textur bekommt
+   die Einzelheiten aus demselben Foto groß (bis HI_PX). Grundlage bleibt die bearbeitete Seite (Spalt gefüllt, Gürtel und Etikett
+   weg, Rückseite geschätzt …), auf ATLAS hochgerechnet; dazu kommt nur, was das große Foto feiner zeigt (groß − dasselbe in
+   320 × 640), und nur dort, wo beide im Groben übereinstimmen (sonst wurde dort bearbeitet). Atlas 1024 × 1024 statt 640 × 640. */
+const ATLAS={W:1024,H:1024,q:.85}, HI_PX=2000;
+function hiHalf(base,p,flip){
+  const {CW,CH}=GEN, w=ATLAS.W/2, h=ATLAS.H, cnv=(W,H)=>{ const c=document.createElement("canvas"); c.width=W; c.height=H; return c; };
+  const out=cnv(w,h), ox=out.getContext("2d",{willReadFrequently:true}); ox.imageSmoothingQuality="high"; ox.drawImage(base,0,0,w,h);
+  if(!p||!p.hi||!p.S) return out;
+  const k=p.hi.height/p.cv.height, S=p.S, pad=4, bx=S.x0-pad, by=S.y0-pad, bw=S.x1-S.x0+2*pad, bh=S.y1-S.y0+2*pad;
+  const hc=cnv(w,h), hx=hc.getContext("2d",{willReadFrequently:true}); hx.imageSmoothingQuality="high"; hx.fillStyle="#888"; hx.fillRect(0,0,w,h);
+  if(flip){ hx.translate(w,0); hx.scale(-1,1); }
+  hx.drawImage(p.hi,bx*k,by*k,bw*k,bh*k,0,0,w,h); hx.setTransform(1,0,0,1,0,0);
+  const lo=cnv(CW,CH), lx=lo.getContext("2d"); lx.imageSmoothingQuality="high"; lx.drawImage(hc,0,0,CW,CH);
+  const lu=cnv(w,h), lux=lu.getContext("2d",{willReadFrequently:true}); lux.imageSmoothingQuality="high"; lux.drawImage(lo,0,0,w,h);
+  const O=ox.getImageData(0,0,w,h), d=O.data, Hd=hx.getImageData(0,0,w,h).data, Ld=lux.getImageData(0,0,w,h).data;
+  for(let i=0;i<d.length;i+=4){
+    const diff=Math.max(Math.abs(d[i]-Ld[i]),Math.abs(d[i+1]-Ld[i+1]),Math.abs(d[i+2]-Ld[i+2])), a=clamp(1-(diff-10)/14,0,1);
+    if(a>0) for(let c=0;c<3;c++) d[i+c]=clamp(Math.round(d[i+c]+a*(Hd[i+c]-Ld[i+c])),0,255);
+  }
+  ox.putImageData(O,0,0); return out;
+}
 function cropGarment(cv,S,flip,innen=false){
   const {CW,CH,NR}=GEN, pad=4;
   const bx=S.x0-pad, by=S.y0-pad, bw=S.x1-S.x0+2*pad, bh=S.y1-S.y0+2*pad;
@@ -4131,7 +4179,7 @@ async function photoWithReference(file,say,kind,title,meta){
   if(r0){ guess=refineReference(hi,r0.Q.map(p=>[p[0]/k,p[1]/k]),kind)||orderQuad(r0.Q.map(p=>[p[0]/k,p[1]/k])); guess=orderQuad(snapQuadToEdges(hi,guess)); }
   say(`Bitte ${REFS[kind].akk} bestätigen oder die Ecken antippen …`);
   const Q0=await askCorners(hi,guess,kind,title);   // Ecken sind dort schon sichtbar eingerastet
-  if(!Q0) return {cv:scaleCanvas(hi,900/hi.height),lev,ref:null,warn:[]};
+  if(!Q0) return {cv:scaleCanvas(hi,900/hi.height),hi,lev,ref:null,warn:[]};
   let Q=Q0;
   const warn=[];
   if(!lev){
@@ -4149,7 +4197,7 @@ async function photoWithReference(file,say,kind,title,meta){
   if(lev&&(c.aspErr>.06||c.ang>6||c.sideDiff>.08))
     warn.push(`${cap(REFS[kind].nom)} wirkt verzogen (${(c.aspErr*100).toFixed(0)} % im Seitenverhältnis, ${c.ang.toFixed(0)}° im Winkel): liegt ${REFS[kind].pro} flach auf demselben Boden wie die Hose? Sonst stimmt der Maßstab nicht`);
   const k2=900/hi.height, cv=scaleCanvas(hi,k2);
-  return {cv,lev,warn,ref:{kind,pxPerCm:c.pxPerCm*k2,Q:Q.map(p=>[p[0]*k2,p[1]*k2])}};
+  return {cv,hi,lev,warn,ref:{kind,pxPerCm:c.pxPerCm*k2,Q:Q.map(p=>[p[0]*k2,p[1]*k2])}};
 }
 /* Homographie aus vier Punktpaaren (Quelle → Ziel) */
 function homography(src,dst){
@@ -4254,17 +4302,21 @@ function trimMask(S){
 /* Foto laden, freistellen, bei Bedarf drehen und noch einmal freistellen */
 async function loadGarmentPhoto(file,say,refKind="",title="Foto"){
   const isCv=file instanceof HTMLCanvasElement, meta=isCv?{}:await readPhotoMeta(file);
-  let cv, lev, ref=null, warn=[];
-  if(isCv){ cv=scaled(file,900); lev=null; }         // schon geladen (Dateien hochladen, Ausschnitt aus einem Screenshot)
+  let cv, lev, ref=null, warn=[], hi=null;
+  // hi: dasselbe Foto groß (bis HI_PX), gleich gerade gerechnet und gedreht; nur für die feinere Textur (hiHalf), vermessen
+  // wird weiter in 900 Punkten
+  if(isCv){ cv=scaled(file,900); lev=null; hi=file; }  // schon geladen (Dateien hochladen, Ausschnitt aus einem Screenshot)
   else if(refKind){
     // Mit Bezugsobjekt: groß laden, Ecken bestätigen oder antippen lassen, daraus Maßstab (und ohne Neigungsdaten die Entzerrung)
     const r=await photoWithReference(file,say,refKind,title,meta);
-    cv=r.cv; lev=r.lev; ref=r.ref; warn=r.warn;
+    cv=r.cv; lev=r.lev; ref=r.ref; warn=r.warn; hi=r.hi||null;
   }else{
     cv=await fileToCanvas(file,900,say);
     // gerade rechnen mit den Neigungsdaten des Handys
     lev=levelBySensor(cv,meta); if(lev) cv=lev.cv;
+    try{ hi=await fileToCanvas(file,HI_PX,()=>{}); if(lev){ const l2=levelBySensor(hi,meta); hi=l2?l2.cv:null; } }catch(_){ hi=null; }
   }
+  if(hi&&!(hi.height>cv.height*1.15&&Math.abs(hi.width/cv.width-hi.height/cv.height)<.02*hi.height/cv.height)) hi=null;   // nicht größer oder nicht deckungsgleich
   if(!aiSeg){ say("KI-Freistellung wird geladen …"); await withTimeout(loadAiSeg(),9000); }
   let S=segGarment(cv), turned=0;
   if(ref){
@@ -4275,7 +4327,7 @@ async function loadGarmentPhoto(file,say,refKind="",title="Foto"){
   }
   for(let k=0;k<2;k++){                              // quer: erst drehen, dann noch einmal oben/unten prüfen
     const t=garmentTurn(S); if(!t) break;
-    cv=rotateCanvas(cv,t); S=segGarment(cv); turned=((turned+t)%360+360)%360;
+    cv=rotateCanvas(cv,t); if(hi) hi=rotateCanvas(hi,t); S=segGarment(cv); turned=((turned+t)%360+360)%360;
   }
   // Umriss zeigen: immer, wenn gewünscht, sonst wenn Farbe und KI sich deutlich uneinig sind
   const unsicher=S.iou!=null&&S.iou<.85;
@@ -4284,7 +4336,7 @@ async function loadGarmentPhoto(file,say,refKind="",title="Foto"){
     if(r){ r.ki=S.ki; r.iou=S.iou; S=r; S.hand=true; }
   }
   const ki=!!S.ki, tm=trimMask(S);
-  return {cv,S:tm.S,turned,cut:tm.cut,tilt:lev?lev.tilt:null,ref,warn,ki,hand:!!S.hand};
+  return {cv,hi,S:tm.S,turned,cut:tm.cut,tilt:lev?lev.tilt:null,ref,warn,ki,hand:!!S.hand};
 }
 /* 2D-Ersatzform und Hüftbreite aus dem Modell ableiten (nach dem Normalisieren neu) */
 function garmentProf(M,aspect){
@@ -4353,7 +4405,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
     // Kein Schritt zu sehen: liegt die Hose auf dem Kopf und berühren sich die Säume, erkennt garmentTurn das nicht.
     // Um 180° gedreht noch einmal suchen; nur übernehmen, wenn der Schritt dann im oberen Teil liegt.
     const flip=p=>{ const cv=rotateCanvas(p.cv,180), t=trimMask(segGarment(cv));
-      return {...p,cv,S:t.S,cut:t.cut,turned:(p.turned+180)%360}; };
+      return {...p,cv,hi:p.hi?rotateCanvas(p.hi,180):null,S:t.S,cut:t.cut,turned:(p.turned+180)%360}; };
     const fp2=flip(fp), bp2=bp?flip(bp):null, c2=crop(fp2,bp2), v2=c2.vcF??c2.vcB;
     if(v2!=null&&v2>.2&&v2<.6){ fp=fp2; bp=bp2; ({F,B,vcF,vcB}=c2); }
   }
@@ -4390,11 +4442,11 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
       pf.hw[i]=useF&&useB?(pf.hw[i]+pb.hw[i])/2:useB?pb.hw[i]:pf.hw[i]; }
     both=true; }
   if(!rock){ try{ fillLegGap(F,garmentProfile(F,VC,0),VC); if(bp) fillLegGap(B,garmentProfile(B,vcBack,CW),vcBack); }catch(e){ console.warn("Spalt",e); } }
-  const at=document.createElement("canvas"); at.width=2*CW; at.height=CH;
-  const ax=at.getContext("2d"); ax.drawImage(F.c,0,0); ax.drawImage(B.c,CW,0);
+  const at=document.createElement("canvas"); at.width=ATLAS.W; at.height=ATLAS.H;
+  const ax=at.getContext("2d"); ax.drawImage(hiHalf(F.c,fp,false),0,0); ax.drawImage(hiHalf(B.c,bp||fp,!bp),ATLAS.W/2,0);
   const r4=a=>a.map(x=>+x.toFixed(4));
   const raw={nr:NR,vc:rock?1:+VC.toFixed(3),rock,wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),
-            f:pf.uv,b:pb.uv,atlas:at.toDataURL("image/jpeg",.85)};
+            f:pf.uv,b:pb.uv,atlas:at.toDataURL("image/jpeg",ATLAS.q)};
   // lo: Außenlänge geteilt durch senkrechte Länge (Einheit aller Werte im Modell)
   raw.lo=+((bp?(pf.Hout/pf.H+pb.Hout/pb.H)/2:pf.Hout/pf.H)).toFixed(4);
   raw.innen=!!(F.inner&&F.inner.ok);
@@ -4855,7 +4907,7 @@ const sizeIdx=G=>Number.isInteger(G.size)&&G.sizes[G.size]?G.size:G.sizes.findIn
 let szLast="", szAt=0;
 function renderSizes(force){
   const G=g.key&&GARMENTS[g.key], B=G?bodyMeas():null, A=G?sizeAll(G,B):null;
-  if(!A){ if(szLast){ $("g-sizes").hidden=true; for(const id of ["g-szrow","szchips","szshop"]) $(id).innerHTML=""; szLast=""; } return; }
+  if(!A){ if(szLast){ $("g-sizes").hidden=true; for(const id of ["g-szrow","szchips","szshop","szwhy"]) $(id).innerHTML=""; szLast=""; } return; }
   const cur=sizeIdx(G), sg=x=>(x>=0?"+":"−")+Math.abs(x).toFixed(0);
   // gleiche Endung bei allen (z. B. „/L34“): auf den Knöpfen weglassen
   const suf=(G.sizes[0].n.match(/\/.*$/)||[""])[0], kurz=n=>suf&&G.sizes.every(z=>z.n.endsWith(suf))?n.slice(0,-suf.length):n;
@@ -4880,8 +4932,10 @@ function renderSizes(force){
   if(G.sizesEst) msg+=`<br><span class="sub">Ohne Maßtabelle: Größen aus der Größe des Models abgeleitet.</span>`;
   else if(G.sizesFoto) msg+=`<br><span class="sub">≈ hochgerechnet (geschätzt) aus der gemessenen Hose (${escH((G.sizes.find(z=>!z.est)||{}).n||"")}).</span>`;
   else if(G.sizes.some(z=>z.est)) msg+=`<br><span class="sub">≈ hochgerechnet (geschätzt): die Seite nennt Maße nur für ${escH(G.sizes.filter(z=>!z.est).map(z=>z.n).join(", ")||"eine Größe")}.</span>`;
-  const key=chips+msg; if(!force&&key===szLast) return; szLast=key;
-  $("g-sizes").hidden=false; $("g-szrow").innerHTML=chips; $("g-szmsg").innerHTML=msg; $("szchips").innerHTML=few; $("szshop").innerHTML=few;
+  // ein Satz für die Shop-Ansicht: gewählte Größe mit Begründung, sonst die Empfehlung
+  const why=!B?"":cur>=0?`${G.sizes[cur].n}: ${sizeReason(A.V[cur])}`+(A.best!==cur?` · Empfehlung ${G.sizes[A.best].n}`:""):`Empfehlung ${G.sizes[A.best].n}: ${sizeReason(A.V[A.best])}`;
+  const key=chips+msg+why; if(!force&&key===szLast) return; szLast=key;
+  $("g-sizes").hidden=false; $("g-szrow").innerHTML=chips; $("g-szmsg").innerHTML=msg; $("szchips").innerHTML=few; $("szshop").innerHTML=few; $("szwhy").textContent=why;
 }
 function setSize(k){
   const G=g.key&&GARMENTS[g.key]; if(!G||!Array.isArray(G.sizes)||!G.sizes[k]) return;

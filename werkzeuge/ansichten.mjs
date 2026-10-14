@@ -61,7 +61,9 @@ await p.waitForFunction(() => document.getElementById("step-cal").classList.cont
 await p.waitForTimeout(1500); await p.click("#clean").catch(() => {});
 const POSEN = [["vorne", {}], ["schraeg", { yaw: .7 }], ["seitlich", { yaw: 1.45 }], ["hinten", { yaw: 3.1 }], ["knie_hoch", { kneeHigh: 1 }],
   ["knie_hoch_seitlich", { kneeHigh: 1, yaw: 1.45 }], ["ferse_gesaess", { fersePo: 1, yaw: .7 }], ["hocke", { hocke: 1 }], ["hocke_seitlich", { hocke: 1, yaw: 1.45 }],
-  ["ausfallschritt", { ausfall: 1, yaw: .7 }], ["spagat_seitlich", { spagat: 1 }], ["spagat_laengs", { spagat: 2, yaw: 1.45 }]];
+  ["ausfallschritt", { ausfall: 1, yaw: .7 }], ["spagat_seitlich", { spagat: 1 }], ["spagat_laengs", { spagat: 2, yaw: 1.45 }],
+  // nah (Beine füllen das Bild, wie in der Nahphase): Stoff und Relief im Detail, für den Vorher/Nachher-Vergleich der Textur
+  ["nah_vorne", { zoom: 2.2 }], ["nah_hinten", { zoom: 2.2, yaw: 3.1 }], ["nah_seitlich", { zoom: 2.2, yaw: 1.2 }]];
 const st = await p.$("#stage"); const bilder = [];
 for (const [n, m] of POSEN) {
   await p.evaluate(m => Object.assign(window.__mode, { zoom: 1, rand: "raten", knee: 0, kneeHigh: 0, fersePo: 0, kneeWave: 0, yaw: 0, hand: 0, sway: 0, ohneArme: 1,

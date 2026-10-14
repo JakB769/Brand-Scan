@@ -88,6 +88,11 @@ pruefe(K.k.every(c=>c.f===-2)&&K.k[2].best,'breiter Körper: alles zu eng, Empfe
 // Anprobe und Shop-Ansicht: höchstens fünf Knöpfe
 const hud=await p.evaluate(()=>[document.querySelectorAll('#szchips .szchip').length,document.querySelectorAll('#szshop .szchip').length]);
 pruefe(hud[0]===3&&hud[1]===3,'Knöpfe auch in der Anprobe und in der Shop-Ansicht: '+hud.join('/'));
+// Shop-Ansicht: ein Satz mit der Begründung über den Knöpfen (Bild nach ausgabe/groessen_shop.png)
+await koerper(84,98);
+const why=await p.evaluate(()=>{ const st=document.getElementById('stage'); st.classList.add('shop'); return document.getElementById('szwhy').textContent; });
+await (await p.$('#stage')).screenshot({path:hier+'ausgabe/groessen_shop.png'}); await p.evaluate(()=>document.getElementById('stage').classList.remove('shop'));
+pruefe(/^(S|M|L): Bund (passt|\d+ cm zu (eng|weit))/.test(why)||/^Empfehlung (S|M|L): Bund/.test(why),'Shop-Ansicht: Begründung über den Knöpfen: '+why);
 
 // 2) Keine Tabelle, nur die US-Größe des Models (32 × 32): Größen abgeleitet
 await link(B+'/shop/modell.html'); G=await hose();

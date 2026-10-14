@@ -207,3 +207,98 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
 - Dazu: Fuß-Verdecker von der Ferse bis zu den Zehen (vorher kleine Kapsel); sonst sah man durch den schrägen Saum die
   Innenseite als dunkles Band.
 - Geprüft: keine Löcher im Netz (Test `tferse`: 8 Lagen, 0 eingeschlossene durchsichtige Pixel), Referenz von hinten/seitlich.
+
+### 2. Drehung
+- Ursache des Hüpfens (Referenzclip `v2-02_drehung-360`, Bild für Bild mit `werkzeuge/drehung.mjs`): seitlich stehend blieb
+  der Höhenunterschied der Schulter- und Hüftpunkte als Breite stehen (Ausgleich für gehobene Schulter/Bein). Die Drehung
+  hing bei etwa 67° fest und sprang beim Kreuzen der Punkte in wenigen Bildern auf 107°. Jetzt zählt der Höhenunterschied
+  nur, solange die Linie waagrecht noch breit ist.
+- Glättung als Alpha-Beta-Filter (Lage und Drehgeschwindigkeit) statt reinem Nachlauf: dreht man sich gleichmäßig, läuft die
+  Hose ohne Verzögerung mit; Ausreißer werden verteilt. Ruhezone hinten weicher (die alte verdoppelte dort das Rauschen).
+- Vorne/hinten: im Clip immer richtig (0 Bilder über 60° daneben), von hinten zeigt die Hose die Rückseite.
+- Ergebnis (nach dem Frontal-Scan, wie bei echter Nutzung), vorher → nachher: Verzögerung zur Rohschätzung 54 → 35 ms,
+  Ruck 14,3 → 8,1 mrad/Bild², größter Schritt 0,20 → 0,16 rad (beim Durchgang durch 180°), Schritte über 0,15 rad 2 → 0.
+  Zweiter Clip `v1-04_drehen-seite-hinten`: Verzögerung 62 → 29 ms, Ruck 14,3 → 10,9, größter Schritt 0,24 → 0,14 rad,
+  Schritte über 0,15 rad 5 → 0. Verläufe: `docs/vergleich/drehung_*.png`.
+- Maßstab nicht angefasst: Die Größensprünge beim Drehen im Werkzeug (bis 20 % je Bild) kamen nur vom fehlenden Scan.
+  Ein weicheres Wiederkommen der Untergrenze (zwischendurch eingebaut) machte den Saum beim Kniehub träger (`tlag`
+  Ausschlag 82 → 65 %) und ist wieder raus.
+- Entscheidung: Die Drehung der Hose bleibt aus Breiten (Schulter, Hüfte) und Richtung (Füße, Nase, Tiefe). Frontal liest
+  die Breite oft 10–15° Drehung, darum bleibt vorn die Ruhezone wie bisher.
+- Werkzeug-Fehler gefunden: `drehung.mjs` zählte die Analysen nicht (wartete je Bild bis zur Zeitgrenze) und ohne Scan blieb
+  die Seite in der Scan-Phase (dort Maßstab aus der Körperhöhe ungeglättet: Größensprünge bis 20 %, die es bei echter
+  Nutzung nicht gibt). Beides behoben.
+
+### 4. Modellqualität
+- Textur: vermessen wird wie bisher im 900-Punkte-Foto, die Textur bekommt die Einzelheiten aus demselben Foto groß (bis
+  2000 Punkte, bei Karte das entzerrte 2400er-Bild). Atlas 1024 × 1024 statt 640 × 640 (Bearbeitungen wie gefüllter Spalt,
+  Gürtel, geschätzte Rückseite bleiben, dort kommt kein Detail dazu).
+- Relief (Normalen aus dem Foto) einmal beim Laden vorberechnet als zweite Textur mit Mipmaps: im Shader 3 statt 10
+  Texturzugriffe je Bildpunkt (schneller am Handy), aus der Nähe fein, von weitem ruhig.
+- LOD: Handy (oder dauerhaft langsames Gerät) 512er-Textur, Desktop 1024er mit anisotroper Filterung; immer Mipmaps.
+- Netz nicht feiner: 1 cm je Zeile und 15° je Segment weichen auch in der Nahphase unter 2 Bildpunkte von der runden Form
+  ab; ein feineres Netz würde den Stoff-Fall (PBD) verändern, der laut Auftrag bleiben soll. **Offen**, falls gewünscht:
+  nur zum Zeichnen unterteilen (Physik bleibt).
+- Speicher: Stoffbild ≈ 230 KB (vorher ≈ 90 KB), Hose gesamt ≈ 330 KB. Server-Sammlung und Shopify (Datei je Produkt)
+  vertragen das; im Browser-Speicher passen etwa 15 Hosen (danach nur noch auf dem Server).
+- Vorher/Nachher: `docs/vergleich/textur_vorher_nachher.jpg` (Nahansicht vorne/hinten/seitlich, Ausschnitt 1:1),
+  `docs/vergleich/ansichten_vorher.jpg`/`_nachher.jpg` (alle Posen). Nachher sind Nähte, Taschen und Waschung scharf.
+
+### 5. Passform und Größen
+- Je Größe und Zone (Bund, Hüfte, Oberschenkel, Knie) das Spiel Hose − Körper gegen die nötige Bewegungszugabe und das
+  höchste Spiel je Schnitt; Länge: wo der Saum im Stand endet gegen das Ziel des Schnitts. Werte (cm):
+
+  | Zone | nötig ohne Stretch | nötig mit Stretch | höchstens Skinny / Regular / Wide-Leg |
+  |---|---|---|---|
+  | Bund (an den Hüftknochen) | −1 | −3 | 6 / 6 / 7 |
+  | Hüfte | +2 | −4 | 8 / 12 / 24 |
+  | Oberschenkel | +3 | −3 | 9 / 15 / – |
+  | Knie | +4 | −1 | 9 / 18 / – |
+  | Länge (Saum gegen Boden) | Ziel Skinny −2 (−5…+3), Regular +1 (−2…+4), Wide-Leg +3 (−1…+7) | | |
+
+- Entscheidungen: Schnitt aus der Hose selbst (Knie/Hüfte < 0,40 Skinny, < 0,49 Regular, sonst Wide-Leg). Stretch aus
+  Material/Stoffart; ohne Angabe nur bei Skinny angenommen. Ohne Scan und Maßband gelten Körpermaße aus der Größe
+  (Taille 0,46 × Größe, Hüfte 0,535 × Größe; grob, so angezeigt). Ein gespeicherter Scan gilt nur für dieselbe Körpergröße
+  (sonst bekam Fabian Jakobs Maße). Hose ohne Größenangabe mit Maßstab im Foto: Weiten um die gemessene hochgerechnet
+  (W = Bundumfang in Zoll − 1, wie in der Konfektion), die gemessene echt, die anderen „≈ geschätzt“.
+- Größenwechsel im 3D: Bund, Länge und Saum der Größe gehen in die Hose (Test: L ist breiter, Saum 2 cm tiefer als S).
+  Problemzonen einfärben: nicht gemacht (optional; die Begründung nennt die Zone mit Zentimetern).
+
+#### Passform-Rechnung (Testhose, Körper nur aus der Größe)
+Testhose: Flachfotos mit Bankkarte, Länge 109 cm, Bund flach 42 cm (W32 gemessen), Schnitt Wide-Leg, Material unbekannt
+→ ohne Stretch. Umfänge W32: Bund 84, Hüfte 115,5, Oberschenkel 66,8, Knie 61,3; je Weite ±2,54 cm Bund, ±0,79 cm Länge.
+Ausgabe der App: `node werkzeuge/passform-rechnung.mjs`. Von Hand nachgerechnet (Körper-Bundlinie = Taille + ¼ (Hüfte − Taille),
+Bundlinie bis Boden = 0,573 × Größe + 1,5):
+
+| Profil | Körper Bund / Hüfte / Ober. / Knie, Bund→Boden | Hand: Größe, Spiel Bund, Saum | App |
+|---|---|---|---|
+| Jakob 179 | 85,7 / 95,8 / 57,5 / 37,3, 104,1 | W32: 84 − 85,7 = −1,7 < −1 → 1 cm zu eng; W33: +0,7 passt, Hüfte 118,8 − 95,8 = 23,0 ≤ 24 passt, Saum 109,8 − 104,1 = +5,7 passt; W34: Hüfte 26,5 → 3 cm zu weit | **W33**: „Bund passt, Länge passt“ ✓ |
+| Fabian 187 | 89,5 / 100,0 / 60,0 / 39,0, 108,7 | W33: −3,1 → 2 cm zu eng; W34: 89 − 89,5 = −0,5 passt, Hüfte 22,3 passt, Saum 110,6 − 108,7 = +1,9 passt; W35: Hüfte 25,9 → 2 cm zu weit | **W34**: „Bund passt, Länge passt“ ✓ |
+| Philip 170 | 81,4 / 91,0 / 54,6 / 35,5, 98,9 | W30: −2,6 → 2 cm zu eng; W31: 81,4 − 81,4 = 0 passt, Hüfte 20,9 passt, Saum 108,2 − 98,9 = +9,3 > 7 → zu lang, 9,3 − 3 = 6 cm über dem Ziel | **W31**: „Bund passt, Länge 6 cm zu lang“ ✓ |
+
+Alle drei stimmen mit der App überein (auch die Nachbargrößen). Hinweis: Jakob trägt diese Jeans (W32) in den Referenzvideos;
+aus der Größe allein schätzt die App seine Taille auf 82 cm und rät zu W33. Mit Scan oder Maßband wird das genauer.
+
+### Zusammenfassung 15.10.
+**Geändert**
+1. Ausblenden: über 45° Hüftbeugung je Bein, gekippter/liegender Körper (Liegestütz, Hinlegen), schlecht erkannte Hüfte,
+   Sprünge der Punkte und verzerrtes Netz blenden die Hose aus (mit Hysterese, ohne Flackern); bis 45° folgt sie sauber.
+2. Drehung: kein Hängenbleiben und Springen an der Seite mehr, Alpha-Beta-Glättung (weniger Verzögerung, weniger Ruck),
+   vorne/hinten im Referenzclip immer richtig.
+3. Ferse: kein Boden mehr im Stoffbild zwischen den Beinen, Kontaktschatten, Fuß-Verdecker; blickdicht in allen geprüften Lagen.
+4. Modellqualität: Textur 1024 aus dem großen Foto, Relief vorberechnet (schneller am Handy), Mipmaps, Handy 512.
+5. Passform: Urteil je Größe und Zone mit Bewegungszugabe je Schnitt/Stretch, Empfehlung mit Begründung (Karte und
+   Shop-Ansicht), Körper notfalls aus der Größe, Größen auch für gemessene Hosen ohne Größenangabe.
+
+**Tests**: volle Reihe (`npm test`, 40 Tests) einzeln durchlaufen: alle grün bis auf zwei, beide geklärt: `tferse`
+(Fehlalarm, Spalt zwischen sich berührenden Knien schräg von hinten; Test zählt jetzt Ferse und Saum, das untere Viertel)
+und `tlag` (unter Last: Saum-Ausschlag 65 %; allein 80–82 %, grün). Neu/erweitert: `tausblenden`, `tferse`, `tgroessen`
+(Zonen, Länge, Größenwechsel im 3D, Satz in der Shop-Ansicht). Werkzeuge: `drehung.mjs` (+ `drehung-nachrechnen.mjs`),
+`passform-rechnung.mjs`, `ansichten.mjs` mit Nah-Posen, `textur_vergleich.py`.
+
+**Offen**
+- Safari/iPhone und echte Kamera: Drehung, Ausblenden und Textur am Gerät prüfen (hier nur Chromium mit Software-Grafik).
+- Netz nur zum Zeichnen feiner unterteilen (die Physik bleibt), falls die Falten in der Nahphase eckig wirken.
+- Problemzonen im 3D einfärben (optional, nicht gemacht).
+- Schwellen der Passform (Bewegungszugabe, Längenziel) an echten Anproben prüfen; Körper nur aus der Größe ist grob.
+- Größere Hose im Speicher (≈ 330 statt ≈ 190 KB): im Browser passen etwa 15 Hosen, danach nur noch auf dem Server.

@@ -36,9 +36,11 @@ for (let t = 0; t < 400; t++) { await p.waitForTimeout(500); if (await dialoge()
   const m = await p.evaluate(() => document.getElementById("drop-msg").innerText); if (/Fertig/.test(m) && !/berechnet|wird/.test(m)) break; }
 const hose = await p.evaluate(() => { const d = window.__dbg, G = d.GARMENTS[d.g.key]; if (!G) return null;
   return { label: G.label, meas: G.meas, sizes: G.sizes, size: G.size, cut: d.cutOf(G), msg: document.getElementById("drop-msg").innerText,
+    atlasKB: Math.round(G.m3.atlas.length * 3 / 4 / 1024), jsonKB: Math.round(JSON.stringify(G).length / 1024),
     je: (G.sizes || []).map(z => ({ n: z.n, est: !!z.est, ...d.sizeGarment(G, z) })) }; });
 if (!hose || !hose.sizes) { console.log("Hose nicht gebaut oder ohne Größen:", hose && hose.msg, errs.slice(0, 3)); await b.close(); srv.close(); process.exit(1); }
 const r1 = x => x == null ? null : Math.round(x * 10) / 10;
+console.log(`Speicher: Stoffbild ${hose.atlasKB} KB, Hose gesamt ${hose.jsonKB} KB`);
 console.log(`Hose: ${hose.label}, Schnitt ${hose.cut}, gemessen ${hose.sizes[hose.size].n} (Länge ${hose.meas ? hose.meas.len : "?"} cm aus ${hose.meas ? hose.meas.ref : "?"})`);
 console.log("Größe   Bund  Hüfte  Ober.  Knie   Saum  Länge (Umfänge, cm)");
 for (const z of hose.je) console.log(`${(z.est ? "≈" : " ") + z.n.padEnd(6)} ${[z.waist, z.hip, z.thigh, z.knee, z.hem, z.len].map(x => String(r1(x)).padStart(6)).join("")}`);
