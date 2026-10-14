@@ -95,6 +95,8 @@ Diese Datei wird bei jeder Anfrage mitgeladen und ist darum bewusst kurz. Die De
 - **Die Tiefenschätzung von MediaPipe ist unruhig.** Nie allein darauf bauen.
 - **Bodenkamera: Knie über der Hüfte ist normal** (Knie hoch, Hocke). Fehlerkennung erkennt man an Knöcheln über den Knien, nicht
   an Knien über der Hüfte. Bein-Tiefe aus der Verkürzung braucht die gelernte Bein-Länge (`legCm`), nicht nur das andere Bein.
+- **Maßstab nie allein aus der Rumpflänge**: zur Kamera geneigt wirkt er kürzer (Hocke, Bücken: Hose 30–50 % zu klein). Kein
+  Segment ist im Bild länger als in echt → Untergrenze aus Beinen, Rumpf, Schulter-/Hüftbreite (`scaleLim`); Körperhöhe nur gerade und senkrecht.
 - **Bein-Querschnitt tiefer als breit** (Schritt 1,0 → Saum 1,25), weite Hosen hinten gerade vom Gesäß zum Boden. 0,8 war zu flach
   (Referenzvideo, alle drei 3D-Modelle 1,05–1,4). Vergleich gegen die Referenz: `werkzeuge/vergleich.mjs`, Plan: `PROGRESS.md`.
 - **Kamera braucht https.** Der Nutzer zieht einen Ordner mit `index.html` auf app.netlify.com/drop (ohne Konto, jedes Mal neue Adresse).

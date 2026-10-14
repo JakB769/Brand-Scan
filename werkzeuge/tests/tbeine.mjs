@@ -1,7 +1,7 @@
 // Starke Beinbewegungen: Knie hoch (Oberschenkel waagrecht), Ferse zum Gesäß (Knie ganz gebeugt), beides, halb, je von vorn,
 // schräg (0,7) und von der Seite. Geprüft: Drehung der Person wird erkannt (Eichung nach dem Scan), Unterschenkel liegt bei
 // gebeugtem Knie hinter dem Oberschenkel (Knie als Scharnier), an der Leiste sieht man nicht in die Hose (Innenseite rot
-// eingefärbt, Pixel über dem Knie gezählt), der Stoff klappt an Hüfte und Knie nicht um, angehobenes Bein ohne Bodenstapel,
+// eingefärbt, Pixel über dem Knie gezählt), der Stoff klappt an Hüfte und Knie nicht um, angehobenes Bein ohne Bodenstapel (nur leicht gestaucht),
 // keine ungültigen Werte. Bilder nach ausgabe/beine_*.png. Aufruf: node tbeine.mjs [Testseite]
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -54,7 +54,8 @@ for(const [n,m] of lagen) for(const yaw of [0,.7,1.45]){
   if(r.bad||r.gl) ok=false;
   maxRot=Math.max(maxRot,r.rot); maxHip=Math.max(maxHip,r.hip); maxMitte=Math.max(maxMitte,r.mitte); maxKnee=Math.max(maxKnee,r.knee);
   if(m.fersePo&&!m.kneeHigh&&yaw===.7) pruefe(r.shin&&r.shin.vorn<-.25&&r.shin.quer<.45,`Ferse zum Gesäß, schräg: Unterschenkel hinter dem Oberschenkel und in der Ebene des Beins (vorn ${r.shin?r.shin.vorn.toFixed(2):'?'}, quer ${r.shin?r.shin.quer.toFixed(2):'?'})`);
-  if(m.kneeHigh&&!m.fersePo&&yaw===0) pruefe(r.stauch>.97,`Knie hoch: angehobenes Bein hängt frei, ohne Bodenstapel (ungestaucht ${r.stauch.toFixed(2)})`);
+  // Seit 14.10.: die Überlänge staucht sich leicht über dem Knöchel (höchstens auf 80 %, über 30 cm), statt unter den Fuß zu hängen
+  if(m.kneeHigh&&!m.fersePo&&yaw===0) pruefe(r.stauch>.85,`Knie hoch: angehobenes Bein hängt frei, ohne Bodenstapel, nur leicht gestaucht (ungestaucht ${r.stauch.toFixed(2)})`);
 }
 pruefe(ok,'keine ungültigen Werte, keine WebGL-Fehler');
 pruefe(maxRot<.004,`an Leiste und Knie sieht man nicht in die Hose (Innenseite höchstens ${(100*maxRot).toFixed(2)} % der Fläche über dem Knie)`);

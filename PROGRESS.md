@@ -114,6 +114,13 @@ Allgemein vorher: Farbe gelblich-grau und im Stand etwa 14 % zu dunkel (Farbton 
   Tiefenkorrektur als gehoben galt → „Fuß angehoben“ auch im Bild prüfen (`P.boneImg`). Saum jetzt am Knöchel.
 - Rückschritt aus Schleife 2 gefunden (`thosen`): Querschnitt-Verlauf hing an der Stelle am Bein, eine kürzere Hose wurde am
   Saum 4 % breiter → Verlauf an der Stelle in der Hose (`lpG`). Volle Testreihe danach grün.
+- Maßstab (größter Hebel nach dem Abschluss): in Hocke/Bücken/Ausfallschritt war die Hose 30–50 % zu klein (Rumpf zur
+  Kamera geneigt, Körperhöhe im Bild nicht die Größe). Untergrenze aus Segmenten, Körperhöhe nur gerade und senkrecht,
+  Prüfung durch vier unabhängige Prüfer. Umriss über 14 Referenzposen: Überlappung 0,714 → 0,766, Breitenfehler 0,19 → 0,08.
+  Hocke seitlich 0,38 → 0,61 (Unterschenkel jetzt da), Bücken 0,64 → 0,79, Ausfallschritt 0,66 → 0,79, Knie hoch vorn 0,49 → 0,60.
+- Gehobenes Bein: Saum am Knöchel statt 16 cm darunter. Shirt-Saum in der Hocke über der Hüfte (Schritt nicht mehr weggeschnitten).
+- Vergleichswerkzeug: Hosenbau unter Last stabil, Maßstab und Ringlage je Pose. Der Scan lässt sich mit den Referenzclips
+  nicht abschließen (Kopf am Bildrand), die Seite bleibt dort in der Scan-Phase.
 
 ## Abschluss (Stand 14.10. mittags; danach geht der Feinschliff weiter, siehe Log)
 

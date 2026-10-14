@@ -318,3 +318,15 @@ Schleife 2 und Feinschliff (14.10.):
 6. Breite Hocke schräg: Saum hing 5 cm unter dem Knöchel → „Fuß angehoben“ auch im Bild prüfen (`P.boneImg`).
 7. Rückschritt gefunden: Querschnitt-Verlauf hing an der Beinstelle, kürzere Hose wurde am Saum breiter → Stelle in der Hose.
 Vorher/Nachher: `docs/vorher/`, `docs/nachher/`, Übersicht `docs/nachher/vorher-nachher_1–4.jpg`. Bewertung je Pose: `PROGRESS.md`.
+8. Maßstab: in Hocke und Bücken neigt sich der Rumpf zur Kamera, die Rumpflänge im Bild täuscht (Maßstab 30–50 % zu klein,
+   Hose zu klein: Hocke seitlich endete der Saum unter dem Knie, Bücken: Beine wie Strümpfe). Dazu galt im Scan die
+   Körperhöhe im Bild als Größe, auch in der Hocke oder im Ausfallschritt (dort wurden auch Bein-Längen falsch gelernt).
+   Jetzt: Untergrenze aus Segmenten (kein Segment im Bild länger als in echt, 10 % Spielraum), Körperhöhe nur gerade und
+   senkrecht. Unabhängig geprüft (Workflow mit vier Prüfern + Gegenprüfung): eigener Zähler für gelernte Breiten,
+   Unterschenkel nur bei unverkürztem Oberschenkel, weiches Lösen der Grenze, Lernen nur mit echtem Körpergrößen-Maßstab,
+   Scan misst nur mit ihm. Referenz: Überlappung 0,71 → 0,77, Breitenfehler 19 → 8 %, Seitenansicht stehend Breite 0,81 → 1,0.
+9. Gehobenes Bein hing 16 cm unter den Knöchel (keine Stauchung beim freien Hängen) → leicht gestaucht über 30 cm.
+10. Shirt-Erkennung in der Hocke: dunkler Schritt galt als Shirt → Suche endet an der Hüftlinie, wenn die Knie hoch sind.
+Offen: Perspektive der Bodenkamera (Unterschenkel näher an der Kamera, wirken größer als die Hüfte) ist nicht modelliert;
+Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitlich hängt etwas als Sack.
+

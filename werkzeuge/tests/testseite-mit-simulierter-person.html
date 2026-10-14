@@ -750,7 +750,7 @@ function emaBand(k,b){
   const l=oe[k+".l"], r=oe[k+".r"]; if(!l||!r) return null;
   return {l:l.x,r:r.x,w:r.x-l.x,age:performance.now()-(bt[k]?bt[k].t:0),unsure:!!(bt[k]&&bt[k].u)};
 }
-function clearSm(){ g.trk=1; trk.bad=trk.good=0; legCm.th=legCm.sh=legCm.n=0; for(const k in oe) delete oe[k]; for(const k in oj) delete oj[k]; Object.assign(HIPF,{k:1,kScan:null,d:[0,0],raw:null}); for(const k in bt) delete bt[k]; hist.length=0; stableSince=0; badSince=0; nearScale=null; sideSince=0; }
+function clearSm(){ g.trk=1; trk.bad=trk.good=0; legCm.th=legCm.sh=legCm.sw=legCm.hw=legCm.n=legCm.nw=0; scaleLim.v=null; for(const k in oe) delete oe[k]; for(const k in oj) delete oj[k]; Object.assign(HIPF,{k:1,kScan:null,d:[0,0],raw:null}); for(const k in bt) delete bt[k]; hist.length=0; stableSince=0; badSince=0; nearScale=null; sideSince=0; }
 
 /* Ruhe in Zentimetern prüfen, nicht in Prozent der Pixelbreite */
 function stability(hipCm,shCm){
@@ -1194,15 +1194,21 @@ function analyse0(res){
   const full=span>.1&&topN>.008&&botN<.992;
   const shIn=V(11)&&V(12)&&L[11].y>.02&&L[12].y>.02, torsoN=hipY-shY;
   const torsoUp=shIn&&V(23)&&V(24)&&torsoN>.04&&Math.abs((L[11].x+L[12].x-L[23].x-L[24].x)/2*aspect)<.6*torsoN;   // Rumpf eher senkrecht
+  // Beine senkrecht (Knöchel unter der Hüfte): nur dann ist die Körperhöhe im Bild die Größe. Im Ausfallschritt oder breiten
+  // Stand ist sie kleiner: die Hose war dort zu klein und die gelernten Bein-Längen zu lang (Oberschenkel 57 statt 44 cm)
+  const upright=[[23,27],[24,28]].every(([h,a])=>V(h)&&V(a)?L[a].y-L[h].y>.3*span&&Math.abs(L[a].x-L[h].x)*aspect<.3*(L[a].y-L[h].y):phase==="cal");
   const cands=[];
-  if(full&&wasStraight){ cands.push(H/span); scaleSrc="Körpergröße"; }
+  if(full&&wasStraight&&upright){ cands.push(H/span); scaleSrc="Körpergröße"; }
   if(torsoUp){ cands.push((ref&&ref.torso?ref.torso:.29*H)/torsoN); scaleSrc=scaleSrc?scaleSrc+" + Rumpflänge":"Rumpflänge"; }
   if(!cands.length&&ref&&Math.abs(Math.cos(fc.yaw))>.9){          // Breiten nur frontal (seitlich misst man die Körpertiefe)
     if(mode!=="top"){ const t0=torsoSpan(m,hipY,L,0); if(t0&&t0.w>.02) cands.push(ref.hip/(t0.w*aspect)); }
     if(shoulderN>.02&&shIn) cands.push(ref.shoulder/(shoulderN*aspect));
     if(cands.length) scaleSrc="Körperbreite";
   }
-  if(phase==="cal"&&full) cmPerUnit=H/span;                       // erster Scan: immer aus der Körpergröße
+  // erster Scan: aus der Körpergröße, solange man gerade steht (in der Hocke ist die Körperhöhe im Bild nicht die Größe;
+  // vorher war die Hose dort 30–40 % zu klein, wenn man vor dem Ende des Scans in die Hocke ging)
+  const calH=phase==="cal"&&full&&wasStraight&&upright;
+  if(calH) cmPerUnit=H/span;
   else{
     const cand=cands.length?cands.reduce((a,b)=>a+b,0)/cands.length:null;
     // höchstens 70 % Änderung je Sekunde (unabhängig von der Bildrate): die Hose pumpt nicht, folgt aber beim Näherkommen
@@ -1210,7 +1216,30 @@ function analyse0(res){
     if(cand) nearScale=nearScale?nearScale*clamp(cand/nearScale,1/kS,kS):cand;
     cmPerUnit=nearScale;
   }
-  if(phase==="cal"&&full) nearScale=cmPerUnit;
+  if(calH) nearScale=cmPerUnit;
+  // Untergrenze aus den Körpersegmenten: im Bild ist ein Segment nie länger als in echt (zur Kamera geneigt wird es nur kürzer).
+  // Der Rumpf allein täuscht, wenn er sich zur Kamera neigt (Hocke, Bücken): der Maßstab war dort 30–40 % zu klein, die Hose
+  // auch (Bund zu tief, Saum endete seitlich unter dem Knie). Bezug: gelernte Bein-Längen, sonst Durchschnitt aus der Größe,
+  // 10 % Spielraum für Rauschen der Gelenke und Perspektive; leicht geglättet (0,12 s), damit die Hose nicht pumpt.
+  if(cmPerUnit&&!calH){
+    const inF=i=>V(i)&&L[i].y>0&&L[i].y<.98&&L[i].x>0&&L[i].x<1, len=(ax,ay,bx,by)=>Math.hypot((bx-ax)*aspect,by-ay);
+    const rO=PASSFORM.massRand, rU=PASSFORM.massRandUnten, seg=(a,b,cm,r=rO)=>inF(a)&&inF(b)?r*cm/Math.max(1e-4,len(L[a].x,L[a].y,L[b].x,L[b].y)):Infinity;
+    const thC=legCm.n>=5?legCm.th:.245*H, shC=legCm.n>=5?legCm.sh:.245*H, toC=ref&&ref.torso?ref.torso:.29*H;
+    // Breiten (Abstand der Schulter- und der Hüftpunkte) werden beim Drehen nur schmaler: beim Bücken von hinten ist der Rumpf
+    // verkürzt, die Beine gebeugt, nur die Breiten zeigen den Maßstab (vorher halb so groß wie richtig, Beine wie Strümpfe)
+    const swC=legCm.nw>=5?legCm.sw:.23*H, hwC=legCm.nw>=5?legCm.hw:.14*H;
+    // Unterschenkel nur, wenn der Oberschenkel derselben Seite nicht verkürzt ist: sonst steht das Knie vor der Hüfte (Knie hoch,
+    // Hocke, Sitzen), der Unterschenkel ist näher an der Kamera und wirkt größer, der Bund würde zu breit
+    const shinB=(h,k,a)=>inF(h)&&inF(k)&&inF(a)&&len(L[h].x,L[h].y,L[k].x,L[k].y)>=.8*(thC/shC)*len(L[k].x,L[k].y,L[a].x,L[a].y)?seg(k,a,shC,rU):Infinity;
+    let lim=Math.min(seg(23,25,thC),seg(24,26,thC),shinB(23,25,27),shinB(24,26,28),seg(11,12,swC),seg(23,24,hwC));
+    if(inF(11)&&inF(12)&&inF(23)&&inF(24)) lim=Math.min(lim,rO*toC/Math.max(1e-4,len((L[11].x+L[12].x)/2,(L[11].y+L[12].y)/2,(L[23].x+L[24].x)/2,(L[23].y+L[24].y)/2)));
+    const tNow=performance.now();
+    const dtL=Math.min(.5,(tNow-scaleLim.t)/1000);
+    if(isFinite(lim)){ const a=scaleLim.v==null?1:1-Math.exp(-dtL/(lim<scaleLim.v?.12:.3)); scaleLim.v=scaleLim.v==null?lim:scaleLim.v+(lim-scaleLim.v)*a; }
+    else if(scaleLim.v!=null){ scaleLim.v*=Math.exp(dtL/.4); if(scaleLim.v>2*cmPerUnit) scaleLim.v=null; }   // keine Grenze sichtbar: weich lösen
+    scaleLim.t=tNow;
+    if(scaleLim.v!=null&&cmPerUnit>scaleLim.v){ cmPerUnit=scaleLim.v; scaleSrc=(scaleSrc?scaleSrc+", ":"")+"Bein-/Rumpflänge"; }
+  }
   scaleT=performance.now();
   // Gerade ganz ins Bild gekommen: Breiten neu ansetzen statt langsam vom alten (nahen) Bild herüberzugleiten
   if(phase==="cal"&&full&&!wasFull){ for(const k of Object.keys(oe)) if(/^(hip|waist|knee\d|thigh\d)\./.test(k)) delete oe[k]; hist.length=0; }
@@ -1272,6 +1301,7 @@ function analyse0(res){
   else if(phase==="cal"){
     if(!full){ setStatus("Für die Maße einmal ganz ins Bild","warn"); big="Geh einen Schritt zurück"; small="Ganz ins Bild, von Kopf bis Fuß"; voice=big; }
     else if(!legsOk){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
+    else if(!upright){ setStatus("Beine nicht senkrecht","warn"); big="Stell dich gerade hin"; voice=big; }
     else if(vis<.5){ setStatus("Hüfte schlecht sichtbar","warn"); big="Bleib kurz so"; }
     else if(drift==null||drift>STABLE_CM){ setStatus(drift==null?"Messe …":`In Bewegung, ${drift.toFixed(1)} cm`,"warn"); }
     else ok=true;
@@ -1288,7 +1318,7 @@ function analyse0(res){
   if(counting){
     if(!stableSince) stableSince=nowT;
     setStatus("Scan …","ok");
-    if(nowT-stableSince>=HOLD_MS&&ok) captureCal();
+    if(nowT-stableSince>=HOLD_MS&&ok&&calH) captureCal();
     else coach("","",null);
   }else{
     stableSince=0;
@@ -1317,7 +1347,12 @@ function analyse0(res){
   // Länge von Ober- und Unterschenkel lernen (cm): ganz im Bild, frontal, gerade stehend (Maßstab aus der Körpergröße). Danach
   // Bezug für die Tiefe der Beine: beim Ausfallschritt ist der hintere Oberschenkel (36° nach hinten) im Bild nur 19 % kürzer,
   // das reicht gegen die grobe Länge aus der Größe nicht (vorher: Oberschenkel gerade nach unten)
-  if(full&&bothStraight&&torsoUp&&!isSide) for(const [h,k,a] of legIx) if(seen(h)&&seen(k)&&seen(a)){
+  // nur mit dem Maßstab aus der Körpergröße (nicht aus der Untergrenze, sonst lernt sie sich selbst)
+  const lernOk=full&&bothStraight&&torsoUp&&!isSide&&upright&&Math.abs(cmPerUnit*span/H-1)<.03;
+  if(lernOk&&Math.abs(Math.cos(fc.yaw))>.9&&seen(11)&&seen(12)&&seen(23)&&seen(24)){   // dazu Schulter- und Hüftbreite (Punktabstand, cm)
+    const sw=Math.abs(L[11].x-L[12].x)*aspect*cmPerUnit, hw=Math.abs(L[23].x-L[24].x)*aspect*cmPerUnit, w=legCm.nw<10?1/(legCm.nw+1):.05;
+    if(sw>.15*H&&sw<.3*H&&hw>.08*H&&hw<.2*H){ legCm.sw+=(sw-legCm.sw)*w; legCm.hw+=(hw-legCm.hw)*w; legCm.nw++; } }
+  if(lernOk) for(const [h,k,a] of legIx) if(seen(h)&&seen(k)&&seen(a)){
     const th=Math.hypot((L[k].x-L[h].x)*aspect,L[k].y-L[h].y)*cmPerUnit, sh=Math.hypot((L[a].x-L[k].x)*aspect,L[a].y-L[k].y)*cmPerUnit;
     if(th>.18*H&&th<.32*H&&sh>.18*H&&sh<.32*H){ const w=legCm.n<10?1/(legCm.n+1):.05; legCm.th+=(th-legCm.th)*w; legCm.sh+=(sh-legCm.sh)*w; legCm.n++; } }
   const segRef=j=>legCm.n>=5?.97*(j===1?legCm.th:legCm.sh)*pxPerCm:.9*.245*H*pxPerCm;
@@ -1594,7 +1629,11 @@ function shirtHem(L,V){
         // Jeans (Referenz, Abstand 31) galt bei fester Schwelle 45 nicht als Oberteil, der Bund lag über dem Shirt
         let nz=0; if(S){ const a=[]; for(let r=row(shY+.42*T);r<=row(shY+.6*T);r++) for(const c of all){ const i=(r*N+c)*4; a.push(Math.abs(.3*(d[i]-S[0])+.59*(d[i+1]-S[1])+.11*(d[i+2]-S[2]))); } nz=med(a); }
         if(S&&P&&Math.hypot(S[0]-P[0],S[1]-P[1],S[2]-P[2])>Math.max(20,3*nz)){
-          const r0=row(shY+.6*T), r1=row(hipY+.42*T), ys=new Array(N).fill(null);
+          // Oberschenkel zur Kamera (Hocke, halbe Hocke: auch das tiefere Knie auf Hüfthöhe): unter der Hüftlinie liegt dann der
+          // Schritt im Schatten, dunkel wie das Oberteil; der Saum lag dort 8–9 cm unter der Hüfte und schnitt die Hose im Schritt
+          // weg. Dann endet die Suche an der Hüftlinie (stehendes Bein: bis 0,42 Rumpf darunter wie bisher).
+          const kv=[25,26].filter(i=>V(i)).map(i=>L[i].y), kn=kv.length?Math.max(...kv):hipY+T, tief=.42*clamp((kn-hipY)/T/.45-.35,0,1);
+          const r0=row(shY+.6*T), r1=row(hipY+tief*T), ys=new Array(N).fill(null);
           // Je Spalte der stärkste Sprung von Oberteil- zu Hosenfarbe (Lage zwischen beiden auf der Achse S→P, 0 = Shirt, 1 = Hose):
           // der Saum ist eine Kante, auch wenn die Jeans direkt darunter heller gewaschen ist (vorher: erste Zeile, die nach Hose
           // aussah, bei heller Jeans unter grauem Shirt 2–4 cm zu tief). Darüber muss überwiegend Oberteil sein.
@@ -1764,6 +1803,8 @@ const icOf=M=>{ const k=M.rock?-1:M.v.findIndex(v=>v>=M.vc); return k<0?M.nr:k; 
 /* ---------- Sitz und Form der 3D-Hose: alle Stellschrauben an einem Ort ----------
    Längen in cm, Anteile als Bruchteil. Wirkung jeweils dahinter. */
 const PASSFORM={
+  massRand:1.1,          // Maßstab-Untergrenze: Oberschenkel, Rumpf, Schulter-/Hüftbreite erscheinen im Bild höchstens so viel länger als echt
+  massRandUnten:1.1,     // dasselbe für den Unterschenkel (Kamera am Boden: näher an der Kamera, wirkt größer als die Hüfte)
   sitzCm:-.5,            // Bundoberkante relativ zur Bundlinie am Körper (15 % des Rumpfs über dem Hüftgelenk); negativ = tiefer.
   rockSitzCm:9,          // Röcke sitzen meist in der Taille: so viel höher als Hosen (Zalando-Rock: Model-Fotos)
                          // Vorher fest +1,6 cm (1,5 % der Hosenlänge über der Linie): die Hose saß zu hoch.
@@ -2109,6 +2150,10 @@ function pose3d(M,P){
   const dOf=bn=>bn.map(c=>v3.dot(v3.sub(c[2],c[0]),dn)), down=dOf(P.bone), downI=P.boneImg?dOf(P.boneImg):down;
   const dMax=Math.max(down[0],down[1]), dMaxI=Math.max(downI[0],downI[1]), boden=down.map((d,s)=>1-sstep(4*ppc,12*ppc,Math.min(dMax-d,dMaxI-downI[s])));
   const haengt=P.bone.map((c,s)=>(1-boden[s])*sstep(.3,.8,v3.dot(v3.norm(v3.sub(c[2],c[1])),dn)));
+  // Hüfte gebeugt (Knie hoch, Hocke, Spagat): der Stoff liegt straff über dem Gesäß, die gerade Rückenlinie weiter Hosen
+  // (Gesäßfall bis zum Saum) entfällt; sonst hing sie unter dem gehobenen Oberschenkel als Ballon nach unten. Oberschenkel
+  // nach hinten (Ausfallschritt, hinteres Bein) behält sie.
+  const beuge=P.bone.map(c=>{ const t=v3.norm(v3.sub(c[1],c[0])); return sstep(.35,.9,1-v3.dot(t,dn))*(1-sstep(.2,.5,-v3.dot(t,fw))); });
   const delta=5*ppc;
   const kH=P.kHem||1, legK=i=>1+(kH-1)*clamp((M.v[i]-M.vc)/(1-M.vc),0,1);
   const Rc=M.hw[Math.min(ic,NR-1)]*S/Math.PI;          // Radius des Hosenbeins direkt unter dem Schritt
@@ -2129,9 +2174,12 @@ function pose3d(M,P){
     const cl=v3.len(v3.sub(ch[1],ch[0]))+v3.len(v3.sub(ch[2],ch[1]));
     // Zu lange Hose: was über den Schuh hinausreicht (ex), wird gleichmäßig auf die untersten 10 cm verteilt (Faktor cS).
     // Jede Zeile bleibt mindestens 0,3 cm unter der vorigen; die Falten dazu entstehen unten aus der Stauchung.
-    const dEnd=v3.dot(v3.sub(cr,ch[0]),dn)+(1-M.vc)*SV, dStop=cl+5*ppc, hS=(P.stackCm||16)*ppc, ex=dEnd-dStop, z0=dStop-hS;
-    // Fuß angehoben und Unterschenkel nach unten (haengt): das Hosenbein hängt frei, statt sich zu stauchen
-    const cS0=ex>0&&!P.noStack?Math.min(1,Math.max(hS/(hS+ex),.3*ppc/(SV*dvMin))):1, cS=cS0+(1-cS0)*haengt[s];
+    // Fuß angehoben und Unterschenkel nach unten (haengt): kein Stapel am Schuh, aber auch nicht weit unter den Fuß (Referenz
+    // Knie hoch: vorher hing das Hosenbein 16 cm unter den Knöchel). Die Überlänge wird über die untersten 30 cm verteilt und
+    // höchstens auf 80 % gestaucht: leichte Falten über dem Knöchel. Stärker oder auf 16 cm gestaucht klappte der Stoff hinten
+    // um; das ganze Bein gleichmäßig gekürzt schob Zeilen in die Kniekehle.
+    const dEnd=v3.dot(v3.sub(cr,ch[0]),dn)+(1-M.vc)*SV, dStop=cl+5*ppc, hS=(P.stackCm||16+14*haengt[s])*ppc, ex=dEnd-dStop, z0=dStop-hS;
+    const cS0=ex>0&&!P.noStack?Math.min(1,Math.max(hS/(hS+ex),.3*ppc/(SV*dvMin))):1, cS=cS0+(Math.max(cS0,.8)-cS0)*haengt[s];
     // Stoff fällt außen gerade von der Hüfte: das Hosenbein liegt nicht mittig um den Knochen, sondern so weit außen,
     // dass seine Außenkante unter dem Schritt dort weiterläuft, wo die Hüfte endet. Sonst entsteht eine Beule an der Hüfte.
     const dC=v3.dot(v3.sub(cr,ch[0]),dn), bC=walk3(ch,Math.max(0,dC));
@@ -2178,7 +2226,7 @@ function pose3d(M,P){
         if(below&&!rock){ const loose=clamp((2*hwPx/ppc-.31*(P.heightCm||175))/18,0,1), FC=PASSFORM.gesaessFallCm*(.8+.2*loose);
           const legCm=(1-M.vc)*SV/ppc, weit=sstep(.4,1,loose), cLf=v3.dot(v3.sub(cL,cr),fw);
           const kF=(1-weit)*(1-sstep(0,FC,sCm))+weit*clamp(1-sCm/Math.max(FC,.92*legCm),0,1);
-          exB=kF*Math.max(0,.78*bB-(Rz-cLf)); }
+          exB=kF*Math.max(0,.78*bB-(Rz-cLf))*(1-.85*beuge[s]); }
         // Steht das Bein, bleibt oben die Beckenform. Hebt oder spreizt es sich, zieht es den Stoff mit.
         const stand=v3.add(v3.add(ch[0],v3.mul(dn,d)),v3.mul(r,sg*offR));
         wdev=sstep(.15,1,v3.len(v3.sub(cL,stand))/Rc);
@@ -3008,7 +3056,7 @@ const tro={x:0,y:-1,t:0,seen:0,flip:0};
    Rumpf im Bild kürzer als 45 % der Schulterbreite und beide Beine Hüfte→Knöchel kürzer als 80 % davon) oder Hüfte und Knie
    kaum sichtbar. Ausblenden erst nach 120 ms (kein Flackern), in 0,25 s; wieder einblenden nach 0,3 s sicherer Erkennung, in
    0,4 s. g.trk (0–1) geht in die Deckkraft der Hose ein. Bücken von hinten (Rumpf kurz, Beine lang) bleibt sichtbar. */
-const trk={t:0,bad:0,good:0}, legCm={th:0,sh:0,n:0};
+const trk={t:0,bad:0,good:0}, legCm={th:0,sh:0,sw:0,hw:0,n:0,nw:0}, scaleLim={v:null,t:0};
 function trackSure(L,V,asp){
   const now=performance.now(), dt=clamp((now-(trk.t||now))/1000,0,.2); trk.t=now;
   const vis=i=>L[i].visibility??1, len=(a,b)=>Math.hypot((L[a].x-L[b].x)*asp,L[a].y-L[b].y);
