@@ -3,6 +3,7 @@
    Ruheform von vorne/seitlich/hinten/schräg (werkzeuge/python/render_glb.py). Ergebnis: <aus>/ansichten.jpg (Übersicht),
    <aus>/pose_*.png, <aus>/hose.glb, <aus>/render_*.png.
      node werkzeuge/ansichten.mjs [--aus docs/nachher/ansichten] [--stand <git-rev>] [--hose vorne.jpg,hinten.jpg] [--groesse 179]
+                                  [--bund 39.6]   (Bundweite flach in cm, wenn keine Karte im Bild ist: Einzel-Formular)
    --stand: Seite aus einem älteren Commit bauen (app/index.html und baue-testseite.mjs von dort, Attrappe von jetzt), z. B. für
    docs/vorher. Hose standardmäßig die Flachlage der Referenz-Jeans (assets/referenz/fotos/flach-vorne-hinten/). */
 import { chromium } from "playwright";
@@ -13,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + "/";
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i < 0 ? d : process.argv[i + 1]; };
-const OUT = path.resolve(R, arg("aus", "docs/nachher/ansichten")) + "/", STAND = arg("stand", null), GROESSE = String(arg("groesse", "179"));
+const OUT = path.resolve(R, arg("aus", "docs/nachher/ansichten")) + "/", STAND = arg("stand", null), GROESSE = String(arg("groesse", "179")), BUND = arg("bund", null);
 const [VORNE, HINTEN] = String(arg("hose", "assets/referenz/fotos/flach-vorne-hinten/vorne.jpg,assets/referenz/fotos/flach-vorne-hinten/hinten.jpg")).split(",").map(f => path.resolve(R, f));
 fs.mkdirSync(OUT, { recursive: true });
 const TMP = fs.mkdtempSync("/tmp/ansichten-");
@@ -34,9 +35,13 @@ const ctx = await b.newContext({ permissions: ["camera"], viewport: { width: 110
 const p = await ctx.newPage(); const errs = []; p.on("pageerror", e => errs.push(e.message));
 await p.goto("file://" + seite); await p.waitForTimeout(500);
 await p.fill("#height", GROESSE).catch(() => {});
-await p.setInputFiles("#slot-vorne input", VORNE); await p.waitForTimeout(400); await p.setInputFiles("#slot-hinten input", HINTEN);
 let meldung = "";
-for (let t = 0; t < 300; t++) { await p.waitForTimeout(500);
+if (BUND) {   // ohne Maßstab im Bild: Einzel-Formular mit Bundweite (flach, cm)
+  await p.setInputFiles("#own-front", VORNE); await p.setInputFiles("#own-back", HINTEN); await p.fill("#own-waist", String(BUND)); await p.click("#own-go");
+  await p.waitForFunction(() => /Fertig|keine realistische|fehlt/.test(document.getElementById("own-msg").textContent), null, { timeout: 90000 });
+  meldung = await p.evaluate(() => document.getElementById("own-msg").textContent);
+} else { await p.setInputFiles("#slot-vorne input", VORNE); await p.waitForTimeout(400); await p.setInputFiles("#slot-hinten input", HINTEN); }
+for (let t = 0; t < (BUND ? 0 : 300); t++) { await p.waitForTimeout(500);
   const dlg = await p.evaluate(() => ["refDlg", "segDlg"].filter(i => { const d = document.getElementById(i); return d && !d.hidden; }).join(","));
   if (/refDlg/.test(dlg)) { await p.click("#refOk").catch(() => {}); continue; }
   if (/segDlg/.test(dlg)) { await p.click("#segOk").catch(() => {}); continue; }
@@ -71,7 +76,7 @@ const sheet = await p.evaluate(async liste => {
   ims.forEach((im, k) => { const t = document.createElement("canvas"); t.width = im.width; t.height = im.height; const tx = t.getContext("2d"); tx.drawImage(im, 0, 0);
     const d = tx.getImageData(0, 0, im.width, im.height).data, bg = [d[0], d[1], d[2]]; let x0 = im.width, y0 = im.height, x1 = 0, y1 = 0;
     for (let y = 0; y < im.height; y += 2) for (let xx = 0; xx < im.width; xx += 2) { const i = (y * im.width + xx) * 4;
-      if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 60 && Math.abs(d[i] - d[i + 2]) > 12) { x0 = Math.min(x0, xx); x1 = Math.max(x1, xx); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }
+      if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 60 && Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]) > 14) { x0 = Math.min(x0, xx); x1 = Math.max(x1, xx); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }
     if (x1 <= x0) { x0 = 0; y0 = 0; x1 = im.width; y1 = im.height; }
     const s = Math.max(x1 - x0, y1 - y0) * 1.08 + 10, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, X = (k % cols) * w, Y = Math.floor(k / cols) * (h + 26);
     x.fillStyle = "#b9b9b9"; x.fillRect(X, Y + 26, w, h); x.drawImage(im, cx - s / 2, cy - s / 2, s, s, X, Y + 26, w, h);

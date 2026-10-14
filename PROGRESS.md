@@ -87,4 +87,9 @@ Allgemein vorher: Farbe gelblich-grau und im Stand etwa 14 % zu dunkel (Farbton 
   68 % `drawImage`); nicht übertragbar. Reine Formzeit `pose3d` mit der Attrappe: alt 10,8 ms, neu 11,4 ms je Bild (Median,
   ohne Drosselung) → keine Verschlechterung durch diese Sitzung. Echte Handys: muss der Nutzer prüfen.
 - Lange Hängefalten am Unterschenkel weiter Hosen (`laengsFaltenCm` 0,7).
+- Zweite und dritte Hose (Allgemeinheit): Slim-Jeans `blue-jeans` und grüne Cargo `camo-pants` aus den 3D-Modellen
+  orthografisch als Händlerfotos gerendert (`werkzeuge/python/flachbilder.py`), in der App gebaut (sichtbare Bundbreite
+  29,4 bzw. 35 cm: getragene Form, nicht flach; mit flacher Bundweite lehnt die App sie zu Recht ab, Länge 139 cm).
+  Ergebnis `docs/nachher/zweite-hose/<name>/`: alle 12 Attrappen-Posen stimmig (schmaler Schnitt bleibt schmal, Hocke,
+  Knie hoch, Ausfallschritt, Spagat), Blender-Renders der exportierten .glb.
 
