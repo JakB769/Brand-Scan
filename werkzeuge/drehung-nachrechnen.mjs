@@ -16,10 +16,10 @@ const log = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const src = fs.readFileSync(path.resolve(R, arg("datei", "app/index.html")), "utf8");
 const fn = name => { const i = src.indexOf("function " + name + "("); if (i < 0) throw new Error(name + " fehlt");
   let k = src.indexOf("{", i), t = 0; for (let j = k; j < src.length; j++) { if (src[j] === "{") t++; else if (src[j] === "}" && --t === 0) return src.slice(i, j + 1); } };
-const helfer = ["const clamp=", "const sstep=", "const wrapA="].map(h => { const i = src.indexOf(h); return src.slice(i, src.indexOf("\n", i)); }).join("\n");
+const helfer = ["const clamp=", "const sstep=", "const wrapA=", "const YAW_TAU="].map(h => { const i = src.indexOf(h); return i < 0 ? "" : src.slice(i, src.indexOf("\n", i)); }).join("\n");
 const ctx = { Math, Number, console, performance: { now: () => ctx.__t } };
 vm.createContext(ctx);
-vm.runInContext(helfer.replace(/^const /gm, "var ") + "\nvar fc=" + JSON.stringify(log[0].fc0) + ";\n" + fn("bodyYaw") + "\nthis.bodyYaw=bodyYaw;", ctx);
+vm.runInContext(helfer.replace(/^const /gm, "var ") + "\nvar fc=" + JSON.stringify({ w: 0, ...log[0].fc0 }) + ";\n" + fn("bodyYaw") + "\nthis.bodyYaw=bodyYaw;", ctx);
 
 // je Bild (33,3 ms) der Wert nach der letzten Erkennung des Bildes
 const fr = new Map();
@@ -42,6 +42,15 @@ const mErr = a => a.reduce((s, k) => s + err[k], 0) / Math.max(1, a.length) * 18
 const falsch = imDreh.filter(k => err[k] > Math.PI / 3).length;
 // Verzögerung: Verschiebung der Sollkurve mit der kleinsten Abweichung während der Drehung
 let best = [1e9, 0]; for (let lag = 0; lag <= .6; lag += 1 / 30) { const e = imDreh.reduce((s, k) => s + Math.abs(wr(Y[k] - dir * soll(T[k] - lag))), 0); if (e < best[0]) best = [e, lag]; }
+// Verzögerung gegen die Rohschätzung (ungeglättet, Ruhezone eingerechnet) und Ruck (mittlere Änderung des Schritts je Bild)
+const M = ks.map(k => fr.get(k).roh);
+const eL = lag => { let e = 0, n = 0; for (const k of imDreh) if (k - lag >= 0 && M[k - lag] != null) { e += wr(Y[k] - M[k - lag]) ** 2; n++; } return n ? e / n : 1e9; };
+let bestR = [1e9, 0]; for (let lag = 0; lag <= 12; lag++) { const e = eL(lag); if (e < bestR[0]) bestR = [e, lag]; }
+{ const l = bestR[1]; if (l > 0 && l < 12) { const a = eL(l - 1), b = eL(l), c = eL(l + 1), q = a - 2 * b + c; if (q > 0) bestR[1] = l + .5 * (a - c) / q; } }   // zwischen den Bildern
+const ruck = imDreh.slice(2).reduce((t, k) => t + Math.abs(wr(Y[k] - Y[k - 1]) - wr(Y[k - 1] - Y[k - 2])), 0) / Math.max(1, imDreh.length - 2);
+const ueber = Math.max(0, ...ruhig.map(k => Math.abs(Y[k]))) * 180 / Math.PI;   // nach der Drehung von vorn: Überschwingen
+console.log(`Überschwingen danach ${ueber.toFixed(1)}°`);
+console.log(`Verzögerung zur Rohschätzung ≈ ${(bestR[1] * 1000 / 30).toFixed(0)} ms | Ruck ${(ruck * 1000).toFixed(1)} mrad/Bild²`);
 console.log(`Bilder ${Y.length} | größter Schritt ${Math.max(...d.map(Math.abs)).toFixed(2)} rad | Schritte >0,15: ${d.filter(x => Math.abs(x) > .15).length} | Richtungswechsel: ${umk}`);
 console.log(`Abweichung Soll: Drehung ${mErr(imDreh).toFixed(0)}° (über 60° falsch: ${falsch} Bilder), vorn danach ${mErr(ruhig).toFixed(0)}° | Verzögerung ≈ ${(best[1] * 1000).toFixed(0)} ms`);
 const out = arg("png");

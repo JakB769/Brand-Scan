@@ -1244,8 +1244,12 @@ function analyse0(res){
     if(inF(11)&&inF(12)&&inF(23)&&inF(24)) lim=Math.min(lim,rO*toC/Math.max(1e-4,len((L[11].x+L[12].x)/2,(L[11].y+L[12].y)/2,(L[23].x+L[24].x)/2,(L[23].y+L[24].y)/2)));
     const tNow=performance.now();
     const dtL=Math.min(.5,(tNow-scaleLim.t)/1000);
-    if(isFinite(lim)){ const a=scaleLim.v==null?1:1-Math.exp(-dtL/(lim<scaleLim.v?.12:.3)); scaleLim.v=scaleLim.v==null?lim:scaleLim.v+(lim-scaleLim.v)*a; }
-    else if(scaleLim.v!=null){ scaleLim.v*=Math.exp(dtL/.4); if(scaleLim.v>2*cmPerUnit) scaleLim.v=null; }   // keine Grenze sichtbar: weich lösen
+    // Kommt die Grenze wieder (Punkte wieder sicher), beginnt sie beim jetzigen Maßstab statt sofort zu greifen; fällt sie weg,
+    // löst sie sich in etwa 1 s. Vorher sprang die Hose beim Drehen um sich selbst: +20 % in einem Bild beim Wiederkommen,
+    // −9 % je Bild beim Lösen (Referenzclip drehung-360, Maßstab je Bild)
+    if(isFinite(lim)){ if(scaleLim.v==null) scaleLim.v=Math.max(lim,cmPerUnit);
+      scaleLim.v+=(lim-scaleLim.v)*(1-Math.exp(-dtL/(lim<scaleLim.v?.12:.3))); }
+    else if(scaleLim.v!=null){ scaleLim.v*=Math.exp(dtL/1); if(scaleLim.v>2*cmPerUnit) scaleLim.v=null; }   // keine Grenze sichtbar: weich lösen
     scaleLim.t=tNow;
     if(scaleLim.v!=null&&cmPerUnit>scaleLim.v){ cmPerUnit=scaleLim.v; scaleSrc=(scaleSrc?scaleSrc+", ":"")+"Bein-/Rumpflänge"; }
   }
@@ -3083,7 +3087,8 @@ function view3dFrame(now){
 /* ---------- Blickrichtung: wohin zeigt die Vorderseite der Person? ---------- */
 /* Betrag der Drehung aus der sichtbaren Schulter- und Hüftbreite, die Richtung aus Füßen, Nase und Tiefe.
    So hängt nichts allein an der unruhigen Tiefenschätzung. */
-const fc={yaw:0,ks:.74,kh:.36,as:0,ah:0,cal:false,half:0,sgn:1,pend:0,t:0};
+const fc={yaw:0,w:0,ks:.74,kh:.36,as:0,ah:0,cal:false,half:0,sgn:1,pend:0,t:0};
+const YAW_TAU=.12, YAW_BETA=1, YAW_REIB=1;   // Drehung: Glättung (s), Anteil Geschwindigkeit, Abklingen der Geschwindigkeit (s)
 const wrapA=a=>{ while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a; };
 /* Neigung des Rumpfs in der Bildebene aus der Richtung Hüfte → Schultern (Bildpunkte). Geglättet als Richtung (kein Sprung
    bei ±180°), unter 7° gilt aufrecht (die Hose wackelt im Stehen nicht), ohne Schultern im Bild langsam zurück zu aufrecht. */
@@ -3176,8 +3181,12 @@ function bodyYaw(L,V,vw,vh,ppc){
     // Breite als Länge der Schulter- bzw. Hüftlinie (mit Vorzeichen von x): Arm oder Bein gehoben kippt die Linie (Schulter
     // hochgezogen, Hüftpunkt des gehobenen Beins wandert nach oben), die waagrechte Breite allein galt dann als Drehung
     // (Referenz knie-hoch-vorne: frontal, aber 0,77 rad)
-    const wl=(a,b)=>{ const dx=X(a)-X(b), dy=Y(a)-Y(b); return Math.sign(dx||1)*Math.hypot(dx,dy*sstep(.15,.45,Math.abs(dy/(Math.abs(dx)+1)))); };
-    const rs=wl(11,12)/torso, rh=wl(23,24)/torso;
+    // Nur solange die Linie waagrecht noch breit ist (über 25–55 % der Breite von vorn): seitlich stehend ist dx fast null und der
+    // Höhenunterschied der beiden Punkte (Perspektive von unten, Haltung) blieb als Breite stehen. Die Drehung blieb dann bei
+    // etwa 67° hängen und sprang beim Kreuzen der Punkte auf 107° (Referenzclip drehung-360: die Hose hüpfte an der Seite)
+    const wl=(a,b,k)=>{ const dx=X(a)-X(b), dy=Y(a)-Y(b), q=Math.abs(dx)/torso/k;
+      return Math.sign(dx||1)*Math.hypot(dx,dy*sstep(.15,.45,Math.abs(dy/(Math.abs(dx)+1)))*sstep(.25,.55,q)); };
+    const rs=wl(11,12,fc.ks)/torso, rh=wl(23,24,fc.kh)/torso;
     if(!fc.as){ fc.as=Math.abs(rs); fc.ah=Math.abs(rh); }
     fc.as+=(Math.abs(rs)-fc.as)*.15; fc.ah+=(Math.abs(rh)-fc.ah)*.15;
     // Nach dem Scan: breiter als „von vorn“ geht nicht. Kam der Scan, bevor die Glättung eingeschwungen war (langsame Geräte:
@@ -3208,11 +3217,15 @@ function bodyYaw(L,V,vw,vh,ppc){
   // Ruhezone: steht jemand fast frontal oder fast mit dem Rücken, bleibt die Hose gerade
   const am=Math.abs(m);
   if(am<Math.PI/2) m*=sstep(.22,.62,am); else m=Math.sign(m||1)*(Math.PI-(Math.PI-am)*sstep(.22,.62,Math.PI-am));
-  let d=wrapA(m-fc.yaw);
+  // Drehung mit Lage und Geschwindigkeit verfolgen (Alpha-Beta-Filter): dreht man sich gleichmäßig, läuft die Hose ohne den
+  // Nachlauf des reinen Glättens mit; ein einzelner Ausreißer der Messung wird über einige Bilder verteilt statt als Ruck
+  // übernommen. Die Geschwindigkeit klingt ab (0,5 s), damit die Hose beim Anhalten nicht weiterdreht.
+  const pred=wrapA(fc.yaw+fc.w*dt); let d=wrapA(m-pred);
   // Ein Sprung um fast eine halbe Drehung ist meist eine Verwechslung von links und rechts: erst glauben, wenn er anhält
   if(Math.abs(d)>2.2){ if(!fc.pend) fc.pend=now; if(now-fc.pend<350) d=0; } else fc.pend=0;
-  const step=clamp(d*(1-Math.exp(-dt/.09)),-8*dt,8*dt);
-  fc.yaw=wrapA(fc.yaw+step);
+  const al=1-Math.exp(-dt/YAW_TAU), be=YAW_BETA*al*al;
+  fc.w=clamp((fc.w+be*d/Math.max(dt,1e-3))*Math.exp(-dt/YAW_REIB),-7,7);
+  fc.yaw=wrapA(pred+clamp(al*d,-8*dt,8*dt));
   return fc.yaw;
 }
 
@@ -5037,7 +5050,7 @@ function captureCal(){
     const k=(yA-HIPF.raw.sy)/((HIPF.raw.hy-HIPF.raw.sy)||1); if(k>.8&&k<1.2) HIPF.kScan=clamp(k,.85,1.15); }
   caps.cal={...live};
   // Frontal bestätigt: diese Breiten gelten ab jetzt als „von vorn“
-  if(fc.as>.4){ fc.ks=clamp(fc.as,.6,.9); fc.kh=clamp(fc.ah,.26,.48); fc.cal=true; fc.yaw=0; }
+  if(fc.as>.4){ fc.ks=clamp(fc.as,.6,.9); fc.kh=clamp(fc.ah,.26,.48); fc.cal=true; fc.yaw=0; fc.w=0; }
   $("step-cal").classList.add("done");
   $("v-cal").textContent=`Hüfte ${fmt(live.hip)} · Schritt ${fmt(live.inseam)}`;
   $("m-leg").disabled=false; $("m-top").disabled=false;

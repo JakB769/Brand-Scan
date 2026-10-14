@@ -1,6 +1,7 @@
 /* Drehung um die eigene Achse mit echtem Clip, Bild für Bild und mit virtueller Uhr (33,3 ms je Bild wie 30 Bilder/s, egal wie
    langsam hier gerechnet wird): je Bild Drehung der Hose (g.yaw), Rohschätzung (fc.roh), Sichtbarkeit; Sprünge zählen.
      node werkzeuge/drehung.mjs [--clip assets/referenz/videos/clips/v2-02_drehung-360.mp4] [--aus <dir>] [--fps 30] [--bilder 8] [--punkte]
+                                [--scan <clip>|nein]   (vorher Frontal-Scan mit Stehen von vorn, Vorgabe aus demselben Satz)
    --punkte: ohne Hose (schnell), schreibt die Eingaben von bodyYaw je Bild nach <aus>/punkte.json, zum Nachrechnen mit
    werkzeuge/drehung-nachrechnen.mjs (neue Drehungs-Logik in Sekunden prüfen, ohne Browser).
    Ergebnis: <aus>/drehung.json (je Bild), <aus>/drehung.png (Verlauf), <aus>/bilder.jpg (Bühne an --bilder Stellen).
@@ -39,8 +40,10 @@ await ctx.addInitScript(() => {
   window.__uhr = { an: t => { vt = t ?? echt(); an = true; }, weiter: ms => { vt += ms; } };
   performance.now = () => an ? vt + (eps += 1e-3) : echt();
   const c = document.createElement("canvas"); c.width = 720; c.height = 1280; const x = c.getContext("2d");
-  let img = null; const zeichne = () => { if (img) x.drawImage(img, 0, 0, 720, 1280); };
-  window.__setRef = async src => { const im = new Image(); im.src = src; await im.decode(); img = im; zeichne(); };
+  // k < 1: Bild verkleinert in die Mitte (für den Scan: im Clip ist der Kopf am oberen Rand angeschnitten)
+  let img = null, kk = 1; const zeichne = () => { if (!img) return; if (kk < 1) { x.fillStyle = "#8a857d"; x.fillRect(0, 0, 720, 1280); }
+    x.drawImage(img, 360 * (1 - kk), 640 * (1 - kk), 720 * kk, 1280 * kk); };
+  window.__setRef = async (src, k = 1) => { const im = new Image(); im.src = src; await im.decode(); img = im; kk = k; zeichne(); };
   setInterval(zeichne, 30);
   if (navigator.mediaDevices) {
     navigator.mediaDevices.getUserMedia = async () => c.captureStream(30);
@@ -67,13 +70,25 @@ for (let t = 0; t < 400; t++) { await p.waitForTimeout(500);
   if (/Fertig/.test(m) && !/berechnet|wird/.test(m)) break; }
 }
 const bild = f => "data:image/jpeg;base64," + fs.readFileSync(TMP + "/" + f).toString("base64");
+// Erst der Frontal-Scan wie bei echter Nutzung (Stehen von vorn aus demselben Satz Clips), dann die Anprobe mit dem Clip.
+// Ohne Scan bliebe die Seite im Scan, dort gilt der Maßstab aus der Körpergröße ungeglättet (Sprünge, die es so nicht gibt)
+const SCAN = arg("scan", path.basename(CLIP).startsWith("v1") ? "assets/referenz/videos/clips/v1-01_stehen-neutral-vorne.mp4" : "assets/referenz/videos/clips/v2-01_stehen-neutral-vorne.mp4");
+let gescannt = false;
+if (SCAN !== "nein") { const dauer = +execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path.resolve(R, SCAN)]).toString();
+  execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-ss", String(Math.min(2, dauer / 2)), "-i", path.resolve(R, SCAN), "-frames:v", "1", TMP + "/scan.jpg"]);
+  await p.evaluate(src => window.__setRef(src, .82), "data:image/jpeg;base64," + fs.readFileSync(TMP + "/scan.jpg").toString("base64")); }
+else await p.evaluate(src => window.__setRef(src), bild(frames[0]));
+await p.click("#start");
+for (let t = 0; t < 60 && SCAN !== "nein"; t++) { await p.waitForTimeout(500); if (await p.evaluate(() => document.getElementById("step-cal").classList.contains("done"))) { gescannt = true; break; }
+  if (t % 6 === 0 && process.env.DREH_LOG) console.log("Scan:", await p.evaluate(() => document.getElementById("statusText").innerText + " | " + document.getElementById("coachBig").innerText + " | " + document.getElementById("coachSmall").innerText)); }
+console.log(SCAN === "nein" ? "ohne Scan" : gescannt ? "Frontal-Scan fertig" : "Frontal-Scan NICHT fertig geworden");
 await p.evaluate(src => window.__setRef(src), bild(frames[0]));
-await p.click("#start"); await p.waitForTimeout(4000); await p.click("#clean").catch(() => {});
+await p.waitForTimeout(1500); await p.click("#clean").catch(() => {});
 await p.evaluate(() => { window.__ta = window.__ta || []; });   // zählt die Analysen (ohne das wartete jedes Bild bis zur Zeitgrenze)
 const nAna = () => p.evaluate(() => (window.__ta || []).length);
 const warte = async n => { const n0 = await nAna(); for (let k = 0; k < 400 && (await nAna()) < n0 + n; k++) await p.waitForTimeout(15); };
 // erstes Bild einschwingen lassen (echte Zeit), dann Uhr anhalten
-await p.waitForTimeout(2500); await p.evaluate(() => { window.__uhr.an(); if (!window.__yawLog) window.__yawLog = []; });
+await p.waitForTimeout(2500); await p.evaluate(() => { window.__uhr.an(); window.__yawLog = []; });
 const st = await p.$("#stage"), log = [], schnapp = new Set(Array.from({ length: NB }, (_, k) => Math.round(k * (frames.length - 1) / Math.max(1, NB - 1))));
 const bilder = [], T0 = Date.now();
 for (let i = 0; i < frames.length; i++) {
@@ -88,7 +103,11 @@ for (let i = 0; i < frames.length; i++) {
   if (schnapp.has(i)) { const f = OUT + `b${String(i).padStart(3, "0")}.png`; await st.screenshot({ path: f }); bilder.push([i, f]); }
 }
 fs.writeFileSync(OUT + "drehung.json", JSON.stringify(log));
+const yl = await p.evaluate(() => window.__yawLog.map(e => ({ t: e.t, ppc: e.ppc })));
 if (PUNKTE) fs.writeFileSync(OUT + "punkte.json", JSON.stringify(await p.evaluate(() => window.__yawLog)));
+// Maßstab je Bild (Größe der Hose): Sprünge
+{ const s = yl.map(e => e.ppc).filter(Boolean), ds = s.slice(1).map((v, k) => v / s[k] - 1), m = Math.max(...ds.map(Math.abs));
+  console.log(`Maßstab: größter Sprung ${(100 * m).toFixed(1)} % je Bild, Bilder über 3 %: ${ds.filter(x => Math.abs(x) > .03).length}`); }
 // Sprünge: Änderung der Drehung je Bild (rad) und Umkehrungen
 const d = log.slice(1).map((r, k) => { let x = r.yaw - log[k].yaw; while (x > Math.PI) x -= 2 * Math.PI; while (x < -Math.PI) x += 2 * Math.PI; return x; });
 const big = d.filter(x => Math.abs(x) > .25).length, maxd = Math.max(...d.map(Math.abs));
