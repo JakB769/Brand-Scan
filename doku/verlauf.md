@@ -329,4 +329,4 @@ Vorher/Nachher: `docs/vorher/`, `docs/nachher/`, Übersicht `docs/nachher/vorher
 10. Shirt-Erkennung in der Hocke: dunkler Schritt galt als Shirt → Suche endet an der Hüftlinie, wenn die Knie hoch sind.
 Offen: Perspektive der Bodenkamera (Unterschenkel näher an der Kamera, wirken größer als die Hüfte) ist nicht modelliert;
 Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitlich hängt etwas als Sack.
-
+11. Seitenansicht weiter Hosen: Vorderkante hängt gerade vom Knie (`exF`), statt dem Schienbein nach hinten zu folgen.

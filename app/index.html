@@ -2127,7 +2127,12 @@ function pose3d(M,P){
         if(below&&!rock){ const loose=clamp((2*hwPx/ppc-.31*(P.heightCm||175))/18,0,1), FC=PASSFORM.gesaessFallCm*(.8+.2*loose);
           const legCm=(1-M.vc)*SV/ppc, weit=sstep(.4,1,loose), cLf=v3.dot(v3.sub(cL,cr),fw);
           const kF=(1-weit)*(1-sstep(0,FC,sCm))+weit*clamp(1-sCm/Math.max(FC,.92*legCm),0,1);
-          exB=kF*Math.max(0,.78*bB-(Rz-cLf))*(1-.85*beuge[s]); }
+          exB=kF*Math.max(0,.78*bB-(Rz-cLf))*(1-.85*beuge[s]);
+          // Weite Hosen vorn: der Stoff hängt vom Knie senkrecht herab, statt dem nach hinten laufenden Schienbein zu folgen
+          // (Referenz seitlich: Vorderkante gerade vom Knie bis auf den Fuß, 3D lief unten 4–5 cm zurück). Nur unter dem Knie und
+          // wenn der Unterschenkel nach unten zeigt; höchstens 60 % der Beintiefe
+          const bS=P.bone[s], Lt=v3.len(v3.sub(bS[1],bS[0])), sd=v3.norm(v3.sub(bS[2],bS[1]));
+          exF=weit*sstep(Lt,Lt+8*ppc,d)*sstep(.7,.9,v3.dot(sd,dn))*clamp(v3.dot(v3.sub(bS[1],walk3(bS,d)),fw),0,.6*Rz); }
         // Steht das Bein, bleibt oben die Beckenform. Hebt oder spreizt es sich, zieht es den Stoff mit.
         const stand=v3.add(v3.add(ch[0],v3.mul(dn,d)),v3.mul(r,sg*offR));
         wdev=sstep(.15,1,v3.len(v3.sub(cL,stand))/Rc);
