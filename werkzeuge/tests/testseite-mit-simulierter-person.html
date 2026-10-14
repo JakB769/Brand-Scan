@@ -1576,18 +1576,37 @@ function shirtHem(L,V){
         const ref=(ra,rb,cols)=>{ const R=[],G=[],B=[]; for(let r=ra;r<=rb;r++) for(const c of cols){ const i=(r*N+c)*4; R.push(d[i]); G.push(d[i+1]); B.push(d[i+2]); }
           return R.length?[med(R),med(G),med(B)]:null; };
         const all=[...Array(N).keys()], thigh=all.filter(c=>Math.min(Math.abs(c-col(L[23].x)),Math.abs(c-col(L[24].x)))<=N*.12);
-        const S=ref(row(shY+.42*T),row(shY+.6*T),all), P=ref(row(hipY+.38*T),row(hipY+.58*T),thigh);
+        // Hosenfarbe auf den Oberschenkeln (30–45 % von der Hüfte zum Knie), nicht senkrecht unter den Hüftpunkten: bei
+        // gespreiztem oder gehobenem Bein lag dort die Wand, der Saum landete am Ende der Suche (14 cm unter der Hüfte)
+        let P=null; if(V(25)||V(26)){ if(!shirt.c2){ shirt.c2=document.createElement("canvas"); shirt.c2.width=shirt.c2.height=4; shirt.x2=shirt.c2.getContext("2d",{willReadFrequently:true}); }
+          const R=[],G=[],B=[];
+          for(const [h,k] of [[23,25],[24,26]]) if(V(h)&&V(k)) for(const u of [.3,.38,.45]){ const px=(L[h].x+(L[k].x-L[h].x)*u)*vw, py=(L[h].y+(L[k].y-L[h].y)*u)*vh, r=.012*vh;
+            try{ shirt.x2.drawImage(window.__shirtBild,px-r,py-r,2*r,2*r,0,0,4,4); const q=shirt.x2.getImageData(0,0,4,4).data; for(let i=0;i<64;i+=4){ R.push(q[i]); G.push(q[i+1]); B.push(q[i+2]); } }catch(_){} }
+          if(R.length) P=[med(R),med(G),med(B)]; }
+        if(!P) P=ref(row(hipY+.38*T),row(hipY+.58*T),thigh);
+        const S=ref(row(shY+.42*T),row(shY+.6*T),all);
         const dist=(i,c)=>Math.hypot(d[i]-c[0],d[i+1]-c[1],d[i+2]-c[2]);
-        if(S&&P&&Math.hypot(S[0]-P[0],S[1]-P[1],S[2]-P[2])>45){
+        // Schwelle aus dem Rauschen im Oberteil (Streuung der Helligkeit dort), mindestens 20: ein hellgraues Shirt über heller
+        // Jeans (Referenz, Abstand 31) galt bei fester Schwelle 45 nicht als Oberteil, der Bund lag über dem Shirt
+        let nz=0; if(S){ const a=[]; for(let r=row(shY+.42*T);r<=row(shY+.6*T);r++) for(const c of all){ const i=(r*N+c)*4; a.push(Math.abs(.3*(d[i]-S[0])+.59*(d[i+1]-S[1])+.11*(d[i+2]-S[2]))); } nz=med(a); }
+        if(S&&P&&Math.hypot(S[0]-P[0],S[1]-P[1],S[2]-P[2])>Math.max(20,3*nz)){
           const r0=row(shY+.6*T), r1=row(hipY+.42*T), ys=new Array(N).fill(null);
-          for(let c=0;c<N;c++){ let nS=0, hem=null;
-            for(let r=r0;r<=r1;r++){ const pants=k=>{ const i=((r+k)*N+c)*4; return dist(i,P)<dist(i,S)*.9; };
-              if(r+2<H&&pants(0)&&pants(1)&&pants(2)){ hem=r; break; } if(!pants(0)) nS++; }
-            if(hem==null) hem=r1;
-            if(nS>=Math.max(2,(hem-r0)*.6)&&hem>r0+1) ys[c]=y0+(hem+.5)/H*(y1-y0); }   // darüber wirklich Oberteil
+          // Je Spalte der stärkste Sprung von Oberteil- zu Hosenfarbe (Lage zwischen beiden auf der Achse S→P, 0 = Shirt, 1 = Hose):
+          // der Saum ist eine Kante, auch wenn die Jeans direkt darunter heller gewaschen ist (vorher: erste Zeile, die nach Hose
+          // aussah, bei heller Jeans unter grauem Shirt 2–4 cm zu tief). Darüber muss überwiegend Oberteil sein.
+          const SP=[P[0]-S[0],P[1]-S[1],P[2]-S[2]], sp2=SP[0]*SP[0]+SP[1]*SP[1]+SP[2]*SP[2]||1;
+          const tv=(r,c)=>{ const i=(clamp(r,0,H-1)*N+c)*4; return clamp(((d[i]-S[0])*SP[0]+(d[i+1]-S[1])*SP[1]+(d[i+2]-S[2])*SP[2])/sp2,-.5,1.5); };
+          for(let c=0;c<N;c++){ let best=.35, hem=null;
+            for(let r=r0+2;r<=r1;r++){ const st=(tv(r,c)+tv(r+1,c)+tv(r+2,c))/3-(tv(r-1,c)+tv(r-2,c)+tv(r-3,c))/3; if(st>best){ best=st; hem=r; } }
+            if(hem==null) continue;
+            let up=0, n=0; for(let r=r0;r<hem;r++){ up+=tv(r,c); n++; }
+            if(n>=2&&up/n<.45) ys[c]=y0+(hem+.5)/H*(y1-y0); }   // darüber wirklich Oberteil
           const ok=ys.filter(v=>v!=null).length;
           if(ok>=N*.4){ const xs=all.map(c=>x0+(c+.5)/N*(x1-x0)), sm=ys.map((v,c)=>{ const w=ys.slice(Math.max(0,c-2),c+3).filter(q=>q!=null); return w.length?med(w):null; });
-            found={xs,ys:sm}; } } } } }
+            // Ein Shirtsaum ist glatt: jede Spalte höchstens ±2,5 cm vom Median (hell gewaschene Jeans am Schlitz sah wie das Shirt
+            // aus, der Saum lag dort 4–6 cm zu tief und schnitt ein Rechteck aus der 3D-Hose)
+            const mh=med(sm.filter(q=>q!=null)), tol=2.5/(T>0?(.29*(num($("height").value)||175))/T:100);
+            found={xs,ys:sm.map(q=>q==null?null:clamp(q,mh-tol,mh+tol))}; } } } } }
   if(found){ const a=shirt.ys&&shirt.ys.length===found.ys.length?clamp(dt*4,.15,1):1;
     shirt.xs=found.xs; shirt.ys=found.ys.map((v,c)=>v==null?(shirt.ys&&shirt.ys[c]):shirt.ys&&shirt.ys[c]!=null&&a<1?shirt.ys[c]+(v-shirt.ys[c])*a:v);
     shirt.show=Math.min(1,shirt.show+dt*3); }
@@ -2778,7 +2797,8 @@ function draw3d(M,P,vw,vh,tint){
         const y=o=>o*(1-w)-.15*w;
         for(let f=0;f<2;f++){ for(let j=0;j<C;j++){ const k=((s*NR+i)*2+f)*C+j; ao[k*2+1]=y(ao[k*2+1]); }
           const k=g3.nRing+(s*NR+i)*2+f; ao[k*2+1]=y(ao[k*2+1]); } }
-      for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(const r of [4,5]) for(let j=0;j<C;j++) ao[(g3.nRing+g3.nWall+((s*2+f)*6+r)*C+j)*2+1]=.5; }
+      // Innenseite des Saumumschlags: liegt auf Schuh und Boden, fast kein Licht (Kamera am Boden sah von hinten hell hinein)
+      for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(const r of [4,5]) for(let j=0;j<C;j++) ao[(g3.nRing+g3.nWall+((s*2+f)*6+r)*C+j)*2+1]=f?.12:.3; }
     g3.aoBase=ao; g3.aoDyn=true; }
   // Gestauchter Stoff (Leiste, Kniekehle, Ellbogen der Falte) liegt im Schatten: Verdeckung aus der Stauchung (pose3d, g3.cmp)
   { const cm=g3.cmp, base=g3.aoBase; let any=false;

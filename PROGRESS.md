@@ -76,4 +76,10 @@ Allgemein vorher: Farbe gelblich-grau und im Stand etwa 14 % zu dunkel (Farbton 
 - Farbe über alle Posen: ΔE 8, Helligkeit +2,3 L im Mittel (vorn etwas dunkler, hinten heller) → keine globale Änderung.
   Textur weicher (Albedo gemittelt, feines Relief schwächer).
 - 3D-Export: ein Bein hatte nach innen zeigende Normalen (Blender schwarz) → behoben, Blender-Renders in `ansichten.mjs`.
+- Shirt über dem Bund: Erkennung griff im Stand von vorn nicht (graues Shirt, helle Jeans: Abstand 31 < 45) und lag bei
+  gespreiztem Bein 14 cm unter der Hüfte (Hosenfarbe an der Wand gemessen). Jetzt Hosenfarbe auf den Oberschenkeln,
+  Schwelle aus dem Rauschen, Saum als stärkste Kante, glatt (±2,5 cm). Erkannt in 15/16 Posen, Schnitt am Shirtsaum.
+- Innenseite des Saumumschlags dunkler (Bodenkamera sah von hinten hell hinein).
+- Offen: Gesäßtaschen wirken getragen ~1,5× größer als in 3D (stärker gewölbtes echtes Gesäß); Bodenkamera blickt schräg
+  nach oben, der Renderer nimmt eine waagrechte Kamera an (Bund/Passe von hinten unten nicht verkürzt).
 

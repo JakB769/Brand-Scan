@@ -35,6 +35,7 @@ ersetze('const visionBundle=()=>import(MP_URL+"/vision_bundle.mjs");','const vis
 ersetze('if(V(11)&&V(12)&&V(23)&&V(24)&&video.videoWidth){','if(V(11)&&V(12)&&V(23)&&V(24)&&window.__shirtBild){');
 ersetze('vw=video.videoWidth, vh=video.videoHeight;\n      if(!shirt.c)','vw=window.__shirtBild.width, vh=window.__shirtBild.height;\n      if(!shirt.c)');
 ersetze('shirt.x.drawImage(video,x0*vw','shirt.x.drawImage(window.__shirtBild,x0*vw');
+ersetze('try{ shirt.x2.drawImage(video,','try{ shirt.x2.drawImage(window.__shirtBild,');
 }
 // Tempo-Anpassung (leichtes Modell, kleinere 3D-Fläche) nur, wenn ein Test sie ausdrücklich will (tkamera.mjs): sonst
 // hinge das Bild von der Rechenzeit der Testmaschine ab
