@@ -68,6 +68,18 @@ Werkzeug: `node werkzeuge/vergleich.mjs` (Triptychon Original | 3D | gemischt), 
 | Drehung Seite/hinten | 4 | 4 | 3 | 3 | 4 | 4 | N |
 | Attrappe: Ausfallschritt, Spagat seitlich/längs, Liegestütz (aus) | 4 | – | – | – | 4 | – | N (`tposen`) |
 
+Stand 14.10. abends (nach Maßstab-Untergrenze), nur geänderte Posen:
+
+| Pose | Silhouette | Seitenvolumen | Saum | Falten | Dehnung | Rückseite | Stand |
+|---|---|---|---|---|---|---|---|
+| seitlich stehen | 4 (Breite 0,81 → 0,97) | 4 | 3 (Vorderkante folgt noch dem Schienbein) | 3 | 4 | 4 | N2 |
+| Knie hoch vorne | 3 (Unterschenkel 4 cm neben dem echten) | – | 4 (am Knöchel statt 16 cm darunter) | 3 | 4 | – | N2 |
+| Hocke vorne | 4 (Größe stimmt, Breite 0,71 → 0,89) | – | 3 | 3 | 4 | – | N2 |
+| Hocke seitlich | 4 (Unterschenkel jetzt da, vorher fehlten sie) | 4 | 4 | 3 (Gesäß hängt etwas) | 4 | 4 | N2 |
+| halbe Hocke vorne | 4 (kein Lappen, Schritt da) | – | 3 (unten etwas breit) | 3 | 4 | – | N2 |
+| Ausfallschritt (hinten) | 4 | – | 4 | 3 | 4 | 4 | N2 |
+| Bücken (hinten) | 4 (vorher Beine wie Strümpfe) | – | 4 | 3 | 4 | 4 | N2 |
+
 N = nachher (`docs/nachher/vergleich/`, Übersicht `docs/nachher/vorher-nachher_*.jpg`). Umriss-Messung (Mittel 16 Posen):
 Überlappung 0,692 → 0,697, Breite 3D/echt von vorn 1,10 → 0,98, seitlich 0,75 → 0,81 (Drehung hinten 0,92 → 0,99).
 
