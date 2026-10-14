@@ -49,7 +49,7 @@ await link(B+'/shop/jeans.html'); let G=await hose();
 pruefe(G&&G.sizes&&G.sizes.map(z=>z.n).join(' ')==='S M L'&&!G.est,'alle Größen aus der Tabelle: '+(G&&G.sizes?G.sizes.map(z=>`${z.n} ${z.waist}/${z.len}`).join(', '):'keine'));
 pruefe(G&&G.size===1&&G.waist===41&&G.sizes[2].waist===43&&G.sizes[2].len===111,'gewählt ist M wie am Model, L hat Bund 43 und Länge 111');
 let K=await knoepfe();
-pruefe(!K.hidden&&K.k.length===3&&K.k.every(c=>isNaN(c.f))&&/nach dem Scan/.test(K.msg),'ohne Körpermaße: Knöpfe ohne Urteil, Hinweis auf den Scan');
+pruefe(!K.hidden&&K.k.length===3&&K.k.every(c=>!isNaN(c.f))&&/aus der Körpergröße geschätzt/.test(K.msg),'ohne Scan und Maßband: Urteil aus der Körpergröße (Profil), so gekennzeichnet: '+K.k.map(c=>c.n+' '+c.f).join(', '));
 
 // Körper vom Maßband: Urteil je Größe, wird mit der Größe nicht enger
 await koerper(78,96); K=await knoepfe();
@@ -66,6 +66,20 @@ for(let i=0;i<3;i++){ await p.click(`#g-szrow .szchip:nth-child(${i+1})`); await
 pruefe(sitz.every(x=>x>=0)&&sitz.every((x,i)=>!i||x>=sitz[i-1]),'Sitz wird mit der Größe nicht enger: '+sitz.map(i=>SITZ[i]).join(', '));
 const up=await p.evaluate(()=>({s:window.__dbg.UP.size,v:document.getElementById('drop-size').value}));
 pruefe(up.s===2&&up.v==='2','Auswahl beim Hochladen folgt der Größe (L)');
+// Zonen (15.10.): Bund, Hüfte, Oberschenkel, Knie, Länge; kurze Begründung wie „Bund passt, Länge 2 cm zu kurz“
+const Z=await p.evaluate(()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key], v=d.sizeVerdict(G,G.sizes[1],d.bodyMeas()); return {z:Object.keys(v.Z),r:d.sizeReason(v),cut:v.cut,st:v.st.t}; });
+pruefe(['bund','huefte','ober','knie','laenge'].every(k=>Z.z.includes(k))&&/^Bund (passt|\d+ cm zu (eng|weit)), (.*, )?Länge (passt|\d+ cm zu (kurz|lang))$/.test(Z.r),'je Zone ein Urteil, Begründung: '+Z.r+' ('+Z.cut+', '+Z.st+')');
+const groesse=async h=>{ await p.fill('#height',String(h)); await p.waitForTimeout(300); return knoepfe(); };
+K=await groesse(150); pruefe(/Länge \d+ cm zu lang/.test(K.msg),'150 cm groß: Länge zu lang: '+K.msg.split('\n')[0]);
+K=await groesse(205); pruefe(/Länge \d+ cm zu kurz/.test(K.msg),'205 cm groß: Länge zu kurz: '+K.msg.split('\n')[0]);
+// im 3D sichtbar: größere Größe breiter, kürzere endet höher über dem Boden (Puppe 215 cm, damit der Saum nicht auf dem Schuh aufliegt)
+await groesse(215); await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView());
+const form=async i=>{ await p.click(`#g-szrow .szchip:nth-child(${i+1})`); await p.evaluate(()=>{ const v=window.__dbg.v3d; v.yaw=0; v.idle=performance.now()+1e9; }); await p.waitForTimeout(2500);
+  return p.evaluate(()=>{ const d=window.__dbg, P=d.g3.pos, b=d.v3d.boden; let x0=1e9,x1=-1e9,y1=-1e9;
+    for(let i=0;i<P.length;i+=3){ x0=Math.min(x0,P[i]); x1=Math.max(x1,P[i]); y1=Math.max(y1,P[i+1]); } return {w:(x1-x0)/b.ppc,gap:(b.floor-y1)/b.ppc}; }); };
+const fS=await form(0), fL=await form(2);
+pruefe(fL.w>fS.w*1.03&&fS.gap-fL.gap>1,`3D: L breiter (${fS.w.toFixed(1)} → ${fL.w.toFixed(1)} cm) und Saum tiefer (${fS.gap.toFixed(1)} → ${fL.gap.toFixed(1)} cm über dem Boden)`);
+await p.fill('#height','179'); await p.click('#g-szrow .szchip:nth-child(3)'); await p.waitForTimeout(300);
 // kleiner und großer Körper
 await koerper(58,80); K=await knoepfe();
 pruefe(K.k[0].best&&K.k[2].f>=1,'schmaler Körper: kleinste Größe empfohlen, L zu weit: '+K.k.map(c=>c.n+' '+c.f).join(', '));

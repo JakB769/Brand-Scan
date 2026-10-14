@@ -2960,7 +2960,7 @@ function view3dFrame(now){
   gr.addColorStop(0,"#4c463e"); gr.addColorStop(.42,"#7d7468"); gr.addColorStop(1,"#463f37"); x.fillStyle=gr;
   x.beginPath(); x.moveTo(cx-tw/2,top); x.lineTo(cx-tw*.42,top-22*ppc); x.lineTo(cx-tw*.55,0); x.lineTo(cx+tw*.55,0); x.lineTo(cx+tw*.42,top-22*ppc); x.lineTo(cx+tw/2,top); x.closePath(); x.fill();
   x.drawImage(g3.c,0,0);
-  v3d.info=info; view3dKick();
+  v3d.info=info; v3d.boden={floor,ppc}; view3dKick();
 }
 (()=>{
   const cvs=$("g3dview");
@@ -4442,7 +4442,7 @@ function checkGarment(G){
     G.sizes=Array.isArray(G.sizes)&&G.sizes.length<=40?G.sizes.filter(z=>z&&typeof z.n==="string"&&okN(z.waist,"waist"))
       .map(z=>({n:z.n.slice(0,12),waist:z.waist,len:okN(z.len,"len")?z.len:null,hem:okN(z.hem,"hem")?z.hem:null,...(z.est===true?{est:true}:{})})):null;
     if(G.sizes&&G.sizes.length<2) G.sizes=null;
-    G.size=G.sizes&&Number.isInteger(G.size)&&G.size>=0&&G.size<G.sizes.length?G.size:null; G.sizesEst=!!G.sizes&&G.sizesEst===true;
+    G.size=G.sizes&&Number.isInteger(G.size)&&G.size>=0&&G.size<G.sizes.length?G.size:null; G.sizesEst=!!G.sizes&&G.sizesEst===true; G.sizesFoto=!!G.sizes&&G.sizesFoto===true;
     G.waistFoto=G.waistFoto===true; if(typeof G.link!=="string"||!/^https?:\/\//.test(G.link)) delete G.link;
     if(G.backEst!==true) delete G.backEst;
     if(!STOFFE[G.fabric]) G.fabric=null; G.material=typeof G.material==="string"?G.material:"";
@@ -4743,20 +4743,34 @@ function markGarment(){
 /* ---------- Größen: alle Größen einer Hose, und welche dir passt ----------
    G.sizes: [{n, waist, len, hem}] (flach, cm) aus der Maßtabelle je Größe oder, ohne Tabelle, aus der Größe des Models
    abgeleitet (G.sizesEst; W: 1 Zoll Umfang je Größe, Buchstaben und EU-Größen: 4 cm Umfang je Größe). G.size: gewählte.
-   Dein Körper: Maßband (Messreihe) > Scan > letzter gespeicherter Scan > grob aus dem Bild von vorn.
-   Urteil je Größe: Spiel am Bund (Körper an den Hüftknochen ≈ Taille + ¼ (Hüfte − Taille)) und an der Hüfte → zu eng / eng /
-   passt / weit / zu weit (Stretch verzeiht mehr). Sitz am Bein aus dem Spiel an Oberschenkel (Körper ≈ 0,6 × Hüfte) und
-   Knie (≈ 0,39 × Hüfte): skinny / slim / regular / weit / baggy. Die Schwellen sind Erfahrungswerte, mit echten
-   Anproben noch nicht geprüft. */
-const KKEY="massScanKoerper", FIT_T=["zu eng","eng","passt","weit","zu weit"];
+   Dein Körper: Maßband (Messreihe) > Scan > letzter gespeicherter Scan > grob aus dem Bild von vorn > Körpergröße (bodyMeas).
+   Urteil je Größe und Zone (15.10.): Bund, Hüfte, Oberschenkel, Knie (Spiel = Umfang Hose − Körper) und Länge (wo der Saum
+   im Stand endet, gegen den Boden). Siehe ZUGABE, LAENGE, sizeVerdict. Sitz am Bein (skinny … baggy) wie bisher. Die Schwellen
+   sind Konfektions-Faustregeln, mit echten Anproben noch nicht geprüft. */
+const KKEY="massScanKoerper", FIT_T=["zu eng","zu kurz","passt","zu lang","zu weit"];
+/* Körper je Zone (cm): Taille, Hüfte, Oberschenkel, Knie (Umfänge) und Bundlinie bis Boden. Herkunft: Maßband > Scan > letzter
+   Scan > grob von vorn > nur Körpergröße (Profil: Taille 0,46 × Größe, Hüfte 0,535 × Größe, Mittel junger Männer nach
+   SizeGERMANY/ANSUR gerundet, grob). Oberschenkel und Knie: Breite von vorn aus dem Scan, Querschnitt fast rund; sonst 0,6 bzw.
+   0,39 × Hüfte. Bundlinie bis Boden wie in der Anprobe (Bundoberkante 15 % des Rumpfs über dem Hüftgelenk + PASSFORM.sitzCm):
+   Scan (Hüftgelenk bis Sohle), Maßband-Schrittlänge + 0,115 × Größe, sonst 0,573 × Größe (Hüftgelenk 53 %, Winter) + 2 cm Sohle. */
+const KOERPER_ANTEIL={waist:.46,hip:.535};
 function bodyMeas(){
-  const t={waist:num($("t-waist").value),hip:num($("t-hip").value)}, sv=scanValues();
+  const H=num($("height").value), prof=H>=120&&H<=230, t={waist:num($("t-waist").value),hip:num($("t-hip").value),inseam:num($("t-inseam").value)};
+  const sv=scanValues(), c=caps.cal;
   let sav=null; try{ sav=JSON.parse(localStorage.getItem(KKEY)||"null"); }catch(_){}
+  if(sav&&prof&&sav.height&&Math.abs(sav.height-H)>1) sav=null;           // letzter Scan einer anderen Person (andere Größe)
   const pick=k=>t[k]>40&&t[k]<250?{v:t[k],src:"Maßband"}:sv[k]!=null?{v:sv[k],src:"Scan"}:sav&&sav[k]>40?{v:sav[k],src:"letzter Scan"}:null;
   let w=pick("waist"), h=pick("hip");
   if(!h&&live&&live.hip) h={v:ellipse(live.hip,live.hip/1.4),src:"grob von vorn, für mehr Genauigkeit zur Seite drehen"};
+  if(!h&&prof){ h={v:KOERPER_ANTEIL.hip*H,src:"aus der Körpergröße geschätzt, für genaue Werte scannen"}; w={v:KOERPER_ANTEIL.waist*H,src:""}; }
   if(!h) return null;
-  return {waist:w?w.v:h.v*.86,hip:h.v,src:h.src+(w?"":", Taille geschätzt")};
+  const quer=(a,b)=>{ const v=[c&&c[a],c&&c[b]].filter(x=>x>5&&x<40); return v.length?ellipse(Math.max(...v),.95*Math.max(...v)):null; };
+  let belt=null, bsrc="";
+  if(c&&c.leg>40&&c.leg<140&&c.torso>20&&c.torso<90){ belt=c.leg+.15*c.torso+PASSFORM.sitzCm; bsrc="Scan"; }
+  else if(prof&&t.inseam>50&&t.inseam<120){ belt=t.inseam+.115*H+PASSFORM.sitzCm; bsrc="Maßband"; }
+  else if(prof){ belt=.573*H+2+PASSFORM.sitzCm; bsrc="Körpergröße"; }
+  return {waist:w?w.v:h.v*.86,hip:h.v,thigh:quer("thighL","thighR")||.6*h.v,knee:quer("kneeL","kneeR")||.39*h.v,belt,
+    src:h.src+(w?"":", Taille geschätzt"),srcLen:bsrc};
 }
 const stretchy=G=>{ const f=stoffVon(G); return f===STOFFE.stretch||f===STOFFE.sweat||/elast|spandex|lycra|stretch/i.test(stoffText(G)); };
 /* Umfänge der Hose in einer Größe (cm): Bund, Hüfte, Oberschenkel (5 cm unter dem Schritt), Knie, Saum */
@@ -4765,22 +4779,62 @@ function sizeGarment(G,sz){
   let h6=0,h9=0; for(let i=0;i<ic;i++){ if(M.v[i]<.6*M.vc) h6=Math.max(h6,M.hw[i]); if(M.v[i]<.9*M.vc) h9=Math.max(h9,M.hw[i]); }
   const hip=4*Math.min(h9||M.hw[0],(h6||M.hw[0])*PASSFORM.hueftWeiteMax)*cmW;
   const row=cm=>{ let i=M.v.findIndex(x=>x>=M.vc+cm/len); if(i<0) i=M.nr-1; return M.hw[i]*cmW; };
-  return {waist:2*waist,hip,thigh:M.rock?null:2*row(5),knee:M.rock?null:2*row(.45*(1-M.vc)*len),hem:2*(sz.hem||M.hw[M.nr-1]*cmW)};
+  return {waist:2*waist,hip,thigh:M.rock?null:2*row(5),knee:M.rock?null:2*row(.45*(1-M.vc)*len),hem:2*(sz.hem||M.hw[M.nr-1]*cmW),len};
 }
+/* Schnitt aus der Hose selbst (gilt für alle Größen): Knie/Hüfte unter 0,40 Skinny, unter 0,49 Regular, sonst Wide-Leg */
+function cutOf(G){ const gm=sizeGarment(G,{}); if(gm.knee==null) return "rock"; const r=gm.knee/gm.hip; return r<.4?"skinny":r<.49?"regular":"wide"; }
+const CUT_T={skinny:"Skinny",regular:"Regular",wide:"Wide-Leg",rock:"Rock"};
+/* Stretch: aus Stoffart oder Material; ohne Angabe nur bei Skinny angenommen (die gibt es fast nur mit Elasthan) */
+function stretchOf(G,cut){
+  const bekannt=!!(G.fabric||stoffText(G).trim());
+  if(stretchy(G)) return {st:true,t:"Stretch"};
+  return bekannt?{st:false,t:"ohne Stretch"}:cut==="skinny"?{st:true,t:"Stretch angenommen"}:{st:false,t:"ohne Stretch angenommen"};
+}
+/* Bewegungszugabe: Spiel (Hose − Körper, cm), das man zum Sitzen, Gehen und Knie beugen braucht (darunter „zu eng“), mit Stretch
+   weniger; und das größte, das noch sitzt (darüber „zu weit“: am Bund rutscht die Hose, an Bein und Knie ist sie dann kein
+   Skinny/Regular mehr; bei Wide-Leg ist dort jede Weite gewollt).
+   [nötig ohne Stretch, nötig mit Stretch, höchstens Skinny, Regular, Wide-Leg] */
+const ZUGABE={bund:[-1,-3,6,6,7],huefte:[2,-4,8,12,24],ober:[3,-3,9,15,Infinity],knie:[4,-1,9,18,Infinity]};
+/* Länge: Saum gegen den Boden im Stand (cm; + = länger als bis zum Boden, staucht sich auf dem Schuh).
+   [Ziel, kürzer als das → zu kurz, länger als das → zu lang]: Skinny endet am Knöchel, Regular knickt leicht auf dem Schuh,
+   Wide-Leg liegt auf. */
+const LAENGE={skinny:[-2,-5,3],regular:[1,-2,4],wide:[3,-1,7]};
+const ZONE_T={bund:"Bund",huefte:"Hüfte",ober:"Oberschenkel",knie:"Knie",laenge:"Länge"}, BREITE_Z=["bund","huefte","ober","knie"];
 function sizeVerdict(G,sz,B){
-  const gm=sizeGarment(G,sz), st=stretchy(G), belt=B.waist+.25*(B.hip-B.waist), eW=gm.waist-belt, eH=gm.hip-B.hip;
-  const [w2,w1]=st?[-9,-5]:[-6,-3], [h2,h1]=st?[-6,-3]:[-2,0];
-  let f=eW<w2?-2:eW<w1?-1:eW>9?2:eW>5?1:0;
-  if(eH<h2) f=-2; else if(eH<h1) f=Math.min(f,-1);
+  const gm=sizeGarment(G,sz), cut=cutOf(G), S=stretchOf(G,cut), ci={skinny:2,regular:3,wide:4,rock:3}[cut];
+  const body={bund:B.waist+.25*(B.hip-B.waist),huefte:B.hip,ober:B.thigh,knie:B.knee}, hose={bund:gm.waist,huefte:gm.hip,ober:gm.thigh,knie:gm.knee}, Z={};
+  for(const k of BREITE_Z){ if(hose[k]==null||body[k]==null) continue;
+    const e=hose[k]-body[k], mn=ZUGABE[k][S.st?1:0], mx=ZUGABE[k][ci];
+    Z[k]={e,mn,mx,v:e<mn?-1:e>mx?1:0,um:e<mn?mn-e:e>mx?e-mx:0}; }
+  if(B.belt&&LAENGE[cut]){ const d=gm.len-B.belt, [ziel,lo,hi]=LAENGE[cut];
+    Z.laenge={d,ziel,lo,hi,v:d<lo?-1:d>hi?1:0,um:Math.abs(d-ziel)}; }
+  const br=BREITE_Z.filter(k=>Z[k]);
+  const f=br.some(k=>Z[k].v<0)?-2:br.some(k=>Z[k].v>0)?2:Z.laenge?Z.laenge.v:0;
   let sitz=null;
   if(gm.thigh!=null){ const sc=.7*(gm.knee-.39*B.hip)+.3*(gm.thigh-.6*B.hip);
     sitz=sc<-4?"skinny":sc<0?"slim":sc<6?"regular":sc<12?"weit":"baggy"; }
-  return {f,eW,eH,sitz};
+  return {f,eW:Z.bund.e,eH:Z.huefte.e,sitz,Z,cut,st:S};
+}
+/* Kurze Begründung: „Bund passt, Länge 2 cm zu kurz“ (Bund und Länge immer, die anderen Zonen nur, wenn sie nicht passen) */
+function sizeReason(v){
+  const cm=x=>Math.max(1,Math.round(x))+" cm", p=[];
+  for(const k of BREITE_Z){ const z=v.Z[k]; if(!z||(k!=="bund"&&!z.v)) continue;
+    p.push(z.v<0?`${ZONE_T[k]} ${cm(z.um)} zu eng`:z.v>0?`${ZONE_T[k]} ${cm(z.um)} zu weit`:`${ZONE_T[k]} passt`); }
+  const L=v.Z.laenge; if(L) p.push(L.v<0?`Länge ${cm(L.ziel-L.d)} zu kurz`:L.v>0?`Länge ${cm(L.d-L.ziel)} zu lang`:"Länge passt");
+  return p.join(", ");
+}
+/* Empfehlung: keine Zone zu eng (sonst die mit dem kleinsten Fehlbetrag), Bund nahe am Ziel (+2 cm, mit Stretch 0), dann wenig
+   zu weit und die Länge nahe am Ziel */
+function sizeScore(v){
+  let s=Math.abs(v.Z.bund.e-(v.st.st?0:2));
+  for(const k of BREITE_Z){ const z=v.Z[k]; if(z&&z.v) s+=z.v<0?30+3*z.um:(k==="bund"||k==="huefte"?10:4)+z.um; }
+  const L=v.Z.laenge; if(L) s+=L.v?2+.5*L.um:.15*L.um;
+  return s;
 }
 function sizeAll(G,B){
   if(!G||!G.m3||!Array.isArray(G.sizes)||G.sizes.length<2) return null;
   const V=G.sizes.map(z=>B?sizeVerdict(G,z,B):null); let best=-1;
-  if(B){ const tg=stretchy(G)?-1:1, sc=v=>Math.abs(v.f)*20+Math.abs(v.eW-tg); V.forEach((v,k)=>{ if(best<0||sc(v)<sc(V[best])) best=k; }); }
+  if(B) V.forEach((v,k)=>{ if(best<0||sizeScore(v)<sizeScore(V[best])) best=k; });
   return {V,best};
 }
 /* Gewählte Größe der Hose; ohne Eintrag die Größe, deren Bund dem jetzigen entspricht */
@@ -4799,12 +4853,19 @@ function renderSizes(force){
   // in der Anprobe nur fünf Größen um die gewählte (sonst die empfohlene) herum, in einer Reihe
   const mid=cur>=0?cur:Math.max(0,A.best), a0=clamp(mid-2,0,Math.max(0,G.sizes.length-5)), few=G.sizes.slice(a0,a0+5).map((_,i)=>chip(a0+i)).join("");
   let msg;
-  if(!B) msg="Welche Größe dir passt, steht hier nach dem Scan (Frontal und Seite) oder mit Taille und Hüfte vom Maßband (Messreihe).";
-  else if(cur<0) msg=`Empfehlung: <b>${escH(G.sizes[A.best].n)}</b>. Tippe eine Größe an.`;
-  else{ const v=A.V[cur];
-    msg=`<b>${escH(G.sizes[cur].n)}: ${FIT_T[v.f+2]}</b>${v.sitz?` · sitzt <b>${v.sitz}</b>`:""} · Spiel am Bund ${sg(v.eW)} cm, an der Hüfte ${sg(v.eH)} cm`
-      +(A.best!==cur?` · Empfehlung: <b>${escH(G.sizes[A.best].n)}</b>`:"")+`<br><span class="sub">Dein Körper: ${escH(B.src)}${stretchy(G)?" · Stoff mit Stretch":""}</span>`; }
+  if(!B) msg="Welche Größe dir passt, steht hier mit deiner Körpergröße, genauer nach dem Scan (Frontal und Seite) oder mit Taille und Hüfte vom Maßband (Messreihe).";
+  else if(cur<0) msg=`Empfehlung: <b>${escH(G.sizes[A.best].n)}</b> · ${escH(sizeReason(A.V[A.best]))}. Tippe eine Größe an.`;
+  else{ const v=A.V[cur], L=v.Z.laenge;
+    // je Zone das Spiel (Hose − Körper) und wo der Saum endet; darunter, woher die Körpermaße kommen
+    const sp=BREITE_Z.filter(k=>v.Z[k]).map((k,i)=>`${i?ZONE_T[k]:"Spiel am Bund"} ${sg(v.Z[k].e)}`).join(", ")+" cm";
+    const saum=L?(L.d<0?` · Saum ${Math.round(-L.d)} cm über dem Boden`:` · Saum ${Math.round(L.d)} cm länger als bis zum Boden`):"";
+    const lq=B.srcLen&&B.srcLen!=="Scan"&&!/Körpergröße/.test(B.src)?` · Länge aus ${B.srcLen==="Körpergröße"?"der Körpergröße":"dem Maßband"}`:"";
+    msg=`<b>${escH(G.sizes[cur].n)}: ${FIT_T[v.f+2]}</b> · ${escH(sizeReason(v))}`
+      +(A.best!==cur?`<br>Empfehlung: <b>${escH(G.sizes[A.best].n)}</b> · ${escH(sizeReason(A.V[A.best]))}`:"")
+      +`<br><span class="sub">${sp}${saum} · ${CUT_T[v.cut]}, ${v.st.t}${v.sitz?` · sitzt <b>${v.sitz}</b>`:""}</span>`
+      +`<br><span class="sub">Dein Körper: ${escH(B.src)}${lq}</span>`; }
   if(G.sizesEst) msg+=`<br><span class="sub">Ohne Maßtabelle: Größen aus der Größe des Models abgeleitet.</span>`;
+  else if(G.sizesFoto) msg+=`<br><span class="sub">≈ hochgerechnet (geschätzt) aus der gemessenen Hose (${escH((G.sizes.find(z=>!z.est)||{}).n||"")}).</span>`;
   else if(G.sizes.some(z=>z.est)) msg+=`<br><span class="sub">≈ hochgerechnet (geschätzt): die Seite nennt Maße nur für ${escH(G.sizes.filter(z=>!z.est).map(z=>z.n).join(", ")||"eine Größe")}.</span>`;
   const key=chips+msg; if(!force&&key===szLast) return; szLast=key;
   $("g-sizes").hidden=false; $("g-szrow").innerHTML=chips; $("g-szmsg").innerHTML=msg; $("szchips").innerHTML=few; $("szshop").innerHTML=few;
@@ -4951,11 +5012,11 @@ function quickPerson(n,h){
   $("person").value=n; $("height").value=h; markQuick();
   try{ localStorage.setItem(PKEY,JSON.stringify({n,h})); }catch(_){}
   if(vorher!==n+"|"+h&&(ref||caps.cal)) $("reset").click();   // andere Person: ihr alter Scan gilt nicht mehr
-  view3dKick(); if(!camOn()) startCamera();
+  renderSizes(true); view3dKick(); if(!camOn()) startCamera();
 }
 function markQuick(){ document.querySelectorAll(".quickp").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.h===$("height").value.trim()&&b.dataset.n===$("person").value.trim()))); }
 document.querySelectorAll(".quickp").forEach(b=>b.addEventListener("click",()=>quickPerson(b.dataset.n,b.dataset.h)));
-["person","height"].forEach(id=>$(id).addEventListener("input",markQuick));
+["person","height"].forEach(id=>$(id).addEventListener("input",()=>{ markQuick(); renderSizes(true); }));
 ["person","height"].forEach(id=>$(id).addEventListener("change",()=>{
   try{ localStorage.setItem(PKEY,JSON.stringify({n:$("person").value,h:$("height").value})); }catch(_){} }));
 try{ const o=JSON.parse(localStorage.getItem(PKEY)||"null"); if(o){ if(!$("person").value) $("person").value=o.n||""; if(!$("height").value) $("height").value=o.h||""; } }catch(_){}
@@ -6186,7 +6247,7 @@ async function upBuild(){
     }
   }
   // Alle Größen: aus der Tabelle (je Größe dieselbe Prüfung wie oben), sonst aus der Größe des Models abgeleitet
-  G.sizes=null; G.size=null; G.sizesEst=false;
+  G.sizes=null; G.size=null; G.sizesEst=false; G.sizesFoto=false;
   if(ser){ const L=[];
     ser.forEach((e,k)=>{ const Gt={...G,waist:null,len:null,hem:null}, z={n:String(e.n).slice(0,12)}; let est=false;
       for(const q of ["waist","len","hem"]){ if(e[q]==null) continue; const v=Math.round(e[q]*10)/10; if(!dimWhy(q,v,Gt)){ Gt[q]=v; z[q]=v; if(e.est[q]) est=true; } }
@@ -6197,6 +6258,11 @@ async function upBuild(){
     // Maße ohne Größe (Screenshot nach Auswahl einer Größe: welche gewählt ist, zeigt nur die Farbe): gelten für die gewählte
     if(T.loose&&Object.keys(T.loose).length&&refI<0&&T.sizes[si]!=null) notes.push(`Maße ohne Größenangabe gelten für Größe ${T.sizes[si]}. Zeigt die Seite sie für eine andere Größe, oben die Größe wählen`); }
   if(!G.sizes&&mdl.size){ const L=gradeSizes(G,mdl); if(L){ G.sizes=L.map(({cur,...z})=>z); G.size=L.findIndex(z=>z.cur); G.sizesEst=true; } }
+  // Weder Tabelle noch Größe des Models, aber mit Maßstab gemessen (Bankkarte, A4): Weiten um die gemessene herum (W aus dem
+  // Bund wie in der Konfektion: Umfang in Zoll − 1), die gemessene echt, die anderen hochgerechnet (≈)
+  if(!G.sizes&&G.meas&&G.meas.ref!=="model"&&!M0rock(G)){ const W=Math.round(2*garmentDims(G).waist/2.54-1), L=W>=23&&W<=44?gradeSizes(G,{w:W,size:"W"+W}):null;
+    if(L){ G.sizes=L.map(({cur,...z})=>cur?z:{...z,est:true}); G.size=L.findIndex(z=>z.cur); G.sizesFoto=true;
+      notes.push(`Keine Größenangabe: Größen um die gemessene (≈ W${W}) hochgerechnet`); } }
   G.label=UP.key&&GARMENTS[UP.key]?GARMENTS[UP.key].label:UP.link&&UP.link.name?shortLabel(UP.link.name):nextName();     // neu gebaut: Name bleibt
   if(UP.link) G.link=UP.link.url;
   const err=realismus(G,info);
