@@ -1798,6 +1798,7 @@ const PASSFORM={
                          // weder der Modellanalyse (alle drei Modelle 1,05–1,4) noch dem Referenzvideo stand (Seitenansicht zu schmal,
                          // von vorn 10 % zu breit)
   beinTiefeKnie:1.1,     // … am Knie
+  laengsFaltenCm:.7,     // Tiefe der langen Hängefalten am Unterschenkel weiter Hosen (pose3d), 0 = aus
   beinTiefeSaum:1.25,    // … am Saum (Saum flach 25 cm → von vorn 14,1, seitlich 17,6 cm; Referenz 12–14 × 17–21, im Video eher breiter:
                          // der Saum liegt auf dem Fuß und spreizt sich). Mehr Tiefe machte die Hose von vorn/hinten zu schmal; das
                          // Seitenvolumen kommt bei weiten Hosen vor allem aus der geraden Rückenlinie (Gesäßfall, pose3d)
@@ -2242,6 +2243,11 @@ function pose3d(M,P){
   const lam=(P.foldCm||5)*ppc, rest=(i,t)=>{ const a=M.v[i], b=M.v[i+1], w=sstep(.15,1,t);
     return (yIn(b)-yIn(a))*(1-w)+(yOut(b)-yOut(a))*w; };
   let anyF=false; const amp=g3.amp||(g3.amp=new Float32Array(g3.nRing)), cmpA=g3.cmp&&g3.cmp.length===g3.nRing?g3.cmp:(g3.cmp=new Float32Array(g3.nRing));
+  // Längsfalten weiter Hosen: der Unterschenkel ist keine glatte Röhre, sondern hängt in 1–3 langen, weichen Falten (Referenz:
+  // 0,5–1 cm, 25–35 cm lang, im Profil leicht spiralig zur Ferse). Nur unter dem Oberschenkel und über dem Saumstapel, nach
+  // Weite: enge Hosen (Knie flach < 0,1·Größe + 5 cm) bekommen keine
+  const iK=Math.round((ic+NR)/2), wK=M.hw[Math.min(iK,NR-1)]*(P.cmH||0), looseL=clamp((2*wK-.2*(P.heightCm||175))/10,0,1);
+  const LA=P.noFold?0:PASSFORM.laengsFaltenCm*ppc*looseL*(P.foldK??1);
   for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){
     let arc=0;
     for(let i=0;i<NR;i++){
@@ -2259,9 +2265,13 @@ function pose3d(M,P){
       // darüber), vorn über dem Rist am kräftigsten, nach hinten auslaufend
       const ph=arc+2.6*(1-.6*zS)*Math.sin(psi+1.7*sl+i*.13)+1.1*Math.sin(2*psi+i*.29+.9*sl);
       const am=(.5+.5*Math.sin(psi+2.3+1.1*sl+i*.17))*(1-zS*(f?.55:0));   // mal tiefer, mal flacher; am Saum hinten flacher
-      amp[k]=A>.02*ppc?Math.min(.3*lamI,Ai)*am*Math.sin(ph):0; if(amp[k]) anyF=true;
+      amp[k]=A>.02*ppc?Math.min(.3*lamI,Ai)*am*Math.sin(ph):0;
       // Schatten im gestauchten Stoff (draw3d): etwas bei starker Stauchung, vor allem in den Faltentälern (nicht als Ringe)
       cmpA[k]=c>=.9?1:(.82+.18*sstep(.3,.9,c))*(1-.45*clamp(-amp[k]/(.1*lam),0,1));
+      if(LA&&i>ic){ const lpI=(M.v[i]-M.vc)/(1-M.vc), wl=sstep(.25,.45,lpI)*(1-sstep(.84,.95,lpI))*(1-sstep(.3,.7,1-c));
+        if(wl>0){ const aL=LA*wl*(.55+.45*Math.sin(2*psi+1.3+s))*Math.sin(3*psi+(s?1.9:.4)+.045*(i-ic)+.6*Math.sin(.11*i+psi));
+          amp[k]+=aL; cmpA[k]*=1-.16*clamp(-aL/LA,0,1); } }
+      if(amp[k]) anyF=true;
     }
   }
   if(anyF){
