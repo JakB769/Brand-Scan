@@ -67,4 +67,13 @@ Allgemein vorher: Farbe gelblich-grau und im Stand etwa 14 % zu dunkel (Farbton 
   Hälfte mit der breiteren Angabe → 0,06. (3) Tiefe der Beine: Bezug auch erwartete Länge aus der Größe (0,9·0,245·H), sonst
   lagen in der Hocke beide Oberschenkel gleich verkürzt in der Bildebene. (4) `shirtCut` schnitt Oberschenkel vor dem Shirt
   aus (Rechteck in der Hocke, gehobener Oberschenkel weg) → Kapsel um Oberschenkel mit Knie über dem Shirtsaum bleibt.
+- Referenzanalyse fertig (`docs/referenz-analyse/spezifikation.md`, `je-bild.md`), Modellanalyse (`docs/modelle/analyse.md`,
+  `empfehlung.md`; Lizenzen aller drei Modelle unbekannt → nur interne Referenz, kein Basis-Mesh).
+- Schleife 2 (Seitenvolumen, Saum): Umriss-Messung (Personenmaske gegen 3D zwischen Hüfte und Knöchel) über 16 Posen:
+  beinTiefe 0,8 → von vorn 10 % zu breit, seitlich 25 % zu schmal. Verlauf 1,0/1,1/1,25 + gerade Rückenlinie bei weiten Hosen:
+  vorn 0,97, seitlich 0,78–0,96. Saumring saß 3,7 cm außerhalb des Knöchels (fester Versatz in der Ruhehaltung) → `offR` je
+  Zeile mit wirklicher Beinlage: Saum mittig, hinten am Boden (≤ 0,9 cm), vorn auf dem Rist (5,3 cm), Außenkante senkrecht ±2 cm.
+- Farbe über alle Posen: ΔE 8, Helligkeit +2,3 L im Mittel (vorn etwas dunkler, hinten heller) → keine globale Änderung.
+  Textur weicher (Albedo gemittelt, feines Relief schwächer).
+- 3D-Export: ein Bein hatte nach innen zeigende Normalen (Blender schwarz) → behoben, Blender-Renders in `ansichten.mjs`.
 

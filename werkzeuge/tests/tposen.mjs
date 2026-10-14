@@ -1,6 +1,6 @@
 // Ganzkörper-Posen mit der Attrappe: Ausfallschritt, seitlicher Spagat, Längsspagat (von vorn und von der Seite), Liegestütz.
 // Geprüft: keine ungültigen Werte, Hose liegt auf beiden Beinen (Knie und Mitte Unterschenkel im Bild von Hose bedeckt), Stoff
-// klappt nicht um, man sieht nicht in die Hose (Innenseite rot), beim Liegestütz wird die Hose ausgeblendet (g.trk → 0) und
+// klappt nicht um, man sieht über den Knien nicht in die Hose (Innenseite rot), beim Liegestütz wird die Hose ausgeblendet (g.trk → 0) und
 // danach im Stand wieder eingeblendet. Bilder nach ausgabe/posen_*.png. Aufruf: node tposen.mjs [Testseite]
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -30,7 +30,10 @@ const mess=()=>p.evaluate(()=>{
     if(lu<.3*ppc||lw<.3*ppc) continue; if((u[0]*w[0]+u[1]*w[1]+u[2]*w[2])/(lu*lw)<-.5){ wo.push(`${s}${f?'h':'v'}${j}@${M.v[i].toFixed(2)}`); if(M.v[i]>=M.vc+.12) knee++; else if(!f&&j<=3) mitte++; else hip++; } }
   const um={hip,mitte,knee,wo:wo.join(' ')};
   const o=document.getElementById('overlay'), d=o.getContext('2d').getImageData(0,0,o.width,o.height).data, B=window.__bone, sk=o.width/window.__vw[0];
-  let rot=0, voll=0; for(let q=0;q<d.length;q+=4){ if(d[q+3]<200) continue; voll++; if(d[q]>140&&d[q+1]<70&&d[q+2]<70) rot++; }
+  // Innenseite nur über den Knien zählen (wie tbeine): in die Saumöffnung eines nach hinten oder zur Kamera zeigenden
+  // Unterschenkels sieht man zu Recht hinein (dort wäre der Fuß)
+  const ky=Math.max(B[0][1].y,B[1][1].y)*sk;
+  let rot=0, voll=0; for(let q=0;q<d.length;q+=4){ if(d[q+3]<200) continue; voll++; if(q/4/o.width<ky&&d[q]>140&&d[q+1]<70&&d[q+2]<70) rot++; }
   // Hose an Knie und Mitte Unterschenkel jedes Beins (3×3-Feld um den Punkt, Deckkraft)
   const deckt=(x,y)=>{ let n=0; for(let dy=-4;dy<=4;dy+=4) for(let dx=-4;dx<=4;dx+=4){ const X=Math.round(x*sk+dx), Y=Math.round(y*sk+dy);
     if(X<0||Y<0||X>=o.width||Y>=o.height) continue; if(d[(Y*o.width+X)*4+3]>150) n++; } return n>=5; };

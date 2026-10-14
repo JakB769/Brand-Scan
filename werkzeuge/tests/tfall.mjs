@@ -19,7 +19,7 @@ const laenge=async l=>{ await p.fill('#g-len',String(l)); await p.dispatchEvent(
   await p.evaluate(()=>{ const v=window.__dbg.v3d; v.yaw=0; v.idle=1e15; }); await p.waitForTimeout(1200); };
 // Lage in der 3D-Ansicht (wie view3dPose, Drehung 0): Höhe über dem Boden und Abstand zur Knöchelachse je Bein, in cm
 const form=()=>p.evaluate(()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key], c=document.getElementById('g3dview'), W=c.width, H=c.height;
-  const Hc=179, beltH=.52*Hc+.045*Hc, len=+document.getElementById('g-len').value.replace(',','.'), ppc=H*.9/Math.max(beltH+6,len+10), floor=H*.955, half=.05*Hc*ppc;
+  const Hc=179, beltH=.52*Hc+.045*Hc, len=+document.getElementById('g-len').value.replace(',','.'), ppc=H*.9/Math.max(beltH+6,len+10), floor=H*.955, half=.075*Hc*ppc;   // Knöchel der Puppe (seit 14.10. Füße 27 cm auseinander)
   const M=d.g3.M, NR=M.nr, n=d.g3.nRing, C=n/(4*NR), P=d.g3.pos; let ok=true;
   for(let k=0;k<d.g3.nv*3;k++) if(!isFinite(P[k])) ok=false;
   const o={ok,minH:1e9,saumMin:1e9,saumMax:-1e9,rBoden:0,rSaum:0,rOben:0,vorUnten:-1e9,vorOben:-1e9,kreuz:0,mitte:[],vh:[],hinten:0};
