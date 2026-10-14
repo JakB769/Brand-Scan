@@ -95,6 +95,10 @@ for (const it of liste) {
     // Erkennung roh (Hüfte, Knie, Knöchel: x, y in Bildanteilen, z, Sichtbarkeit) und was die Seite als Knochen nimmt (Bildpunkte)
     roh: window.__Lraw ? [11, 12, 23, 24, 25, 26, 27, 28].map(i => { const q = window.__Lraw[i]; return [i, +q.x.toFixed(3), +q.y.toFixed(3), +(q.z || 0).toFixed(2), +(q.v ?? 1).toFixed(2)]; }) : null,
     bone: window.__bone ? window.__bone.map(c => c.map(q => [Math.round(q.x), Math.round(q.y), Math.round(q.zr), q.ok ? 1 : 0])) : null,
+    // 3D-Hose je Bein: Mitte der Ringe am Schritt, auf halber Beinlänge und am Saum (Bildpunkte), Sicherheit der Erkennung
+    beine: d.g3 && d.g3.pos && d.g3.M ? [0, 1].map(s => { const M = d.g3.M, NR = M.nr, C = 13, ic = d.g3.ic;
+      return [ic, Math.round((ic + NR - 1) / 2), NR - 1].map(i => { let x = 0, y = 0; for (let f = 0; f < 2; f++) for (let j = 0; j < C; j++) { const k = (((s * NR + i) * 2 + f) * C + j) * 3; x += d.g3.pos[k]; y += d.g3.pos[k + 1]; }
+        return [Math.round(x / 2 / C), Math.round(y / 2 / C)]; }); }) : null, trk: +(d.g.trk ?? 1).toFixed(2),
     // Oberteil über dem Bund: erkannt (Deckkraft) und Saum in Bildpunkten (Median über die Spalten)
     shirt: d.shirt ? { show: +(d.shirt.show || 0).toFixed(2), saum: d.shirt.ys ? Math.round(d.shirt.ys.filter(v => v != null).sort((a, b) => a - b)[d.shirt.ys.filter(v => v != null).length >> 1] * document.getElementById("video").videoHeight) : null } : null }; });
   // Umriss zwischen Hüfte und Knöchel: Personenmaske der Erkennung (echte Hose, dort ohne Oberteil) gegen die 3D-Hose

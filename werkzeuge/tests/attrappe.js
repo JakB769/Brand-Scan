@@ -45,6 +45,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     // hocke: tiefe Hocke von vorn (Knie vorn und etwas außen, Fersen unten, Becken hinten auf 45 cm)
     if(md.hocke){ senke(50);
       L[23]=P(9,45,-10); L[24]=P(-9,45,-10); L[25]=P(20,48,34); L[27]=P(15,10,6); L[26]=P(-20,48,34); L[28]=P(-15,10,6); }
+    // hockeBreit: halbe Hocke mit weit gespreizten Knien (Referenz halbe-hocke-vorne: Knie weit außen, Oberschenkel zur Seite)
+    if(md.hockeBreit){ senke(45);
+      L[23]=P(9,50,-6); L[24]=P(-9,50,-6); L[25]=P(42,52,22); L[27]=P(26,9,6); L[26]=P(-42,52,22); L[28]=P(-26,9,6); }
     if(md.spagat===1){ senke(85);
       L[23]=P(9,10); L[24]=P(-9,10); L[25]=P(54,8); L[27]=P(96,6); L[26]=P(-54,8); L[28]=P(-96,6); }
     if(md.spagat===2){ senke(85);
@@ -59,7 +62,7 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
       L[i]={...L[i],z:L[i].z-(md.zn||0)*k+(md.zr||0)*(Math.random()-.5)}; } }
     L[29]=P(9+md.wide*30,3,-4); L[30]=P(-9-md.wide*30,3,-4); L[31]=P(9+md.wide*30,2,14); L[32]=P(-9-md.wide*30,2,14);
     if(md.kneeHigh||md.fersePo){ const a=L[27]; L[29]={...a,y:a.y+3*cmN*zm}; L[31]={...a,x:a.x+(14*s)*cmN/A*zm,z:a.z-14*c*cmN/A*zm}; }
-    const ganz=md.ausfall||md.spagat||md.liegestuetz||md.hocke;
+    const ganz=md.ausfall||md.spagat||md.liegestuetz||md.hocke||md.hockeBreit;
     if(ganz) for(const [a,h,t] of [[27,29,31],[28,30,32]]){ const q=L[a]; L[h]={...q,y:q.y+2*cmN*zm}; L[t]={...q,y:q.y+2*cmN*zm,z:q.z-10*cmN/A*zm}; }
     // Gelenke außerhalb des Bildes wie bei MediaPipe: Lage geraten, Sicherheit gering (rand:'raten'),
     // oder an den unteren Bildrand geklebt mit mittlerer Sicherheit (rand:'kleben')

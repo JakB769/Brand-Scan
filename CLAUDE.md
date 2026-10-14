@@ -93,6 +93,10 @@ Diese Datei wird bei jeder Anfrage mitgeladen und ist darum bewusst kurz. Die De
 - **Flache und getragene Fotos lassen sich nicht mischen**; Model-Fotos haben je Bild eine andere Pose.
 - **Passform kommt aus Zentimetern.** Größentabellen der Shops (Bershka) nennen nur Körpermaße, Produktfotos haben keinen Maßstab. Mindestens ein Maßband-Wert pro Hose ist nötig.
 - **Die Tiefenschätzung von MediaPipe ist unruhig.** Nie allein darauf bauen.
+- **Bodenkamera: Knie über der Hüfte ist normal** (Knie hoch, Hocke). Fehlerkennung erkennt man an Knöcheln über den Knien, nicht
+  an Knien über der Hüfte. Bein-Tiefe aus der Verkürzung braucht die gelernte Bein-Länge (`legCm`), nicht nur das andere Bein.
+- **Bein-Querschnitt tiefer als breit** (Schritt 1,0 → Saum 1,25), weite Hosen hinten gerade vom Gesäß zum Boden. 0,8 war zu flach
+  (Referenzvideo, alle drei 3D-Modelle 1,05–1,4). Vergleich gegen die Referenz: `werkzeuge/vergleich.mjs`, Plan: `PROGRESS.md`.
 - **Kamera braucht https.** Der Nutzer zieht einen Ordner mit `index.html` auf app.netlify.com/drop (ohne Konto, jedes Mal neue Adresse).
 - Shopify: Theme App Extension (App-Block), Billing API, 3D-Modelle als Datei am Produkt. Das fertige Hosenmodell ist rund 120 KB.
 - **Schlüssel (3D-Dienst, Shopify-Secret) nur als Umgebungsvariable im Server-Teil**, nie in `app/index.html` oder einer Datei im Repo.

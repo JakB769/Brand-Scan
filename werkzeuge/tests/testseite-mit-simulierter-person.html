@@ -618,6 +618,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     // hocke: tiefe Hocke von vorn (Knie vorn und etwas außen, Fersen unten, Becken hinten auf 45 cm)
     if(md.hocke){ senke(50);
       L[23]=P(9,45,-10); L[24]=P(-9,45,-10); L[25]=P(20,48,34); L[27]=P(15,10,6); L[26]=P(-20,48,34); L[28]=P(-15,10,6); }
+    // hockeBreit: halbe Hocke mit weit gespreizten Knien (Referenz halbe-hocke-vorne: Knie weit außen, Oberschenkel zur Seite)
+    if(md.hockeBreit){ senke(45);
+      L[23]=P(9,50,-6); L[24]=P(-9,50,-6); L[25]=P(42,52,22); L[27]=P(26,9,6); L[26]=P(-42,52,22); L[28]=P(-26,9,6); }
     if(md.spagat===1){ senke(85);
       L[23]=P(9,10); L[24]=P(-9,10); L[25]=P(54,8); L[27]=P(96,6); L[26]=P(-54,8); L[28]=P(-96,6); }
     if(md.spagat===2){ senke(85);
@@ -632,7 +635,7 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
       L[i]={...L[i],z:L[i].z-(md.zn||0)*k+(md.zr||0)*(Math.random()-.5)}; } }
     L[29]=P(9+md.wide*30,3,-4); L[30]=P(-9-md.wide*30,3,-4); L[31]=P(9+md.wide*30,2,14); L[32]=P(-9-md.wide*30,2,14);
     if(md.kneeHigh||md.fersePo){ const a=L[27]; L[29]={...a,y:a.y+3*cmN*zm}; L[31]={...a,x:a.x+(14*s)*cmN/A*zm,z:a.z-14*c*cmN/A*zm}; }
-    const ganz=md.ausfall||md.spagat||md.liegestuetz||md.hocke;
+    const ganz=md.ausfall||md.spagat||md.liegestuetz||md.hocke||md.hockeBreit;
     if(ganz) for(const [a,h,t] of [[27,29,31],[28,30,32]]){ const q=L[a]; L[h]={...q,y:q.y+2*cmN*zm}; L[t]={...q,y:q.y+2*cmN*zm,z:q.z-10*cmN/A*zm}; }
     // Gelenke außerhalb des Bildes wie bei MediaPipe: Lage geraten, Sicherheit gering (rand:'raten'),
     // oder an den unteren Bildrand geklebt mit mittlerer Sicherheit (rand:'kleben')
@@ -1491,7 +1494,7 @@ function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
       const fab=stoffVon(G);
       const fk=G.farbe||[1,1,1]; for(let c=0;c<3;c++) tint[c]*=fk[c];
       const drape=drapeFor(G,num($("height").value)||175,10);
-      const info=draw3d(M,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:num($("height").value)||175,rot:G.rot||null,ql:G.ql||null,offK:G.offK??null,drape,drapeW:drapeW(drape),ppc:pxPerCm,cmH,cmL,kHem:D.hem/(M.hw[M.nr-1]*cmH),h,upRef,belt,yCrotch,crotchP,bone:B,foc,pc,arms:ext.arms,zs:vw,inner:innerColor(G),rs:PERF.rs},vw,vh,tint);
+      const info=draw3d(M,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:num($("height").value)||175,rot:G.rot||null,ql:G.ql||null,offK:G.offK??null,drape,drapeW:drapeW(drape),ppc:pxPerCm,cmH,cmL,kHem:D.hem/(M.hw[M.nr-1]*cmH),h,upRef,belt,yCrotch,crotchP,bone:B,boneImg:B0,foc,pc,arms:ext.arms,zs:vw,inner:innerColor(G),rs:PERF.rs},vw,vh,tint);
       ctx.save();
       ctx.globalAlpha=g.opa*g.trk;
       const src=ext.shirt?shirtCut(g3.c,ext.shirt,vw,vh,pxPerCm,bone):g3.c;   // Oberteil über dem Bund: Hose dort weg
@@ -2100,15 +2103,19 @@ function pose3d(M,P){
   // Fuß angehoben (Knie hoch, Ferse zum Gesäß, Schritt): 4–12 cm über dem tieferen Knöchel steht er nicht mehr auf dem Boden.
   // haengt: das Hosenbein hängt nur frei, wenn der Unterschenkel nach unten zeigt; zeigt er nach oben (Ferse zum Gesäß), rutscht
   // der überlange Stoff zum Knöchel und staucht sich dort (vorher ragte der Saum gerade weiter, über den Bund hinaus)
-  const down=P.bone.map(c=>v3.dot(v3.sub(c[2],c[0]),dn)), dMax=Math.max(down[0],down[1]), boden=down.map(d=>1-sstep(4*ppc,12*ppc,dMax-d));
+  // Gehoben nur, wenn der Fuß auch im Bild höher liegt (P.boneImg, vor dem Zurückrechnen der Perspektive): ein Knöchel näher an
+  // der Kamera rückt in der Rückrechnung nach oben; bei breiter Hocke schräg galt der vordere Fuß sonst als 12 cm gehoben und das
+  // Hosenbein hing 15 cm unter den Knöchel
+  const dOf=bn=>bn.map(c=>v3.dot(v3.sub(c[2],c[0]),dn)), down=dOf(P.bone), downI=P.boneImg?dOf(P.boneImg):down;
+  const dMax=Math.max(down[0],down[1]), dMaxI=Math.max(downI[0],downI[1]), boden=down.map((d,s)=>1-sstep(4*ppc,12*ppc,Math.min(dMax-d,dMaxI-downI[s])));
   const haengt=P.bone.map((c,s)=>(1-boden[s])*sstep(.3,.8,v3.dot(v3.norm(v3.sub(c[2],c[1])),dn)));
   const delta=5*ppc;
   const kH=P.kHem||1, legK=i=>1+(kH-1)*clamp((M.v[i]-M.vc)/(1-M.vc),0,1);
   const Rc=M.hw[Math.min(ic,NR-1)]*S/Math.PI;          // Radius des Hosenbeins direkt unter dem Schritt
   // Tiefe/Breite des Beins als Verlauf: am Schritt qlP, zum Knie und zum Saum tiefer (getragene Jeans: Knie 1,2–1,4, Saum 1,3–1,6;
   // die Saumöffnung ist eine Ellipse entlang des Fußes, docs/referenz-analyse/spezifikation.md; Modellanalyse 1,1–1,4)
-  const qProf=lp=>{ const k=PASSFORM.beinTiefeKnie/PASSFORM.beinTiefe, h=PASSFORM.beinTiefeSaum/PASSFORM.beinTiefe;
-    return lp<.15?1:lp<.5?1+(k-1)*sstep(.15,.5,lp):k+(h-k)*sstep(.5,1,lp); };
+  const qProf=lp=>{ const k=PASSFORM.beinTiefeKnie/PASSFORM.beinTiefe, h=PASSFORM.beinTiefeSaum/PASSFORM.beinTiefe;   // lp: 0 Schritt … 1 Saum der Hose
+    return lp<.1?1:lp<.45?1+(k-1)*sstep(.1,.45,lp):k+(h-k)*sstep(.45,1,lp); };
   const qlP=clamp(P.ql||PASSFORM.beinTiefe,.35,1.6), Rxc=2*M.hw[Math.min(ic,NR-1)]*S/RQ(qlP);   // halbe Breite dort (flacher Querschnitt)
   // vorne über dem Schritt: die Oberschenkel halten die Tiefe des Beins (sonst rollt die Mitte ein und in der Seitenansicht
   // entsteht vorn am Schritt eine Delle, unter der das Bein wieder vorsteht)
@@ -2130,7 +2137,9 @@ function pose3d(M,P){
     const dC=v3.dot(v3.sub(cr,ch[0]),dn), bC=walk3(ch,Math.max(0,dC));
     const off=Math.max(0,ell(hwU(ic-1)*S)[0]-Rxc-v3.dot(v3.sub(bC,cr),h)*sg)*clamp(P.offK??1,0,1); (g3.legOff||(g3.legOff=[0,0]))[s]=off;
     for(let i=0;i<NR;i++){
-      const below=i>=ic, hwPx=(below?M.hw[i]*legK(i):hwU(i))*S, dOut=seamOut(i);
+      // lpG: Lage in der Hose (0 am Schritt, 1 am Saum): der Querschnitt gehört zur Stelle der Hose, nicht zur Stelle am Bein
+      // (eine kürzere Hose behielt sonst am Saum nicht ihre Form: Saumbreite änderte sich mit der Länge)
+      const below=i>=ic, hwPx=(below?M.hw[i]*legK(i):hwU(i))*S, dOut=seamOut(i), lpG=clamp((M.v[i]-M.vc)/Math.max(1e-3,1-M.vc),0,1);
       let cT,a,b,bB,uS,sCm=0;
       if(!below){ cT=v3.add(top,v3.mul(dn,yIn(M.v[i]))); uS=M.v[i]/M.vc; [a,b,bB]=ell2(hwPx,uS); bB=capB(bB,uS); }
       else { const sPx=(M.v[i]-M.vc)*SV; sCm=sPx/ppc; cT=v3.add(cr,v3.mul(dn,sPx)); uS=1; [a,b,bB]=ell2(hwU(ic-1)*S,1); bB=capB(bB,1); }
@@ -2148,7 +2157,7 @@ function pose3d(M,P){
         // überall der Versatz vom Schritt: Saumring 3,7 cm außerhalb, Innenseite lag hinten auf der Ferse)
         // Seitliche Lage des Beins in der wirklichen Haltung (hier wird in der Ruhehaltung gebaut, Beine senkrecht; das Skinning
         // dreht das Bein danach zum Fuß hin nach außen)
-        if(below){ const lp0=clamp(d/Math.max(1,cl),0,1), Rx0=2*hwPx/RQ(qlP*qProf(lp0)), latB=v3.dot(v3.sub(walk3(P.bone[s],d),cr),h)*sg;
+        if(below){ const Rx0=2*hwPx/RQ(qlP*qProf(lpG)), latB=v3.dot(v3.sub(walk3(P.bone[s],d),cr),h)*sg;
           offR=clamp(ell(hwU(ic-1)*S)[0]-Rx0-latB,0,off); }
         cL=v3.add(cL,v3.mul(r,sg*offR));
         // Weite Beine (Shorts, Baggy): Außenkante höchstens 1 cm außerhalb der Hüfte, sonst stehen sie wie Flügel ab;
@@ -2156,7 +2165,7 @@ function pose3d(M,P){
         if(below){ const lat=v3.dot(v3.sub(cL,cr),h)*sg, latMax=Math.max(ell(hwU(ic-1)*S)[0]+ppc-2*hwPx/RQ(qlP),.3*hwPx/Math.PI);
           if(lat>latMax) cL=v3.add(cL,v3.mul(r,-sg*(lat-latMax))); }
         R=below?hwPx/Math.PI:Rc;
-        if(below){ const lp=clamp(d/Math.max(1,cl),0,1), qL=qlP*qProf(lp); Rx=2*hwPx/RQ(qL); Rz=Rx*qL;
+        if(below){ const lp=clamp(d/Math.max(1,cl),0,1), qL=qlP*qProf(lpG); Rx=2*hwPx/RQ(qL); Rz=Rx*qL;
           // Bein von der Seite mindestens so tief wie das Bein des Körpers (Oberschenkel → Knie → Wade → Knöchel) plus Zugabe
           const bdL=lp<.3?BD.thigh:lp<.5?BD.thigh+(BD.knee-BD.thigh)*(lp-.3)/.2:lp<.7?BD.knee+(BD.calf-BD.knee)*(lp-.5)/.2:BD.calf+(BD.ankle-BD.calf)*(lp-.7)/.3;
           const rzMin=(bdL*ppc+.75*zug)/2; if(Rz<rzMin) Rz=rzMin; }

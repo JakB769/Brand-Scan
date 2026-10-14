@@ -305,3 +305,16 @@ Schleife 1 (Hocke von vorn und Knie hoch von vorn waren 1/5):
    Hüfte sieht (Ausfallschritt, Längsspagat).
 6. Neu: `trackSure` blendet die Hose bei unsicherer Erkennung aus (Liegestütz), Test `tposen` mit neuen Attrappen-Posen.
 Unter Last (Analyse + Renders parallel) fallen `tkamera`, `tstoff`, `tlag` aus; einzeln grün (siehe `doku/testen.md`).
+
+Schleife 2 und Feinschliff (14.10.):
+1. Seitenvolumen: Umriss-Messung (Personenmaske gegen 3D) über 16 Referenzposen. Bein-Querschnitt als Verlauf
+   (`PASSFORM.beinTiefe/Knie/Saum` 1,0/1,1/1,25, vorher fest 0,8): von vorn 1,10 → 0,98, seitlich 0,75 → 0,81–0,96.
+2. Saum: Ring saß 3,7 cm neben dem Knöchel (fester Versatz aus der Ruhehaltung) → `offR` je Zeile mit wirklicher Beinlage.
+   Weite Hosen: gerade Rückenlinie (Gesäßfall `exB` über die ganze Beinlänge). Stauchfalten am Saum 1–2 große Wülste.
+3. Shirt über dem Bund: Hosenfarbe auf den Oberschenkeln, Schwelle aus dem Rauschen, Saum als stärkste Kante → 15/16 Posen.
+4. 3D-Export: Normalen und Dreiecks-Umlauf nach außen (Blender zeigte ein Bein schwarz).
+5. Allgemeinheit: Slim-Jeans und Cargo aus 3D-Modellen als Händlerfotos gerendert (`werkzeuge/python/flachbilder.py`) und
+   gebaut (`docs/nachher/zweite-hose/`). Handy-Emulation `werkzeuge/handy.mjs` (Bildrate ohne GPU nicht aussagekräftig).
+6. Breite Hocke schräg: Saum hing 5 cm unter dem Knöchel → „Fuß angehoben“ auch im Bild prüfen (`P.boneImg`).
+7. Rückschritt gefunden: Querschnitt-Verlauf hing an der Beinstelle, kürzere Hose wurde am Saum breiter → Stelle in der Hose.
+Vorher/Nachher: `docs/vorher/`, `docs/nachher/`, Übersicht `docs/nachher/vorher-nachher_1–4.jpg`. Bewertung je Pose: `PROGRESS.md`.

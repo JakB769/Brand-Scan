@@ -5,7 +5,7 @@
      node werkzeuge/ansichten.mjs [--aus docs/nachher/ansichten] [--stand <git-rev>] [--hose vorne.jpg,hinten.jpg] [--groesse 179]
                                   [--bund 39.6]   (Bundweite flach in cm, wenn keine Karte im Bild ist: Einzel-Formular)
    --stand: Seite aus einem älteren Commit bauen (app/index.html und baue-testseite.mjs von dort, Attrappe von jetzt), z. B. für
-   docs/vorher. Hose standardmäßig die Flachlage der Referenz-Jeans (assets/referenz/fotos/flach-vorne-hinten/). */
+   docs/vorher. --schnell: nur die Posen (keine .glb, keine Blender-Renders). --seite: fertige Testseite nehmen (z. B. aus einer Arbeitskopie, während eine Testreihe läuft). Hose standardmäßig die Flachlage der Referenz-Jeans (assets/referenz/fotos/flach-vorne-hinten/). */
 import { chromium } from "playwright";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -14,14 +14,15 @@ import { fileURLToPath } from "node:url";
 
 const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + "/";
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i < 0 ? d : process.argv[i + 1]; };
-const OUT = path.resolve(R, arg("aus", "docs/nachher/ansichten")) + "/", STAND = arg("stand", null), GROESSE = String(arg("groesse", "179")), BUND = arg("bund", null);
+const SCHNELL = process.argv.includes("--schnell"), OUT = path.resolve(R, arg("aus", "docs/nachher/ansichten")) + "/", STAND = arg("stand", null), GROESSE = String(arg("groesse", "179")), BUND = arg("bund", null);
 const [VORNE, HINTEN] = String(arg("hose", "assets/referenz/fotos/flach-vorne-hinten/vorne.jpg,assets/referenz/fotos/flach-vorne-hinten/hinten.jpg")).split(",").map(f => path.resolve(R, f));
 fs.mkdirSync(OUT, { recursive: true });
 const TMP = fs.mkdtempSync("/tmp/ansichten-");
 
 // Testseite bauen: jetziger Stand oder ein älterer Commit (dessen app/index.html + baue-testseite.mjs, Attrappe von jetzt)
 let seite = TMP + "/seite.html";
-if (STAND) {
+if (arg("seite", null)) seite = path.resolve(arg("seite"));
+else if (STAND) {
   fs.mkdirSync(TMP + "/baum/werkzeuge/tests", { recursive: true }); fs.mkdirSync(TMP + "/baum/app", { recursive: true });
   const zeige = f => execFileSync("git", ["-C", R, "show", STAND + ":" + f], { maxBuffer: 64 << 20 });
   fs.writeFileSync(TMP + "/baum/app/index.html", zeige("app/index.html"));
@@ -51,7 +52,7 @@ console.log("HOSE:", meldung.slice(0, 200));
 
 // 3D-Datei der Ruheform (mit Stoff-Fall)
 await (await p.$("#g3dview")).scrollIntoViewIfNeeded().catch(() => {}); await p.waitForTimeout(2500);
-try { const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 20000 }), p.click("#g-glb")]); await dl.saveAs(OUT + "hose.glb"); }
+if (!SCHNELL) try { const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 20000 }), p.click("#g-glb")]); await dl.saveAs(OUT + "hose.glb"); }
 catch (e) { console.log("Keine 3D-Datei:", e.message.split("\n")[0]); }
 
 // Anprobe mit der Attrappe, Posen nacheinander
@@ -87,7 +88,7 @@ await b.close(); fs.rmSync(TMP, { recursive: true, force: true });
 
 // Blender-Renders der 3D-Datei (falls vorhanden)
 const PY = "/opt/bpyenv/bin/python";
-if (fs.existsSync(OUT + "hose.glb") && fs.existsSync(PY)) {
+if (!SCHNELL && fs.existsSync(OUT + "hose.glb") && fs.existsSync(PY)) {
   try { execFileSync(PY, [R + "werkzeuge/python/render_glb.py", OUT + "hose.glb", OUT], { stdio: "inherit", timeout: 900000 }); }
   catch (e) { console.log("Blender-Render fehlgeschlagen:", e.message.split("\n")[0]); }
 }

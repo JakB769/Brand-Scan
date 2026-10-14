@@ -53,6 +53,24 @@ Werkzeug: `node werkzeuge/vergleich.mjs` (Triptychon Original | 3D | gemischt), 
 | Bücken (hinten) | 3 (Bund über dem Shirt) | – | 3 | 3 | 3 | 4 | V |
 | Drehung Seite/hinten | 3 | 3 | 3 | 3 | 4 | 4 | V |
 
+| stehen vorne | 4 | – | 4 (1–2 Wülste, vorn auf dem Rist) | 3 | 4 | – | N |
+| seitlich stehen | 3 (unten noch ~20 % zu schmal) | 3 | 3 | 3 | 4 | 4 | N |
+| hinten stehen | 4 | – | 3 (Bodenkamera sieht hinten unter den Saum) | 3 | 4 | 4 (Taschen kleiner als getragen) | N |
+| Knie hoch vorne | 3 (beide Beine da, Oberschenkel zur Kamera) | – | 3 | 3 | 3 | – | N |
+| Knie hoch seitlich (Einzelbild steht) | 4 | 3 | 4 | 3 | 4 | – | N |
+| Hocke vorne | 4 | – | 3 | 3 | 3 | – | N |
+| Hocke seitlich | 4 | 3 | 3 | 3 | 3 | 4 | N |
+| halbe Hocke vorne | 3 | – | 3 | 2 (Lappen am Oberschenkel oben) | 3 | – | N |
+| Ausfallschritt (hinten) | 4 | – | 3 | 3 | 4 | 4 | N |
+| Bein seitlich | 4 | – | 4 | 3 | 4 | – | N |
+| hinten Bein heben | 4 | – | 3 | 3 | 4 | 4 | N |
+| Bücken (hinten) | 4 (Bund unter dem Shirt) | – | 3 | 3 | 4 | 4 | N |
+| Drehung Seite/hinten | 4 | 4 | 3 | 3 | 4 | 4 | N |
+| Attrappe: Ausfallschritt, Spagat seitlich/längs, Liegestütz (aus) | 4 | – | – | – | 4 | – | N (`tposen`) |
+
+N = nachher (`docs/nachher/vergleich/`, Übersicht `docs/nachher/vorher-nachher_*.jpg`). Umriss-Messung (Mittel 16 Posen):
+Überlappung 0,692 → 0,697, Breite 3D/echt von vorn 1,10 → 0,98, seitlich 0,75 → 0,81 (Drehung hinten 0,92 → 0,99).
+
 Allgemein vorher: Farbe gelblich-grau und im Stand etwa 14 % zu dunkel (Farbton passt, ΔE ≈ 8), Bund über dem Shirt
 (Shirt und Jeans beide blau, Schnitt greift nicht), Länge 109 statt etwa 105 cm.
 
@@ -92,4 +110,47 @@ Allgemein vorher: Farbe gelblich-grau und im Stand etwa 14 % zu dunkel (Farbton 
   29,4 bzw. 35 cm: getragene Form, nicht flach; mit flacher Bundweite lehnt die App sie zu Recht ab, Länge 139 cm).
   Ergebnis `docs/nachher/zweite-hose/<name>/`: alle 12 Attrappen-Posen stimmig (schmaler Schnitt bleibt schmal, Hocke,
   Knie hoch, Ausfallschritt, Spagat), Blender-Renders der exportierten .glb.
+- Breite Hocke schräg (Attrappe `hockeBreit`): Saum hing 5 cm unter dem Knöchel, weil der vordere Fuß nach der
+  Tiefenkorrektur als gehoben galt → „Fuß angehoben“ auch im Bild prüfen (`P.boneImg`). Saum jetzt am Knöchel.
+- Rückschritt aus Schleife 2 gefunden (`thosen`): Querschnitt-Verlauf hing an der Stelle am Bein, eine kürzere Hose wurde am
+  Saum 4 % breiter → Verlauf an der Stelle in der Hose (`lpG`). Volle Testreihe danach grün.
+
+## Abschluss (Stand 14.10. mittags; danach geht der Feinschliff weiter, siehe Log)
+
+**Vorher/Nachher:** `docs/vorher/` (16 Referenzposen, Ansichten des Stands vor der Sitzung, Blender-Renders) gegen
+`docs/nachher/` (dieselben Posen, Ansichten, Renders, zweite Hose, Handy-Emulation). Übersicht je Pose:
+`docs/nachher/vorher-nachher_1.jpg` … `_4.jpg` (Original | vorher | nachher).
+
+**Was sich geändert hat (App):**
+- Beine bei Kamera am Boden: Knie über der Hüfte gilt (Hocke, Knie hoch), gekippte Schulter-/Hüftlinie ist keine Drehung,
+  Tiefe der Beine mit gelernter Bein-Länge, Oberschenkel nach hinten nur bei unsicherer Tiefe gespiegelt (Ausfallschritt,
+  Spagat), Oberschenkel vor dem Shirt werden nicht ausgeschnitten.
+- Hose bei unsicherer Erkennung ausgeblendet (Liegestütz), weich wieder eingeblendet.
+- Form: Bein-Querschnitt als Verlauf (tiefer als breit), gerade Rückenlinie bei weiten Hosen, Außenkante senkrecht, Saum
+  mittig über dem Knöchel, hinten am Boden, vorn auf dem Rist.
+- Falten: am Saum 1–2 große Wülste statt 4–5 Ringe, lange Hängefalten am Unterschenkel weiter Hosen; Textur weicher.
+- Shirt über dem Bund auch bei ähnlichen Farben (15/16 Posen).
+- 3D-Export: Normalen nach außen (vorher ein Bein schwarz in Blender).
+
+**Übernommene Techniken und Modelle:** Proportionen (Tiefe/Breite der Beine) aus der Analyse der drei 3D-Modelle
+(`docs/modelle/empfehlung.md`); keines als Basis-Mesh übernommen (Lizenz unbekannt, Passform fest, keine Rigs). Zielwerte aus
+der Referenzanalyse (`docs/referenz-analyse/spezifikation.md`). Draco/Meshopt/KTX2 nicht eingesetzt: das Live-Modell wird im
+Browser erzeugt (nichts zum Komprimieren außer dem Atlas, ~100 KB JPEG); nur die .glb für Shopify (440 KB) käme in Frage.
+
+**Werkzeuge:** `werkzeuge/vergleich.mjs` (+ `vergleich_tabelle.py`, `farbvergleich.py`, `vorher_nachher.py`),
+`werkzeuge/ansichten.mjs`, `werkzeuge/handy.mjs`, `werkzeuge/python/render_glb.py`, `flachbilder.py`; Test `tposen`.
+
+**Fertig-Kriterien:** Rückseite zeigt das Rückenfoto (ja, Taschen sichtbar). Kein sichtbarer Nachlauf (`tlag`: 10–30 ms).
+Spagat geht (Attrappe, seitlich und längs von der Seite; längs genau von vorn ist eine Grenzlage). Handy-Emulation läuft,
+die Bildrate ist hier ohne GPU nicht messbar. Bestehendes: volle Testreihe grün (Abschnitt Log). **Nicht erreicht:** alle
+Posen ≥ 4/5 (Seitenansicht 3, halbe Hocke 2–3, Knie hoch von vorn 3).
+
+**Offen / nächste Schritte:**
+1. Seitenansicht unten noch ~20 % schmaler als echt; halbe Hocke: Lappen oben am Oberschenkel (Leistenfalte bei seitlich
+   gehobenem Oberschenkel); Knie hoch von vorn: Oberschenkel zur Kamera zu dunkel/zu flach.
+2. Bodenkamera blickt schräg nach oben, der Renderer nimmt eine waagrechte Kamera an (Bund/Passe von hinten unten).
+3. Gesäßtaschen wirken getragen ~1,5× größer als in 3D.
+4. Zugfalten (Schritt → gehobenes Knie, Diagonalfalten im Ausfallschritt) fehlen, nur Stauch- und Hängefalten.
+5. Echte Handys (Safari, Pixel) prüfen; Bildrate am Gerät messen (`PERF`).
+6. Lizenzen der drei 3D-Modelle in `assets/pants/LIZENZEN.md` eintragen (Quelle unbekannt).
 
