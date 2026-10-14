@@ -284,3 +284,24 @@ Nicht geprüft: Safari/WebKit (hier nicht installiert), echte Kamera, echte Hand
 - Schlüssel-Schutz: `werkzeuge/geheimnis-pruefung.mjs` als erster Schritt von `npm test`, `.gitignore` für `.env`, `*.pem`, `*.key`.
   Der ganze Git-Verlauf (36 Commits) wurde einmal nach Schlüsseln durchsucht: nichts gefunden.
 - Plugins in `.claude/settings.json`: `security-guidance`, `frontend-design`, `claude-security`, dazu (Wunsch des Nutzers) `superpowers`, `liquid-skills`, `netlify-skills`.
+
+
+### 3D-Modell verbessern, Sitzung 13./14.10. (Branch `3d-modell-verbesserung`, selbstständig, Plan und Bewertung in `PROGRESS.md`)
+
+Referenz: Jakob (1,79 m) in der hellblauen Wide-Leg-Jeans (`assets/referenz/`), dieselbe Jeans flach mit Bankkarte.
+Neue Werkzeuge: `werkzeuge/vergleich.mjs` (echte Seite, echte MediaPipe, Referenzbild als Kamera, Triptychon je Pose, Umriss-
+und Farbmessung), `werkzeuge/ansichten.mjs` (Hose allein in Attrappen-Posen + Blender-Renders der .glb, auch für alte Commits),
+`werkzeuge/python/farbvergleich.py`, `werkzeuge/python/render_glb.py`. Modellanalyse der drei 3D-Hosen: `docs/modelle/`.
+
+Schleife 1 (Hocke von vorn und Knie hoch von vorn waren 1/5):
+1. `legSanity` verwarf Knie über der Hüfte (Schutz gegen gespiegelte Beine). Bei Kamera am Boden liegen Knie bei Knie hoch und
+   Hocke über der Hüfte → Knie gilt, wenn der Knöchel desselben Beins darunter liegt (Fehlerkennung: Knöchel über dem Knie).
+2. `bodyYaw`: gekippte Schulter-/Hüftlinie (Arm/Bein gehoben) galt als Drehung (frontal 0,77 rad) → Linienlänge, Mischung mit
+   der breiteren Angabe (0,06).
+3. Tiefe der Beine: Bezug auch die gelernte Länge von Ober-/Unterschenkel (`legCm`), sonst lagen beide Oberschenkel in der Hocke
+   in der Bildebene.
+4. `shirtCut` schnitt Oberschenkel vor dem Shirt aus (Rechteck in der Hocke) → Oberschenkel mit Knie über dem Shirtsaum bleiben.
+5. `legHinge` spiegelte jeden Oberschenkel > 30° nach hinten → nur noch, wenn die Erkennung das Knie nicht deutlich hinter der
+   Hüfte sieht (Ausfallschritt, Längsspagat).
+6. Neu: `trackSure` blendet die Hose bei unsicherer Erkennung aus (Liegestütz), Test `tposen` mit neuen Attrappen-Posen.
+Unter Last (Analyse + Renders parallel) fallen `tkamera`, `tstoff`, `tlag` aus; einzeln grün (siehe `doku/testen.md`).

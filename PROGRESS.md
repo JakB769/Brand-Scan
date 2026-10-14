@@ -34,8 +34,37 @@ Fertig: alle Posen ≥ 4/5, Rückseite = Rückseiten-Foto, kein Lag, Spagat geht
 (siehe `assets/pants/LIZENZEN.md`, vom Nutzer auszufüllen; in den ZIPs: siehe Abschnitt 4)
 
 ## Bewertung je Pose (1–5)
+Werkzeug: `node werkzeuge/vergleich.mjs` (Triptychon Original | 3D | gemischt), Farbe: `python3 werkzeuge/python/farbvergleich.py <dir>`.
+„–“ = in der Pose nicht zu beurteilen. Spalte Stand: V = Vorher (`docs/vorher/vergleich/`), Zahl = Schleife.
+
 | Pose | Silhouette | Seitenvolumen | Saum | Falten | Dehnung | Rückseite | Stand |
 |---|---|---|---|---|---|---|---|
+| stehen vorne | 3 | – | 3 | 2 (Knitter der Flachlage wie Schmutz) | 4 | – | V |
+| seitlich stehen | 2 (unten zu schmal) | 2 | 2 (am Fuß verknautscht) | 3 | 4 | 3 | V |
+| hinten stehen | 3 | – | 3 | 3 | 4 | 4 (Taschen etwas klein/hoch) | V |
+| Knie hoch vorne | 1 (gehobenes Bein fehlt) | – | 1 | 2 | 1 | – | V |
+| Knie hoch seitlich | 3 | 3 | 3 | 3 | 3 | – | V |
+| Hocke vorne | 1 (Bein unter dem Boden, Rechteck) | – | 1 | 1 | 1 | – | V |
+| Hocke seitlich | 3 | 3 | 3 | 2 | 3 | 3 | V |
+| halbe Hocke vorne | 2 (Schritt hängt) | – | 3 | 2 | 2 | – | V |
+| Ausfallschritt (hinten) | 3 | – | 3 | 3 | 3 | 4 | V |
+| Bein seitlich | 4 | – | 3 | 3 | 4 | – | V |
+| hinten Bein heben | 3 | – | 3 | 3 | 3 | 4 | V |
+| Bücken (hinten) | 3 (Bund über dem Shirt) | – | 3 | 3 | 3 | 4 | V |
+| Drehung Seite/hinten | 3 | 3 | 3 | 3 | 4 | 4 | V |
+
+Allgemein vorher: Farbe gelblich-grau und im Stand etwa 14 % zu dunkel (Farbton passt, ΔE ≈ 8), Bund über dem Shirt
+(Shirt und Jeans beide blau, Schnitt greift nicht), Länge 109 statt etwa 105 cm.
 
 ## Log
 - Setup: Branch `3d-modell-verbesserung`, Referenz nach `assets/referenz/`, Flachlage nach `fotos/flach-vorne-hinten/`, bpy 5.0.1, ffmpeg.
+- Vergleichswerkzeug fertig (echte MediaPipe, Referenzbild als Kamera, Hose aus Flachlage vorne/hinten mit Karte: Länge 109,
+  Bund 42, Saum 25 cm). Vorher-Bilder: 16 Posen in `docs/vorher/vergleich/`.
+- Schleife 1 (Hocke, Knie hoch): Ursachen gefunden. (1) `legSanity` verwarf Knie über der Hüfte; bei Kamera am Boden ist das
+  bei Knie hoch und Hocke normal → Knie gilt, wenn Knöchel desselben Beins sichtbar, unter Hüfte und Knie liegt und der
+  Oberschenkel im Bild ≤ 1,3 Rumpflängen ist (gespiegelte Fehlerkennung bleibt verworfen). (2) `bodyYaw`: waagrechte Schulter-/
+  Hüftbreite fiel bei gehobenem Arm/Bein (Linie gekippt) → frontal als 0,77 rad gedreht; jetzt Länge der Linie, Mischung zur
+  Hälfte mit der breiteren Angabe → 0,06. (3) Tiefe der Beine: Bezug auch erwartete Länge aus der Größe (0,9·0,245·H), sonst
+  lagen in der Hocke beide Oberschenkel gleich verkürzt in der Bildebene. (4) `shirtCut` schnitt Oberschenkel vor dem Shirt
+  aus (Rechteck in der Hocke, gehobener Oberschenkel weg) → Kapsel um Oberschenkel mit Knie über dem Shirtsaum bleibt.
+

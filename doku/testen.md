@@ -16,10 +16,20 @@ Steuerung der Attrappe über `window.__mode`: `yaw`, `knee`, `wide`, `sway`, `zk
 `gegenstand` (etwas Hohes im Hintergrund in der Maske), `armHoch` (Arm über dem Kopf), `kneeHigh` (0…1, linker Oberschenkel bis
 waagrecht nach vorn, Unterschenkel senkrecht), `fersePo` (0…1, Knie bis 153° gebeugt, mit `kneeHigh` zusammen: Knie hoch und
 gebeugt), `ohneArme` (Arme nicht erkannt: in der Seitenansicht schneidet der Arm sonst die Hose aus, im Testbild fehlt er).
+Ganzkörper-Posen (14.10.): `ausfall` (Ausfallschritt, linkes Bein vorn, hinterer Oberschenkel 36° nach hinten), `spagat` (1 seitlich,
+2 längs; mit `yaw:1.45` von der Seite), `liegestuetz` (Körper waagrecht von der Kamera weg, Beine mit Sicherheit `beineSicht`,
+sonst 0,35). Oberkörper wird dabei abgesenkt, Kopf und Füße folgen den Punkten.
 Die Attrappe setzt die Handpunkte 17–22 an die Handgelenke wie MediaPipe.
-Weitere Einblicke der Testseite: `window.__bone` (Knochen im Bild), `window.__B0` (nach `legHinge`), `window.__innenRot`
+Weitere Einblicke der Testseite: `window.__bone` (Knochen im Bild), `window.__B0` (nach `legHinge`), `window.__Lraw` (rohe Landmarken
+vor `legSanity`), `window.__mask` (Personenmaske), `__dbg.legCm` (gelernte Bein-Längen), `window.__innenRot`
 (Innenseite rot: wo sieht man in die Hose?), `window.__ohnePhysik`, `window.__t3d` (Rechenzeit der Form je Bild).
-`baue-testseite.mjs <Datei>` schreibt die Testseite woandershin (z. B. während eine Testreihe läuft).
+`baue-testseite.mjs <Datei>` schreibt die Testseite woandershin (z. B. während eine Testreihe läuft; Pfad absolut übergeben).
+`baue-testseite.mjs --echt` baut die **Vergleichsseite** (echte MediaPipe, echtes Kamerabild, nur die Einblicke) für
+`werkzeuge/vergleich.mjs`: Referenzfotos und Clip-Einzelbilder (`werkzeuge/vergleich-liste.json`) als Kamera, Hose aus
+`assets/referenz/fotos/flach-vorne-hinten/`, je Pose Triptychon Original | 3D | gemischt plus `liste.json` (Status, Drehung,
+rohe Landmarken, Knochen, Shirtsaum, Umriss-Überlappung `umriss.iou`/`breite3d` zwischen Hüfte und Knöchel).
+`python3 werkzeuge/python/farbvergleich.py <dir>` misst Farbe (Lab, ΔE) und Struktur echt gegen 3D an Oberschenkel und Unterschenkel.
+Unter Last (parallel laufende Analyse) fallen `tkamera` (Tempo) und `tstoff` (10 Bilder/s) aus; einzeln laufen sie grün.
 Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt ist (nur `tki.mjs`); sonst gäbe fehlendes Netz Fehlermeldungen.
 Die Shirt-Erkennung arbeitet in der Testseite nur auf `window.__shirtBild` (sonst ist das Kamerabild ein Testmuster).
 
@@ -54,6 +64,7 @@ Die Shirt-Erkennung arbeitet in der Testseite nur auf `window.__shirtBild` (sons
 | `werkzeuge/geheimnis-pruefung.mjs` | Läuft zuerst: keine API-Schlüssel, Tokens, privaten Schlüssel oder `.env`-Dateien im Repo |
 | `tlag.mjs` | Hose folgt dem Knie ohne Nachlauf (Attrappe `kneeWave`, Kreuzkorrelation ≤ 40 ms bzw. ≤ 80 ms bei 10 Bildern/s, voller Ausschlag, Sprung sofort), Saum folgt dem Knöchel (≤ 100 ms), Bild `ausgabe/lag_knie.png` |
 | `tbeine.mjs` | Starke Beinbewegungen (Knie hoch, Ferse zum Gesäß, beides, halb) von vorn/schräg/Seite: Drehung nach dem Scan erkannt, Unterschenkel hinter dem Oberschenkel in der Ebene des Beins, Innenseite über dem Knie < 0,4 % (rot eingefärbt gezählt), nichts umgeklappt außer verdeckt zwischen den Beinen, angehobenes Bein ohne Bodenstapel, Bilder `ausgabe/beine_*.png` |
+| `tposen.mjs` | Ganzkörper-Posen (Attrappe): Ausfallschritt von vorn und schräg, seitlicher Spagat, Längsspagat von vorn (Grenzlage: vorderes Bein zeigt in die Kamera) und von der Seite: Hose auf beiden Beinen (Knie und Mitte Unterschenkel bedeckt), an Hüfte ≤ 8 (Leistenknick) und Knie ≤ 2 nichts umgeklappt, kaum Innenseite; Liegestütz: Hose ausgeblendet (`g.trk` → 0, auch mit sicher erkannten Beinen), danach im Stand wieder da. Bilder `ausgabe/posen_*.png` |
 | `tkamera.mjs` | Frontkamera als Vorgabe, Wechsel mit belegter Kamera (wiederholt), Overconstrained → nächster Weg, alles kaputt → zurück zur alten Kamera mit Meldung, dreifach Tippen, Tempo (640 px, leichtes Modell, Renderauflösung) |
 | `tflach.mjs` | Flachfotos des Nutzers (HEIC, Holzboden) ohne Maßtabelle erkannt und gebaut, Bankkarte beim Hochladen (Fenster einmal, Länge ±4 cm), kein zweites Fenster beim Neubau, Model-Foto ab der Hüfte bleibt „angeschnitten“ |
 | `tspeicher.mjs` | Sammlung auf dem Server mit zwei Browsern: anlegen → auf dem anderen Gerät da, ändern kommt an, ✕ mit Nachfrage löscht überall, Team-Code, ungültiges Kürzel |

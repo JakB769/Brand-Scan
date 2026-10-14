@@ -3,6 +3,7 @@
    Bühne ohne Hose (Original), mit Hose, beides gemischt → nebeneinander in docs/vergleich/<zeit>/<name>.jpg.
      node werkzeuge/vergleich.mjs [--liste werkzeuge/vergleich-liste.json] [--nur name,name] [--aus dir] [--groesse 179]
                                   [--hose vorne.jpg,hinten.jpg] [--warten 3500] [--debug] [--seite datei.html]
+                                  [--passform '{"beinTiefe":1.1}']
    Seite: werkzeuge/tests/vergleichsseite.html (node werkzeuge/tests/baue-testseite.mjs --echt). Läuft gegen werkzeuge/server.mjs.
    MediaPipe aus node_modules, Modelle aus werkzeuge/tests/ausgabe/ (wie pruefstand.mjs). Kamera: getUserMedia liefert ein
    Canvas-Video, in das das jeweilige Referenzbild gezeichnet wird (Hochformat 720×1280 wie die Clips, Fotos mit Rand). */
@@ -61,6 +62,8 @@ await p.goto(`http://localhost:${port}/${SEITE}`); await p.waitForTimeout(600);
 // Bühne im Hochformat wie das Video, nicht gespiegelt, keine Ansagen
 await p.addStyleTag({ content: ".stage{aspect-ratio:9/16!important;max-height:none!important;width:720px!important}.stage.mirror video,.stage.mirror canvas{transform:none!important}#coachBig,#coachSmall{display:none!important}" });
 await p.fill("#height", GROESSE);
+// Versuche: PASSFORM-Werte vor dem Bau der Hose setzen, z. B. --passform '{"beinTiefe":1.1}'
+if (arg("passform", null)) await p.evaluate(o => Object.assign(window.__dbg.PASSFORM, o), JSON.parse(arg("passform")));
 
 // Hose aus Vorder- und Rückseite (Felder), Kartenfenster bestätigen
 const t0 = Date.now();
@@ -88,7 +91,22 @@ for (const it of liste) {
   await p.evaluate(() => { window.__dbg.g.opa = 1; }); await p.waitForTimeout(300);
   const mit = await st.screenshot();
   const info = await p.evaluate(() => { const d = window.__dbg; return { status: document.getElementById("statusText").textContent, yaw: +(d.g.yaw || 0).toFixed(2),
-    form: d.g3 && d.g3.form ? { leib: +d.g3.form.leib.toFixed(1), tiefe: d.g3.form.tiefe ? +d.g3.form.tiefe.gesaess.toFixed(1) : null } : null }; });
+    form: d.g3 && d.g3.form ? { leib: +d.g3.form.leib.toFixed(1), tiefe: d.g3.form.tiefe ? +d.g3.form.tiefe.gesaess.toFixed(1) : null } : null,
+    // Erkennung roh (Hüfte, Knie, Knöchel: x, y in Bildanteilen, z, Sichtbarkeit) und was die Seite als Knochen nimmt (Bildpunkte)
+    roh: window.__Lraw ? [11, 12, 23, 24, 25, 26, 27, 28].map(i => { const q = window.__Lraw[i]; return [i, +q.x.toFixed(3), +q.y.toFixed(3), +(q.z || 0).toFixed(2), +(q.v ?? 1).toFixed(2)]; }) : null,
+    bone: window.__bone ? window.__bone.map(c => c.map(q => [Math.round(q.x), Math.round(q.y), Math.round(q.zr), q.ok ? 1 : 0])) : null,
+    // Oberteil über dem Bund: erkannt (Deckkraft) und Saum in Bildpunkten (Median über die Spalten)
+    shirt: d.shirt ? { show: +(d.shirt.show || 0).toFixed(2), saum: d.shirt.ys ? Math.round(d.shirt.ys.filter(v => v != null).sort((a, b) => a - b)[d.shirt.ys.filter(v => v != null).length >> 1] * document.getElementById("video").videoHeight) : null } : null }; });
+  // Umriss zwischen Hüfte und Knöchel: Personenmaske der Erkennung (echte Hose, dort ohne Oberteil) gegen die 3D-Hose
+  info.umriss = await p.evaluate(() => { const M = window.__mask, B = window.__bone, c3 = window.__dbg.g3 && window.__dbg.g3.c, vid = document.getElementById("video");
+    if (!M || !B || !c3 || !vid.videoWidth) return null;
+    const t = document.createElement("canvas"); t.width = M.w; t.height = M.h; const x = t.getContext("2d"); x.drawImage(c3, 0, 0, M.w, M.h);
+    const a = x.getImageData(0, 0, M.w, M.h).data, sy = M.h / vid.videoHeight;
+    const y0 = Math.round(Math.max(B[0][0].y, B[1][0].y) * sy), y1 = Math.round(Math.min(Math.max(B[0][2].y, B[1][2].y), vid.videoHeight) * sy) - 1;
+    let i = 0, u = 0, p3 = 0, pe = 0;
+    for (let y = Math.max(0, y0); y <= Math.min(M.h - 1, y1); y++) for (let xx = 0; xx < M.w; xx++) { const k = y * M.w + xx, e = M.d[k] > .5, d = a[k * 4 + 3] > 128;
+      if (e && d) i++; if (e || d) u++; if (d) p3++; if (e) pe++; }
+    return u ? { iou: +(i / u).toFixed(3), breite3d: +(p3 / (pe || 1)).toFixed(3) } : null; });
   await p.evaluate(() => { window.__dbg.g.opa = 0; }); await p.waitForTimeout(450);
   const ohne = await st.screenshot();
   await p.evaluate(() => { window.__dbg.g.opa = 1; });
