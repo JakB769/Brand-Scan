@@ -1153,7 +1153,8 @@ function hipFix(L,aspect){
   return out;
 }
 
-function analyse(res){
+function analyse(res){ const _ta=performance.now(); analyse0(res); if(window.__ta) window.__ta.push(performance.now()-_ta); }
+function analyse0(res){
   const vw=video.videoWidth, vh=video.videoHeight;
   if(cv.width!==vw){ cv.width=vw; cv.height=vh; }
   ctx.clearRect(0,0,vw,vh);

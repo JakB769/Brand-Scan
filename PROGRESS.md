@@ -82,4 +82,9 @@ Allgemein vorher: Farbe gelblich-grau und im Stand etwa 14 % zu dunkel (Farbton 
 - Innenseite des Saumumschlags dunkler (Bodenkamera sah von hinten hell hinein).
 - Offen: Gesäßtaschen wirken getragen ~1,5× größer als in 3D (stärker gewölbtes echtes Gesäß); Bodenkamera blickt schräg
   nach oben, der Renderer nimmt eine waagrechte Kamera an (Bund/Passe von hinten unten nicht verkürzt).
+- Handy-Emulation (`werkzeuge/handy.mjs`, iPhone-13- und Pixel-7-Profil, CPU ×4, Clip v1-02 als Kamera): läuft, Hose liegt
+  auf dem Clip (`docs/nachher/handy/`). Bildrate hier 0,6–1,2/s, weil ohne GPU MediaPipe und WebGL in Software laufen (Profil:
+  68 % `drawImage`); nicht übertragbar. Reine Formzeit `pose3d` mit der Attrappe: alt 10,8 ms, neu 11,4 ms je Bild (Median,
+  ohne Drosselung) → keine Verschlechterung durch diese Sitzung. Echte Handys: muss der Nutzer prüfen.
+- Lange Hängefalten am Unterschenkel weiter Hosen (`laengsFaltenCm` 0,7).
 

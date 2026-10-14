@@ -22,6 +22,8 @@ s=s.replace(/const M=await import\("[^"]*vision_bundle\.mjs"\);/,'const M=window
 ersetze('  let L=res.landmarks&&res.landmarks[0];','  let L=res.landmarks&&res.landmarks[0]; window.__Lraw=L?L.map(p=>({x:p.x,y:p.y,z:p.z,v:p.visibility})):null;');
 // Personenmaske des letzten Bildes (Vergleich: Umriss der echten Hose gegen die 3D-Hose)
 ersetze('  const m={d:mk.getAsFloat32Array(),w:mk.width,h:mk.height};','  const m={d:mk.getAsFloat32Array(),w:mk.width,h:mk.height}; window.__mask={d:m.d.slice(),w:m.w,h:m.h};');
+// Rechenzeit je Bild ohne Erkennung (Glätten, Messen, Form, Stoff, Zeichnen): window.__ta (handy.mjs, Handy-Emulation)
+ersetze('function analyse(res){','function analyse(res){ const _ta=performance.now(); analyse0(res); if(window.__ta) window.__ta.push(performance.now()-_ta); }\nfunction analyse0(res){');
 // 5. Fehler bei der Erkennung sichtbar machen
 ersetze('catch(_){ setStatus("Fehler bei der Erkennung","bad"); }','catch(e){ console.error("ANALYSE",e&&e.stack||e); setStatus("Fehler bei der Erkennung","bad"); }');
 if(!echt){

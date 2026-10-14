@@ -30,6 +30,12 @@ vor `legSanity`), `window.__mask` (Personenmaske), `__dbg.legCm` (gelernte Bein-
 rohe Landmarken, Knochen, Shirtsaum, Umriss-Überlappung `umriss.iou`/`breite3d` zwischen Hüfte und Knöchel).
 `python3 werkzeuge/python/farbvergleich.py <dir>` misst Farbe (Lab, ΔE) und Struktur echt gegen 3D an Oberschenkel und Unterschenkel.
 Unter Last (parallel laufende Analyse) fallen `tkamera` (Tempo) und `tstoff` (10 Bilder/s) aus; einzeln laufen sie grün.
+`node werkzeuge/handy.mjs --geraet "iPhone 13"|"Pixel 7" --cpu 4`: Handy-Emulation (Bildschirm, Touch, Kennung; Chromium, kein
+Safari) mit CPU-Drosselung, Kamera = Referenzclip als WebM (Playwrights Chromium spielt kein H.264). Misst Bilder/s, `PERF.ms`,
+Zeit des eigenen Codes je Bild (`window.__ta`, um `analyse` gelegt), reine Formzeit (`__t3d`), Nachlauf Knie roh ↔ Hose, Video
+nach `docs/nachher/handy/`. **Hier nicht aussagekräftig für die Bildrate**: ohne GPU laufen MediaPipe und WebGL in Software
+(68 % der Zeit sind Bildkopien `drawImage`, die am Handy die GPU macht). Aussagekräftig ist die Formzeit (`pose3d`, reines JS).
+`node werkzeuge/ansichten.mjs [--stand <commit>]`: Hose allein in Attrappen-Posen und Blender-Renders der .glb.
 Die KI-Freistellung lädt in der Testseite nur, wenn `window.__kiTest` gesetzt ist (nur `tki.mjs`); sonst gäbe fehlendes Netz Fehlermeldungen.
 Die Shirt-Erkennung arbeitet in der Testseite nur auf `window.__shirtBild` (sonst ist das Kamerabild ein Testmuster).
 

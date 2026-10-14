@@ -1,0 +1,21 @@
+{
+ "geraet": "Pixel 7",
+ "cpu": 4,
+ "clip": "v1-02_knie-heben-vorne.mp4",
+ "bilder": 6,
+ "fps": 0.6,
+ "rechenzeit_ms": 925,
+ "eigener_code_ms": {
+  "median": 333.4,
+  "p90": 381.8
+ },
+ "form_js_ms": {
+  "median": 26.5,
+  "p90": 65
+ },
+ "aufloesung3d": 0.6,
+ "leichtesModell": false,
+ "ausgeblendet": 0,
+ "nachlauf": null,
+ "fehler": []
+}
