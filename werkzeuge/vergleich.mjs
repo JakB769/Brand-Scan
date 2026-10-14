@@ -109,8 +109,14 @@ if (!process.argv.includes("--ohne-scan")) {
 if (!DEBUG) await p.click("#clean").catch(() => {});
 const st = await p.$("#stage"); await st.scrollIntoViewIfNeeded();
 const fertigeListe = [];
+let quelle = null;
 for (const it of liste) {
   if (nur && !nur.includes(it.name)) continue;
+  // Foto statt Clip (oder umgekehrt) ist eine andere Kamera: Gelerntes (Bein-Längen, Maßstab, Filter) zurücksetzen, sonst
+  // lernte die Seite am Foto (andere Perspektive) Unterschenkel von 36 cm und alle folgenden Clip-Posen wurden zu groß
+  const q = it.foto ? "foto" : "clip";
+  if (quelle && q !== quelle) await p.evaluate(() => window.__dbg.clearSm && window.__dbg.clearSm());
+  quelle = q;
   await p.evaluate(src => window.__setRef(src), bildDaten(it)); await p.waitForTimeout(WARTEN);
   await p.evaluate(() => { window.__dbg.g.opa = 1; }); await p.waitForTimeout(300);
   const mit = await st.screenshot();

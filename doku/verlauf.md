@@ -324,7 +324,7 @@ Vorher/Nachher: `docs/vorher/`, `docs/nachher/`, Übersicht `docs/nachher/vorher
    Jetzt: Untergrenze aus Segmenten (kein Segment im Bild länger als in echt, 10 % Spielraum), Körperhöhe nur gerade und
    senkrecht. Unabhängig geprüft (Workflow mit vier Prüfern + Gegenprüfung): eigener Zähler für gelernte Breiten,
    Unterschenkel nur bei unverkürztem Oberschenkel, weiches Lösen der Grenze, Lernen nur mit echtem Körpergrößen-Maßstab,
-   Scan misst nur mit ihm. Referenz: Überlappung 0,71 → 0,77, Breitenfehler 19 → 8 %, Seitenansicht stehend Breite 0,81 → 1,0.
+   Scan misst nur mit ihm. Referenz: Überlappung 0,71 → 0,77, Breitenfehler 19 → 11 %, Seitenansicht stehend Breite 0,81 → 1,0.
 9. Gehobenes Bein hing 16 cm unter den Knöchel (keine Stauchung beim freien Hängen) → leicht gestaucht über 30 cm.
 10. Shirt-Erkennung in der Hocke: dunkler Schritt galt als Shirt → Suche endet an der Hüftlinie, wenn die Knie hoch sind.
 Offen: Perspektive der Bodenkamera (Unterschenkel näher an der Kamera, wirken größer als die Hüfte) ist nicht modelliert;
