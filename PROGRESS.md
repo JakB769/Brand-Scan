@@ -216,10 +216,10 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
 - Glättung als Alpha-Beta-Filter (Lage und Drehgeschwindigkeit) statt reinem Nachlauf: dreht man sich gleichmäßig, läuft die
   Hose ohne Verzögerung mit; Ausreißer werden verteilt. Ruhezone hinten weicher (die alte verdoppelte dort das Rauschen).
 - Vorne/hinten: im Clip immer richtig (0 Bilder über 60° daneben), von hinten zeigt die Hose die Rückseite.
-- Ergebnis (nach dem Frontal-Scan, wie bei echter Nutzung), vorher → nachher: Verzögerung zur Rohschätzung 54 → 35 ms,
-  Ruck 14,3 → 8,1 mrad/Bild², größter Schritt 0,20 → 0,16 rad (beim Durchgang durch 180°), Schritte über 0,15 rad 2 → 0.
-  Zweiter Clip `v1-04_drehen-seite-hinten`: Verzögerung 62 → 29 ms, Ruck 14,3 → 10,9, größter Schritt 0,24 → 0,14 rad,
-  Schritte über 0,15 rad 5 → 0. Verläufe: `docs/vergleich/drehung_*.png`.
+- Ergebnis (nach dem Frontal-Scan, wie bei echter Nutzung; Stand nach der Nachprüfung), vorher → nachher: Verzögerung zur
+  Rohschätzung 54 → 44 ms, Ruck 14,3 → 7,9 mrad/Bild², größter Schritt 0,20 → 0,16 rad (beim Durchgang durch 180°), Schritte
+  über 0,15 rad 2 → 1. Zweiter Clip `v1-04_drehen-seite-hinten`: Verzögerung 62 → 36 ms, Ruck 14,3 → 10,1, größter Schritt
+  0,24 → 0,13 rad, Schritte über 0,15 rad 5 → 0. Bei gleichmäßiger Drehung läuft die Hose 23 ms nach (vorher etwa 90 ms). Verläufe: `docs/vergleich/drehung_*.png`.
 - Maßstab nicht angefasst: Die Größensprünge beim Drehen im Werkzeug (bis 20 % je Bild) kamen nur vom fehlenden Scan.
   Ein weicheres Wiederkommen der Untergrenze (zwischendurch eingebaut) machte den Saum beim Kniehub träger (`tlag`
   Ausschlag 82 → 65 %) und ist wieder raus.
@@ -266,7 +266,7 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
 
 #### Passform-Rechnung (Testhose, Körper nur aus der Größe)
 Testhose: Flachfotos mit Bankkarte, Länge 109 cm, Bund flach 42 cm (W32 gemessen), Schnitt Wide-Leg, Material unbekannt
-→ ohne Stretch. Umfänge W32: Bund 84, Hüfte 115,5, Oberschenkel 66,8, Knie 61,3; je Weite ±2,54 cm Bund, ±0,79 cm Länge.
+→ ohne Stretch angenommen. Zu lang/zu kurz nennt, wie weit der Saum außerhalb des Bereichs liegt (wie bei der Weite). Umfänge W32: Bund 84, Hüfte 115,5, Oberschenkel 66,8, Knie 61,3; je Weite ±2,54 cm Bund, ±0,79 cm Länge.
 Ausgabe der App: `node werkzeuge/passform-rechnung.mjs`. Von Hand nachgerechnet (Körper-Bundlinie = Taille + ¼ (Hüfte − Taille),
 Bundlinie bis Boden = 0,573 × Größe + 1,5):
 
@@ -274,7 +274,7 @@ Bundlinie bis Boden = 0,573 × Größe + 1,5):
 |---|---|---|---|
 | Jakob 179 | 85,7 / 95,8 / 57,5 / 37,3, 104,1 | W32: 84 − 85,7 = −1,7 < −1 → 1 cm zu eng; W33: +0,7 passt, Hüfte 118,8 − 95,8 = 23,0 ≤ 24 passt, Saum 109,8 − 104,1 = +5,7 passt; W34: Hüfte 26,5 → 3 cm zu weit | **W33**: „Bund passt, Länge passt“ ✓ |
 | Fabian 187 | 89,5 / 100,0 / 60,0 / 39,0, 108,7 | W33: −3,1 → 2 cm zu eng; W34: 89 − 89,5 = −0,5 passt, Hüfte 22,3 passt, Saum 110,6 − 108,7 = +1,9 passt; W35: Hüfte 25,9 → 2 cm zu weit | **W34**: „Bund passt, Länge passt“ ✓ |
-| Philip 170 | 81,4 / 91,0 / 54,6 / 35,5, 98,9 | W30: −2,6 → 2 cm zu eng; W31: 81,4 − 81,4 = 0 passt, Hüfte 20,9 passt, Saum 108,2 − 98,9 = +9,3 > 7 → zu lang, 9,3 − 3 = 6 cm über dem Ziel | **W31**: „Bund passt, Länge 6 cm zu lang“ ✓ |
+| Philip 170 | 81,4 / 91,0 / 54,6 / 35,5, 98,9 | W30: −2,6 → 2 cm zu eng; W31: 81,4 − 81,4 = 0 passt, Hüfte 20,9 passt, Saum 108,2 − 98,9 = +9,3 > 7 → zu lang, 9,3 − 7 = 2 cm über dem Bereich | **W31**: „Bund passt, Länge 2 cm zu lang“ ✓ |
 
 Alle drei stimmen mit der App überein (auch die Nachbargrößen). Hinweis: Jakob trägt diese Jeans (W32) in den Referenzvideos;
 aus der Größe allein schätzt die App seine Taille auf 82 cm und rät zu W33. Mit Scan oder Maßband wird das genauer.
@@ -302,3 +302,31 @@ und `tlag` (unter Last: Saum-Ausschlag 65 %; allein 80–82 %, grün). Neu/erwei
 - Problemzonen im 3D einfärben (optional, nicht gemacht).
 - Schwellen der Passform (Bewegungszugabe, Längenziel) an echten Anproben prüfen; Körper nur aus der Größe ist grob.
 - Größere Hose im Speicher (≈ 330 statt ≈ 190 KB): im Browser passen etwa 15 Hosen, danach nur noch auf dem Server.
+
+### Nachprüfung 15.10. (unabhängige Prüfung, danach selbst nachgeprüft)
+Sechs Prüf-Agenten haben den ganzen Stand des Tages gelesen (25 Funde). Die Gegenprüfung durch weitere Agenten brach am
+Nutzungslimit ab; jeder Fund wurde darum hier am Code nachvollziehbar geprüft und, wo echt, behoben und mit Test belegt:
+- Ausblenden: Abspreizen galt als Beugung (seitlicher Spagat, Bein zur Seite: aus oder flackernd; atan2 mit dy ≈ 0). Jetzt
+  Beugung = wie weit der Oberschenkel aus der Körperebene nach vorn zeigt. Test: Spagat von vorn sichtbar (Beugung 13°/11°).
+- Ausblenden: „gekippt“ blieb hängen, wenn die Schultern beim Aufrichten über den Bildrand gingen (Nahphase) → nach 0,8 s
+  ohne Schultern nicht mehr „gekippt“. Saumlinie wurde über einer ausgeblendeten Hose gezeichnet → nicht mehr.
+- Drehung: nach einer Lücke in der Erkennung lief die Geschwindigkeit bis 7 rad/s auf (13–22° Überschwingen, bis 0,5 rad je
+  Bild), der Wächter ließ die Hose 350 ms weiterdrehen → nach einer Lücke direkt auf die Messung, Geschwindigkeit nur aus
+  kleinen Abweichungen, Wächter hält still, Vorhersage in der Schrittgrenze, Dämpfung 0,5 (Sprung bis 0,55 rad: höchstens 4°
+  Überschwingen). Ruhezone hinten passt bei 90° an (vorher 3,5° Sprung genau an der Seite).
+- Ferse: Kontaktschatten lag auch am Saum eines gehobenen Beins, bei Shorts und Röcken in der Luft → je Bein und nur, wenn die
+  Hose bis zum Boden reicht. Geschätzte Rückseite (ohne Rückenfoto) hatte noch Boden im Spalt; unter dem Saum wurde die erste
+  ungefüllte statt der letzten gefüllten Zeile fortgesetzt → beides behoben. Neuer Test `tstoffbild` (eigene Fotos auf
+  Holzboden): mit Fix 0 Bodenzeilen, ohne Fix 8 von 27 (vorn) und 7 von 27 (geschätzte Rückseite).
+- Textur: geschätzte Rückseite bekam Einzelheiten der Vorderseite (Taschen, Schlitz) aus dem großen Foto → nur noch bei echtem
+  Rückenfoto. Handy hatte 512 statt vorher 640 → Stoff jetzt überall 1024 (nur dauerhaft langsame Geräte 512), Relief am Handy
+  512. Das Foto wird nur noch einmal dekodiert (beide Größen aus demselben Bild; HEIC außerhalb Safari dauerte doppelt).
+- Passform: Stretch wurde bei Skinny ohne Material nie angenommen (der Name zählte als „Material bekannt“); eine Maßband-Taille
+  ging verloren, wenn die Hüfte fehlte; Shorts bekamen „Länge 55 cm zu kurz“; Röcke mit ausgestelltem Saum „Hüfte zu weit“;
+  der Oberschenkel aus dem Scan (Mitte) wurde mit der Hose oben am Schritt verglichen; die Länge sprang von „passt“ auf „5 cm
+  zu lang“ bei 0,7 cm mehr → alles behoben (Shorts ohne Längenurteil, Rock-Hüfte bis 22 cm unter dem Bund, Hose an derselben
+  Stelle gemessen, Länge außerhalb des Bereichs). Empfehlungen der drei Profile unverändert.
+- Tests: `tbeine` las bei ausgeblendeter Hose alte Formen → Ausblenden dort aus (geprüft wird die Form). `tausblenden`: die
+  Hysterese-Prüfung (43↔49°) konnte nicht scheitern → jetzt 41↔55° seitlich, je 700 ms; der Einzelsprung wird ab dem Sprung
+  gemessen. `drehung.mjs`: virtuelle Uhr lief je Aufruf davon (Bilder falsch zugeordnet) → behoben.
+- Nicht übernommen: keiner der 25 Funde war falsch; alle sind behoben oder (Werkzeug-Kleinigkeiten) mit erledigt.

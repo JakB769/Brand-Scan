@@ -340,3 +340,8 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
 14. Passform je Zone (15.10.): Bund, Hüfte, Oberschenkel, Knie, Länge mit Bewegungszugabe je Schnitt und Stretch, Empfehlung mit
    Begründung (auch als Satz in der Shop-Ansicht), Körper notfalls aus der Größe. Handrechnung für Jakob/Fabian/Philip mit der
    Testhose stimmt mit der App (W33 / W34 / W31, siehe PROGRESS.md).
+15. Nachprüfung (15.10.): unabhängige Prüfung des Tagesstands (25 Funde), selbst nachgeprüft und behoben: Abspreizen galt als
+   Beugung, „gekippt“ blieb ohne Schultern hängen, Drehung schwang nach Erkennungslücken über, Kontaktschatten in der Luft,
+   Boden im Spalt der geschätzten Rückseite, Vorderseiten-Details auf der Rückseite, Handy-Textur kleiner als vorher, mehrere
+   Passform-Randfälle (Stretch, Maßband-Taille, Shorts, Röcke, Oberschenkelhöhe, Längen-Wortlaut). Tests, die nicht scheitern
+   konnten (`tbeine`, Hysterese und Einzelsprung in `tausblenden`), repariert; neuer Test `tstoffbild`.

@@ -17,7 +17,7 @@ await p.waitForTimeout(1000); await p.click('#clean').catch(()=>{});
 // g.trk in jedem Bild mitschreiben
 await p.evaluate(()=>{ window.__log=[]; const f=()=>{ const d=window.__dbg; window.__log.push([performance.now(),d.g.trk,d.g.unsicher||'',d.trk?d.trk.flexDeg.slice():[0,0]]); requestAnimationFrame(f); }; requestAnimationFrame(f); });
 const ruhe={zoom:1,rand:'raten',knee:0,kneeHigh:0,fersePo:0,kneeWave:0,yaw:0,hand:0,sway:0,ohneArme:1,ausfall:0,spagat:0,liegestuetz:0,hocke:0,
-  beugeL:null,beugeR:null,knieL:null,knieR:null,roll:0,zappel:0,hueftSicht:null};
+  beugeL:null,beugeR:null,knieL:null,knieR:null,roll:0,zappel:0,hueftSicht:null,shift:0};
 const lage=m=>p.evaluate(([r,m])=>Object.assign(window.__mode,r,m),[ruhe,m]);
 // misst über ms Millisekunden: kleinstes/größtes g.trk, Wechsel über 0,5, Gründe, mittlere Beugung
 const messe=async ms=>{ await p.evaluate(()=>{ window.__log.length=0; }); await p.waitForTimeout(ms);
@@ -40,11 +40,18 @@ for(const yaw of [0,1.45]) for(const [seite,bk,kk] of [['links','beugeL','knieL'
   await lage({yaw}); await p.waitForTimeout(1500); r=await messe(1000);
   pruefe(r.mi>.99,`danach gerade, Drehung ${yaw}: wieder sichtbar `+zeig(r));
 }
-// Grenze: Beugung pendelt zwischen 43 und 49° (alle 250 ms) → höchstens ein Wechsel, kein Flackern
-await lage({}); await p.waitForTimeout(1200); await p.evaluate(()=>{ window.__log.length=0; });
-for(let k=0;k<14;k++){ await p.evaluate(v=>{ window.__mode.beugeL=v; },k%2?49:43); await p.waitForTimeout(250); }
-r=await p.evaluate(()=>{ const l=window.__log; let w=0; l.forEach((e,i)=>{ if(i&&(e[1]>.5)!==(l[i-1][1]>.5)) w++; }); return {w,mi:Math.min(...l.map(e=>e[1])),ma:Math.max(...l.map(e=>e[1]))}; });
-pruefe(r.w<=1,`Beugung pendelt 43↔49°: ${r.w} Wechsel sichtbar/unsichtbar (g.trk ${r.mi.toFixed(2)}–${r.ma.toFixed(2)})`);
+// Hysterese: von der Seite (dort liest die Seite die Beugung genau) pendelt sie zwischen 41° (über der Grenze zum Einblenden,
+// 39°) und 55° (über der zum Ausblenden, 46°), je 700 ms (länger als die Wartezeiten). Mit Hysterese bleibt die Hose nach dem
+// ersten Ausblenden aus (ein Wechsel); mit nur einer Grenze wechselte sie bei jedem Schritt
+await lage({yaw:1.45}); await p.waitForTimeout(1500); await p.evaluate(()=>{ window.__log.length=0; });
+for(let k=0;k<8;k++){ await p.evaluate(v=>{ window.__mode.beugeL=v; },k%2?41:55); await p.waitForTimeout(700); }
+r=await p.evaluate(()=>{ const l=window.__log; let w=0; l.forEach((e,i)=>{ if(i&&(e[1]>.5)!==(l[i-1][1]>.5)) w++; }); return {w,mi:Math.min(...l.map(e=>e[1])),ma:Math.max(...l.map(e=>e[1])),f:Math.round(Math.max(...l.map(e=>e[3][0])))}; });
+pruefe(r.w===1&&r.ma>.99&&r.mi<.01,`Beugung pendelt 41↔55° (seitlich): ${r.w} Wechsel sichtbar/unsichtbar, bleibt aus (g.trk ${r.mi.toFixed(2)}–${r.ma.toFixed(2)}, höchste Beugung ${r.f}°)`);
+// seitlicher Spagat und Bein zur Seite von vorn (Abspreizen ist keine Beugung), nach langem Stand
+await lage({}); await p.waitForTimeout(1500);
+await lage({spagat:1}); await p.waitForTimeout(1200); r=await messe(1500);
+pruefe(r.mi>.99,'seitlicher Spagat von vorn: sichtbar '+zeig(r));
+await lage({}); await p.waitForTimeout(1500);
 // Liegestütz, dann Stand
 await lage({liegestuetz:1}); await p.waitForTimeout(1000); r=await messe(1000);
 pruefe(r.ma<.01,'Liegestütz: ausgeblendet '+zeig(r));
@@ -62,7 +69,8 @@ await lage({hueftSicht:.25}); await p.waitForTimeout(1000); r=await messe(1000);
 pruefe(r.ma<.01,'Hüfte schlecht erkannt: ausgeblendet '+zeig(r));
 await lage({zappel:.08}); await p.waitForTimeout(1000); r=await messe(1000);
 pruefe(r.ma<.01,'Erkennung springt jedes Bild: ausgeblendet '+zeig(r));
-await lage({shift:.1}); await p.waitForTimeout(1500); r=await messe(1000);
+await lage({}); await p.waitForTimeout(1500);
+await p.evaluate(()=>{ window.__log.length=0; }); await lage({shift:.1}); r=await messe(1200);   // ab dem Sprung gemessen
 pruefe(r.mi>.99,'ein einzelner Sprung (Person versetzt): bleibt sichtbar '+zeig(r));
 await lage({}); await p.waitForTimeout(1500); r=await messe(800);
 pruefe(r.mi>.99,'zum Schluss im Stand sichtbar '+zeig(r));

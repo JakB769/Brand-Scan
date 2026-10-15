@@ -37,7 +37,7 @@ await ctx.addInitScript(() => {
   const echt = performance.now.bind(performance); let vt = 0, an = false, eps = 0;
   // Erkennung nur, wenn freigegeben (__frei): genau eine je Bild und Zeitschritt, wie bei einer Kamera mit 30 Bildern/s
   let frei = 0; window.__gate = () => !an || (frei > 0 && (frei--, true)); window.__frei = n => { frei += n; };
-  window.__uhr = { an: t => { vt = t ?? echt(); an = true; }, weiter: ms => { vt += ms; } };
+  window.__uhr = { an: t => { vt = t ?? echt(); an = true; }, weiter: ms => { vt += ms; eps = 0; } };   // eps zurück: sonst läuft die Uhr je Aufruf davon (Bilder falsch zugeordnet)
   performance.now = () => an ? vt + (eps += 1e-3) : echt();
   const c = document.createElement("canvas"); c.width = 720; c.height = 1280; const x = c.getContext("2d");
   // k < 1: Bild verkleinert in die Mitte (für den Scan: im Clip ist der Kopf am oberen Rand angeschnitten)

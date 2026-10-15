@@ -17,6 +17,10 @@ await p.waitForFunction(()=>/Fertig/.test(document.getElementById('own-msg').tex
 await p.click('#quick'); await p.waitForTimeout(500);
 await p.waitForFunction(()=>document.getElementById('step-cal').classList.contains('done'),null,{timeout:20000});
 await p.waitForTimeout(1000); await p.click('#clean').catch(()=>{});
+// Diese Posen (Knie hoch, Ferse zum Gesäß) blendet die Anprobe aus (über 45° Beugung). Geprüft wird hier die Form selbst (sie
+// gilt weiter für die 3D-Ansicht, den Abgleich mit Model-Fotos und bis 45°): Ausblenden für diesen Test aus, sonst läse er eine
+// alte, nicht gezeichnete Form
+await p.evaluate(()=>{ const A=window.__dbg.AUS; A.flexAus=A.flexAn=A.kippAus=A.kippAn=999; });
 const lage=async(m,ms=2200)=>{ await p.evaluate(m=>Object.assign(window.__mode,{zoom:1,rand:'raten',knee:0,kneeHigh:0,fersePo:0,kneeWave:0,yaw:0,hand:0,sway:0,ohneArme:1},m),m); await p.waitForTimeout(ms); };
 
 // 1) Drehung nach dem Scan (vorher galt bis etwa 45° alles als frontal: Eichung vor dem Einschwingen der Glättung)

@@ -23,7 +23,10 @@ vm.runInContext(helfer.replace(/^const /gm, "var ") + "\nvar fc=" + JSON.stringi
 
 // je Bild (33,3 ms) der Wert nach der letzten Erkennung des Bildes
 const fr = new Map();
+// --luecke 4.0-5.0: Erkennung in diesem Zeitraum (s) fehlt („Keine Person erkannt“), bodyYaw wird dort nicht gerufen
+const LU = (arg("luecke", "") || "").split("-").map(Number), inLuecke = t => LU.length === 2 && t >= LU[0] && t < LU[1];
 for (const e of log) {
+  if (inLuecke((e.t - log[0].t) / 1000)) continue;
   ctx.__t = e.t; const L = e.L.map(([x, y, z, v]) => ({ x, y, z, visibility: v })), V = i => (L[i].visibility ?? 1) >= .4;
   const yaw = ctx.bodyYaw(L, V, e.vw, e.vh, e.ppc);
   fr.set(Math.round((e.t - log[0].t) / (1000 / 30)), { yaw, roh: ctx.fc.roh ? ctx.fc.roh.m : null, sgn: ctx.fc.sgn });
