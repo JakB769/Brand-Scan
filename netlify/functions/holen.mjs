@@ -228,7 +228,7 @@ async function seite(url) {
   for (const p of ld) {
     if (!name && p.name) name = ent(p.name);
     if (!beschreibung && p.description) beschreibung = textOf(String(p.description));
-    if (!material && p.material) material = [].concat(p.material).join(", ");
+    if (!material && p.material) material = [].concat(p.material).map(m => ent(String(typeof m === "string" ? m : m && m.name || ""))).filter(Boolean).join(", ") || null;   // auch {"@type":"…","name":…}
     if (!shop && p.image) bilder.push(...bildUrls(p.image).map(u => absolut(u, base)).filter(Boolean));
     for (const v of [].concat(p.hasVariant || []).slice(0, 3)) if (!shop && v && v.image) bilder.push(...bildUrls(v.image).map(u => absolut(u, base)).filter(Boolean));
   }

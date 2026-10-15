@@ -51,6 +51,13 @@ pruefe(r.w===1&&r.ma>.99&&r.mi<.01,`Beugung pendelt 41↔55° (seitlich): ${r.w}
 await lage({}); await p.waitForTimeout(1500);
 await lage({spagat:1}); await p.waitForTimeout(1200); r=await messe(1500);
 pruefe(r.mi>.99,'seitlicher Spagat von vorn: sichtbar '+zeig(r));
+// aus dem Spagat direkt in die Sumo-Hocke (Knie gebeugt): Beugung, aus (vorher blieb „Abspreizen“ vom Spagat eingerastet)
+await lage({hockeBreit:2}); await p.waitForTimeout(1200); r=await messe(1500);
+pruefe(r.ma<.01,'aus dem Spagat in die Sumo-Hocke: ausgeblendet '+zeig(r));
+await lage({}); await p.waitForTimeout(1500);
+// Spagat mit leicht gedrehtem Körper (Drehung 0,3): kein erfundener Vorwärtsanteil, sichtbar
+await lage({spagat:1,yaw:.3}); await p.waitForTimeout(1200); r=await messe(1500);
+pruefe(r.mi>.99,'seitlicher Spagat, leicht gedreht: sichtbar '+zeig(r));
 await lage({}); await p.waitForTimeout(1500);
 // Hocke, breite Hocke und Sumo-Hocke (Knie weit außen, Oberschenkel waagrecht): Beugung um 90°, auch mit Abspreizen → aus
 for(const [n,m] of [['Hocke',{hocke:1}],['breite Hocke (Knie 50° außen)',{hockeBreit:1}],['Sumo-Hocke (Knie 58° außen)',{hockeBreit:2}]]){
@@ -66,14 +73,15 @@ pruefe(r.mi>.99,'nach dem Liegestütz im Stand wieder sichtbar '+zeig(r));
 for(let k=0;k<=15;k++){ await p.evaluate(v=>{ window.__mode.roll=v; },1.57*k/15); await p.waitForTimeout(100); }
 await p.waitForTimeout(800); r=await messe(1000);
 pruefe(r.ma<.01,'hingelegt (waagrecht): ausgeblendet '+zeig(r));
-// liegend die ferne Schulter verdeckt (im Bild, Sicherheit 0,3): Neigung nicht mehr messbar, „gekippt“ bleibt (nur außerhalb
-// des Bildes wird es nach 0,8 s aufgehoben)
+// liegend die ferne Schulter verdeckt (im Bild, Sicherheit 0,3): Neigung aus Schulter und Hüfte derselben Seite, bleibt
+// „gekippt“ (vorher: nach 0,8 s ohne Messung aufgehoben, Hose aufrecht auf dem liegenden Körper)
 await p.evaluate(()=>{ window.__mode.schulterSicht=.3; }); await p.waitForTimeout(500); r=await messe(1500);
 pruefe(r.ma<.01,'hingelegt, ferne Schulter verdeckt: bleibt ausgeblendet '+zeig(r));
-await p.evaluate(()=>{ window.__mode.schulterSicht=null; }); await p.waitForTimeout(300);
+// aufstehen, die Schulter bleibt verdeckt (wie im Profil die ferne): Neigung aus Schulter und Hüfte derselben Seite, wieder sichtbar
 for(let k=15;k>=0;k--){ await p.evaluate(v=>{ window.__mode.roll=v; },1.57*k/15); await p.waitForTimeout(100); }
 await p.waitForTimeout(1500); r=await messe(1000);
-pruefe(r.mi>.99,'aufgestanden: wieder sichtbar '+zeig(r));
+pruefe(r.mi>.99,'aufgestanden, Schulter weiter verdeckt: wieder sichtbar '+zeig(r));
+await p.evaluate(()=>{ window.__mode.schulterSicht=null; }); await p.waitForTimeout(300);
 // schlecht erkannte Hüfte, zappelnde Erkennung
 await lage({hueftSicht:.25}); await p.waitForTimeout(1000); r=await messe(1000);
 pruefe(r.ma<.01,'Hüfte schlecht erkannt: ausgeblendet '+zeig(r));
