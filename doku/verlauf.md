@@ -355,3 +355,6 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    über Kreuz; Drehung: offene Lücke bleibt bei einem Bild mit einer Hüfte offen, Fenster schließt nach Bestätigung;
    „kurz“ aus vollem Shop-Namen/Adresse und unter 70 cm, „Ankle“ raus; Material der Seite bleibt, zählt als bekannt nur
    als Zusammensetzung.
+19. Fünfte Gegenprüfung (15.10.): Fenster nach Lücke wieder 350 ms offen (Schließen nach Bestätigung hielt zwei vertauschte
+   Bilder fest), Tiefe unbekannt = nach vorn für die Person, „kurz“ nur aus Produkt-Adresse und Namenskern, Capri als Farbe,
+   Faserarten statt Namen. Offen: alter Link bleibt beim Hineinziehen fremder Fotos ohne „Neue Hose“.

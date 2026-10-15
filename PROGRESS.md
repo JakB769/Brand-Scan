@@ -389,7 +389,7 @@ Drei Prüfer, drei Skeptiker, 9 Funde, 6 bestätigt (davon zwei im Werkzeug), al
   Neigung nicht über Kreuz (Schulter der einen, Hüfte der anderen Seite lag bis 29° daneben). Die Attrappe trifft den
   Sumo-Fall nicht genau (dort setzt die Hauptschleife noch Tiefe); nachgerechnet: 74,6° statt 13,9°.
 - Drehung: Ein Bild mit nur einer Hüfte direkt nach einer Lücke schloss die Lücke (16 Bilder verkehrt) → bleibt offen (1).
-  Das Fenster nach einer Lücke schließt, sobald ein Bild den Wert bestätigt (zwei vertauschte Bilder später: 2 → 0).
+  (Das Schließen des Fensters nach dem ersten bestätigenden Bild aus dieser Runde ist in der fünften wieder raus.)
   Vergleich auf 4 Aufnahmen, 7 Störfälle, gegen 9a22646 / 77c301e / c62f269: der jetzige Stand ist überall am besten oder
   gleich (vertauschtes erstes Bild nach Lücke 2 Bilder verkehrt statt 15; spätere/abwechselnde Vertauschung 0; eine Hüfte
   nach Lücke 1 statt 16; Bild ohne Hüften nach Lücke 0 statt 15). Ohne Störung unverändert (43 ms, Ruck 7,9).
@@ -399,3 +399,19 @@ Drei Prüfer, drei Skeptiker, 9 Funde, 6 bestätigt (davon zwei im Werkzeug), al
   lang). Material der Shop-Seite bleibt erhalten (Stoffart: Jersey, Satin, Cord), zählt für „ohne Stretch“ aber nur als
   Zusammensetzung (Prozent, Stretch-Hinweis oder zwei Fasern), ein bloßes „Denim“ nicht.
 - Werkzeug: Auswertung ab dem Ende einer Lücke bzw. dem Beginn eines Tauschens, gegen die Hose des ungestörten Laufs.
+
+### Fünfte (letzte) Gegenprüfung 15.10.
+Zwei Prüfer, zwei Skeptiker, 6 Funde, 4 bestätigt, behoben:
+- Drehung: Das Schließen des Fensters nach dem ersten bestätigenden Bild (vierte Runde) hielt bei zwei vertauschten Bildern
+  direkt nach einer Lücke den falschen Wert 0,5 s fest (17 statt 3 Bilder verkehrt) → zurück: das Fenster bleibt 350 ms
+  offen. Ergebnis auf 4 Aufnahmen in 7 Störfällen: höchstens 2–4 Bilder verkehrt in jeder Reihenfolge (9a22646 bis 17).
+- Ausblenden: Tiefe unbekannt heißt „nach vorn für die Person“; mit dem Rücken zur Kamera ist das von der Kamera weg (vorher
+  zur Kamera hin: Knie heben schräg von hinten ging erst bei 54–62° aus). Ein von der Kamera weg abgespreiztes Bein bei
+  20–26° Drehung kann dadurch ausgeblendet werden (schmaler Bereich, lieber aus).
+- Passform: „kurz“ aus der Adresse nur aus dem letzten Abschnitt (Produkt), nicht aus Sammlungspfad („/collections/
+  hosen-shorts/…“) oder Parametern; aus dem Namen nur vor „ | “ / „ – “; „Capri Blue“ ist eine Farbe. „Zwei Fasern“
+  zählt verschiedene Faserarten („TENCEL™ Lyocell“, „Baumwolle (Cotton)“ ist je eine).
+- Nicht übernommen: Ein alter Link bleibt beim Hineinziehen fremder Fotos ohne „Neue Hose“ gesetzt (älter als heute,
+  größerer Umbau; offen). Eine Hüfte über 1 s verdeckt nach einer Lücke: der Skeptiker fand das Ergebnis besser als vorher.
+- Testreihe: 41 Befehle; `tlag` war einmal unter Last (parallel rechnende Prüfer) rot und allein zweimal grün (Skelett
+  40 ms bei Grenze 40). Er misst einen Weg, den diese Runden nicht berühren.

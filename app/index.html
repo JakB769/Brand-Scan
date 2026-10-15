@@ -3081,7 +3081,9 @@ function trackSure(L,V,asp,o={}){
   if(o.bone&&o.ppc){ const yw=o.yaw||0, fw=[Math.sin(yw),0,-Math.cos(yw)], refT=(legCm.n>=5?legCm.th:.245*(o.H||175))*o.ppc;
     o.bone.forEach((c,s)=>{ if(!(c[0].ok&&c[1].ok)){ trk.flexDeg[s]=0; trk.flex[s]=false; return; }
       const dx=c[1].x-c[0].x, dy=c[1].y-c[0].y, l=Math.hypot(dx,dy), dzr=(c[1].zr||0)-(c[0].zr||0);
-      const dq=Math.sqrt(Math.max(0,refT*refT-l*l)), dz=(dzr>0?1:-1)*dq, dz0=dzr===0?0:dz;   // zr > 0: Knie hinter der Hüfte; sonst vorn
+      // zr > 0: Knie hinter der Hüfte (weiter von der Kamera); unbekannt (0): nach vorn für die Person (mit dem Rücken zur Kamera
+      // ist das von ihr weg, nicht zur Kamera hin)
+      const dq=Math.sqrt(Math.max(0,refT*refT-l*l)), dz=(dzr>0?1:dzr<0?-1:Math.cos(yw)<0?1:-1)*dq, dz0=dzr===0?0:dz;
       const vorn=dx*fw[0]+dz*fw[2], vorn0=dx*fw[0]+dz0*fw[2], seit0=dx*Math.cos(yw)+dz0*Math.sin(yw), L3=Math.max(refT,Math.hypot(l,dz)), r=Math.abs(seit0)/Math.max(vorn0,1e-6*L3);
       const refS=(legCm.n>=5?legCm.sh:.245*(o.H||175))*o.ppc, sx=c[2]&&c[2].ok?c[2].x-c[1].x:0, sy=c[2]&&c[2].ok?c[2].y-c[1].y:0, ls=Math.hypot(sx,sy);
       const knieKrumm=ls>.4*refS&&l>.4*refT&&(dx*sx+dy*sy)/(l*ls)<Math.cos(Math.PI/4);
@@ -3193,7 +3195,9 @@ function bodyYaw(L,V,vw,vh,ppc){
   // ist eher der erste Wert nach der Lücke der falsche (Seiten beim Wiedererkennen vertauscht): bestätigt ein zweites Bild in
   // Folge den Sprung, gleich der Messung folgen (ein einzelnes vertauschtes Bild später hält der Wächter wie sonst)
   if(Math.abs(d)>2.2){ if(now-(fc.frisch||0)<350&&fc.pend){ fc.yaw=m; fc.w=0; fc.pend=0; return fc.yaw; }
-    if(!fc.pend) fc.pend=now; if(now-fc.pend<350){ fc.w=0; return fc.yaw; } } else { fc.pend=0; fc.frisch=0; }   // bestätigt: Fenster zu
+    if(!fc.pend) fc.pend=now; if(now-fc.pend<350){ fc.w=0; return fc.yaw; } } else fc.pend=0;
+  // (das Fenster bleibt die 350 ms offen: schlösse es beim ersten passenden Bild, hielten zwei vertauschte Bilder direkt nach
+  // der Lücke den falschen Wert 0,5 s fest; so sind es in jeder Reihenfolge höchstens 2–3 Bilder)
   const al=1-Math.exp(-dt/YAW_TAU), be=YAW_BETA*al*al;
   // Geschwindigkeit nur aus kleinen Abweichungen im laufenden Verfolgen lernen: nach dem Wächter oder bei großem Versatz lief
   // sie sonst bis 7 rad/s auf, die Hose überschwang danach um 13–22° und sprang bis 0,5 rad je Bild (Lücken: oben). Auch bei
@@ -4926,7 +4930,9 @@ const CUT_T={skinny:"Skinny",regular:"Regular",wide:"Wide-Leg",rock:"Rock"};
 function stretchOf(G,cut){
   // nur Stoffart oder Material; der Name („Hose 1“) zählt nicht. Material von der Shop-Seite zählt nur als Zusammensetzung
   // (Prozent, Stretch-Hinweis oder mindestens zwei Fasern): ein bloßes „Denim“ heißt nicht „ohne Stretch“
-  const mt=String(G.material||"").trim(), fasern=(mt.match(/baumwolle|cotton|polyester|viskose|viscose|leinen|linen|wolle|wool|lyocell|tencel|modal|nylon|polyamid|acryl|seide|silk|hanf|hemp|elast|spandex|lycra/gi)||[]).length;
+  // verschiedene Faserarten zählen, nicht Namen („TENCEL™ Lyocell“, „Baumwolle (Cotton)“ ist je eine Faser)
+  const mt=String(G.material||"").trim(), FAM=[/baumwolle|cotton/i,/polyester/i,/viskose|viscose/i,/leinen|linen/i,/(?<!baum)wolle|\bwool/i,/lyocell|tencel/i,/modal/i,/nylon|polyamid/i,/acryl/i,/seide|silk/i,/hanf|hemp/i,/elast|spandex|lycra/i];
+  const fasern=FAM.filter(r=>r.test(mt)).length;
   const bekannt=!!(G.fabric||mt&&(!G.matLink||/\d\s*%|elast|spandex|lycra|stretch|t-?400/i.test(mt)||fasern>=2));
   if(stretchy(G)) return {st:true,t:"Stretch"};
   return bekannt?{st:false,t:"ohne Stretch"}:cut==="skinny"?{st:true,t:"Stretch angenommen"}:{st:false,t:"ohne Stretch angenommen"};
@@ -4939,7 +4945,7 @@ const ZUGABE={bund:[-1,-3,6,6,7],huefte:[2,-4,8,12,24],ober:[3,-3,9,15,Infinity]
 /* Länge: Saum gegen den Boden im Stand (cm; + = länger als bis zum Boden, staucht sich auf dem Schuh).
    [Ziel, kürzer als das → zu kurz, länger als das → zu lang]: Skinny endet am Knöchel, Regular knickt leicht auf dem Schuh,
    Wide-Leg liegt auf. */
-const LAENGE={skinny:[-2,-5,3],regular:[1,-2,4],wide:[3,-1,7]}, KURZ_RE=/culotte|capri|\b(3\/4|7\/8)\b|cropped|\bcrop\b|bermuda|shorts\b|\bkurze hose\b/i;   // „Short“ allein ist oft die kurze Beinlänge einer langen Hose; „Ankle“ (knöchellang, „Ankle Zip“) ist das Ziel einer Skinny
+const LAENGE={skinny:[-2,-5,3],regular:[1,-2,4],wide:[3,-1,7]}, KURZ_RE=/culotte|capri(?![\s-]*(blue|blau|blu)\b)|\b(3\/4|7\/8)\b|cropped|\bcrop\b|bermuda|shorts\b|\bkurze hose\b/i;   // „Short“ allein ist oft die kurze Beinlänge einer langen Hose; „Ankle“ (knöchellang, „Ankle Zip“) ist das Ziel einer Skinny
 const ZONE_T={bund:"Bund",huefte:"Hüfte",ober:"Oberschenkel",knie:"Knie",laenge:"Länge"}, BREITE_Z=["bund","huefte","ober","knie"];
 function sizeVerdict(G,sz,B){
   const gm=sizeGarment(G,sz), cut=cutOf(G), S=stretchOf(G,cut), ci={skinny:2,regular:3,wide:4,rock:3}[cut];
@@ -4957,7 +4963,7 @@ function sizeVerdict(G,sz,B){
   // „23 cm zu kurz“, für den anderen ohne Urteil, und eine Petite-Jeans (86 cm) hieß für große Menschen „passt“. Eine Culotte
   // ohne Namen (eigene Fotos) bekommt ehrlich „zu kurz“
   const lenMax=Math.max(garmentDims(G).len||0,...(Array.isArray(G.sizes)?G.sizes.map(z=>z.len||0):[]));
-  const kurz=G.m3.wf>.6||lenMax<70||!!G.kurz||KURZ_RE.test(G.label||"");
+  const kurz=G.m3.wf>.6||lenMax<70||!!G.kurz||KURZ_RE.test(String(G.label||"").split(/\s[|–—]\s/)[0]);
   if(B.belt&&LAENGE[cut]&&!kurz){ const d=gm.len-B.belt, [ziel,lo,hi]=LAENGE[cut];
     // um: Abstand zum Ziel (für die Empfehlung), aus: wie weit außerhalb des Bereichs (für die Begründung, wie bei der Weite)
     Z.laenge={d,ziel,lo,hi,v:d<lo?-1:d>hi?1:0,um:Math.abs(d-ziel),aus:d<lo?lo-d:d>hi?d-hi:0}; }
@@ -6385,8 +6391,12 @@ async function upBuild(){
   }
   // Material der Shop-Seite, wenn die Tabelle keins nennt (ohne Prozent, z. B. „Baumwolle, Elasthan“, liest die Tabelle nicht)
   if(!(T&&T.material)&&UP.link&&UP.link.material){ G.material=UP.link.material; G.matLink=true; }
-  // gewollt kurz laut vollem Shop-Namen oder Adresse (die Liste zeigt den Namen gekürzt, „… in Culotte-Länge“ fiele weg)
-  if(UP.link&&KURZ_RE.test([UP.link.name,UP.link.url].filter(Boolean).join(" ").replace(/[-_]/g," "))) G.kurz=true;
+  // gewollt kurz laut vollem Shop-Namen oder Produkt-Adresse (die Liste zeigt den Namen gekürzt, „… in Culotte-Länge“ fiele
+  // weg). Vom Namen nur der Teil vor „ | “ oder „ – “ (Shop- oder Kategorie-Zusatz im Seitentitel), von der Adresse nur der
+  // letzte Abschnitt (Produkt), ohne Sammlung („/collections/hosen-shorts/…“) und ohne Parameter („utm_campaign=shorts“)
+  if(UP.link){ let h=""; try{ h=new URL(UP.link.url).pathname.split("/").filter(Boolean).pop()||""; }catch(_){}
+    const n=String(UP.link.name||"").split(/\s[|–—]\s/)[0];
+    if(KURZ_RE.test((n+" "+h).replace(/[-_]/g," "))) G.kurz=true; }
   // Keine Länge aus der Tabelle: US-Größe des Models („32 X 34“: Bund und Innenbein in Zoll), sonst am Foto mit Model messen
   const mdl=UP.link&&UP.link.model||{};
   if(!G.len&&!G.meas&&mdl.l&&!M0rock(G)){ const ins=mdl.l*2.54, v=Math.round(inseamToLen(G,ins)*10)/10;
