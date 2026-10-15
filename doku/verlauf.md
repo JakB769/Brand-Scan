@@ -351,3 +351,7 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
 17. Dritte Gegenprüfung (15.10.): Neigung aus Teilpunkten (Profil), Tiefe 0 statt erfunden, Abspreizen nur mit gestrecktem
    Knie; Drehung: Sprung nach Lücke nur mit zweitem Bild, eine verdeckte Hüfte ist keine Lücke; „kurz“ laut Name, Hüftrock,
    Material aus dem Link nur mit Zusammensetzung; Nachrechen-Werkzeug wertet gegen einen ungestörten Lauf aus.
+18. Vierte Gegenprüfung (15.10.): Beugewinkel wieder mit Vorwärtsannahme (Tiefe 0 nur für „Abspreizen?“), Neigung nicht
+   über Kreuz; Drehung: offene Lücke bleibt bei einem Bild mit einer Hüfte offen, Fenster schließt nach Bestätigung;
+   „kurz“ aus vollem Shop-Namen/Adresse und unter 70 cm, „Ankle“ raus; Material der Seite bleibt, zählt als bekannt nur
+   als Zusammensetzung.

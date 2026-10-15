@@ -375,8 +375,27 @@ nachgeprüft, alle erreichbar). Behoben:
   eine Hüfte verdeckt wie vor dem Tag. Das Werkzeug wertete gegen die gestörte Rohschätzung aus (belohnte Folgen des
   Fehlers) → gegen einen ungestörten Lauf.
 - Passform: „kurz“ über 88 cm nahm Petite-Jeans (86 cm) und Kinderhosen das „zu kurz“ und hing an der gewählten Größe →
-  laut Name (Culotte, Capri, 7/8, Cropped, Ankle, Bermuda, Shorts). Rock „zu weit“ erst, wenn er auch an der Bundlinie zu
+  laut Name (Culotte, Capri, 7/8, Cropped, Bermuda, Shorts; endgültig siehe vierte Runde). Rock „zu weit“ erst, wenn er auch an der Bundlinie zu
   weit ist (Hüftrock). Material aus dem Link nur mit Zusammensetzung oder Stretch-Hinweis (ein bloßes „Denim“ schaltete bei
   Skinny „Stretch angenommen“ ab); der Server liest Material-Objekte (vorher „[object Object]“).
 - Bewusst so gelassen: bei ≤ 10 Bildern/s schwingt die Drehung nach dem Anhalten 4–6° über, folgt dafür während der Drehung
   enger (Skeptiker: Abwägung, kein Fehler).
+
+### Vierte Gegenprüfung 15.10.
+Drei Prüfer, drei Skeptiker, 9 Funde, 6 bestätigt (davon zwei im Werkzeug), alle behoben:
+- Ausblenden: „Tiefe 0“ aus der dritten Runde ließ die Sumo-Hocke mit Knien fast in der Bildebene sichtbar (Knie 66° außen:
+  14° statt 75°) und verschob die Grenze beim Knieheben schräg von vorn auf 50–53°. Jetzt: Tiefe 0 nur für die Frage
+  „Abspreizen?“ und dessen Vorwärtsanteil, der Beugewinkel nimmt wieder die Vorwärtsannahme (in der Ebene vorn/unten exakt).
+  Neigung nicht über Kreuz (Schulter der einen, Hüfte der anderen Seite lag bis 29° daneben). Die Attrappe trifft den
+  Sumo-Fall nicht genau (dort setzt die Hauptschleife noch Tiefe); nachgerechnet: 74,6° statt 13,9°.
+- Drehung: Ein Bild mit nur einer Hüfte direkt nach einer Lücke schloss die Lücke (16 Bilder verkehrt) → bleibt offen (1).
+  Das Fenster nach einer Lücke schließt, sobald ein Bild den Wert bestätigt (zwei vertauschte Bilder später: 2 → 0).
+  Vergleich auf 4 Aufnahmen, 7 Störfälle, gegen 9a22646 / 77c301e / c62f269: der jetzige Stand ist überall am besten oder
+  gleich (vertauschtes erstes Bild nach Lücke 2 Bilder verkehrt statt 15; spätere/abwechselnde Vertauschung 0; eine Hüfte
+  nach Lücke 1 statt 16; Bild ohne Hüften nach Lücke 0 statt 15). Ohne Störung unverändert (43 ms, Ruck 7,9).
+- Passform: Der Name in der Liste ist gekürzt („… in Culotte-Länge“ fiel weg) → „kurz“ zusätzlich aus vollem Shop-Namen und
+  Adresse (`G.kurz`); eigene Fotos ohne Namen: Bermudas unter 70 cm ohne Längenurteil, eine Culotte ohne Namen bekommt
+  ehrlich „zu kurz“ (offen: Schalter „gewollt kurz“ im Upload). „Ankle“ zählt nicht mehr als kurz („Ankle Zip Skinny“ ist
+  lang). Material der Shop-Seite bleibt erhalten (Stoffart: Jersey, Satin, Cord), zählt für „ohne Stretch“ aber nur als
+  Zusammensetzung (Prozent, Stretch-Hinweis oder zwei Fasern), ein bloßes „Denim“ nicht.
+- Werkzeug: Auswertung ab dem Ende einer Lücke bzw. dem Beginn eines Tauschens, gegen die Hose des ungestörten Laufs.
