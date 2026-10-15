@@ -2831,17 +2831,18 @@ function draw3d(M,P,vw,vh,tint){
         for(let f=0;f<2;f++) for(let j=0;j<C;j++) kt[((s*NR+i)*2+f)*C+j]=1-(f?.62:.45)*w; }
       g3.kontakt=kt; }
     else g3.kontakt=null;
-    g3.aoBase=ao; g3.aoDyn=true; }
+    g3.aoBase=ao; g3.aoDyn=true; g3.aoNeu=true; }
   // Gestauchter Stoff (Leiste, Kniekehle, Ellbogen der Falte) liegt im Schatten: Verdeckung aus der Stauchung (pose3d, g3.cmp)
   { const cm=g3.cmp, base=g3.aoBase, kt=g3.kontakt, NR=M.nr, C=K3+1, perLeg=NR*2*C;
     // Kontaktschatten je Bein: voll, wenn das Bein unten steht (boden 1) und die Hose bis zum Boden reicht (Länge ab 54 % der Größe)
     const reicht=sstep(.5,.54,(P.cmL||0)/(P.heightCm||175)), kb=kt?[0,1].map(s=>reicht*(g3.boden?g3.boden[s]:1)):[0,0];
     let any=kb[0]>.01||kb[1]>.01, cmAny=false;
     if(cm&&base) for(let k=0;k<g3.nRing;k++) if(cm[k]<.99){ cmAny=true; break; }
-    // nur neu hochladen, wenn sich etwas ändert (Stauchung da, Bodenkontakt anders als im letzten Bild)
-    const kl=g3.kbLast, gleich=kl&&Math.abs(kl[0]-kb[0])<.02&&Math.abs(kl[1]-kb[1])<.02&&!cmAny&&!g3.aoDyn&&g3.kbCm===false;
-    g3.kbLast=kb; g3.kbCm=cmAny; any=any||cmAny;
-    if(!gleich&&(any||g3.aoDyn)){ const ao=any?(g3.aoTmp&&g3.aoTmp.length===base.length?g3.aoTmp:(g3.aoTmp=new Float32Array(base.length))):base;
+    // nur neu hochladen, wenn sich etwas ändert (neue Grundwerte, Stauchung da oder eben weg, Bodenkontakt um mehr als 0,02 anders
+    // als beim letzten Hochladen; verglichen mit dem hochgeladenen Stand, damit auch langsames Heben ankommt)
+    const kl=g3.kbLast, gleich=!g3.aoNeu&&kl&&Math.abs(kl[0]-kb[0])<.02&&Math.abs(kl[1]-kb[1])<.02&&!cmAny&&g3.kbCm===false;
+    any=any||cmAny;
+    if(!gleich&&(any||g3.aoDyn||g3.aoNeu)){ g3.kbLast=kb; g3.kbCm=cmAny; g3.aoNeu=false; const ao=any?(g3.aoTmp&&g3.aoTmp.length===base.length?g3.aoTmp:(g3.aoTmp=new Float32Array(base.length))):base;
       if(any){ ao.set(base);
         if(cm) for(let k=0;k<g3.nRing;k++) if(cm[k]<.99) ao[k*2]*=cm[k];
         if(kt) for(let k=0;k<g3.nRing;k++) if(kt[k]<1){ const b=kb[k<perLeg?0:1]; if(b>.01) ao[k*2]*=1-(1-kt[k])*b; } }

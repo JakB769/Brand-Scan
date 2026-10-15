@@ -195,7 +195,7 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
 - Gefunden und behoben: `legCm` lernte auch bei gehobenem Bein (verkürzter Oberschenkel 43,6 → 40,5 cm), die Beugung wurde
   dadurch unterschätzt. Lernt jetzt nur bei gleich langen Beinen, danach langsamer.
 - Test `tausblenden` (Attrappe): 0/30/45° links und rechts, vorn und seitlich, mit Knie 95°: sichtbar, ruhig. 60°: aus.
-  43↔49° pendelnd: ein Wechsel. Liegestütz, Hinlegen, Aufstehen, schlecht erkannte Hüfte, zappelnde Erkennung: richtig.
+  41↔55° seitlich pendelnd: genau ein Wechsel, bleibt aus. Seitlicher Spagat von vorn: sichtbar. Liegestütz, Hinlegen, Aufstehen, schlecht erkannte Hüfte, zappelnde Erkennung: richtig.
 - Referenzclips (echte Erkennung): Kniehub, Hocke vorn/seitlich, halbe Hocke, Bücken mit gebeugten Knien → aus;
   Stehen, Drehen, Ausfallschritt von hinten, Bein zur Seite, Bein nach hinten → sichtbar.
 
@@ -203,7 +203,8 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
 - Ursache 1: Die Maske des Flachfotos nimmt den Boden zwischen den Beinen mit, Innennaht und Saum lagen im Stoffbild genau an
   dieser Kante und zogen Bodenfarbe in die Hose. → `fillLegGap` (Spalt mit Stofffarbe, unter dem Saum letzte Zeile fortsetzen).
 - Ursache 2: Der Stoffstapel hinten an der Ferse war hell beleuchtet (heller Saum im Foto) und hatte fast die Farbe des
-  Bodens. → Kontaktschatten an den untersten 10 cm (hinten stärker).
+  Bodens. → Kontaktschatten an den untersten 10 cm (hinten stärker), je Bein nur mit Bodenkontakt und nur bei Hosen bis
+  zum Boden (nicht am gehobenen Bein, nicht bei Shorts und Röcken).
 - Dazu: Fuß-Verdecker von der Ferse bis zu den Zehen (vorher kleine Kapsel); sonst sah man durch den schrägen Saum die
   Innenseite als dunkles Band.
 - Geprüft: keine Löcher im Netz (Test `tferse`: 8 Lagen, 0 eingeschlossene durchsichtige Pixel), Referenz von hinten/seitlich.
@@ -235,7 +236,8 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
   Gürtel, geschätzte Rückseite bleiben, dort kommt kein Detail dazu).
 - Relief (Normalen aus dem Foto) einmal beim Laden vorberechnet als zweite Textur mit Mipmaps: im Shader 3 statt 10
   Texturzugriffe je Bildpunkt (schneller am Handy), aus der Nähe fein, von weitem ruhig.
-- LOD: Handy (oder dauerhaft langsames Gerät) 512er-Textur, Desktop 1024er mit anisotroper Filterung; immer Mipmaps.
+- LOD: Stoff überall 1024 (nur dauerhaft langsame Geräte 512), Relief am Handy 512; Desktop mit anisotroper Filterung (8×,
+  Handy 2×); immer Mipmaps.
 - Netz nicht feiner: 1 cm je Zeile und 15° je Segment weichen auch in der Nahphase unter 2 Bildpunkte von der runden Form
   ab; ein feineres Netz würde den Stoff-Fall (PBD) verändern, der laut Auftrag bleiben soll. **Offen**, falls gewünscht:
   nur zum Zeichnen unterteilen (Physik bleibt).
@@ -282,11 +284,12 @@ aus der Größe allein schätzt die App seine Taille auf 82 cm und rät zu W33. 
 ### Zusammenfassung 15.10.
 **Geändert**
 1. Ausblenden: über 45° Hüftbeugung je Bein, gekippter/liegender Körper (Liegestütz, Hinlegen), schlecht erkannte Hüfte,
-   Sprünge der Punkte und verzerrtes Netz blenden die Hose aus (mit Hysterese, ohne Flackern); bis 45° folgt sie sauber.
+   Sprünge der Punkte und verzerrtes Netz blenden die Hose aus (mit Hysterese, ohne Flackern); bis 45° folgt sie sauber,
+   Abspreizen (seitlicher Spagat) bleibt sichtbar.
 2. Drehung: kein Hängenbleiben und Springen an der Seite mehr, Alpha-Beta-Glättung (weniger Verzögerung, weniger Ruck),
    vorne/hinten im Referenzclip immer richtig.
 3. Ferse: kein Boden mehr im Stoffbild zwischen den Beinen, Kontaktschatten, Fuß-Verdecker; blickdicht in allen geprüften Lagen.
-4. Modellqualität: Textur 1024 aus dem großen Foto, Relief vorberechnet (schneller am Handy), Mipmaps, Handy 512.
+4. Modellqualität: Textur 1024 aus dem großen Foto (auch am Handy), Relief vorberechnet (schneller am Handy), Mipmaps.
 5. Passform: Urteil je Größe und Zone mit Bewegungszugabe je Schnitt/Stretch, Empfehlung mit Begründung (Karte und
    Shop-Ansicht), Körper notfalls aus der Größe, Größen auch für gemessene Hosen ohne Größenangabe.
 
