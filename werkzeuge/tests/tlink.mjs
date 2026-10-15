@@ -72,6 +72,7 @@ pruefe(G&&G.waist===43&&G.len===111,`Größe L gewählt: Bund ${G&&G.waist}, Lä
 // nur die US-Größe des Models (32 × 32)
 z=await link(B+'/shop/modell.html'); G=await hose();
 pruefe(G&&Math.abs(G.waist-41.9)<.2&&Math.abs(G.len-(32*2.54+.62*41.9))<.6,`aus „32 X 32“: Bund ${G&&G.waist}, Länge ${G&&G.len}`);
+pruefe(G&&/Elasthan/.test(G.mat||''),'Material der Seite ohne Prozent übernommen (für Stretch): '+(G&&G.mat));
 
 // Shopify: Bilder und Beschreibung aus /products/<name>.js
 z=await link(B+'/products/test-jeans'); G=await hose();

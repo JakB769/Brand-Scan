@@ -631,8 +631,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     if(md.hocke){ senke(50);
       L[23]=P(9,45,-10); L[24]=P(-9,45,-10); L[25]=P(20,48,34); L[27]=P(15,10,6); L[26]=P(-20,48,34); L[28]=P(-15,10,6); }
     // hockeBreit: halbe Hocke mit weit gespreizten Knien (Referenz halbe-hocke-vorne: Knie weit außen, Oberschenkel zur Seite)
-    if(md.hockeBreit){ senke(45);
-      L[23]=P(9,50,-6); L[24]=P(-9,50,-6); L[25]=P(42,52,22); L[27]=P(26,9,6); L[26]=P(-42,52,22); L[28]=P(-26,9,6); }
+    //   hockeBreit:2 Sumo-Hocke, Knie 58° nach außen (Oberschenkel 43 cm waagrecht, 23 cm nach vorn)
+    if(md.hockeBreit){ senke(45); const q=md.hockeBreit===2?[45.5,17]:[42,22];
+      L[23]=P(9,50,-6); L[24]=P(-9,50,-6); L[25]=P(q[0],52,q[1]); L[27]=P(26,9,6); L[26]=P(-q[0],52,q[1]); L[28]=P(-26,9,6); }
     if(md.spagat===1){ senke(85);
       L[23]=P(9,10); L[24]=P(-9,10); L[25]=P(54,8); L[27]=P(96,6); L[26]=P(-54,8); L[28]=P(-96,6); }
     if(md.spagat===2){ senke(85);
@@ -644,6 +645,8 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
       const vs=md.beineSicht??.35; for(const i of [23,24,25,26,27,28,29,30,31,32]) L[i]={...L[i],visibility:vs}; }
     // hueftSicht: Sicherheit der Hüftpunkte (schlecht erkannt)
     if(md.hueftSicht!=null) for(const i of [23,24]) L[i]={...L[i],visibility:md.hueftSicht};
+    // schulterSicht: Sicherheit der rechten Schulter (im Bild, aber verdeckt, z. B. liegend von der Seite)
+    if(md.schulterSicht!=null) L[12]={...L[12],visibility:md.schulterSicht};
     // zn: Tiefenfehler wie bei echter Pose-Erkennung (Knie und Knöchel scheinbar näher an der Kamera), zr: zusätzlich zittern
     if(md.zn||md.zr){ for(const [i,k] of [[25,.5],[26,.5],[27,1],[28,1],[29,1],[30,1],[31,1],[32,1]]){
       L[i]={...L[i],z:L[i].z-(md.zn||0)*k+(md.zr||0)*(Math.random()-.5)}; } }
@@ -2062,7 +2065,9 @@ function mesh3d(key,M){
     q(id(s,NR-1,f,j),id(s,NR-1,f,j+1),rid(s,f,3,j+1),rid(s,f,3,j));    // Saumkante
     q(rid(s,f,4,j),rid(s,f,4,j+1),rid(s,f,5,j+1),rid(s,f,5,j));        // Umschlag innen
   }
-  g3.key=key; g3.nv=nv; g3.nRing=nRing; g3.nWall=nWall; g3.oN=0; g3.ic=ic; g3.cOk=false; g3.tg=null; g3.idxArr=new Uint16Array(idx); g3.aoArr=ao; g3.aoFor=null; g3.ni=idx.length; g3.duj=duj; g3.uvs=uv; g3.nr=NR; g3.amp=null;
+  // aoFor undefined: das erste draw3d rechnet AO und Kontaktschatten dieser Hose neu (der Fall ist anfangs noch null, mit
+  // aoFor=null blieben sonst die Werte der vorigen Hose stehen)
+  g3.key=key; g3.nv=nv; g3.nRing=nRing; g3.nWall=nWall; g3.oN=0; g3.ic=ic; g3.cOk=false; g3.tg=null; g3.idxArr=new Uint16Array(idx); g3.aoArr=ao; g3.aoFor=undefined; g3.kbLast=null; g3.ni=idx.length; g3.duj=duj; g3.uvs=uv; g3.nr=NR; g3.amp=null;
   g3.pos=new Float32Array(nv*3); g3.nor=new Float32Array(nv*3); g3.tu=new Float32Array(nv*3); g3.tw=new Float32Array(nv*3);
   const buf=(data,loc,size)=>{ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
     gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW); return b; };
@@ -3146,7 +3151,7 @@ const tro={x:0,y:-1,t:0,seen:0,flip:0};
    - verzerrtem Netz (pose3d, g3.verz): Stoff klappt an vielen Stellen um oder ist stark gedehnt
    Kein Flackern: schlecht erst nach 100 ms → in 0,2 s aus; gut erst nach 350 ms → in 0,3 s an; dazu die Hysterese der Grenzen.
    g.trk (0–1) geht in die Deckkraft der Hose ein, g.unsicher nennt den Grund (Tests, Fehlersuche). */
-const trk={t:0,bad:0,good:0,flex:[false,false],kipp:false,kippT:0,last:null,flexDeg:[0,0],kippDeg:0,jump:0}, legCm={th:0,sh:0,sw:0,hw:0,n:0,nw:0}, scaleLim={v:null,t:0};
+const trk={t:0,bad:0,good:0,flex:[false,false],abd:[false,false],kipp:false,kippT:0,last:null,flexDeg:[0,0],kippDeg:0,jump:0}, legCm={th:0,sh:0,sw:0,hw:0,n:0,nw:0}, scaleLim={v:null,t:0};
 const AUS={flexAus:46,flexAn:39,kippAus:55,kippAn:45,schlechtMs:100,gutMs:350,ausS:.2,anS:.3};
 function trackSure(L,V,asp,o={}){
   const now=performance.now(), dt=clamp((now-(trk.t||now))/1000,0,.2); trk.t=now;
@@ -3156,27 +3161,31 @@ function trackSure(L,V,asp,o={}){
   const liegt=shW>.03&&trs<.45*shW&&Math.max(len(23,27),len(24,28))<.8*shW;
   // Rumpf gegen die Senkrechte im Bild (Hüfte → Schultern nach oben = 0°); nur mit sichtbaren Schultern und Hüfte
   if(V(11)&&V(12)&&V(23)&&V(24)&&trs>.02){ trk.kippDeg=Math.abs(Math.atan2(tx,-ty))*180/Math.PI; trk.kipp=trk.kippDeg>(trk.kipp?AUS.kippAn:AUS.kippAus); trk.kippT=now; }
-  // Schultern länger nicht zu sehen (Nahphase: oft über dem Bildrand): die Neigung ist unbekannt, nicht „gekippt“. Sonst blieb
-  // die Hose nach Hinlegen und Aufstehen aus, wenn die Schultern beim Aufrichten über den Rand gingen
-  else if(trk.kipp&&now-trk.kippT>800) trk.kipp=false;
+  // Schultern länger außerhalb des Bildes (Nahphase: über dem Rand): die Neigung ist unbekannt, nicht „gekippt“. Sonst blieb
+  // die Hose nach Hinlegen und Aufstehen aus, wenn die Schultern beim Aufrichten über den Rand gingen. Nur außerhalb: im Bild,
+  // aber schlecht sichtbar (Liegen von der Seite, die ferne Schulter verdeckt) bleibt „gekippt“
   const inB=i=>L[i].y>0&&L[i].y<1&&L[i].x>0&&L[i].x<1;
+  if(trk.kipp&&now-trk.kippT>800&&!(inB(11)&&inB(12))) trk.kipp=false;
   const blind=Math.max(vis(23),vis(24))<.5||(inB(25)&&inB(26)&&Math.max(vis(25),vis(26))<.35);
   // Sprünge (rohe Punkte, auf 30 Bilder/s umgerechnet), relativ zur Rumpflänge
   let jump=false;
   if(trk.last&&dt>0&&trs>.02){ const k=(1/30)/Math.max(1/60,dt), d=i=>Math.hypot((L[i].x-trk.last[i][0])*asp,L[i].y-trk.last[i][1])*k/trs;
     jump=Math.max(d(23),d(24))>.25||Math.max(V(25)?d(25):0,V(26)?d(26):0)>.5; }
   trk.last=L.map(q=>[q.x,q.y]); if(jump){ trk.jumps=(trk.jumps||[]).filter(t=>now-t<400); trk.jumps.push(now); if(trk.jumps.length>=2) trk.jump=now; }   // ein einzelner Sprung: das fängt der Filter
-  // Hüftbeugung je Bein (Grad, vorn +): wie weit der Oberschenkel aus der Körperebene nach vorn zeigt (asin des Vorwärtsanteils);
-  // Oberschenkel im Bild plus Tiefe aus der Verkürzung gegen die erwartete Länge, vorn aus der Drehung (seitlich: Bildebene, von
-  // vorn: Tiefe). Rückwärts (Ausfallschritt hinten) zählt nicht. Abspreizen zur Seite ist keine Beugung: vorher atan2(vorn, dy),
-  // beim seitlichen Spagat ist dy fast null und das zufällige Vorzeichen der Tiefe ergab ±90° (Hose aus oder flackernd).
-  // Über 90° (Knie über der Hüfte, nicht zur Seite) 180° − Winkel.
+  // Hüftbeugung je Bein (Grad, vorn +) gegen die Senkrechte in der Ebene vorn/unten (atan2), wie weit der Oberschenkel nach
+  // vorn gehoben ist; auch über 90°. Oberschenkel im Bild plus Tiefe aus der Verkürzung gegen die erwartete Länge, vorn aus der
+  // Drehung (seitlich: Bildebene, von vorn: Tiefe). Rückwärts (Ausfallschritt hinten) zählt nicht.
+  // Abspreizen zur Seite ist keine Beugung: zeigt der Oberschenkel deutlich mehr zur Seite als nach vorn (seitlicher Spagat,
+  // Bein zur Seite), zählt nur der Vorwärtsanteil (asin); sonst ergab dy ≈ 0 mit dem zufälligen Vorzeichen der Tiefe ±90°.
+  // Umschalten mit Hysterese (zur Seite über 2,5 × vorn, zurück unter 1,5 ×) und nur bei gehobenem Oberschenkel (unter 37°
+  // ergeben beide fast dasselbe): breite Hocke (Knie 50° nach außen, waagrecht) bleibt Beugung 90°, aus.
   if(o.bone&&o.ppc){ const yw=o.yaw||0, fw=[Math.sin(yw),0,-Math.cos(yw)], refT=(legCm.n>=5?legCm.th:.245*(o.H||175))*o.ppc;
     o.bone.forEach((c,s)=>{ if(!(c[0].ok&&c[1].ok)){ trk.flexDeg[s]=0; trk.flex[s]=false; return; }
       const dx=c[1].x-c[0].x, dy=c[1].y-c[0].y, l=Math.hypot(dx,dy), dzr=(c[1].zr||0)-(c[0].zr||0);
       const dz=(dzr>0?1:-1)*Math.sqrt(Math.max(0,refT*refT-l*l));          // zr > 0: Knie hinter der Hüfte; sonst im Zweifel vorn
-      const vorn=dx*fw[0]+dz*fw[2], seit=dx*Math.cos(yw)+dz*Math.sin(yw), a=Math.asin(clamp(vorn/Math.max(refT,Math.hypot(l,dz)),-1,1))*180/Math.PI;
-      const f=dy<0&&-dy>Math.abs(seit)&&a>0?180-a:a;
+      const vorn=dx*fw[0]+dz*fw[2], seit=dx*Math.cos(yw)+dz*Math.sin(yw), L3=Math.max(refT,Math.hypot(l,dz)), r=Math.abs(seit)/Math.max(vorn,1e-6*L3);
+      trk.abd[s]=dy>.8*L3?false:trk.abd[s]?r>1.5:r>2.5;
+      const f=trk.abd[s]?Math.asin(clamp(vorn/L3,-1,1))*180/Math.PI:Math.atan2(vorn,dy)*180/Math.PI;
       trk.flexDeg[s]=f; trk.flex[s]=f>(trk.flex[s]?AUS.flexAn:AUS.flexAus); }); }
   const verz=g3.verz&&g3.verz.bad&&now-g3.verz.t<400;
   const grund=liegt?"liegt":trk.kipp?"gekippt":blind?"verdeckt":now-trk.jump<300?"sprung":trk.flex[0]||trk.flex[1]?"beuge":verz?"verzerrt":"";
@@ -3249,8 +3258,10 @@ function bodyYaw(L,V,vw,vh,ppc){
     c=Math.sign(cw||1)*(.5*Math.abs(cw)+.5*Math.max(cs*Math.sign(cw||1),ch*Math.sign(cw||1)));
     fc.half=fc.kh*torso/2;
   }else if(hipOk){ c=clamp((X(23)-X(24))/(18*ppc),-1,1); }
-  const now=performance.now(), luecke=fc.t&&now-fc.t>250, dt=clamp((now-(fc.t||now))/1000,0,.1); fc.t=now;
+  // Zeit seit der letzten gültigen Messung: ein Bild ohne Hüften (c fehlt) zählt nicht, sonst verdeckte es eine Lücke
+  const now=performance.now(), luecke=fc.t&&now-fc.t>250, dt=clamp((now-(fc.t||now))/1000,0,.1);
   if(c==null) return fc.yaw;
+  fc.t=now;
   let e=0,w=0;
   const foot=(h,t)=>{ if(V(h)&&V(t)){ e+=clamp((X(t)-X(h))/(17*ppc),-1,1)*1.3; w+=1.3; } };
   foot(29,31); foot(30,32);
@@ -3272,16 +3283,19 @@ function bodyYaw(L,V,vw,vh,ppc){
   // übernommen. Die Geschwindigkeit klingt ab, damit die Hose beim Anhalten nicht weiterdreht.
   // Nach einer Lücke in der Erkennung (über 0,25 s, z. B. „Keine Person erkannt“; die Hose war so lange nicht zu sehen) gleich
   // die Messung nehmen, statt sichtbar nachzudrehen (vorher bis 0,8 rad im ersten Bild, Wächter hielt dann 350 ms falsch)
-  if(luecke){ fc.yaw=m; fc.w=0; fc.pend=0; return fc.yaw; }
+  if(luecke){ fc.yaw=m; fc.w=0; fc.pend=0; fc.frisch=now; return fc.yaw; }
   const pred=wrapA(fc.yaw+fc.w*dt); let d=wrapA(m-pred);
   // Ein Sprung um fast eine halbe Drehung ist meist eine Verwechslung von links und rechts: erst glauben, wenn er anhält;
-  // bis dahin steht die Hose (auch die Geschwindigkeit, sonst drehte sie 350 ms mit der alten weiter)
-  if(Math.abs(d)>2.2){ if(!fc.pend) fc.pend=now; if(now-fc.pend<350){ fc.w=0; return fc.yaw; } } else fc.pend=0;
+  // bis dahin steht die Hose (auch die Geschwindigkeit, sonst drehte sie 350 ms mit der alten weiter). Kurz nach einer Lücke
+  // ist eher der erste Wert nach der Lücke der falsche (Seiten beim Wiedererkennen vertauscht): dann gleich der Messung folgen
+  if(Math.abs(d)>2.2){ if(now-(fc.frisch||0)<350){ fc.yaw=m; fc.w=0; fc.pend=0; return fc.yaw; }
+    if(!fc.pend) fc.pend=now; if(now-fc.pend<350){ fc.w=0; return fc.yaw; } } else fc.pend=0;
   const al=1-Math.exp(-dt/YAW_TAU), be=YAW_BETA*al*al;
-  // Geschwindigkeit nur aus kleinen Abweichungen im laufenden Verfolgen lernen: nach einer Lücke in der Erkennung (dt auf 0,1 s
-  // begrenzt), nach dem Wächter oder bei großem Versatz lief sie sonst bis 7 rad/s auf, die Hose überschwang danach um
-  // 13–22° und sprang bis 0,5 rad je Bild. Die Vorhersage zählt mit zur Schrittgrenze (8 rad/s).
-  fc.w=dt>=.1||Math.abs(d)>.6?0:clamp((fc.w+be*d/Math.max(dt,1e-3))*Math.exp(-dt/YAW_REIB),-7,7);
+  // Geschwindigkeit nur aus kleinen Abweichungen im laufenden Verfolgen lernen: nach dem Wächter oder bei großem Versatz lief
+  // sie sonst bis 7 rad/s auf, die Hose überschwang danach um 13–22° und sprang bis 0,5 rad je Bild (Lücken: oben). Auch bei
+  // 10 Bildern/s und weniger (langsames Handy) wird gelernt; dt ist dort auf 0,1 s begrenzt, w gilt je begrenztem dt, die
+  // Vorhersage passt also. Die Vorhersage zählt mit zur Schrittgrenze (8 rad/s).
+  fc.w=Math.abs(d)>.6?0:clamp((fc.w+be*d/Math.max(dt,1e-3))*Math.exp(-dt/YAW_REIB),-7,7);
   fc.yaw=wrapA(fc.yaw+clamp(wrapA(pred-fc.yaw)+al*d,-8*dt,8*dt));
   return fc.yaw;
 }
@@ -3323,10 +3337,13 @@ async function fileToCanvas(file,maxH=900,say=()=>{},gross=0){
   const zeichne=mh=>{ const k=Math.min(1,mh/h0,Math.sqrt(6e6/(w0*h0)));      // auch die Fläche begrenzen (Panorama, Safari-Grenze)
     const c=document.createElement("canvas"); c.width=Math.max(8,Math.round(w0*k)); c.height=Math.max(8,Math.round(h0*k));
     c.getContext("2d",{willReadFrequently:true}).drawImage(src,0,0,c.width,c.height); return c; };
-  const c=zeichne(maxH);
-  if(gross) c.gross=zeichne(gross);                         // dasselbe Foto groß (Textur), ohne es noch einmal zu dekodieren
-  if(src.close) src.close();                                // dekodiertes Foto sofort freigeben (bis 48 MP)
-  return c;
+  try{
+    const c=zeichne(maxH);
+    // dasselbe Foto groß (nur für die feinere Textur), ohne es noch einmal zu dekodieren; scheitert das (Speichergrenze für
+    // Zeichenflächen in Safari), entsteht die Hose trotzdem, nur ohne Feinheiten aus dem großen Foto
+    if(gross){ try{ c.gross=zeichne(gross); }catch(_){ c.gross=null; } }
+    return c;
+  }finally{ if(src.close) src.close(); }                    // dekodiertes Foto immer freigeben (bis 48 MP)
 }
 function morph(m,w,h,erode,n){
   let a=m;
@@ -5014,17 +5031,20 @@ const ZUGABE={bund:[-1,-3,6,6,7],huefte:[2,-4,8,12,24],ober:[3,-3,9,15,Infinity]
 /* Länge: Saum gegen den Boden im Stand (cm; + = länger als bis zum Boden, staucht sich auf dem Schuh).
    [Ziel, kürzer als das → zu kurz, länger als das → zu lang]: Skinny endet am Knöchel, Regular knickt leicht auf dem Schuh,
    Wide-Leg liegt auf. */
-const LAENGE={skinny:[-2,-5,3],regular:[1,-2,4],wide:[3,-1,7]};
+const LAENGE={skinny:[-2,-5,3],regular:[1,-2,4],wide:[3,-1,7]}, KURZ_CM=88;
 const ZONE_T={bund:"Bund",huefte:"Hüfte",ober:"Oberschenkel",knie:"Knie",laenge:"Länge"}, BREITE_Z=["bund","huefte","ober","knie"];
 function sizeVerdict(G,sz,B){
   const gm=sizeGarment(G,sz), cut=cutOf(G), S=stretchOf(G,cut), ci={skinny:2,regular:3,wide:4,rock:3}[cut];
-  const body={bund:B.waist+.25*(B.hip-B.waist),huefte:B.hip,ober:B.thigh,knie:B.knee}, Z={};
+  // Bund am Körper: Hosen an den Hüftknochen (Bundlinie), Röcke in der Taille (die Anprobe setzt sie PASSFORM.rockSitzCm höher)
+  const body={bund:cut==="rock"?B.waist:B.waist+.25*(B.hip-B.waist),huefte:B.hip,ober:B.thigh,knie:B.knee}, Z={};
   const hose={bund:gm.waist,huefte:gm.hip,ober:B.thighScan?gm.thighMid:gm.thigh,knie:gm.knee};
   for(const k of BREITE_Z){ if(hose[k]==null||body[k]==null) continue;
     const e=hose[k]-body[k], mn=ZUGABE[k][S.st?1:0], mx=cut==="rock"&&k==="huefte"?ZUGABE.huefte[4]:ZUGABE[k][ci];
     Z[k]={e,mn,mx,v:e<mn?-1:e>mx?1:0,um:e<mn?mn-e:e>mx?e-mx:0}; }
-  // Länge nur bei langen Hosen: Shorts (Bund flach über 0,6 der Länge) und deutlich kürzere Schnitte sind so gewollt
-  const kurz=G.m3.wf>.6||gm.len<.75*(B.belt||0);
+  // Länge nur bei langen Hosen: Shorts (Bund flach über 0,6 der Länge), Capri und Culotte (unter 88 cm, etwa 86 % der Strecke
+  // Bundlinie → Boden bei 1,75 m) sind so gewollt. Je Hose entschieden (Länge der Bezugsgröße), nicht je Betrachter oder Größe:
+  // sonst war dieselbe Culotte für den einen „23 cm zu kurz“, für den anderen ohne Urteil, und die Empfehlung kippte an der Grenze
+  const kurz=G.m3.wf>.6||garmentDims(G).len<KURZ_CM;
   if(B.belt&&LAENGE[cut]&&!kurz){ const d=gm.len-B.belt, [ziel,lo,hi]=LAENGE[cut];
     // um: Abstand zum Ziel (für die Empfehlung), aus: wie weit außerhalb des Bereichs (für die Begründung, wie bei der Weite)
     Z.laenge={d,ziel,lo,hi,v:d<lo?-1:d>hi?1:0,um:Math.abs(d-ziel),aus:d<lo?lo-d:d>hi?d-hi:0}; }
@@ -6450,6 +6470,8 @@ async function upBuild(){
     mass=got.length?sz+got.join(", "):"";
     if(T.material) G.material=T.material;
   }
+  // Material der Shop-Seite, wenn die Tabelle keins nennt (ohne Prozent, z. B. „Baumwolle, Elasthan“, liest die Tabelle nicht)
+  if(!(T&&T.material)&&UP.link&&UP.link.material) G.material=UP.link.material;
   // Keine Länge aus der Tabelle: US-Größe des Models („32 X 34“: Bund und Innenbein in Zoll), sonst am Foto mit Model messen
   const mdl=UP.link&&UP.link.model||{};
   if(!G.len&&!G.meas&&mdl.l&&!M0rock(G)){ const ins=mdl.l*2.54, v=Math.round(inseamToLen(G,ins)*10)/10;
@@ -6533,7 +6555,7 @@ async function linkImport(url){
       +`Einmal Netlify mit GitHub verbinden (Anleitung in doku/netlify-einrichten.md), dann geht es. Bis dahin: Bilder aus dem Shop speichern und hier hineinziehen.</div>`); return; }
     if(gen!==UP.linkGen) return;
     if(!j.ok){ upMsg(`<div class="dbad">${escH(j.error||"Die Seite ließ sich nicht lesen.")}</div>`); return; }
-    UP.link={url:j.url,name:j.name,model:j.model||{},geschlecht:j.geschlecht};
+    UP.link={url:j.url,name:j.name,model:j.model||{},geschlecht:j.geschlecht,material:typeof j.material==="string"?j.material.trim().slice(0,160):""};
     const info=[j.name?`<b>${escH(j.name)}</b>`:"Seite gelesen", `${j.bilder.length} Bilder`];
     if(j.model&&j.model.height) info.push(`Model ${escH(j.model.height)} cm${j.model.size?", trägt "+escH(j.model.size):""}`);
     upMsg(info.join(" · ")+"<br>Bilder werden geholt …");

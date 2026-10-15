@@ -72,6 +72,14 @@ pruefe(['bund','huefte','ober','knie','laenge'].every(k=>Z.z.includes(k))&&/^Bun
 const groesse=async h=>{ await p.fill('#height',String(h)); await p.waitForTimeout(300); return knoepfe(); };
 K=await groesse(150); pruefe(/Länge \d+ cm zu lang/.test(K.msg),'150 cm groß: Länge zu lang: '+K.msg.split('\n')[0]);
 K=await groesse(205); pruefe(/Länge \d+ cm zu kurz/.test(K.msg),'205 cm groß: Länge zu kurz: '+K.msg.split('\n')[0]);
+// Culotte/Capri (unter 88 cm): kein Längenurteil, für jeden Betrachter und jede Größe gleich; Rock: Bund an der Taille
+const kurzR=[];
+for(const h of [170,179,187,205]){ await p.fill('#height',String(h)); await p.waitForTimeout(200);
+  kurzR.push(await p.evaluate(()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key], B=d.bodyMeas(), C={...G,len:80,sizes:null}, Lg={...G,len:109,sizes:null};
+    const R={...G,sizes:null,m3:{...G.m3,rock:true}}, v=d.sizeVerdict(R,{},B), gm=d.sizeGarment(R,{});
+    return {c:!!d.sizeVerdict(C,{},B).Z.laenge, l:!!d.sizeVerdict(Lg,{},B).Z.laenge, cut:v.cut, rockBund:Math.abs(v.Z.bund.e-(gm.waist-B.waist))<.01}; })); }
+pruefe(kurzR.every(r=>!r.c&&r.l),'Culotte 80 cm: kein Längenurteil bei 170–205 cm; lange Hose 109 cm: immer eins');
+pruefe(kurzR.every(r=>r.cut==='rock'&&r.rockBund),'Rock: Bund gegen die Taille gemessen (nicht die Bundlinie der Hose)');
 // im 3D sichtbar: größere Größe breiter, kürzere endet höher über dem Boden (Puppe 215 cm, damit der Saum nicht auf dem Schuh aufliegt)
 await groesse(215); await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView());
 const form=async i=>{ await p.click(`#g-szrow .szchip:nth-child(${i+1})`); await p.evaluate(()=>{ const v=window.__dbg.v3d; v.yaw=0; v.idle=performance.now()+1e9; }); await p.waitForTimeout(2500);

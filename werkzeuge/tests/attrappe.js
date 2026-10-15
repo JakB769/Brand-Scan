@@ -53,8 +53,9 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     if(md.hocke){ senke(50);
       L[23]=P(9,45,-10); L[24]=P(-9,45,-10); L[25]=P(20,48,34); L[27]=P(15,10,6); L[26]=P(-20,48,34); L[28]=P(-15,10,6); }
     // hockeBreit: halbe Hocke mit weit gespreizten Knien (Referenz halbe-hocke-vorne: Knie weit außen, Oberschenkel zur Seite)
-    if(md.hockeBreit){ senke(45);
-      L[23]=P(9,50,-6); L[24]=P(-9,50,-6); L[25]=P(42,52,22); L[27]=P(26,9,6); L[26]=P(-42,52,22); L[28]=P(-26,9,6); }
+    //   hockeBreit:2 Sumo-Hocke, Knie 58° nach außen (Oberschenkel 43 cm waagrecht, 23 cm nach vorn)
+    if(md.hockeBreit){ senke(45); const q=md.hockeBreit===2?[45.5,17]:[42,22];
+      L[23]=P(9,50,-6); L[24]=P(-9,50,-6); L[25]=P(q[0],52,q[1]); L[27]=P(26,9,6); L[26]=P(-q[0],52,q[1]); L[28]=P(-26,9,6); }
     if(md.spagat===1){ senke(85);
       L[23]=P(9,10); L[24]=P(-9,10); L[25]=P(54,8); L[27]=P(96,6); L[26]=P(-54,8); L[28]=P(-96,6); }
     if(md.spagat===2){ senke(85);
@@ -66,6 +67,8 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
       const vs=md.beineSicht??.35; for(const i of [23,24,25,26,27,28,29,30,31,32]) L[i]={...L[i],visibility:vs}; }
     // hueftSicht: Sicherheit der Hüftpunkte (schlecht erkannt)
     if(md.hueftSicht!=null) for(const i of [23,24]) L[i]={...L[i],visibility:md.hueftSicht};
+    // schulterSicht: Sicherheit der rechten Schulter (im Bild, aber verdeckt, z. B. liegend von der Seite)
+    if(md.schulterSicht!=null) L[12]={...L[12],visibility:md.schulterSicht};
     // zn: Tiefenfehler wie bei echter Pose-Erkennung (Knie und Knöchel scheinbar näher an der Kamera), zr: zusätzlich zittern
     if(md.zn||md.zr){ for(const [i,k] of [[25,.5],[26,.5],[27,1],[28,1],[29,1],[30,1],[31,1],[32,1]]){
       L[i]={...L[i],z:L[i].z-(md.zn||0)*k+(md.zr||0)*(Math.random()-.5)}; } }

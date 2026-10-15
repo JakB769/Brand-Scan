@@ -17,7 +17,7 @@ await p.waitForTimeout(1000); await p.click('#clean').catch(()=>{});
 // g.trk in jedem Bild mitschreiben
 await p.evaluate(()=>{ window.__log=[]; const f=()=>{ const d=window.__dbg; window.__log.push([performance.now(),d.g.trk,d.g.unsicher||'',d.trk?d.trk.flexDeg.slice():[0,0]]); requestAnimationFrame(f); }; requestAnimationFrame(f); });
 const ruhe={zoom:1,rand:'raten',knee:0,kneeHigh:0,fersePo:0,kneeWave:0,yaw:0,hand:0,sway:0,ohneArme:1,ausfall:0,spagat:0,liegestuetz:0,hocke:0,
-  beugeL:null,beugeR:null,knieL:null,knieR:null,roll:0,zappel:0,hueftSicht:null,shift:0};
+  beugeL:null,beugeR:null,knieL:null,knieR:null,roll:0,zappel:0,hueftSicht:null,schulterSicht:null,shift:0,hockeBreit:0};
 const lage=m=>p.evaluate(([r,m])=>Object.assign(window.__mode,r,m),[ruhe,m]);
 // misst über ms Millisekunden: kleinstes/größtes g.trk, Wechsel über 0,5, Gründe, mittlere Beugung
 const messe=async ms=>{ await p.evaluate(()=>{ window.__log.length=0; }); await p.waitForTimeout(ms);
@@ -52,6 +52,11 @@ await lage({}); await p.waitForTimeout(1500);
 await lage({spagat:1}); await p.waitForTimeout(1200); r=await messe(1500);
 pruefe(r.mi>.99,'seitlicher Spagat von vorn: sichtbar '+zeig(r));
 await lage({}); await p.waitForTimeout(1500);
+// Hocke, breite Hocke und Sumo-Hocke (Knie weit außen, Oberschenkel waagrecht): Beugung um 90°, auch mit Abspreizen → aus
+for(const [n,m] of [['Hocke',{hocke:1}],['breite Hocke (Knie 50° außen)',{hockeBreit:1}],['Sumo-Hocke (Knie 58° außen)',{hockeBreit:2}]]){
+  await lage(m); await p.waitForTimeout(1200); r=await messe(1500);
+  pruefe(r.ma<.01,`${n} von vorn: ausgeblendet `+zeig(r));
+  await lage({}); await p.waitForTimeout(1500); }
 // Liegestütz, dann Stand
 await lage({liegestuetz:1}); await p.waitForTimeout(1000); r=await messe(1000);
 pruefe(r.ma<.01,'Liegestütz: ausgeblendet '+zeig(r));
@@ -61,6 +66,11 @@ pruefe(r.mi>.99,'nach dem Liegestütz im Stand wieder sichtbar '+zeig(r));
 for(let k=0;k<=15;k++){ await p.evaluate(v=>{ window.__mode.roll=v; },1.57*k/15); await p.waitForTimeout(100); }
 await p.waitForTimeout(800); r=await messe(1000);
 pruefe(r.ma<.01,'hingelegt (waagrecht): ausgeblendet '+zeig(r));
+// liegend die ferne Schulter verdeckt (im Bild, Sicherheit 0,3): Neigung nicht mehr messbar, „gekippt“ bleibt (nur außerhalb
+// des Bildes wird es nach 0,8 s aufgehoben)
+await p.evaluate(()=>{ window.__mode.schulterSicht=.3; }); await p.waitForTimeout(500); r=await messe(1500);
+pruefe(r.ma<.01,'hingelegt, ferne Schulter verdeckt: bleibt ausgeblendet '+zeig(r));
+await p.evaluate(()=>{ window.__mode.schulterSicht=null; }); await p.waitForTimeout(300);
 for(let k=15;k>=0;k--){ await p.evaluate(v=>{ window.__mode.roll=v; },1.57*k/15); await p.waitForTimeout(100); }
 await p.waitForTimeout(1500); r=await messe(1000);
 pruefe(r.mi>.99,'aufgestanden: wieder sichtbar '+zeig(r));
@@ -70,8 +80,10 @@ pruefe(r.ma<.01,'Hüfte schlecht erkannt: ausgeblendet '+zeig(r));
 await lage({zappel:.08}); await p.waitForTimeout(1000); r=await messe(1000);
 pruefe(r.ma<.01,'Erkennung springt jedes Bild: ausgeblendet '+zeig(r));
 await lage({}); await p.waitForTimeout(1500);
-await p.evaluate(()=>{ window.__log.length=0; }); await lage({shift:.1}); r=await messe(1200);   // ab dem Sprung gemessen
-pruefe(r.mi>.99,'ein einzelner Sprung (Person versetzt): bleibt sichtbar '+zeig(r));
+// ab dem Sprung gemessen; 0,25 Bildbreiten: auch bei wenigen Erkennungen je Sekunde (Testumgebung 8/s) als Sprung erkannt
+await p.evaluate(()=>{ window.__log.length=0; window.__t0=performance.now(); }); await lage({shift:.25}); r=await messe(1200);
+const erkannt=await p.evaluate(()=>(window.__dbg.trk.jumps||[]).some(t=>t>=window.__t0));
+pruefe(erkannt&&r.mi>.99,`ein einzelner Sprung (Person versetzt): ${erkannt?'erkannt':'NICHT erkannt'}, bleibt sichtbar `+zeig(r));
 await lage({}); await p.waitForTimeout(1500); r=await messe(800);
 pruefe(r.mi>.99,'zum Schluss im Stand sichtbar '+zeig(r));
 pruefe(!errs.length,'keine Skriptfehler'+(errs.length?': '+[...new Set(errs)].slice(0,3).join(' | '):''));
