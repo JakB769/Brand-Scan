@@ -348,3 +348,6 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
 16. Zweite Gegenprüfung (15.10.): breite Hocke wieder aus (Beugung in der Ebene vorn/unten, Abspreizen mit Hysterese),
    „gekippt“ nur außerhalb des Bildes gelöst, Drehung nach Lücken (Bild ohne Hüften, vertauschtes erstes Bild, ≤ 10 Bilder/s),
    AO nach Hosenwechsel, großes Foto abgesichert, Rock-Bund an der Taille, Längenurteil je Hose (88 cm), Material aus dem Link.
+17. Dritte Gegenprüfung (15.10.): Neigung aus Teilpunkten (Profil), Tiefe 0 statt erfunden, Abspreizen nur mit gestrecktem
+   Knie; Drehung: Sprung nach Lücke nur mit zweitem Bild, eine verdeckte Hüfte ist keine Lücke; „kurz“ laut Name, Hüftrock,
+   Material aus dem Link nur mit Zusammensetzung; Nachrechen-Werkzeug wertet gegen einen ungestörten Lauf aus.

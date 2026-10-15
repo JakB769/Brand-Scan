@@ -182,8 +182,8 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
 ### Entscheidungen
 - Hüftbeugung wird **gegen die Senkrechte** gemessen, nicht gegen den Rumpf: „Oberschenkel nach vorne heben“. Bücken mit
   senkrechten Oberschenkeln bleibt sichtbar; Bücken mit gebeugten Knien (Oberschenkel über 45° vor) wird ausgeblendet.
-  Zeigt der Oberschenkel deutlich mehr zur Seite als nach vorn (seitlicher Spagat), zählt nur der Vorwärtsanteil; breite
-  Hocke und Sumo-Hocke (Knie 50–58° außen) bleiben Beugung um 90° und werden ausgeblendet.
+  Zeigt der Oberschenkel bei gestrecktem Knie deutlich mehr zur Seite als nach vorn (seitlicher Spagat, Bein zur Seite),
+  zählt nur der Vorwärtsanteil; mit gebeugtem Knie (breite Hocke, Sumo-Hocke, Pferdestand) bleibt es Beugung, aus.
 - Grenzen mit Hysterese: Beugung aus über 46°, an unter 39° (von vorn liest die Seite 45° als 41–42°, seitlich als 44°:
   ausgeblendet wird ab etwa 46–50°). Rumpf aus über 55°, an unter 45°.
 - Hocke, halbe Hocke, Ausfallschritt und Längsspagat (vorderes Bein 90°) werden damit **ausgeblendet** (gewollt: „lieber
@@ -357,5 +357,26 @@ erreichbar: Maßband-Taille ohne Hüfte gibt es im Ablauf nicht). Behoben und mi
   die Hose entsteht dann ohne Feinheiten; das dekodierte Bild wird immer freigegeben.
 - Passform: Röcke sitzen in der Taille, der Bund wurde an der Bundlinie einer Hose gemessen (eine Größe zu groß) → Taille.
   „Kurz“ (kein Längenurteil) hing vom Betrachter und der Größe ab (Culotte 80 cm für Jakob „23 cm zu kurz“, für Fabian ohne
-  Urteil) → je Hose: unter 88 cm Länge oder Shorts. Material der Shop-Seite ohne Prozent („Baumwolle, Elasthan“) ging
-  verloren → übernommen. Empfehlungen der drei Profile unverändert (W33, W34, W31).
+  Urteil) → je Hose (endgültig nach der dritten Runde: laut Name). Material der Shop-Seite ohne Prozent („Baumwolle,
+  Elasthan“) ging verloren → übernommen. Empfehlungen der drei Profile unverändert (W33, W34, W31).
+
+### Dritte Gegenprüfung 15.10.
+Drei Prüfer lasen die Korrekturen der zweiten Runde (8 Funde; zwei Skeptiker brachen am Limit ab, deren Funde selbst am Code
+nachgeprüft, alle erreichbar). Behoben:
+- Ausblenden: „gekippt“ blieb im Profil stehen, wenn die ferne Schulter verdeckt war → Neigung auch aus Schulter und Hüfte
+  derselben Seite. Bei Oberschenkel fast in voller Länge (Tiefe unbekannt) wurden bis 26° nach vorn erfunden (Spagat mit
+  leicht geschätzter Drehung ging aus) → Tiefe 0. Abspreizen rastete beim Absenken aus dem breiten Stand ein (Sumo-Hocke
+  sichtbar, 32°) → Abspreizen nur mit gestrecktem Knie (Knie im Bild unter 135°: Beugung). Gegenprobe: gedrehter Spagat
+  und Aufstehen mit verdeckter Schulter scheitern mit dem vorigen Stand.
+- Drehung: Im Fenster nach einer Lücke klappte jedes einzelne vertauschte Bild die Hose um, abwechselnde ließen sie flackern
+  (8–10 Sprünge) → ein großer Sprung braucht ein zweites Bild als Bestätigung. Eine einzeln verdeckte Hüfte (Hose sichtbar)
+  galt als Lücke (Sprung bis 1 rad) → nur beide Hüften. Nachgerechnet auf 4 Aufnahmen gegen den ungestörten Lauf:
+  vertauschtes erstes Bild nach Lücke 2 Bilder verkehrt (vorher 15), spätere/abwechselnde Vertauschung 0 (wie vor dem Tag),
+  eine Hüfte verdeckt wie vor dem Tag. Das Werkzeug wertete gegen die gestörte Rohschätzung aus (belohnte Folgen des
+  Fehlers) → gegen einen ungestörten Lauf.
+- Passform: „kurz“ über 88 cm nahm Petite-Jeans (86 cm) und Kinderhosen das „zu kurz“ und hing an der gewählten Größe →
+  laut Name (Culotte, Capri, 7/8, Cropped, Ankle, Bermuda, Shorts). Rock „zu weit“ erst, wenn er auch an der Bundlinie zu
+  weit ist (Hüftrock). Material aus dem Link nur mit Zusammensetzung oder Stretch-Hinweis (ein bloßes „Denim“ schaltete bei
+  Skinny „Stretch angenommen“ ab); der Server liest Material-Objekte (vorher „[object Object]“).
+- Bewusst so gelassen: bei ≤ 10 Bildern/s schwingt die Drehung nach dem Anhalten 4–6° über, folgt dafür während der Drehung
+  enger (Skeptiker: Abwägung, kein Fehler).
