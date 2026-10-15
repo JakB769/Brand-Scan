@@ -53,9 +53,10 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     if(md.hocke){ senke(50);
       L[23]=P(9,45,-10); L[24]=P(-9,45,-10); L[25]=P(20,48,34); L[27]=P(15,10,6); L[26]=P(-20,48,34); L[28]=P(-15,10,6); }
     // hockeBreit: halbe Hocke mit weit gespreizten Knien (Referenz halbe-hocke-vorne: Knie weit außen, Oberschenkel zur Seite)
-    //   hockeBreit:2 Sumo-Hocke, Knie 58° nach außen (Oberschenkel 43 cm waagrecht, 23 cm nach vorn)
-    if(md.hockeBreit){ senke(45); const q=md.hockeBreit===2?[45.5,17]:[42,22];
-      L[23]=P(9,50,-6); L[24]=P(-9,50,-6); L[25]=P(q[0],52,q[1]); L[27]=P(26,9,6); L[26]=P(-q[0],52,q[1]); L[28]=P(-26,9,6); }
+    //   hockeBreit:2 Sumo-Hocke, Knie 58° nach außen (Oberschenkel 43 cm waagrecht, 23 cm nach vorn); hockeBreit:3 Knie 68° nach
+    //   außen und 5 cm unter der Hüfte (Oberschenkel fast in der Bildebene: die Hauptschleife setzt keine Tiefe)
+    if(md.hockeBreit){ senke(45); const q=md.hockeBreit===3?[48.9,10.1,45]:md.hockeBreit===2?[45.5,17,52]:[42,22,52];
+      L[23]=P(9,50,-6); L[24]=P(-9,50,-6); L[25]=P(q[0],q[2],q[1]); L[27]=P(26,9,6); L[26]=P(-q[0],q[2],q[1]); L[28]=P(-26,9,6); }
     if(md.spagat===1){ senke(85);
       L[23]=P(9,10); L[24]=P(-9,10); L[25]=P(54,8); L[27]=P(96,6); L[26]=P(-54,8); L[28]=P(-96,6); }
     if(md.spagat===2){ senke(85);

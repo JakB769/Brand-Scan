@@ -60,7 +60,7 @@ await lage({spagat:1,yaw:.3}); await p.waitForTimeout(1200); r=await messe(1500)
 pruefe(r.mi>.99,'seitlicher Spagat, leicht gedreht: sichtbar '+zeig(r));
 await lage({}); await p.waitForTimeout(1500);
 // Hocke, breite Hocke und Sumo-Hocke (Knie weit außen, Oberschenkel waagrecht): Beugung um 90°, auch mit Abspreizen → aus
-for(const [n,m] of [['Hocke',{hocke:1}],['breite Hocke (Knie 50° außen)',{hockeBreit:1}],['Sumo-Hocke (Knie 58° außen)',{hockeBreit:2}]]){
+for(const [n,m] of [['Hocke',{hocke:1}],['breite Hocke (Knie 50° außen)',{hockeBreit:1}],['Sumo-Hocke (Knie 58° außen)',{hockeBreit:2}],['Sumo-Hocke (Knie 68° außen, in der Bildebene)',{hockeBreit:3}]]){
   await lage(m); await p.waitForTimeout(1200); r=await messe(1500);
   pruefe(r.ma<.01,`${n} von vorn: ausgeblendet `+zeig(r));
   await lage({}); await p.waitForTimeout(1500); }

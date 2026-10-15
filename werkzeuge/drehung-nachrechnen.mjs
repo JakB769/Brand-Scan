@@ -5,7 +5,8 @@
    --luecke: Erkennung fehlt („Keine Person“), --blind: Person erkannt, beide Hüften nicht (Sichtbarkeit 0,2; die Hose ist dann
    ausgeblendet), --blind1: nur die rechte Hüfte (die Hose bleibt sichtbar), --tausch: je Zeit das erste Bild ab dort mit
    vertauschten Seiten (links/rechts), --tauschJede: jedes zweite Bild im Zeitraum vertauscht. Danach: Abstand der Hose zur
-   Rohschätzung eines Laufs ohne diese Störungen (Bilder mehr als 90° daneben = Hose verkehrt herum).
+   Hose eines Laufs ohne diese Störungen, ab dem Ende einer Lücke/Verdeckung bzw. dem Beginn eines Vertauschens, 1,5 s lang
+   (Bilder mehr als 90° daneben = Hose verkehrt herum; Bilder mit beiden Hüften verdeckt zählen nicht, die Hose ist dann aus).
    Ausgabe: größter Schritt je Bild, Schritte > 0,15 rad, Richtungswechsel, Abweichung von der Sollkurve des Referenzclips
    v2-02_drehung-360 (von Hand aus den Bildern: vorn 30° → seitlich 90° bei 1 s → Rücken 175–185° von 2,2 bis 3 s → seitlich
    270° bei 3,9 s → vorn 355° bei 4,9 s, dann vorn), Verzögerung gegen die Sollkurve. */
@@ -79,11 +80,13 @@ console.log(`Überschwingen danach ${ueber.toFixed(1)}°`);
 console.log(`Verzögerung zur Rohschätzung ≈ ${(bestR[1] * 1000 / 30).toFixed(0)} ms | Ruck ${(ruck * 1000).toFixed(1)} mrad/Bild²`);
 console.log(`Bilder ${Y.length} | größter Schritt ${Math.max(...d.map(Math.abs)).toFixed(2)} rad | Schritte >0,15: ${d.filter(x => Math.abs(x) > .15).length} | Richtungswechsel: ${umk}`);
 if (STOER) {
-  // ab der ersten Störung 1,5 s lang: Abstand der Hose zur Rohschätzung des ungestörten Laufs (nicht der gestörten: im
-  // vertauschten Bild ist die selbst falsch), Bilder mit der Hose über 90° daneben (verkehrt herum) und über 17°
-  const t0 = Math.min(...["luecke", "blind", "blind1", "tauschJede"].map(n => arg(n, null) ? +arg(n).split("-")[0] : 1e9), ...TAUSCH);
-  const ref = n => { const b = bezug.get(ks[n]); return b ? b.roh : null; };
-  const nach = ks.map((k, n) => n).filter(n => T[n] >= t0 - .05 && T[n] < t0 + 1.5 && ref(n) != null), ab = n => Math.abs(wr(Y[n] - ref(n)));
+  // ab dem Ende einer Lücke/Verdeckung bzw. dem Beginn eines Vertauschens 1,5 s lang: Abstand der Hose zur Hose des
+  // ungestörten Laufs (nicht zur gestörten Rohschätzung: im vertauschten Bild ist die selbst falsch), Bilder mit der Hose über
+  // 90° daneben (verkehrt herum) und über 17°; Bilder mit beiden Hüften verdeckt zählen nicht (Hose ausgeblendet)
+  const t0 = Math.min(...["luecke", "blind"].map(n => arg(n, null) ? +arg(n).split("-")[1] : 1e9),
+    ...["blind1", "tauschJede"].map(n => arg(n, null) ? +arg(n).split("-")[0] : 1e9), ...TAUSCH);
+  const ref = n => { const b = bezug.get(ks[n]); return b ? b.yaw : null; };
+  const nach = ks.map((k, n) => n).filter(n => T[n] >= t0 - .05 && T[n] < t0 + 1.5 && ref(n) != null && !inBlind(T[n])), ab = n => Math.abs(wr(Y[n] - ref(n)));
   const ueber17 = nach.filter(n => ab(n) > .3), verkehrt = nach.filter(n => ab(n) > Math.PI / 2);
   const spr = nach.filter(n => n > 0 && nb(n) && Math.abs(wr(Y[n] - Y[n - 1])) > 1.5).length;
   console.log(`ab ${t0.toFixed(2)} s (1,5 s, gegen den ungestörten Lauf): größter Abstand ${(Math.max(0, ...nach.map(ab)) * 180 / Math.PI).toFixed(0)}°, ` +

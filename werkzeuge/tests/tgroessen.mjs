@@ -80,9 +80,10 @@ for(const h of [170,179,187,205]){ await p.fill('#height',String(h)); await p.wa
     const lz=(lab,len)=>d.sizeVerdict({...G,label:lab,len,sizes:null},{},B).Z.laenge;
     const R={...G,sizes:null,m3:{...G.m3,rock:true}}, v=d.sizeVerdict(R,{},B), gm=d.sizeGarment(R,{}), bl=B.waist+.25*(B.hip-B.waist);
     const RW={...R,waist:(bl+4)/2}, vw=d.sizeVerdict(RW,{},B);   // Bund 4 cm über der Bundlinie: in der Taille weit, rutscht auf die Hüfte
-    return {c:!lz('Wide Culotte',80)&&!lz('7/8 Jeans',100)&&!lz('Culotte',95), l:!!lz('Jeans',109), petite:(lz('Petite Jeans',86)||{}).v,
+    const kz=d.sizeVerdict({...G,label:'Hose 3',kurz:true,len:82,sizes:null},{},B).Z.laenge, bm=d.sizeVerdict({...G,label:'Hose 4',len:58,sizes:null},{},B).Z.laenge;
+    return {c:!lz('Wide Culotte',80)&&!lz('7/8 Jeans',100)&&!lz('Culotte',95)&&!kz&&!bm&&!!lz('Ankle Zip Skinny',99), l:!!lz('Jeans',109), petite:(lz('Petite Jeans',86)||{}).v,
       cut:v.cut, rockBund:Math.abs(v.Z.bund.e-(gm.waist-B.waist))<.01, rockHuefte:vw.Z.bund.v===0&&vw.Z.bund.e>6}; })); }
-pruefe(kurzR.every(r=>r.c&&r.l),'Culotte/7/8 laut Name: kein Längenurteil bei 170–205 cm, egal wie lang; „Jeans“ 109 cm: immer eins');
+pruefe(kurzR.every(r=>r.c&&r.l),'Culotte/7/8 laut Name oder vollem Shop-Namen (G.kurz), Bermuda 58 cm: kein Längenurteil bei 170–205 cm; „Jeans“ 109 cm und „Ankle Zip Skinny“: immer eins');
 pruefe(kurzR.filter((r,i)=>i>0).every(r=>r.petite===-1),'Petite-Jeans 86 cm (ohne Kurz-Namen) ab 179 cm: zu kurz');
 pruefe(kurzR.every(r=>r.cut==='rock'&&r.rockBund&&r.rockHuefte),'Rock: Bund gegen die Taille; ein weiterer Bund (rutscht auf die Hüfte) nicht „zu weit“');
 // im 3D sichtbar: größere Größe breiter, kürzere endet höher über dem Boden (Puppe 215 cm, damit der Saum nicht auf dem Schuh aufliegt)
