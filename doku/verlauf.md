@@ -345,3 +345,6 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    Boden im Spalt der geschätzten Rückseite, Vorderseiten-Details auf der Rückseite, Handy-Textur kleiner als vorher, mehrere
    Passform-Randfälle (Stretch, Maßband-Taille, Shorts, Röcke, Oberschenkelhöhe, Längen-Wortlaut). Tests, die nicht scheitern
    konnten (`tbeine`, Hysterese und Einzelsprung in `tausblenden`), repariert; neuer Test `tstoffbild`.
+16. Zweite Gegenprüfung (15.10.): breite Hocke wieder aus (Beugung in der Ebene vorn/unten, Abspreizen mit Hysterese),
+   „gekippt“ nur außerhalb des Bildes gelöst, Drehung nach Lücken (Bild ohne Hüften, vertauschtes erstes Bild, ≤ 10 Bilder/s),
+   AO nach Hosenwechsel, großes Foto abgesichert, Rock-Bund an der Taille, Längenurteil je Hose (88 cm), Material aus dem Link.

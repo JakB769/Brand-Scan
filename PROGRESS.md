@@ -182,6 +182,8 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
 ### Entscheidungen
 - Hüftbeugung wird **gegen die Senkrechte** gemessen, nicht gegen den Rumpf: „Oberschenkel nach vorne heben“. Bücken mit
   senkrechten Oberschenkeln bleibt sichtbar; Bücken mit gebeugten Knien (Oberschenkel über 45° vor) wird ausgeblendet.
+  Zeigt der Oberschenkel deutlich mehr zur Seite als nach vorn (seitlicher Spagat), zählt nur der Vorwärtsanteil; breite
+  Hocke und Sumo-Hocke (Knie 50–58° außen) bleiben Beugung um 90° und werden ausgeblendet.
 - Grenzen mit Hysterese: Beugung aus über 46°, an unter 39° (von vorn liest die Seite 45° als 41–42°, seitlich als 44°:
   ausgeblendet wird ab etwa 46–50°). Rumpf aus über 55°, an unter 45°.
 - Hocke, halbe Hocke, Ausfallschritt und Längsspagat (vorderes Bein 90°) werden damit **ausgeblendet** (gewollt: „lieber
@@ -195,7 +197,8 @@ Branch weiter `3d-modell-verbesserung` (dort liegt der ganze Stand; vom Nutzer f
 - Gefunden und behoben: `legCm` lernte auch bei gehobenem Bein (verkürzter Oberschenkel 43,6 → 40,5 cm), die Beugung wurde
   dadurch unterschätzt. Lernt jetzt nur bei gleich langen Beinen, danach langsamer.
 - Test `tausblenden` (Attrappe): 0/30/45° links und rechts, vorn und seitlich, mit Knie 95°: sichtbar, ruhig. 60°: aus.
-  41↔55° seitlich pendelnd: genau ein Wechsel, bleibt aus. Seitlicher Spagat von vorn: sichtbar. Liegestütz, Hinlegen, Aufstehen, schlecht erkannte Hüfte, zappelnde Erkennung: richtig.
+  41↔55° seitlich pendelnd: genau ein Wechsel, bleibt aus. Seitlicher Spagat von vorn: sichtbar. Hocke, breite Hocke,
+  Sumo-Hocke: aus. Liegend mit verdeckter ferner Schulter: bleibt aus. Ein einzelner Sprung: erkannt, Hose bleibt. Liegestütz, Hinlegen, Aufstehen, schlecht erkannte Hüfte, zappelnde Erkennung: richtig.
 - Referenzclips (echte Erkennung): Kniehub, Hocke vorn/seitlich, halbe Hocke, Bücken mit gebeugten Knien → aus;
   Stehen, Drehen, Ausfallschritt von hinten, Bein zur Seite, Bein nach hinten → sichtbar.
 
@@ -333,3 +336,26 @@ Nutzungslimit ab; jeder Fund wurde darum hier am Code nachvollziehbar geprüft u
   Hysterese-Prüfung (43↔49°) konnte nicht scheitern → jetzt 41↔55° seitlich, je 700 ms; der Einzelsprung wird ab dem Sprung
   gemessen. `drehung.mjs`: virtuelle Uhr lief je Aufruf davon (Bilder falsch zugeordnet) → behoben.
 - Nicht übernommen: keiner der 25 Funde war falsch; alle sind behoben oder (Werkzeug-Kleinigkeiten) mit erledigt.
+
+### Zweite Gegenprüfung 15.10. (Agenten, nach Ende des Limits)
+Fünf Prüfer und fünf Skeptiker haben die Korrekturen der ersten Nachprüfung gelesen: 13 Funde, 12 bestätigt (einer nicht
+erreichbar: Maßband-Taille ohne Hüfte gibt es im Ablauf nicht). Behoben und mit Test belegt:
+- Ausblenden: Die Beugung als reiner Vorwärtsanteil zeigte die breite Hocke wieder (Knie 50° außen: 40–45° statt 90°). Jetzt
+  wieder in der Ebene vorn/unten, nur bei deutlichem Abspreizen (seitlich über 2,5 × vorn, mit Hysterese) der Vorwärtsanteil.
+  „Gekippt“ löste sich auch bei verdeckter Schulter im Liegen → nur noch, wenn die Schultern außerhalb des Bildes sind. Die
+  Sprung-Prüfung im Test erkannte bei 8 Bildern/s keinen Sprung → größerer Sprung und Nachweis, dass er erkannt wurde.
+  Gegenprobe mit dem alten Stand: Sumo-Hocke und verdeckte Schulter scheitern dort.
+- Drehung: Ein Bild ohne Hüften direkt nach einer Lücke verdeckte die Lücke (Hose 0,4 s bis 173° daneben, dann sichtbares
+  Nachdrehen) → Zeit nur ab gültiger Messung. Ein vertauschtes erstes Bild nach einer Lücke hielt der Wächter fest (167°)
+  → kurz nach einer Lücke folgt ein großer Sprung sofort. Bei 10 Bildern/s und weniger lernte die Verfolgung keine
+  Geschwindigkeit → behoben (Abweichung zur Sollkurve wieder wie vor dem Tag). Nachgerechnet: normale Aufnahmen unverändert
+  (Verzögerung 43 ms, Ruck 7,9), nach Lücke + Bild ohne Hüften höchstens 11°, nach vertauschtem Bild höchstens 17°.
+  `drehung-nachrechnen.mjs` rechnete Kennzahlen über Lücken hinweg (größter Schritt 1,38 rad, Verzögerung 0 ms) → nur
+  Nachbarn ohne Lücke, neue Optionen `--blind` und `--tausch`.
+- Hosenwechsel: AO und Kontaktschatten der vorigen Hose blieben stehen, bis der Stoff-Fall der neuen fertig war → neu gerechnet.
+- Großes Foto: scheiterte das Zeichnen der 2000er-Kopie (Safari-Speichergrenze), scheiterte das ganze Foto → abgesichert,
+  die Hose entsteht dann ohne Feinheiten; das dekodierte Bild wird immer freigegeben.
+- Passform: Röcke sitzen in der Taille, der Bund wurde an der Bundlinie einer Hose gemessen (eine Größe zu groß) → Taille.
+  „Kurz“ (kein Längenurteil) hing vom Betrachter und der Größe ab (Culotte 80 cm für Jakob „23 cm zu kurz“, für Fabian ohne
+  Urteil) → je Hose: unter 88 cm Länge oder Shorts. Material der Shop-Seite ohne Prozent („Baumwolle, Elasthan“) ging
+  verloren → übernommen. Empfehlungen der drei Profile unverändert (W33, W34, W31).
