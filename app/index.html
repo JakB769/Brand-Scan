@@ -74,7 +74,7 @@ select{background:var(--surface-2);border:1px solid transparent;border-radius:va
 @media (prefers-color-scheme:dark){ .g3dbox canvas{background:radial-gradient(ellipse at 50% 30%,#3a3a3c,#1c1c1e 70%)} }
 .g3dbox .sub{font-size:13px;color:var(--chalk-faint);margin:6px auto 10px}
 .avansicht{display:flex;gap:6px;justify-content:center;margin-top:8px}.avansicht .chip{min-width:56px}
-.avrow{justify-content:center;gap:8px}
+.avrow{justify-content:center;gap:8px;align-items:center}.avrow .gdel{position:static;flex:none}
 
 /* ---- Bühne (Kamera) ---- */
 .stage{position:relative;width:100%;aspect-ratio:3/4;max-height:78vh;background:#000;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
@@ -401,7 +401,7 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     <div id="g3dbox" class="g3dbox" hidden>
       <canvas id="g3dview" width="360" height="460" aria-label="3D-Modell der gewählten Hose, mit dem Finger oder der Maus drehbar, mit zwei Fingern oder dem Mausrad zoomen"></canvas>
       <div class="avansicht" role="group" aria-label="Ansicht">
-        <button class="chip" data-ansicht="0" title="Von vorn">Vorne</button><button class="chip" data-ansicht="1.5708" title="Von der Seite">Seite</button><button class="chip" data-ansicht="3.1416" title="Von hinten">Hinten</button><button class="chip" id="avReset" title="Ansicht zurücksetzen" aria-label="Ansicht zurücksetzen">⟲</button>
+        <button class="chip" data-ansicht="0" title="Von vorn">Vorne</button><button class="chip" data-ansicht="1.5708" title="Von der Seite">Seite</button><button class="chip" data-ansicht="3.1416" title="Von hinten">Hinten</button><button class="chip" id="avZoomAus" title="Kleiner" aria-label="Verkleinern">−</button><button class="chip" id="avZoomEin" title="Größer (oder zwei Finger, Strg + Mausrad)" aria-label="Vergrößern">+</button><button class="chip" id="avReset" title="Ansicht zurücksetzen" aria-label="Ansicht zurücksetzen">⟲</button>
       </div>
       <div class="sub" id="g3dSub">3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen</div>
       <div class="row avrow">
@@ -2040,8 +2040,8 @@ const _psi=new Map();
 /* Körpertiefe (cm, von vorn nach hinten) an Taille, Gesäß und Bein: aus der Seitenmessung des Scans, sonst aus Verhältnissen
    zur Körpergröße (Erwachsene, Mittel aus Anthropometrie-Tabellen: Taille 0,125, Gesäß 0,145, Oberschenkel 0,095, Knie 0,062,
    Wade 0,068, Knöchel 0,045 × Größe). Für die Hose als Mindesttiefe: von der Seite umschließt sie den Körper. */
-function bodyDepth(Hc){
-  const d={waist:.125*Hc,hip:.145*Hc,thigh:.095*Hc,knee:.062*Hc,calf:.068*Hc,ankle:.045*Hc}, sd=caps.side;
+function bodyDepth(Hc,av){
+  const d={waist:.125*Hc,hip:.145*Hc,thigh:.095*Hc,knee:.062*Hc,calf:.068*Hc,ankle:.045*Hc}, sd=av||caps.side;   // av: Tiefen des Avatars
   if(sd&&sd.hip>12&&sd.hip<70){ const k=clamp(sd.hip/d.hip,.8,1.4); d.hip=sd.hip; d.thigh*=k; d.knee*=Math.sqrt(k); d.calf*=Math.sqrt(k); }
   if(sd&&sd.waist>12&&sd.waist<70) d.waist=sd.waist;
   return d;
@@ -2098,7 +2098,7 @@ function pose3d(M,P){
   const RQ=x=>Math.PI*(3*(1+x)-Math.sqrt((3+x)*(1+3*x))), seatF=u=>u<uSeat?Math.exp(-(((u-uSeat)/.3)**2)):1-.3*clamp((u-uSeat)/Math.max(.05,1-uSeat),0,1);
   // Mindesttiefe aus dem Körper (bodyDepth): am Bund zwischen Taille und Gesäß, ab dem Gesäß die Gesäßtiefe, plus Zugabe.
   // Vorher war die Tiefe nur 0,62 × Breite: bei 43 cm Bund etwa 22 cm, der Körper hat am Gesäß 25–28 cm (Seitenansicht zu dünn).
-  const BD=bodyDepth(P.heightCm||175), zug=PASSFORM.tiefeZugabeCm*ppc;
+  const BD=bodyDepth(P.heightCm||175,P.tiefe), zug=PASSFORM.tiefeZugabeCm*ppc;
   const dReq=u=>(u<uSeat?(BD.waist+BD.hip)/2+((BD.hip-(BD.waist+BD.hip)/2)*sstep(0,1,u/Math.max(.05,uSeat))):BD.hip)*ppc+zug;
   const ell2=(hw,u)=>{ const sf=seatF(u); let qf=q*(1-.06*sf), qb=q*(1+.22*sf), a=8*hw/(RQ(qf)+RQ(qb));
     const Dm=rock?0:dReq(u); if(a*(qf+qb)<Dm){ const k=Dm/(a*(qf+qb)); qf*=k; qb*=k; }
@@ -2945,7 +2945,7 @@ const v3d={yaw:.45,drag:null,idle:0,raf:0,vis:true,last:0};
 function view3dKick(){ if(!v3d.raf) v3d.raf=requestAnimationFrame(view3dFrame); }
 /* Puppe: Hüftgelenk 52 %, Knie 28,5 %, Knöchel 4,5 % der Größe; Hüftgelenke 10 % auseinander; Bund 4,5 % über dem Hüftgelenk */
 function view3dPose(G,W,H,yw,sync){
-  if(AV.form&&!v3d.ohneAvatar) return avatarPose(G,W,H,yw,sync,AV.form);
+  if(avatarAktiv()) return avatarPose(G,W,H,yw,sync,AV.form);
   const Hc=clamp(num($("height").value)||175,120,220), D=garmentDims(G), fab=stoffVon(G);
   const hipH=.52*Hc, beltH=hipH+.045*Hc, ppc=H*.9/Math.max(beltH+6,D.len+10), floor=H*.955, Y=h=>floor-h*ppc;
   // Füße wie beim Stoff-Fall (drape3d) etwa 27 cm auseinander, Hüftgelenke 18 cm
@@ -2959,11 +2959,13 @@ function view3dPose(G,W,H,yw,sync){
 }
 /* Hose am Avatar: Skelett aus seinen Gelenken (Hüfte, Knie, Knöchel), Bund auf seiner Bundlinie (Hüftgelenk + 15 % Rumpf, wie
    beim Scan), Schritt an seinem Schritt. Ganzer Körper im Bild; Zoom (v3d.zoom) um die Höhe der Oberschenkel */
+/* Verschieben gezoomt: so weit, wie das Bild beim Zoom z über den Rand reicht (nie ein leerer Ausschnitt), bei z ≈ 1 nichts */
+const avatarPan=(z,Hc,p)=>{ const m=(1-1/Math.max(1,z))*(Hc+4)/1.8; return z>1.02?clamp(p,-m,m):0; };
 function avatarPose(G,W,H,yw,sync,A){
   const D=garmentDims(G), fab=stoffVon(G), Hc=A.H, z=v3d.zoom||1, m=A.m, gl=A.gel;
   // gezoomt: Ausschnitt mit dem Finger nach oben/unten verschieben (v3d.pan, cm), z. B. zum Saum und zur Ferse
   // Punkt in Höhe Yf bleibt beim Zoomen an derselben Stelle im Bild (yF)
-  const ppc0=H*.9/(Hc+4), Yf=clamp(.42*Hc+(z>1.02?v3d.pan||0:0),.06*Hc,.94*Hc), yF=H*.955-.42*Hc*ppc0, ppc=ppc0*z, floor=yF+Yf*ppc, cx=W/2;
+  const ppc0=H*.9/(Hc+4), Yf=.42*Hc+avatarPan(z,Hc,v3d.pan||0), yF=H*.955-.42*Hc*ppc0, ppc=ppc0*z, floor=yF+Yf*ppc, cx=W/2;
   const c=Math.cos(yw), s=Math.sin(yw), S=([X,Y,Z])=>[cx+(X*c+Z*s)*ppc,floor-Y*ppc,(X*s-Z*c)*ppc];
   const bone=[[gl.hl,gl.kl,gl.al],[gl.hr,gl.kr,gl.ar]].map(b=>b.map(S)), beltH=m.leg+.15*m.torso;
   const foc=6*Math.max(W,H), pc=[W/2,H/2];
@@ -2971,7 +2973,7 @@ function avatarPose(G,W,H,yw,sync,A){
   const vorher=(gl2,vw,vh,P)=>avatarZeichnen(gl2,vw,vh,P,A,{cx,floor,ppc,yw,band:avatarBand(floor,ppc)});
   const info=draw3d(G.m3,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:Hc,rot:G.rot||null,ql:G.ql||null,offK:G.offK??null,drape,drapeW:sync?1:drapeW(drape),ppc,cmH:D.cmW,cmL:D.len,
     kHem:D.hem/(G.m3.hw[G.m3.nr-1]*D.cmW),h:[c,0,s],belt:S([(gl.hl[0]+gl.hr[0])/2,beltH,(gl.hl[2]+gl.hr[2])/2]),yCrotch:floor-m.inseam*ppc,bone,foc,pc,arms:[],
-    inner:innerColor(G),vorher},W,H,G.farbe||[1,1,1]);
+    inner:innerColor(G),vorher,tiefe:{hip:m.hipD,waist:m.waistD}},W,H,G.farbe||[1,1,1]);
   return {info,bone,ppc,floor,cx,Hc,beltH,Y:h=>floor-h*ppc,yw,fab,D,avatar:A};
 }
 /* 3D-Datei (glTF 2.0 binär, .glb) der gewählten Hose, frontal an der Puppe, ohne Nachschwingen: für Shopify (3D-Modell am
@@ -2984,7 +2986,8 @@ async function exportGLB(){
   for(let t=0;t<80&&!g3.texReady;t++) await new Promise(r=>setTimeout(r,50));   // Stoffbild lädt noch
   if(!g3.texReady||!g3.idxArr){ $("g-msg").textContent="Das Stoffbild lädt noch. Bitte gleich noch einmal tippen."; return; }
   const W=$("g3dview").width, H=$("g3dview").height;
-  g3.cOk=false; const V=view3dPose(G,W,H,0,true);                   // Physik neu ansetzen: ruhige Form
+  // Physik neu ansetzen: ruhige Form; immer an der Puppe (Datei für den Shop, nicht an den Avatar dieses Geräts angepasst)
+  g3.cOk=false; const oa=v3d.ohneAvatar; v3d.ohneAvatar=true; let V; try{ V=view3dPose(G,W,H,0,true); }finally{ v3d.ohneAvatar=oa; }
   const idx=g3.idxArr.slice(), n=g3.nv, k=1/(V.ppc*100), Pp=new Float32Array(n*3), Nn=new Float32Array(n*3), UV=new Float32Array(n*2), CO=new Float32Array(n*3);
   const lo=[1e9,1e9,1e9], hi=[-1e9,-1e9,-1e9];
   for(let i=0;i<n;i++){
@@ -3040,8 +3043,8 @@ function view3dFrame(now){
   const box=$("g3dbox"), cvs=$("g3dview"), G=g.key&&GARMENTS[g.key];
   const show=!!(G&&G.m3&&!G.bad&&!running&&init3d());
   box.hidden=!show; if(!show||!v3d.vis) return;
-  const av=!!(AV.form&&!v3d.ohneAvatar);
-  const sub=(av?`Dein Avatar (${Math.round(AV.form.H)} cm) · ziehen zum Drehen, zwei Finger oder Mausrad zum Zoomen`:"3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen")+(G.backEst?" · Rückseite geschätzt (kein Foto von hinten)":"");
+  const av=avatarAktiv();
+  const sub=(av?`Dein Avatar (${Math.round(AV.form.H)} cm) · ziehen zum Drehen, zwei Finger, + und − oder Strg + Mausrad zum Zoomen`:"3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen")+(G.backEst?" · Rückseite geschätzt (kein Foto von hinten)":"");
   if($("g3dSub").textContent!==sub) $("g3dSub").textContent=sub;
   const dt=clamp((now-(v3d.last||now))/1000,0,.1); v3d.last=now;
   if(v3d.ziel!=null){ const d=wrapA(v3d.ziel-v3d.yaw); v3d.yaw+=d*Math.min(1,dt*9); if(Math.abs(d)<.003){ v3d.yaw=v3d.ziel; v3d.ziel=null; } }   // Knopf Vorne/Seite/Hinten
@@ -3073,17 +3076,20 @@ function view3dFrame(now){
     if(zeiger.size===2){ v3d.drag=null; v3d.pinch={d:abst(),z:v3d.zoom||1}; }
     else { v3d.drag={x:e.clientX,y:e.clientY,yaw:v3d.yaw,pan:v3d.pan||0}; cvs.style.cursor="grabbing"; } });
   // gezoomt (nur mit Avatar): senkrechtes Ziehen verschiebt den Ausschnitt statt die Seite zu rollen (auch in view3dFrame)
-  const zoomTouch=()=>{ const t=(v3d.zoom||1)>1.02&&AV.form&&!v3d.ohneAvatar?"none":""; if(cvs.style.touchAction!==t) cvs.style.touchAction=t; };
+  // Zoom setzen: Verschiebung bleibt im erlaubten Bereich, bei 1 zurück
+  const zoomAuf=z=>{ v3d.zoom=clamp(z,1,4); v3d.pan=AV.form?avatarPan(v3d.zoom,AV.form.H,v3d.pan||0):0; zoomTouch(); v3d.idle=performance.now(); view3dKick(); };
+  const zoomTouch=()=>{ const t=(v3d.zoom||1)>1.02&&avatarAktiv()?"none":""; if(cvs.style.touchAction!==t) cvs.style.touchAction=t; };
   cvs.addEventListener("pointermove",e=>{ if(!zeiger.has(e.pointerId)) return; zeiger.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(v3d.pinch&&zeiger.size===2){ v3d.zoom=clamp(v3d.pinch.z*abst()/Math.max(10,v3d.pinch.d),1,4); zoomTouch(); v3d.idle=performance.now(); view3dKick(); return; }
+    if(v3d.pinch&&zeiger.size===2){ zoomAuf(v3d.pinch.z*abst()/Math.max(10,v3d.pinch.d)); return; }
     if(!v3d.drag) return; const r=cvs.getBoundingClientRect(); v3d.yaw=v3d.drag.yaw+(e.clientX-v3d.drag.x)/r.width*Math.PI*2; v3d.idle=performance.now();
-    if((v3d.zoom||1)>1.02&&AV.form){ const Hc=AV.form.H; v3d.pan=clamp(v3d.drag.pan+(e.clientY-v3d.drag.y)/r.height*(Hc+4)/v3d.zoom,-.4*Hc,.55*Hc); } });
+    if((v3d.zoom||1)>1.02&&avatarAktiv()){ const Hc=AV.form.H; v3d.pan=avatarPan(v3d.zoom,Hc,avatarPan(v3d.zoom,Hc,v3d.drag.pan)+(e.clientY-v3d.drag.y)/r.height*(Hc+4)/v3d.zoom); } });
   const up=e=>{ zeiger.delete(e.pointerId); if(zeiger.size<2) v3d.pinch=null; v3d.drag=null; v3d.idle=performance.now(); cvs.style.cursor=""; };
   cvs.addEventListener("pointerup",up); cvs.addEventListener("pointercancel",up);
-  cvs.addEventListener("wheel",e=>{ if(!(AV.form&&!v3d.ohneAvatar)) return; e.preventDefault();
-    v3d.zoom=clamp((v3d.zoom||1)*Math.exp(-e.deltaY*.0015),1,4); zoomTouch(); v3d.idle=performance.now(); view3dKick(); },{passive:false});
+  // Mausrad nur mit Strg/⌘ (so meldet der Browser auch das Zwei-Finger-Zoomen am Trackpad): sonst rollt die Seite weiter
+  cvs.addEventListener("wheel",e=>{ if(!avatarAktiv()||!(e.ctrlKey||e.metaKey)) return; e.preventDefault(); zoomAuf((v3d.zoom||1)*Math.exp(-e.deltaY*.0015)); },{passive:false});
+  for(const [id,f] of [["avZoomAus",1/1.4],["avZoomEin",1.4]]) $(id).addEventListener("click",()=>zoomAuf((v3d.zoom||1)*f));
   for(const b of document.querySelectorAll(".avansicht [data-ansicht]")) b.addEventListener("click",()=>{ v3d.ziel=+b.dataset.ansicht; v3d.idle=performance.now()+6e4; view3dKick(); });
-  $("avReset").addEventListener("click",()=>{ v3d.ziel=.45; v3d.zoom=1; v3d.pan=0; zoomTouch(); v3d.idle=performance.now(); view3dKick(); });
+  $("avReset").addEventListener("click",()=>{ v3d.ziel=.45; v3d.pan=0; zoomAuf(1); });
   $("avScan").addEventListener("click",()=>avatarScanStart());
   $("avNein").addEventListener("click",()=>{ $("avDlg").hidden=true; });
   $("avJa").addEventListener("click",()=>avatarScanLos());
@@ -3152,6 +3158,13 @@ function avSchnitt(kd,P,h,maske,seite=0){
   const hull=lo.slice(0,-1).concat(hi.slice(0,-1)); let U=0; for(let k=0;k<hull.length;k++){ const p=hull[k], q=hull[(k+1)%hull.length]; U+=Math.hypot(q[0]-p[0],q[1]-p[1]); }
   return {W:x1-x0,D:z1-z0,U,cx:(x0+x1)/2,cz:(z0+z1)/2};
 }
+/* Damm-Punkte: Mittellinie (|x| < 0,3 cm) zwischen Knie und Hüftgelenk an beiden Mittelkörpern; dieselben Punkte für jede Form */
+function avDamm(kd){
+  const S=new Set();
+  for(const g of ["m","f"]){ const P=avatarRoh(kd,g,{}), G=n=>avGelenk(kd,P,n), hy=(G("l-upper-leg")[1]+G("r-upper-leg")[1])/2, ky=(G("l-knee")[1]+G("r-knee")[1])/2;
+    for(let k=0;k<kd.nK;k++){ const y=P[k*3+1]; if(Math.abs(P[k*3])<.3&&y>ky&&y<hy) S.add(k); } }
+  return [...S];
+}
 /* Maße des (unskalierten) Avatars an denselben Stellen wie der Scan. voll: dazu der Hüftumfang wie mit dem Maßband (Größen-
    tabellen): an der Stelle, an der das Gesäß am weitesten nach hinten steht (Mittelmann 1,73 m: 15 % der Strecke Hüftgelenk →
    Schritt unter dem Gelenk, 92 statt 90 cm am Gelenk; auf 1,79 m 95 cm, wie 0,535 × Größe aus den Körpermaß-Tabellen) */
@@ -3159,8 +3172,12 @@ function avMasse(kd,P,voll=false){
   let H=0; for(let k=0;k<kd.nK;k++) if(P[k*3+1]>H) H=P[k*3+1];
   const G=n=>avGelenk(kd,P,n), hl=G("l-upper-leg"), hr=G("r-upper-leg"), kl=G("l-knee"), kr=G("r-knee"), sl=G("l-shoulder"), sr=G("r-shoulder"), al=G("l-ankle"), ar=G("r-ankle");
   const hipY=(hl[1]+hr[1])/2, shY=(sl[1]+sr[1])/2, torso=shY-hipY, waistY=hipY+.28*torso, kneeY=(kl[1]+kr[1])/2;
-  // Schritt: tiefster Punkt des Körpers in der Mitte zwischen den Beinen (|x| < 1,5 cm, zwischen Knie und Hüftgelenk)
-  let crotch=hipY; for(let k=0;k<kd.nK;k++){ const x=P[k*3], y=P[k*3+1]; if(Math.abs(x)<1.5&&y>kneeY&&y<crotch) crotch=y; }
+  // Schritt: tiefster der festen Damm-Punkte (Mittellinie zwischen Knie und Hüftgelenk, einmal am Mittelkörper gewählt). Vorher
+  // „tiefster Punkt mit |x| < 1,5 cm“: bei dickeren Oberschenkeln rutschten Innenschenkel in diese Zone, der Schritt sprang um
+  // bis zu 5 cm und die Anpassung rechnete mit falschen Ableitungen. Begrenzt auf 3–10 % der Größe unter dem Hüftgelenk.
+  if(!kd.damm) kd.damm=avDamm(kd);
+  let crotch=hipY; for(const k of kd.damm){ const y=P[k*3+1]; if(y<crotch) crotch=y; }
+  crotch=clamp(crotch,hipY-.10*H,hipY-.03*H);
   const thighY=crotch-.35*(crotch-kneeY), R=2|4;
   const sch=(h,m,sd)=>avSchnitt(kd,P,h,m,sd)||{W:0,D:0,U:0,cx:0,cz:0};
   let hipMax=null;
@@ -3187,7 +3204,7 @@ function avatarAnpassen(kd,g,z){
     const J=[]; for(let j=0;j<np;j++){ const w=v.slice(); w[j]+=.04; const rj=res(w); J.push(rj.map((x,i)=>(x-r[i])/.04)); }
     const A=Array.from({length:np},(_,a)=>Array.from({length:np},(_,b)=>J[a].reduce((t,x,i)=>t+x*J[b][i],0))), gr=J.map(c=>c.reduce((t,x,i)=>t+x*r[i],0));
     let besser=false;
-    for(let tries=0;tries<4&&!besser;tries++){
+    for(let tries=0;tries<12&&!besser&&lam<1e5;tries++){   // an ±1 geklemmte Regler brauchen oft viel Dämpfung (4 Versuche brachen ab)
       const Ad=A.map((row,a)=>row.map((x,b)=>a===b?x*(1+lam)+1e-6:x)), d=loese(Ad,gr.map(x=>-x));
       const w=v.map((x,j)=>clamp(x+d[j],-1,1)), rw=res(w), ew=rw.reduce((t,x)=>t+x*x,0);
       if(ew<e){ v=w; r=rw; e=ew; lam*=.4; besser=true; } else lam*=4; }
@@ -3221,7 +3238,8 @@ varying vec3 vn;varying vec3 vv;varying float vh;varying float vt;varying float 
 void main(){float c=cos(ab.w),s=sin(ab.w);vec3 q=vec3(ab.x+(p.x*c+p.z*s)*ab.z,ab.y-p.y*ab.z,(p.x*s-p.z*c)*ab.z);
 vn=vec3(n.x*c+n.z*s,-n.y,n.x*s-n.z*c);vh=p.y;vt=tl;vx=p.x;vq=p;
 vec2 r=pc+(q.xy-pc)*foc/(foc+q.z);vv=vec3((r-pc)/foc,1.);
-gl_Position=vec4(r.x/vp.x*2.-1.,1.-r.y/vp.y*2.,clamp(q.z/vp.x,-.95,.95),1.);}`;
+float d=q.z/vp.x,a=abs(d);d=a<.8?d:sign(d)*(.8+.15*(1.-exp(-(a-.8)/.15)));
+gl_Position=vec4(r.x/vp.x*2.-1.,1.-r.y/vp.y*2.,d,1.);}`;   // Tiefe bis 0,8 wie die Hose (VS3), darüber weich bis 0,95 statt geklemmt (Hände bei starkem Zoom flimmerten)
 // T-Shirt (nur eingefärbt, eng anliegend wie bei der Referenzfigur): Rumpf, Unterkörper über dem Bund, Arme bis zum halben
 // Oberarm (Abstand zum Schultergelenk unter ar.w)
 const FSA=`precision mediump float;uniform vec4 band;uniform vec3 farbe;uniform vec3 hemd;uniform vec4 al;uniform vec4 ar;varying vec3 vn;varying vec3 vv;varying float vh;varying float vt;varying float vx;varying vec3 vq;
@@ -3279,20 +3297,31 @@ function avatarBand(floor,ppc){
    hinten und mindestens eine Seite da sind und 3/4 der Drehung gesehen wurde (oder nach 30 s mit dem, was da ist). */
 const AVS={on:false,stufe:"",g:"m",H:0,proben:null,bins:null,ly:null,lt:0,w:0,t0:0};
 function avatarScanStart(){
-  $("avGroesse").value=$("height").value||""; $("avDlg").hidden=false; $("avJa").focus();
+  $("avGroesse").value=AV.daten&&AV.daten.H?String(AV.daten.H):$("height").value||"";
+  if(AV.daten&&(AV.daten.g==="m"||AV.daten.g==="f")) AVS.g=AV.daten.g;      // „Neu scannen“: wie beim letzten Mal
+  $("avMann").setAttribute("aria-pressed",String(AVS.g==="m")); $("avFrau").setAttribute("aria-pressed",String(AVS.g==="f"));
+  $("avDlg").hidden=false; $("avJa").focus();
 }
+const avatarAbbruch=()=>{ if(AVS.stufe!=="rechnen"){ AVS.on=false; AVS.stufe=""; } };
 function avatarScanLos(){
   const H=num($("avGroesse").value);
   if(!(H>=120&&H<=230)){ $("avGroesse").focus(); $("avGroesse").select(); return; }
-  $("avDlg").hidden=true; $("height").value=String(H);
+  $("avDlg").hidden=true;
+  // Größe wie von Hand eingetragen: gespeichert, Testpersonen-Markierung, Größenauswahl
+  if($("height").value.trim()!==String(H)){ $("height").value=String(H); for(const t of ["input","change"]) $("height").dispatchEvent(new Event(t)); }
   Object.assign(AVS,{on:true,stufe:"start",H,proben:{vorn:[],hinten:[],seiteL:[],seiteR:[]},bins:new Set(),ly:null,lt:0,w:0,t0:0});
-  avatarDaten().catch(()=>{});                       // Körpermodell schon laden, während man sich hinstellt
-  // frischer Scan: Frontal-Scan im Stehen, dann drehen
-  caps.cal=caps.side=null; ref=null; held=false; phase="cal"; clearSm(); setMode("cal");
-  ["step-cal","step-side"].forEach(i=>$(i).classList.remove("done"));
-  if(!camOn()) startCamera();
+  AV.fehler=""; avatarUI();
+  // Körpermodell schon laden, während man sich hinstellt; fehlt es (z. B. nur index.html hochgeladen), gleich abbrechen statt
+  // nach der ganzen Drehung
+  avatarDaten().catch(e=>{ if(!AVS.on) return; avatarAbbruch(); endTryon(); avatarFehler("Das Körpermodell (avatar/koerper.js neben der Seite) ließ sich nicht laden: "+(e&&e.message||e)+". Bitte den ganzen Ordner hochladen."); });
+  scanZuruecksetzen();                               // frischer Scan: Frontal-Scan im Stehen, dann drehen
+  // Kamera verweigert oder Erkennung nicht geladen: Avatar-Scan nicht scharf lassen (sonst würde der nächste normale Scan
+  // ohne Einwilligung zum Avatar)
+  if(!camOn()) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="start"&&!running&&!starting) avatarAbbruch(); });
   $("stage").scrollIntoView({block:"start",behavior:"smooth"});
 }
+/* Fehler beim Avatar: beim 3D-Bereich zeigen (oben auf der Seite sähe man ihn nicht) */
+function avatarFehler(t){ AV.fehler=t; avatarUI(); setTimeout(()=>{ const e=$("avMsg"); if(!e.hidden) e.scrollIntoView({block:"center",behavior:"smooth"}); },300); }
 /* nach dem Frontal-Scan (captureCal): jetzt drehen */
 function avatarScanGeeicht(){ if(!AVS.on) return; AVS.stufe="drehen"; AVS.t0=performance.now();
   coach("Jetzt langsam einmal drehen","Etwa 10 Sekunden für eine ganze Drehung","good",true,"Jetzt langsam einmal um dich selbst drehen"); }
@@ -3308,11 +3337,14 @@ function avatarScanBild(o){
     const fr=sek==="vorn"||sek==="hinten", cm=n=>n*o.aspect*o.cmPerUnit;
     const w=torsoSpan(o.m,o.waistY,o.L,o.armHalfN,fr), h=torsoSpan(o.m,o.hipY,o.L,o.armHalfN,fr);
     if(w&&h&&w.w>0&&h.w>0) AVS.proben[sek].push({waist:cm(w.w),hip:cm(h.w)}); }
-  const P=AVS.proben, seiten=(P.seiteL.length>=2)+(P.seiteR.length>=2), pct=Math.min(100,Math.round(AVS.bins.size/24*100));
-  const fertig=(P.hinten.length>=2&&seiten>=1&&AVS.bins.size>=18)||(now-AVS.t0>30000&&seiten>=1);
-  if(fertig){ avatarScanFertig(); return; }
+  const P=AVS.proben, seiten=(P.seiteL.length>=2)+(P.seiteR.length>=2), pct=Math.min(100,Math.round(AVS.bins.size/24*100)), t=now-AVS.t0;
+  // fertig: vorn, hinten, eine Seite und 3/4 der Drehung; nach 30 s mit einer Seite; nach 45 s mit dem, was da ist (Tiefe dann
+  // geschätzt, Hinweis)
+  const fertig=(P.hinten.length>=2&&seiten>=1&&AVS.bins.size>=18)||(t>30000&&seiten>=1)||t>45000;
+  if(fertig){ AVS.stufe="rechnen"; beep(1040,160); setTimeout(()=>beep(1320,200),190); cue("Fertig. Du kannst zurückkommen.",true);
+    coach("Fertig!","Dein Avatar wird berechnet","good",true); setTimeout(avatarScanFertig,0); return; }   // nicht mitten in analyse
   // großer Text ruhig (wechselt nur mit dem Hinweis), Fortschritt in der kleinen Zeile
-  const big=zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg, ganzer Körper ins Bild":"Langsam weiter drehen";
+  const big=zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg, ganzer Körper ins Bild":!seiten&&t>15000?"Ganz zur Seite drehen":"Langsam weiter drehen";
   coach(big,"Fortschritt "+pct+" %",zuSchnell||!o.ganz?"warn":"good",false,zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg":"");
 }
 const quantil=(a,q)=>{ const b=a.filter(v=>isFinite(v)&&v>0).sort((x,y)=>x-y); return b.length?b[Math.min(b.length-1,Math.floor(q*b.length))]:NaN; };
@@ -3338,48 +3370,53 @@ function avatarLaengen(z){
    Durchschnittskörper derselben Größe. */
 const avatarLose=z=>z.kneeW>0&&z.thighW>0&&(z.kneeW/z.thighW>.8||z.kneeW>.08*z.H);
 async function avatarScanFertig(){
-  AVS.stufe="rechnen"; const z=avatarScanZiele();
-  coach("Avatar wird berechnet …","","good",true);
-  stopCamera(); AVS.on=false;                          // Bilder sind ab hier verworfen, nur die Zahlen bleiben
+  AVS.stufe="rechnen"; const z=avatarScanZiele(), g=AVS.g, H=AVS.H;   // vor dem Warten festhalten (neuer Scan könnte beginnen)
+  AVS.on=false; endTryon();                            // Kamera aus (auch Shop-Vollbild): Bilder sind verworfen, nur die Zahlen bleiben
+  AVS.stufe=""; AV.fehler=""; AV.rechnet=true; avatarUI(); $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"});
+  await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,30)));   // „wird berechnet“ erst zeigen, dann rechnen
   try{
     const kd=await avatarDaten(), lose=avatarLose(z), zf={...z}, kamera=avatarLaengen(zf);
     // weite Kleidung: je Zone das Kleinere aus Umriss und Durchschnittskörper derselben Größe (nicht derselben Beinlänge:
     // längere Beine machen auf dieselbe Größe skaliert alle Umfänge kleiner, Hüfte 91 statt 94 cm an den Referenzclips)
-    if(lose){ const m0=avatarBauen(kd,AVS.g,{},AVS.H).m;
+    if(lose){ const m0=avatarBauen(kd,g,{},H).m;
       for(const k of ["waistW","waistD","hipW","hipD","thighW","kneeW"]) if(isFinite(zf[k])&&m0[k]>0) zf[k]=Math.min(zf[k],m0[k]); }
-    const f=avatarAnpassen(kd,AVS.g,zf), A=avatarBauen(kd,AVS.g,f.p,AVS.H);
+    const f=avatarAnpassen(kd,g,zf), A=avatarBauen(kd,g,f.p,H);
     const r1=x=>Math.round(x*10)/10, m=Object.fromEntries(Object.entries(A.m).map(([k,v])=>[k,r1(v)]));
-    const d={v:1,g:AVS.g,H:AVS.H,p:f.p,m,z:Object.fromEntries(Object.entries(z).filter(([,v])=>isFinite(v)).map(([k,v])=>[k,r1(v)])),lose,kamera,rest:r1(f.rest),at:Date.now()};
+    const ohneTiefe=!isFinite(z.hipD)&&!isFinite(z.waistD);
+    const d={v:1,g,H,p:f.p,m,z:Object.fromEntries(Object.entries(z).filter(([,v])=>isFinite(v)).map(([k,v])=>[k,r1(v)])),lose,kamera,ohneTiefe,rest:r1(f.rest),at:Date.now()};
     try{ localStorage.setItem(AV_KEY,JSON.stringify(d)); }catch(_){}
-    AV.form=A; AV.daten=d; v3d.ohneAvatar=false; v3d.zoom=1; v3d.pan=0; v3d.ziel=0; avatarUI(); renderSizes(true); view3dKick();
+    AV.form=A; AV.daten=d; AV.rechnet=false; v3d.ohneAvatar=false; v3d.zoom=1; v3d.pan=0; v3d.ziel=0; avatarUI(); renderSizes(true); view3dKick();
     $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"});
-  }catch(e){ showError("Der Avatar ließ sich nicht berechnen: "+(e&&e.message||e)); }
+  }catch(e){ AV.rechnet=false; avatarFehler("Der Avatar ließ sich nicht berechnen: "+(e&&e.message||e)); }
 }
 /* gespeicherter Avatar: Geschlecht, Regler, Größe, Maße (keine Bilder) */
 function avatarGespeichert(){
   try{ const a=JSON.parse(localStorage.getItem(AV_KEY)||"null");
-    return a&&a.v===1&&(a.g==="m"||a.g==="f")&&a.H>=120&&a.H<=230&&a.p&&typeof a.p==="object"&&a.m&&typeof a.m==="object"?a:null; }catch(_){ return null; }
+    return a&&a.v===1&&(a.g==="m"||a.g==="f")&&typeof a.H==="number"&&a.H>=120&&a.H<=230&&a.p&&typeof a.p==="object"&&a.m&&typeof a.m==="object"?a:null; }catch(_){ return null; }
 }
 async function avatarAnzeigen(a){
   const kd=await avatarDaten(), p={};
   for(const k of AV_PAR){ const v=+a.p[k]; p[k]=isFinite(v)?clamp(v,-1,1):0; }
   // Maße aus der Form neu (nicht die gespeicherten Zahlen): passen immer zur gezeigten Form
   AV.form=avatarBauen(kd,a.g,p,a.H); const r1=x=>Math.round(x*10)/10;
-  AV.daten={...a,p,lose:a.lose===true,kamera:a.kamera===true,m:Object.fromEntries(Object.entries(AV.form.m).map(([k,v])=>[k,r1(v)]))}; avatarUI(); renderSizes(true); view3dKick();
+  AV.daten={...a,p,lose:a.lose===true,kamera:a.kamera===true,ohneTiefe:a.ohneTiefe===true,m:Object.fromEntries(Object.entries(AV.form.m).map(([k,v])=>[k,r1(v)]))}; avatarUI(); renderSizes(true); view3dKick();
 }
 function avatarLoeschen(){
   try{ localStorage.removeItem(AV_KEY); }catch(_){}
   AV.form=null; AV.daten=null; if(AV.gl) AV.gl.key=null; v3d.zoom=1; v3d.pan=0; avatarUI(); renderSizes(true); view3dKick();
 }
+/* Avatar gilt nur für seine Größe: steht oben eine andere (andere Person, Testprofil), zeigt die 3D-Ansicht die Puppe */
+function avatarAktiv(){ const h=num($("height").value); return !!(AV.form&&!v3d.ohneAvatar&&(!(h>=120&&h<=230)||Math.abs(h-AV.form.H)<=1)); }
 function avatarUI(){
-  const da=!!AV.form, b=$("avDel"); $("avScan").textContent=da?"🧍 Neu scannen":"🧍 Avatar aus Selbst-Scan";
+  const da=!!AV.form, ak=avatarAktiv(), b=$("avDel"), D=da&&AV.daten||{}; $("avScan").textContent=da?"🧍 Neu scannen":"🧍 Avatar aus Selbst-Scan";
   b.hidden=!da; b.classList.remove("sure"); b.textContent="✕"; b.setAttribute("aria-label","Avatar löschen");
-  for(const e of document.querySelectorAll(".avansicht")) e.hidden=!da;
-  const lo=!!(da&&AV.daten&&AV.daten.lose), ka=!!(da&&AV.daten&&AV.daten.kamera); $("avMsg").hidden=!lo&&!ka;
-  $("avMsg").textContent=(lo?"Weite Kleidung beim Scan erkannt: Hüfte, Oberschenkel und Knie sind geschätzt, nicht gemessen. "+
-    "Für genaue Maße in enger Kleidung (Leggings, enges Shirt) neu scannen. ":"")+
-    (ka?"Die Beine wirkten unnatürlich lang oder kurz, die Kamera stand wohl zu tief oder schräg: Längen auf übliche Werte begrenzt. "+
-    "Für genaue Längen das Handy auf Hüfthöhe stellen und neu scannen.":"");
+  for(const e of document.querySelectorAll(".avansicht")) e.hidden=!ak;
+  const t=AV.rechnet?"Dein Avatar wird berechnet …":AV.fehler?AV.fehler:[
+    da&&!ak&&!v3d.ohneAvatar?`Dein Avatar ist für ${Math.round(AV.form.H)} cm, eingetragen sind ${$("height").value.trim()} cm: hier die Puppe. Größe auf ${Math.round(AV.form.H)} cm stellen oder neu scannen.`:"",
+    D.lose?"Weite Kleidung beim Scan erkannt: Hüfte, Oberschenkel und Knie sind geschätzt, nicht gemessen. Für genaue Maße in enger Kleidung (Leggings, enges Shirt) neu scannen.":"",
+    D.kamera?"Die Beine wirkten unnatürlich lang oder kurz, die Kamera stand wohl zu tief oder schräg: Längen auf übliche Werte begrenzt. Für genaue Längen das Handy auf Hüfthöhe stellen und neu scannen.":"",
+    D.ohneTiefe?"Keine Seitenansicht beim Scan: die Tiefe von Taille und Hüfte ist geschätzt. Für genaue Maße beim Drehen ganz zur Seite drehen.":""].filter(Boolean).join(" ");
+  $("avMsg").hidden=!t; $("avMsg").textContent=t;
 }
 /* ---------- Blickrichtung: wohin zeigt die Vorderseite der Person? ---------- */
 /* Betrag der Drehung aus der sichtbaren Schulter- und Hüftbreite, die Richtung aus Füßen, Nase und Tiefe.
@@ -5264,8 +5301,10 @@ function bodyMeas(){
   if(sav&&prof&&sav.height&&Math.abs(sav.height-H)>1) sav=null;           // letzter Scan einer anderen Person (andere Größe)
   // Avatar aus dem Dreh-Scan (Umfänge aus seinem Querschnitt, Tiefe von beiden Seiten), nur bei derselben Körpergröße: genauer
   // als der schnelle Frontal-Scan, darum gleich nach dem Maßband (sonst spränge die Empfehlung nach dem Neuladen)
-  const av=AV.daten&&AV.daten.m&&(!prof||Math.abs(AV.daten.H-H)<=1)?AV.daten.m:null;
-  const pick=k=>t[k]>40&&t[k]<250?{v:t[k],src:"Maßband"}:av&&av[k]>40?{v:av[k],src:AV.daten.lose?"Avatar, Umfänge geschätzt (weite Kleidung beim Scan)":"Avatar"}:sv[k]!=null?{v:sv[k],src:"Scan"}:sav&&sav[k]>40?{v:sav[k],src:"letzter Scan"}:null;
+  // Ein Scan in dieser Sitzung nach dem Avatar (z. B. eine andere Person derselben Größe) geht vor.
+  const av0=AV.daten&&AV.daten.m&&(!prof||Math.abs(AV.daten.H-H)<=1)?AV.daten.m:null, neuer=!!(av0&&c&&c.at>AV.daten.at);
+  const av=neuer?null:av0, avSrc=AV.daten&&AV.daten.lose?"Avatar, Umfänge geschätzt (weite Kleidung beim Scan)":"Avatar";
+  const pick=k=>t[k]>40&&t[k]<250?{v:t[k],src:"Maßband"}:av&&av[k]>40?{v:av[k],src:avSrc}:sv[k]!=null?{v:sv[k],src:"Scan"}:sav&&sav[k]>40?{v:sav[k],src:"letzter Scan"}:null;
   let w=pick("waist"), h=pick("hip");
   if(!h&&live&&live.hip) h={v:ellipse(live.hip,live.hip/1.4),src:"grob von vorn, für mehr Genauigkeit zur Seite drehen"};
   // nur Körpergröße: Hüfte (und Taille, falls nicht gemessen) aus Anteilen; eine Taille vom Maßband bleibt
@@ -5472,7 +5511,7 @@ function captureCal(){
   // Hüfte über die Körpergröße eichen (Hüftgelenk 53 % der Größe + 2 cm Sohle über dem Boden), siehe hipFix
   if(HIPF.raw&&HIPF.botN!=null&&live.cmPerUnit){ const Hh=num($("height").value)||175, yA=HIPF.botN-(.53*Hh+2)/live.cmPerUnit;
     const k=(yA-HIPF.raw.sy)/((HIPF.raw.hy-HIPF.raw.sy)||1); if(k>.8&&k<1.2) HIPF.kScan=clamp(k,.85,1.15); }
-  caps.cal={...live};
+  caps.cal={...live,at:Date.now()};
   // Frontal bestätigt: diese Breiten gelten ab jetzt als „von vorn“
   if(fc.as>.4){ fc.ks=clamp(fc.as,.6,.9); fc.kh=clamp(fc.ah,.26,.48); fc.cal=true; fc.yaw=0; fc.w=0; }
   $("step-cal").classList.add("done");
@@ -5556,14 +5595,14 @@ const PKEY="massScanPerson";
 // Testpersonen: Name und Größe eintragen, Kamera starten (läuft sie schon, gilt ab jetzt die neue Größe)
 function quickPerson(n,h){
   const vorher=$("person").value.trim()+"|"+$("height").value.trim();
-  $("person").value=n; $("height").value=h; markQuick();
+  $("person").value=n; $("height").value=h; markQuick(); avatarUI();
   try{ localStorage.setItem(PKEY,JSON.stringify({n,h})); }catch(_){}
   if(vorher!==n+"|"+h&&(ref||caps.cal)) $("reset").click();   // andere Person: ihr alter Scan gilt nicht mehr
   renderSizes(true); view3dKick(); if(!camOn()) startCamera();
 }
 function markQuick(){ document.querySelectorAll(".quickp").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.h===$("height").value.trim()&&b.dataset.n===$("person").value.trim()))); }
 document.querySelectorAll(".quickp").forEach(b=>b.addEventListener("click",()=>quickPerson(b.dataset.n,b.dataset.h)));
-["person","height"].forEach(id=>$(id).addEventListener("input",()=>{ markQuick(); renderSizes(true); }));
+["person","height"].forEach(id=>$(id).addEventListener("input",()=>{ markQuick(); renderSizes(true); avatarUI(); view3dKick(); }));
 ["person","height"].forEach(id=>$(id).addEventListener("change",()=>{
   try{ localStorage.setItem(PKEY,JSON.stringify({n:$("person").value,h:$("height").value})); }catch(_){} }));
 try{ const o=JSON.parse(localStorage.getItem(PKEY)||"null"); if(o){ if(!$("person").value) $("person").value=o.n||""; if(!$("height").value) $("height").value=o.h||""; } }catch(_){}
@@ -5573,6 +5612,7 @@ markQuick();
 let shopMode=false;
 function openShop(){
   if(!g.key){ $("g-msg").textContent="Erst eine Hose wählen."; return; }
+  avatarAbbruch();                                     // Anprobe statt eines noch startenden Avatar-Scans
   const hh=num($("height").value);
   if(!(hh>=120&&hh<=230)){ $("g-msg").textContent="Bitte zuerst oben deine Körpergröße eintragen: sie ist der Maßstab für die Hose.";
     $("height").focus(); $("height").scrollIntoView({block:"center"}); return; }
@@ -5634,14 +5674,15 @@ $("hold").addEventListener("click",()=>{ held=!held; $("hold").textContent=held?
 $("m-cal").addEventListener("click",()=>{ setMode("cal"); phase="cal"; clearSm(); });
 $("m-leg").addEventListener("click",()=>setMode("leg"));
 $("m-top").addEventListener("click",()=>setMode("top"));
-$("reset").addEventListener("click",()=>{
+function scanZuruecksetzen(){
   caps.cal=caps.side=null; ref=null; held=false; phase="cal"; clearSm(); setMode("cal");
   ["step-cal","step-side"].forEach(i=>$(i).classList.remove("done"));
   $("v-cal").textContent=$("v-side").textContent="offen";
   $("m-leg").disabled=$("m-top").disabled=true;
   $("resultCard").hidden=$("compareCard").hidden=true;
   coach("","",null,true);
-});
+}
+$("reset").addEventListener("click",scanZuruecksetzen);
 // Maße der ausgewählten Hose: jede gültige Änderung wirkt sofort auf die angezeigte Hose
 document.querySelectorAll(".reset").forEach(b=>b.addEventListener("click",()=>resetDim(b.dataset.k)));
 for(const [id,k] of [["g-len","len"],["g-waist","waist"],["g-hemw","hem"]]){

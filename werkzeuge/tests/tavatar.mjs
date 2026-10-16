@@ -39,6 +39,18 @@ await p.fill('#avGroesse','18'); await p.click('#avJa'); await p.waitForTimeout(
 pruefe(await p.evaluate(()=>!document.getElementById('avDlg').hidden&&!window.__dbg.AVS.on),'unsinnige Größe: Dialog bleibt, keine Kamera');
 await p.click('#avNein'); await p.waitForTimeout(200);
 pruefe(await p.evaluate(()=>document.getElementById('avDlg').hidden&&!window.__dbg.AVS.on),'Abbrechen: Dialog zu, kein Scan');
+// Körpermodell fehlt (nur index.html hochgeladen): gleich abgebrochen, Hinweis beim 3D-Bereich, Kamera aus
+await p.evaluate(()=>{ window.__avUrl=window.PASSFORM_AVATAR_URL; window.PASSFORM_AVATAR_URL='fehlt/koerper.js'; });
+await p.click('#avScan'); await p.fill('#avGroesse','180'); await p.click('#avJa'); await p.waitForTimeout(2500);
+const fe=await p.evaluate(()=>({on:window.__dbg.AVS.on,cam:!!document.getElementById('video').srcObject,msg:document.getElementById('avMsg').hidden?'':document.getElementById('avMsg').textContent}));
+pruefe(!fe.on&&!fe.cam&&/Körpermodell/.test(fe.msg),`Körpermodell fehlt: Scan abgebrochen, Kamera aus, Hinweis „${fe.msg.slice(0,60)}…“`);
+await p.evaluate(()=>{ window.PASSFORM_AVATAR_URL=window.__avUrl; });
+// Kamera verweigert: Avatar-Scan nicht scharf (sonst würde der nächste normale Scan ohne Einwilligung zum Avatar)
+await p.evaluate(()=>{ window.__gum=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getUserMedia=()=>Promise.reject(new DOMException('verweigert','NotAllowedError')); });
+await p.click('#avScan'); await p.fill('#avGroesse','180'); await p.click('#avJa'); await p.waitForTimeout(2000);
+pruefe(await p.evaluate(()=>!window.__dbg.AVS.on&&!document.getElementById('video').srcObject),'Kamera verweigert: kein Avatar-Scan scharf');
+await p.evaluate(()=>{ navigator.mediaDevices.getUserMedia=window.__gum; });
+errs.length=0;                                                   // 404 und Fehler des Körpermodells waren gewollt
 
 // 2) Scan: Frontal-Scan, dann einmal drehen
 await p.click('#avScan'); await p.fill('#avGroesse','180'); await p.click('#avJa');
@@ -80,7 +92,7 @@ pruefe(Math.abs(m.leg-z.leg)<2.5,`Hüftgelenk über dem Boden: Avatar ${f(m.leg)
 const roh=await p.evaluate(()=>localStorage.getItem('passformAvatar')||'');
 pruefe(roh.length>50&&roh.length<3000&&!/data:|blob:|base64/.test(roh),`gespeichert: ${roh.length} Zeichen, keine Bilder`);
 const keys=Object.keys(JSON.parse(roh)).sort().join(',');
-pruefe(keys==='H,at,g,kamera,lose,m,p,rest,v,z',`gespeicherte Felder: ${keys}`);
+pruefe(keys==='H,at,g,kamera,lose,m,ohneTiefe,p,rest,v,z',`gespeicherte Felder: ${keys}`);
 
 // 4) Ansicht: Avatar in der 3D-Ansicht, Knöpfe, Zoom
 u=await ui(); pruefe(/Neu scannen/.test(u.scan)&&u.del&&u.ans,`mit Avatar: „${u.scan.trim()}“, ✕ und Ansicht-Knöpfe sichtbar`);
@@ -94,7 +106,24 @@ pruefe(Math.abs(Math.abs(((v.yaw%(2*Math.PI))+2*Math.PI)%(2*Math.PI)-Math.PI))<.
 const bb=await p.evaluate(()=>{ const r=document.getElementById('g3dview').getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; });
 await p.mouse.move(bb.x,bb.y); await p.mouse.wheel(0,-400); await p.waitForTimeout(300);
 v=await p.evaluate(()=>({zoom:window.__dbg.v3d.zoom||1}));
-pruefe(v.zoom>1.5&&v.zoom<=4,`Mausrad: Zoom ${v.zoom.toFixed(2)}×`);
+pruefe(v.zoom===1,`Mausrad ohne Strg: kein Zoom (die Seite rollt weiter)`);
+await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView({block:'center'})); await p.waitForTimeout(300);
+const bb2=await p.evaluate(()=>{ const r=document.getElementById('g3dview').getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; });
+await p.mouse.move(bb2.x,bb2.y); await p.keyboard.down('Control'); await p.mouse.wheel(0,-400); await p.keyboard.up('Control'); await p.waitForTimeout(300);
+v=await p.evaluate(()=>({zoom:window.__dbg.v3d.zoom||1}));
+pruefe(v.zoom>1.5&&v.zoom<=4,`Strg + Mausrad: Zoom ${v.zoom.toFixed(2)}×`);
+await p.click('#avZoomEin'); const z2=await p.evaluate(()=>window.__dbg.v3d.zoom);
+await p.click('#avZoomAus'); await p.click('#avZoomAus'); const z3=await p.evaluate(()=>window.__dbg.v3d.zoom);
+pruefe(z2>v.zoom&&z3<z2,`Knöpfe + und −: ${v.zoom.toFixed(2)} → ${z2.toFixed(2)} → ${z3.toFixed(2)}`);
+// gezoomt nach unten ziehen: Ausschnitt wandert, nie weiter als der Rand; bei Zoom 1 keine Verschiebung
+await p.evaluate(()=>{ window.__dbg.v3d.zoom=3; });
+await p.mouse.move(bb2.x,bb2.y); await p.mouse.down(); await p.mouse.move(bb2.x,bb2.y+2000,{steps:4}); await p.mouse.up();
+const pa=await p.evaluate(()=>({pan:window.__dbg.v3d.pan,H:window.__dbg.AV.form.H}));
+const pmax=(1-1/3)*(pa.H+4)/1.8;
+pruefe(pa.pan>0&&pa.pan<=pmax+.01,`gezoomt verschieben: ${pa.pan.toFixed(1)} cm (Grenze ${pmax.toFixed(1)})`);
+await p.click('#avZoomAus'); await p.click('#avZoomAus'); await p.click('#avZoomAus'); await p.click('#avZoomAus');
+const pz=await p.evaluate(()=>({z:window.__dbg.v3d.zoom,pan:window.__dbg.v3d.pan}));
+pruefe(pz.z===1&&pz.pan===0,`ganz herausgezoomt: Verschiebung zurück (${pz.pan})`);
 await p.click('#avReset'); await p.waitForTimeout(1200);
 v=await p.evaluate(()=>({yaw:window.__dbg.v3d.yaw,zoom:window.__dbg.v3d.zoom||1}));
 pruefe(v.zoom===1,`Reset: Zoom ${v.zoom}×`);
@@ -114,6 +143,19 @@ for(let t=0;t<40&&!(await p.evaluate(()=>!!(window.__dbg&&window.__dbg.AV.form))
 u=await ui(); pruefe(u.form&&u.del&&u.ans,'nach dem Neuladen: Avatar wieder da');
 const m2=await p.evaluate(()=>window.__dbg.AV.form.m);
 pruefe(Math.abs(m2.hip-m.hip)<.3&&Math.abs(m2.inseam-m.inseam)<.3,`gleiche Form wie vorher (Hüfte ${f(m2.hip)} / ${f(m.hip)})`);
+
+// andere Größe oben (andere Person): Puppe statt Avatar, Hinweis, Größenauswahl ohne Avatar
+await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView({block:'center'}));
+const groesse=async h=>{ await p.fill('#height',h); await p.dispatchEvent('#height','input');
+  await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView({block:'center'})); await p.waitForTimeout(1200); };
+await groesse('172');
+const an=await p.evaluate(()=>({sub:document.getElementById('g3dSub').textContent,msg:document.getElementById('avMsg').textContent,gr:document.getElementById('g-szmsg').innerText}));
+pruefe(/Puppe/.test(an.sub)&&/für 180 cm/.test(an.msg)&&!/Avatar/.test(an.gr),`andere Größe (172): Puppe, Hinweis „${an.msg.slice(0,50)}…“, Größen ohne Avatar`);
+await groesse('180');
+pruefe(/Dein Avatar/.test(await p.evaluate(()=>document.getElementById('g3dSub').textContent)),'wieder 180: Avatar');
+// ✕ sitzt neben „Neu scannen“ (nicht oben auf der Seite)
+const lage=await p.evaluate(()=>{ const a=document.getElementById('avScan').getBoundingClientRect(), b=document.getElementById('avDel').getBoundingClientRect(); return {dy:Math.abs((a.top+a.bottom)/2-(b.top+b.bottom)/2),dx:b.left-a.right}; });
+pruefe(lage.dy<10&&lage.dx>=0&&lage.dx<40,`✕ neben „Neu scannen“ (Abstand ${Math.round(lage.dx)} px, Höhe ±${Math.round(lage.dy)} px)`);
 
 // 7) Löschen: erst „Löschen?“, dann weg
 await p.click('#avDel'); await p.waitForTimeout(150);
