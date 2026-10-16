@@ -132,14 +132,17 @@ const px=await p.evaluate(()=>{ const c=document.getElementById('g3dview'), x=c.
   for(let i=0;i<x.length;i+=4*7){ if(x[i+3]<200) continue; n++; if(x[i]>150&&x[i]>x[i+2]+25&&x[i+1]>x[i+2]) haut++; } return {haut,n}; });
 pruefe(px.haut>300,`Avatar im Bild (${px.haut} hautfarbene von ${px.n} gezeichneten Stichproben)`);
 
-// Größenwechsel am Avatar: größte Größe antippen → Hose am Avatar sichtbar weiter, Urteil je Zone da
-const breite=()=>p.evaluate(()=>{ const P=window.__dbg.g3.pos, n=window.__dbg.g3.nRing; let a=1e9,b=-1e9; for(let k=0;k<n;k++){ a=Math.min(a,P[k*3]); b=Math.max(b,P[k*3]); } return b-a; });
-await p.evaluate(()=>{ const v=window.__dbg.v3d; v.ziel=null; v.yaw=0; v.idle=performance.now()+1e7; }); await p.waitForTimeout(1500);
-const w0=await breite(), chips=await p.$$('#g-szrow .szchip');
-await chips[chips.length-1].click(); await p.waitForTimeout(2000);
-const w1=await breite(), zt=await p.evaluate(()=>document.getElementById('g-szmsg').innerText);
-pruefe(chips.length>=3&&w1>w0*1.04&&/Spiel am Bund/.test(zt),`Größenwechsel am Avatar: Hose ${(100*(w1/w0-1)).toFixed(0)} % breiter, Zonen „${(zt.split('\n').find(l=>/Spiel am Bund/.test(l))||'').slice(0,60)}…“`);
-await chips[Math.floor(chips.length/2)].click(); await p.waitForTimeout(500);
+// Größenwechsel am Avatar: kleinste und größte Größe antippen → Bund der Hose am Avatar sichtbar weiter, Urteil je Zone da
+const bund=()=>p.evaluate(()=>{ const D=window.__dbg, P=D.g3.pos, NR=D.g3.nr, C=D.g3.nRing/(4*NR); let a=1e9,b=-1e9;
+  for(let s=0;s<2;s++) for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=((s*NR)*2+f)*C+j; a=Math.min(a,P[k*3]); b=Math.max(b,P[k*3]); } return b-a; });
+await p.evaluate(()=>{ const v=window.__dbg.v3d; v.ziel=null; v.yaw=0; v.idle=performance.now()+1e7; });
+const nChips=await p.$$eval('#g-szrow .szchip',c=>c.length);
+const vorn=()=>p.evaluate(()=>{ const v=window.__dbg.v3d; v.ziel=null; v.yaw=0; v.idle=performance.now()+1e7; });   // von vorn messen (dreht sonst weiter)
+await p.click('#g-szrow .szchip >> nth=0'); await vorn(); await p.waitForTimeout(2000); const w0=await bund();
+await p.click('#g-szrow .szchip >> nth=-1'); await vorn(); await p.waitForTimeout(2000); const w1=await bund();
+const zt=await p.evaluate(()=>document.getElementById('g-szmsg').innerText);
+pruefe(nChips>=3&&w1>w0*1.1&&/Spiel am Bund/.test(zt),`Größenwechsel am Avatar (${nChips} Größen): Bund ${(100*(w1/w0-1)).toFixed(0)} % breiter von der kleinsten zur größten, Zonen „${(zt.split('\n').find(l=>/Spiel am Bund/.test(l))||'').slice(0,50)}…“`);
+await p.click(`#g-szrow .szchip >> nth=${Math.floor(nChips/2)}`); await p.waitForTimeout(500);
 
 // 5) Größenauswahl nimmt den Avatar
 const gr=await p.evaluate(()=>document.getElementById('g-szmsg')?document.getElementById('g-szmsg').innerText:'');
@@ -173,8 +176,8 @@ pruefe(/Löschen\?/.test(frag.t)&&frag.form,'erstes Tippen: „Löschen?“, noc
 await p.click('#avDel'); await p.waitForTimeout(400);
 u=await ui(); const leer=await p.evaluate(()=>localStorage.getItem('passformAvatar'));
 pruefe(!u.form&&!u.del&&!u.ans&&leer===null&&/Avatar aus Selbst-Scan/.test(u.scan),'zweites Tippen: Avatar und gespeicherte Maße gelöscht');
-await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView({block:'center'})); await p.waitForTimeout(600);
-const sub2=await p.evaluate(()=>document.getElementById('g3dSub').textContent);
+await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView({block:'center'}));
+let sub2=''; for(let t=0;t<25&&!/Puppe/.test(sub2);t++){ await p.waitForTimeout(200); sub2=await p.evaluate(()=>document.getElementById('g3dSub').textContent); }
 pruefe(/Puppe/.test(sub2),'3D-Ansicht wieder mit der Puppe');
 
 // 8) Weite Kleidung (Attrappe wie sonst: Knie so breit wie der Oberschenkel): erkannt, Umfänge nur als Obergrenze, Hinweis
