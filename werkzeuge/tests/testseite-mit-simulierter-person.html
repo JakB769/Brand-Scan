@@ -3454,7 +3454,8 @@ function avatarLaengen(z){
 }
 /* Weite Kleidung: Knie fast so breit wie der Oberschenkel (am Körper 0,65–0,72, weite Hose 0,8–1) oder breiter als 8 % der
    Größe (Körper um 6 %). Der Umriss ist dann die Kleidung, nicht der Körper (Referenzclip, Baggy-Jeans: Taille 105 statt etwa
-   80 cm, Empfehlung W38 statt W32). Er gilt dann nur als Obergrenze: Kleidung macht breiter, nie schmaler. */
+   80 cm, Empfehlung W38 statt W32). Er gilt dann nur als Obergrenze: Kleidung macht breiter, nie schmaler; darunter der
+   Durchschnittskörper derselben Größe. */
 const avatarLose=z=>z.kneeW>0&&z.thighW>0&&(z.kneeW/z.thighW>.8||z.kneeW>.08*z.H);
 async function avatarScanFertig(){
   AVS.stufe="rechnen"; const z=avatarScanZiele();
@@ -3462,8 +3463,9 @@ async function avatarScanFertig(){
   stopCamera(); AVS.on=false;                          // Bilder sind ab hier verworfen, nur die Zahlen bleiben
   try{
     const kd=await avatarDaten(), lose=avatarLose(z), zf={...z}, kamera=avatarLaengen(zf);
-    // weite Kleidung: je Zone das Kleinere aus Umriss und Durchschnittskörper derselben Größe und Beinlänge
-    if(lose){ const m0=avatarBauen(kd,AVS.g,avatarAnpassen(kd,AVS.g,{H:z.H,leg:zf.leg,inseam:zf.inseam}).p,AVS.H).m;
+    // weite Kleidung: je Zone das Kleinere aus Umriss und Durchschnittskörper derselben Größe (nicht derselben Beinlänge:
+    // längere Beine machen auf dieselbe Größe skaliert alle Umfänge kleiner, Hüfte 91 statt 94 cm an den Referenzclips)
+    if(lose){ const m0=avatarBauen(kd,AVS.g,{},AVS.H).m;
       for(const k of ["waistW","waistD","hipW","hipD","thighW","kneeW"]) if(isFinite(zf[k])&&m0[k]>0) zf[k]=Math.min(zf[k],m0[k]); }
     const f=avatarAnpassen(kd,AVS.g,zf), A=avatarBauen(kd,AVS.g,f.p,AVS.H);
     const r1=x=>Math.round(x*10)/10, m=Object.fromEntries(Object.entries(A.m).map(([k,v])=>[k,r1(v)]));

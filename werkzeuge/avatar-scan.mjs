@@ -130,14 +130,16 @@ fs.writeFileSync(OUT + `avatar_${NAME}.json`, JSON.stringify({ clip: path.relati
   proben: Object.fromEntries(Object.entries(erg.proben).map(([k, v]) => [k, v.length])), fertigNachBildern: log.length }, null, 1));
 execFileSync("python3", ["-c", `
 import sys, json
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
+try: F=ImageFont.truetype('DejaVuSans.ttf',14)
+except Exception: F=None
 out=sys.argv[1]; z=json.loads(sys.argv[2]); h=520
 row=[]
 for n,av,foto,yw in z:
     a=Image.open(av).convert('RGB'); f=Image.open(foto).convert('RGB')
     a=a.resize((int(a.width*h/a.height),h)); f=f.resize((int(f.width*h/f.height),h))
     t=Image.new('RGB',(a.width+f.width,h+26),'white'); t.paste(f,(0,26)); t.paste(a,(f.width,26))
-    ImageDraw.Draw(t).text((6,6),f'{n}: Clip (Drehung geschätzt {yw:+.2f} rad) | Avatar mit Hose',fill='black'); row.append(t)
+    ImageDraw.Draw(t).text((6,5),f'{n}: Clip (Drehung geschätzt {yw:+.2f} rad) | Avatar mit Hose',fill='black',font=F); row.append(t)
 c=Image.new('RGB',(sum(t.width for t in row)+8*(len(row)-1),row[0].height),'white'); x=0
 for t in row: c.paste(t,(x,0)); x+=t.width+8
 c.save(out,quality=88)`, OUT + `avatar_${NAME}_hose_vs_foto.jpg`, JSON.stringify(gemacht)]);

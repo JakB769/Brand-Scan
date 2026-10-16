@@ -87,12 +87,14 @@ for (const [ansicht, yaw] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Ma
 }
 execFileSync("python3", ["-c", `
 import sys, json
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
+try: F = ImageFont.truetype('DejaVuSans.ttf', 13)
+except Exception: F = None
 z = json.loads(sys.argv[2]); n = int(sys.argv[3]); w, h = 300, 600
 c = Image.new('RGB', (w * len(z) + 12 * (len(z) // n - 1), h + 40), 'white'); d = ImageDraw.Draw(c)
 for i, (ansicht, name, f) in enumerate(z):
     x = i * w + 12 * (i // n); c.paste(Image.open(f).convert('RGB'), (x, 40))
-    d.text((x + 6, 4), ansicht, fill='black'); d.text((x + 6, 20), name, fill='black')
+    d.text((x + 6, 3), ansicht, fill='black', font=F); d.text((x + 6, 20), name, fill='black', font=F)
     for cm in range(0, 201, 50): y = 40 + h - int(cm * h / 200); d.line([(x, y), (x + 8, y)], fill=(150, 150, 150))
 c.save(sys.argv[1], quality=88)`, OUT + "avatar_vs_joe.jpg", JSON.stringify(bilder), String(figuren.length)]);
 console.log("Ausgabe:", OUT + "avatar_vs_joe.jpg", errs.length ? "Fehler: " + errs.slice(0, 2).join(" | ") : "");

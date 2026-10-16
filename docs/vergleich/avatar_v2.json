@@ -1,0 +1,73 @@
+{
+ "clip": "assets/referenz/videos/clips/v2-02_drehung-360.mp4",
+ "scan": "assets/referenz/videos/clips/v2-01_stehen-neutral-vorne.mp4",
+ "k": 0.82,
+ "H": 179,
+ "frontalScan": {
+  "waist": 36.2,
+  "hip": 38.8,
+  "thighL": 21.2,
+  "thighR": 23,
+  "kneeL": 15.6,
+  "kneeR": 20.2,
+  "leg": 99.2,
+  "inseam": null,
+  "torso": 47.8,
+  "shoulder": 33.1
+ },
+ "avatar": {
+  "v": 1,
+  "g": "m",
+  "H": 179,
+  "p": {
+   "gewicht": 0,
+   "muskel": 0,
+   "waist-circ": 0,
+   "hips-circ": 0,
+   "gesaess": 0,
+   "waisttohip-dist": -0.151,
+   "thigh-circ": 0,
+   "knee-circ": 0,
+   "calf-circ": 0,
+   "upperleg-height": 0.468,
+   "lowerleg-height": 0.366
+  },
+  "m": {
+   "H": 179,
+   "leg": 98.9,
+   "torso": 45.2,
+   "inseam": 88.5,
+   "waistW": 27.2,
+   "waistD": 18.8,
+   "waist": 75.1,
+   "hipW": 31.8,
+   "hipD": 22.4,
+   "hip": 90.8,
+   "thighW": 16.6,
+   "thigh": 51.8,
+   "kneeW": 10.8,
+   "knee": 35
+  },
+  "z": {
+   "H": 179,
+   "waistW": 37.9,
+   "waistD": 27.2,
+   "hipW": 43.1,
+   "hipD": 27.3,
+   "thighW": 22.1,
+   "kneeW": 17.9,
+   "leg": 99.2
+  },
+  "lose": true,
+  "kamera": false,
+  "rest": 0.2,
+  "at": 1792178238335
+ },
+ "proben": {
+  "vorn": 2,
+  "hinten": 8,
+  "seiteL": 20,
+  "seiteR": 1
+ },
+ "fertigNachBildern": 122
+}
