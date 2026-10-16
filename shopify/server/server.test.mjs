@@ -59,6 +59,9 @@ pruefe(await st(signiert(`/proxy/anprobe?produkt=${PRODUKT}`, {}, { zeit: 1000 }
 pruefe(await st(signiert(`/proxy/hose?produkt=${PRODUKT}`, {}, { shop: "../../etc" })) === 400, "unsinniger Shop-Name (signiert): 400, kein Pfad nach außen");
 pruefe(await st(signiert(`/proxy/hose?produkt=12ab`)) === 400, "Produkt-ID nicht nur Ziffern: 400");
 pruefe(await st(signiert(`/proxy/hose?produkt=999`)) === 404, "Produkt ohne Hose: 404");
+{ const r = await fetch(APP + signiert(`/proxy/avatar/koerper.js`)), t = await r.text();
+  pruefe(r.status === 200 && /javascript/.test(r.headers.get("content-type")) && t.includes("PASSFORM_KOERPER"), "Körpermodell des Avatars über den Proxy (ohne Produkt)");
+  pruefe(await st(`/proxy/avatar/koerper.js?shop=${SHOP}`) === 401, "Körpermodell ohne Signatur: 401"); }
 { const r = await fetch(APP + signiert(`/proxy/hose?produkt=${PRODUKT}`)), j = await r.json();
   pruefe(r.status === 200 && j.hosen && j.hosen.length === 1 && /^data:image\//.test(j.hosen[0].G.m3.atlas), "Hose des Produkts kommt als hosen.json"); }
 

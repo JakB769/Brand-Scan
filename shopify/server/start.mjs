@@ -25,6 +25,7 @@ import { zugriffsGrenze } from "./grenze.mjs";
 
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const SEITE = path.resolve(HIER, "../../app/index.html");
+const KOERPER = path.resolve(HIER, "../../app/avatar/koerper.js");
 const SHOP = /^[a-z0-9][a-z0-9-]{0,60}\.myshopify\.com$/, PRODUKT = /^\d{1,20}$/;
 
 const json = (res, status, o) => { res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }); res.end(JSON.stringify(o)); };
@@ -58,8 +59,15 @@ export function erstelleServer({ secret, daten = path.join(HIER, "daten"), seite
       if (u.pathname.startsWith("/proxy/") && req.method === "GET") {
         if (!proxySignaturOk(q, secret) || !proxyFrisch(q, maxAlterSek)) return text(res, 401, "Nicht von Shopify signiert");
         const shop = q.get("shop") || "", produkt = q.get("produkt") || "";
-        if (!SHOP.test(shop) || !PRODUKT.test(produkt)) return text(res, 400, "Shop oder Produkt fehlt");
+        if (!SHOP.test(shop)) return text(res, 400, "Shop fehlt");
         if (!erlaubt(shop)) { res.setHeader("retry-after", "60"); return text(res, 429, "Zu viele Anfragen, bitte gleich nochmal versuchen"); }
+        // Körpermodell des Avatars (MakeHuman, CC0): die Seite lädt es relativ als avatar/koerper.js, nur wenn ein Avatar da ist
+        // oder gescannt wird; für alle Shops gleich, darf zwischengespeichert werden
+        if (u.pathname === "/proxy/avatar/koerper.js") {
+          try { const b = await fs.promises.readFile(KOERPER); res.writeHead(200, { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=86400" }); return res.end(b); }
+          catch { return text(res, 404, "nicht gefunden"); }
+        }
+        if (!PRODUKT.test(produkt)) return text(res, 400, "Produkt fehlt");
         if (u.pathname === "/proxy/anprobe") {
           const html = kundenSeite(await fs.promises.readFile(seite, "utf8"), produkt);
           res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return res.end(html);

@@ -89,7 +89,12 @@ window.__mode={yaw:0,knee:0,wide:0,sway:0,hand:0,kneeWave:0};
     const tw=Math.max(.55,Math.abs(c));
     seg(mid(L[11],L[12]),mid(L[23],L[24]),36*tw);
     if(ganz){ const k=L[0]; seg({x:k.x,y:k.y-5*cmN*zm},{x:k.x,y:k.y+5*cmN*zm},18); } else seg(P(0,165),P(0,175),18);
-    seg(L[23],L[25],17); seg(L[25],L[27],12); seg(L[24],L[26],17); seg(L[26],L[28],12);
+    // knieSchmal (tavatar.mjs): Oberschenkel endet vor dem Knie, Knie 13 cm breit wie am Körper (sonst ist es durch das runde
+    // Ende des Oberschenkels so breit wie der Oberschenkel, wie bei einer weiten Hose)
+    if(md.knieSchmal){ const lp=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});
+      for(const [h,k] of [[23,25],[24,26]]){ seg(L[h],lp(L[h],L[k],.75),17); seg(lp(L[h],L[k],.75),L[k],13); } }
+    else { seg(L[23],L[25],17); seg(L[24],L[26],17); }
+    seg(L[25],L[27],12); seg(L[26],L[28],12);
     if(ganz){ seg(L[27],L[31],10); seg(L[28],L[32],10); } else { seg(L[27],P(9+md.wide*30,0),10); seg(L[28],P(-9-md.wide*30,0),10); }
     seg(L[15],mid(L[17],L[19]),9); seg(L[16],mid(L[18],L[20]),9); seg(L[11],L[13],9); seg(L[13],L[15],8); seg(L[12],L[14],9); seg(L[14],L[16],8);
     // gegenstand: etwas Hohes im Hintergrund, das die Erkennung fälschlich zur Person zählt (fast vom oberen bis zum unteren Rand)
