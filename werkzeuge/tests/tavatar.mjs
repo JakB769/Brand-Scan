@@ -73,14 +73,14 @@ pruefe(Math.abs(m.H-180)<.5,`Avatar ${f(m.H)} cm groß (180)`);
 // Das Körpermodell kennt keine so flachen Körper (Tiefe/Breite 0,55, Menschen ≈ 0,65–0,75): Breite trifft es, die Tiefe liegt dazwischen
 pruefe(Math.abs(m.hipW-z.hipW)<2&&Math.abs(m.waistW-z.waistW)<2.5,`Avatar trifft die Breiten (Hüfte ${f(m.hipW-z.hipW)}, Taille ${f(m.waistW-z.waistW)} cm)`);
 pruefe(m.hipD>=z.hipD-1&&m.hipD<z.hipD+6,`Avatar-Tiefe Hüfte ${f(m.hipD)} cm: nicht flacher als gemessen, höchstens so tief wie ein realer Körper`);
-pruefe(a.lose===false&&await p.evaluate(()=>document.getElementById('avMsg').hidden),'enge Silhouette (Attrappe): keine Warnung „weite Kleidung“');
+pruefe(a.lose===false&&a.kamera===false&&await p.evaluate(()=>document.getElementById('avMsg').hidden),'enge Silhouette, Beine 53 % der Größe (Attrappe): keine Warnung');
 pruefe(Math.abs(m.leg-z.leg)<2.5,`Hüftgelenk über dem Boden: Avatar ${f(m.leg)}, Scan ${f(z.leg)} cm`);
 
 // 3) gespeichert, nur Zahlen
 const roh=await p.evaluate(()=>localStorage.getItem('passformAvatar')||'');
 pruefe(roh.length>50&&roh.length<3000&&!/data:|blob:|base64/.test(roh),`gespeichert: ${roh.length} Zeichen, keine Bilder`);
 const keys=Object.keys(JSON.parse(roh)).sort().join(',');
-pruefe(keys==='H,at,g,lose,m,p,rest,v,z',`gespeicherte Felder: ${keys}`);
+pruefe(keys==='H,at,g,kamera,lose,m,p,rest,v,z',`gespeicherte Felder: ${keys}`);
 
 // 4) Ansicht: Avatar in der 3D-Ansicht, Knöpfe, Zoom
 u=await ui(); pruefe(/Neu scannen/.test(u.scan)&&u.del&&u.ans,`mit Avatar: „${u.scan.trim()}“, ✕ und Ansicht-Knöpfe sichtbar`);
