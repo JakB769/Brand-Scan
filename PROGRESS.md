@@ -436,3 +436,78 @@ Zwei Prüfer, zwei Skeptiker, 6 Funde, 4 bestätigt, behoben:
 - Screenshots (Handy 430 × 932): `docs/groessenauswahl_handy.png` (unter dem 3D-Modell), `docs/groessenauswahl_wechsel_w36.png`
   (W36 gewählt, Hose sichtbar weiter), `docs/groessenauswahl_anprobe.png` (Shop-Anprobe). Werkzeug: `werkzeuge/groessen-bild.mjs`.
 - Tests: `tgroessen` (Einzel-Formular, Bund ändern, gespeicherte Hosen), `tlink` (Shopify nur Varianten-Namen + Bankkarte).
+
+### Aufgabe 2: 3D-Avatar aus dem Selbst-Scan
+
+**Ansatz (Recherche → Entscheidung).** Der Avatar ist das parametrische Körpermodell MakeHuman hm08 (Basis-Mesh, Targets für
+Gewicht, Muskeln, Taille, Hüfte, Gesäß, Oberschenkel, Knie, Wade, Bein-Längen; Skelett-Gewichte), im Browser an den Dreh-Scan
+angepasst: Breiten von vorn und hinten, Tiefen von der Seite und Beinlängen aus der vorhandenen MediaPipe-Messung, 11 Regler per
+gedämpftem Gauß-Newton (≈ 0,2 s), Umfänge aus dem Querschnitt des Avatars wie mit einem Maßband. Die MakeHuman-Daten stehen
+nachweislich unter CC0 1.0 (kommerziell frei, ohne Namensnennung); übernommen wurden nur Daten, kein AGPL-Programmcode. Verworfen:
+SMPL/SMPL-X/STAR/SKEL/SHAPY (nur nichtkommerziell), GHUM (nicht frei), MB-Lab/CharMorph (AGPL), Ready Player Me (eingestellt);
+Anny (Apache, dieselben CC0-Daten), SOMA und MHR (Apache) gibt es nur in Python – später als Prüfwerkzeug oder gelernter
+Formraum; Bezahldienste (3DLOOK, Prism, Bodygram, Meshcapade) haben Mindestbeträge von 350–1000 $ im Monat, mehr als ein Shop
+zahlt. Joe (vom Nutzer, ohne Lizenzangabe) ist eine bekleidete Figur aus Einzelteilen: nur Sichtvergleich, nicht in der App.
+
+**In der App.**
+- Unter der 3D-Ansicht: „🧍 Avatar aus Selbst-Scan“ → Dialog mit Anleitung (Handy auf Hüfthöhe abstellen, 2–3 m, enge Kleidung,
+  langsam drehen), Datenschutz-Hinweis, Größe, Mann/Frau → „Einverstanden, Kamera starten“.
+- Scan: wie gewohnt kurz still stehen (Frontal-Scan), dann einmal drehen. Rückmeldung: „Langsam weiter drehen“, „Langsamer
+  drehen“, „Weiter weg, ganzer Körper ins Bild“, „Ganz zur Seite drehen“, Fortschritt in %, am Ende Ton und Ansage.
+- Danach steht der Avatar mit der gewählten Hose in der 3D-Ansicht: ziehen dreht, zwei Finger / + − / Strg + Mausrad zoomen,
+  gezoomt nach oben/unten schieben (Saum, Ferse), Knöpfe Vorne/Seite/Hinten/⟲. Größe antippen → Hose am Avatar wird weiter oder
+  enger, Urteil je Zone wie bisher (die Größenauswahl nimmt die Avatar-Maße: Maßband > Avatar > Scan > letzter Scan).
+- Gespeichert im Browser nur Zahlen (Geschlecht, Regler, Größe, Maße, ≈ 600 Zeichen), keine Bilder; „Neu scannen“, ✕ mit
+  Nachfrage löscht. Im Shop liefert der App-Server `avatar/koerper.js` mit (901 KB, gezippt 482 KB, nur bei Bedarf geladen).
+
+**Entscheidungen (ohne Rückfrage getroffen).**
+- Hüftumfang an der stärksten Stelle des Gesäßes (wie Größentabellen), angepasst wird an der Gelenkhöhe (wie der Scan misst).
+- Weite Kleidung (Knie fast so breit wie der Oberschenkel oder > 8 % der Größe): Umriss nur Obergrenze, darunter der
+  Durchschnittskörper derselben Größe, Hinweis „Umfänge geschätzt, in enger Kleidung neu scannen“.
+- Beinlängen außerhalb 49–56 % (Hüftgelenk) bzw. 40–50 % (Schritt) der Größe: begrenzt, Hinweis „Kamera zu tief?“.
+- Avatar gilt nur für seine Größe (±1 cm); steht oben eine andere (Testprofil, andere Person): Puppe und Hinweis.
+- T-Shirt nur eingefärbt (neutral, wie die Referenzfigur), Körper unter der Hose ausgeblendet (kein Durchstoßen bei zu engen
+  Größen), Hose nimmt Breite und Tiefe des Avatars als Mindestmaß.
+- Kein LOD: 27 000 Dreiecke sind für Handy-Grafik wenig; teuer ist die Stoffrechnung (siehe unten), nicht das Zeichnen.
+  Stattdessen: Pixeldichte höchstens 2, langsame Geräte rechnen bei der Ruhe-Drehung nur jedes zweite Bild.
+- 3D-Datei für den Shop (GLB) immer an der Puppe, nie am Avatar dieses Geräts.
+
+**Testergebnisse.**
+- `tavatar.mjs` (Attrappe, bekannte Maße, in `npm test`): Breite von vorn/hinten 35,7–35,9 cm gegen Soll 34,3 (+1,4 bis
+  +1,6), Tiefe von der Seite 18,0 gegen 18,9 (−0,9), Hüftgelenk über dem Boden 95,5 gegen 95,3 im Avatar, Größe exakt; der
+  Avatar trifft die Breiten auf 0,5–2 cm (Tiefe 1 cm tiefer: so flache Körper wie die Attrappe kennt das Modell nicht). Dazu
+  Ablauf, Einwilligung, Kamera verweigert, Körpermodell fehlt, Speichern ohne Bilder, Neuladen, Löschen, andere Größe, Ansicht
+  (Knöpfe, Zoom, Verschieben), Größenwechsel am Avatar (Bund 14 % breiter von der kleinsten zur größten), weite Kleidung.
+- Referenzclips als Kamera (`werkzeuge/avatar-scan.mjs`, echte Erkennung): Jakob 1,79 m in der Baggy-Jeans, Kamera am Boden.
+  Der Umriss ist die Kleidung (Hüfte 38–43 cm breit, Knie 18–20 cm) → weite Kleidung erkannt, Avatar = Durchschnitt 179 cm:
+  Taille 78,3, Hüfte 94,8, Oberschenkel 53,9, Knie 35,9 cm, beide Clips gleich (±0,1 cm). Größenauswahl: **W32 „passt“, Bund
+  passt, Länge passt** – Jakob trägt diese Jeans in W32. Hüftgelenk v2 99,3 cm (55 % der Größe, gerade noch im Bereich), v1
+  105,4 cm (59 %, Kamera am Boden streckt die Beine) → auf 99,8 begrenzt, Hinweis. Bilder: `docs/vergleich/avatar_v2_hose_vs_foto.jpg`,
+  `avatar_v1_hose_vs_foto.jpg` (Clip-Bild neben dem Avatar mit Hose, vorn/Seite/hinten), Zahlen in `avatar_v1.json`, `avatar_v2.json`.
+- **±2 cm gegen bekannte Werte:** nur an der Attrappe prüfbar (oben). Echte Maßband-Werte von Jakob gibt es nicht
+  (`assets/referenz/README.md`, „Noch NICHT in diesem Paket“: „Echte Maße der Hose und Körpermaße“), die Clips zeigen nur weite Kleidung. Bekannt ist nur
+  Größe (exakt) und die getragene W32 (Empfehlung stimmt).
+- Joe (`docs/vergleich/avatar_vs_joe.jpg`, `werkzeuge/mensch-vergleich.mjs`, gleiches Licht und gleicher Maßstab): Proportionen
+  des Durchschnitts-Avatars in Joes Größe (172 cm mit Schuhen und Haar) passen sichtbar (Schritt-, Knie-, Schulterhöhe,
+  Hüftbreite). Joe ist texturiert, bekleidet und hat Haare; der Avatar ist bewusst eine neutrale Puppe mit T-Shirt.
+- Handy-Emulation (`werkzeuge/avatar-handy.mjs`, Pixel 7 / iPhone 13, CPU 4× gedrosselt, Grafik hier in Software): Körpermodell
+  laden 280–330 ms, anpassen 700 ms, bauen 30–70 ms (einmal nach dem Scan); je Bild Form + Stoff 50–63 ms, Größenwechsel bis
+  zum nächsten Bild 20–56 ms. Bilder/s hier 3–4 – nicht aussagekräftig: auch die bisherige Puppe schafft hier nur 6–15, der
+  Avatar selbst kostet im Software-Raster etwa 15 ms (auf echter Handy-Grafik unter 1 ms). Teuer ist die Stoffrechnung der Hose,
+  nicht der Avatar.
+- Gegenprüfung (zwei unabhängige Prüfer, im Browser und in Node nachgestellt): 13 bestätigte Funde, alle behoben (Kamera
+  verweigert ließ den Scan scharf, ✕ saß oben auf der Seite, Abschluss mitten in `analyse`, Körpermodell fehlt erst nach der
+  Drehung gemeldet, Scan ohne Seite endete nie, Größe aus dem Dialog nicht gespeichert, Anpassung brach zu früh ab, Schritt
+  sprang, Verschieben/Zoom, Mausrad blockierte das Scrollen, Tiefe bei starkem Zoom, GLB am Avatar). Dazu selbst gefunden:
+  Hose am Avatar in jeder Größe gleich weit (Mindestbreite aus dem Gelenkabstand) → behoben.
+
+**Offen.**
+- Echte Handys, Safari/iPhone und Bilder/s mit echter Grafik ungeprüft; echte Kamera ungeprüft (nur Referenzclips).
+- Maßband-Werte von Jakob fehlen; mit eng anliegender Kleidung gescannt wurde noch niemand (die Clips zeigen weite Kleidung und
+  eine Kamera am Boden, beides gegen die Anleitung). Erste echte Probe: in Leggings, Handy auf Hüfthöhe, mit Maßband vergleichen.
+- Stoffrechnung je Bild 50–60 ms bei 4× gedrosselter CPU: auf schwachen Handys unter 30 Bilder/s; ruhige Ansicht könnte die Form
+  einmal rechnen und nur im Shader drehen (größerer Umbau, nicht gemacht).
+- Avatar-Knopf und ✕ liegen in der 3D-Ansicht: ohne gewählte Hose (z. B. Shop-Produkt ohne Hose) nicht erreichbar.
+- Im Shop läuft die Seite unter der Shop-Adresse: Skripte des Shops könnten den Browser-Speicher (Körpermaße) lesen – gehört in
+  die Datenschutzerklärung der App.
+- `koerper.js` 482 KB gezippt: lädt nur bei Bedarf; kleiner ginge mit weniger Targets oder PCA.

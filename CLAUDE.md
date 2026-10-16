@@ -23,6 +23,7 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 | Pfad | Inhalt |
 |---|---|
 | `app/index.html` | **Aktueller Stand.** Eine einzige Datei, rund 470 KB, kein Build-Schritt. |
+| `app/avatar/koerper.js` | Körpermodell des Avatars (16.10., MakeHuman CC0, 901 KB, gezippt 482 KB, aus `werkzeuge/python/koerper_bauen.py`). Muss neben `index.html` liegen (Netlify Drop: ganzen Ordner `app/` ziehen). |
 | `netlify/functions/holen.mjs`, `netlify.toml` | **Server-Teil für „Link einfügen“** (10.10.): holt Shop-Seite, Bilder, Größentabelle, Model-Größe. Läuft nur, wenn Netlify mit GitHub verbunden ist (Netlify Drop kann keine Funktionen), Anleitung `doku/netlify-einrichten.md`. |
 | `netlify/functions/hosen.mjs` | **Sammlung auf dem Server** (12.10.): `/api/hosen` (Liste, holen, speichern, löschen), Netlify Blobs für alle Deploys/Vorschauen/Branch-Links gemeinsam, lokal ein Ordner (`HOSEN_DIR`). Optional Team-Code `PASSFORM_TEAMCODE`. |
 | `werkzeuge/server.mjs` | Lokaler Server wie Netlify (Dateien + `/api/holen` + `/api/hosen`, Sammlung in `.hosen-lokal/`), `NODE_USE_ENV_PROXY=1` hinter dem Cloud-Proxy. |
