@@ -511,3 +511,4 @@ zahlt. Joe (vom Nutzer, ohne Lizenzangabe) ist eine bekleidete Figur aus Einzelt
 - Im Shop läuft die Seite unter der Shop-Adresse: Skripte des Shops könnten den Browser-Speicher (Körpermaße) lesen – gehört in
   die Datenschutzerklärung der App.
 - `koerper.js` 482 KB gezippt: lädt nur bei Bedarf; kleiner ginge mit weniger Targets oder PCA.
+- Schlusslauf 16.10.: `npm test` grün (40 Testdateien, 560 Prüfpunkte, darunter `tavatar` mit 48), Stand `bd6721d`.
