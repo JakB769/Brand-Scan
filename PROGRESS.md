@@ -415,3 +415,4 @@ Zwei Prüfer, zwei Skeptiker, 6 Funde, 4 bestätigt, behoben:
   größerer Umbau; offen). Eine Hüfte über 1 s verdeckt nach einer Lücke: der Skeptiker fand das Ergebnis besser als vorher.
 - Testreihe: 41 Befehle; `tlag` war einmal unter Last (parallel rechnende Prüfer) rot und allein zweimal grün (Skelett
   40 ms bei Grenze 40). Er misst einen Weg, den diese Runden nicht berühren.
+- Schlusslauf auf 1e1d5f1 ohne parallele Last: alle 41 Befehle grün.
