@@ -360,3 +360,9 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    Faserarten statt Namen. Offen: alter Link bleibt beim Hineinziehen fremder Fotos ohne „Neue Hose“.
 20. Größenauswahl sichtbar (16.10.): Netlify-Branch `claude/new-session-fbr0jp` war 29 Commits zurück (nachgezogen); Größen
    jetzt für jede Hose (`autoSizes`), Shopify-Varianten ohne Maße mit der gemessenen Hose als Bezug.
+21. Avatar aus dem Selbst-Scan (16.10.): MakeHuman-Körper (CC0, `app/avatar/koerper.js`, 901 KB, gezippt 482 KB, nur bei
+   Bedarf geladen) an den Dreh-Scan angepasst (Breiten vorn/hinten, Tiefen von der Seite, Beinlängen), Hose darauf im selben
+   Tiefenpuffer, Ansicht mit Knöpfen, Zoom und Verschieben, gespeichert nur Zahlen. Erkenntnisse aus den Referenzclips: weite
+   Kleidung (Baggy-Jeans, lockeres Shirt) macht den Umriss 8–12 cm breiter als den Körper → erkannt am Knie (fast so breit wie
+   der Oberschenkel), Umriss dann nur Obergrenze; Kamera am Boden streckt die Beine (Hüftgelenk 60 % statt 53 % der Größe) →
+   Längen auf den menschlichen Bereich begrenzt, Hinweis. Hüftumfang an der stärksten Stelle des Gesäßes, nicht am Gelenk.
