@@ -9,7 +9,7 @@ Vorteile dazu: eine feste Adresse statt jedes Mal einer neuen, und jede Änderun
 1. <https://app.netlify.com> öffnen und anmelden (z. B. „Sign up with GitHub“).
 2. **Add new project** → **Import an existing project** → **GitHub**.
 3. Netlify den Zugriff auf GitHub erlauben und das Repo **jakb769/brand-scan** auswählen.
-4. Bei **Branch to deploy**: `claude/new-session-fbr0jp` (dort liegt der aktuelle Stand; später `main`).
+4. Bei **Branch to deploy**: `claude/new-session-fbr0jp` (dort liegt der aktuelle Stand, gleich `3d-modell-verbesserung`; später `main`).
 5. Alles andere so lassen. Die Einstellungen stehen schon in `netlify.toml` (Seite aus `app/`, Server-Teil aus
    `netlify/functions/`, kein Build-Schritt).
 6. **Deploy** drücken. Nach 1–2 Minuten steht oben die Adresse, z. B. `https://irgendwas-123.netlify.app`.

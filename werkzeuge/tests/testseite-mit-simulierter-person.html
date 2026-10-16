@@ -4692,6 +4692,8 @@ function checkGarment(G){
       .map(z=>({n:z.n.slice(0,12),waist:z.waist,len:okN(z.len,"len")?z.len:null,hem:okN(z.hem,"hem")?z.hem:null,...(z.est===true?{est:true}:{})})):null;
     if(G.sizes&&G.sizes.length<2) G.sizes=null;
     G.size=G.sizes&&Number.isInteger(G.size)&&G.size>=0&&G.size<G.sizes.length?G.size:null; G.sizesEst=!!G.sizes&&G.sizesEst===true; G.sizesFoto=!!G.sizes&&G.sizesFoto===true;
+    G.sizesAuto=G.sizes&&(G.sizesAuto==="mass"||G.sizesAuto==="normbund")?G.sizesAuto:undefined;
+    if(!G.sizes&&G.m3&&Array.isArray(G.m3.hw)) autoSizes(G);                 // ältere Hosen ohne Größenliste
     G.waistFoto=G.waistFoto===true; if(typeof G.link!=="string"||!/^https?:\/\//.test(G.link)) delete G.link;
     if(G.backEst!==true) delete G.backEst;
     if(!STOFFE[G.fabric]) G.fabric=null; G.material=typeof G.material==="string"?G.material:"";
@@ -4952,7 +4954,8 @@ function setDim(k,el){
   if(why) return;
   ownIt(G); G.repaired=false;
   if(k==="waist"){ G.waist=v; G.waistFoto=false; } else if(k==="len") G.len=v; else G.hem=v;
-  syncG(); fillDims(); updateFit();
+  if(G.sizesAuto&&k!=="hem"){ G.sizes=null; G.size=null; autoSizes(G); }   // hochgerechnete Größen um den neuen Wert
+  syncG(); fillDims(); updateFit(); renderSizes(true);
   if(k==="waist"){ const sp=$("gwrap").querySelector(`.gbtn[data-g="${g.key}"] span`); if(sp) sp.innerHTML=sp.innerHTML.replace(/<br>.*$/,"<br>Bund "+v+" cm"); }
 }
 /* Stoff-Auswahl: „automatisch“ nimmt die Materialangabe */
@@ -5138,7 +5141,8 @@ function renderSizes(force){
       +`<br><span class="sub">${sp}${saum} · ${CUT_T[v.cut]}, ${v.st.t}${v.sitz?` · sitzt <b>${v.sitz}</b>`:""}</span>`
       +`<br><span class="sub">Dein Körper: ${escH(B.src)}${lq}</span>`; }
   if(G.sizesEst) msg+=`<br><span class="sub">Ohne Maßtabelle: Größen aus der Größe des Models abgeleitet.</span>`;
-  else if(G.sizesFoto) msg+=`<br><span class="sub">≈ hochgerechnet (geschätzt) aus der gemessenen Hose (${escH((G.sizes.find(z=>!z.est)||{}).n||"")}).</span>`;
+  else if(G.sizesAuto==="normbund") msg+=`<br><span class="sub">≈ Maße der Hose geschätzt (kein Maßstab): unten die Bundweite eintragen oder beim Hochladen eine Bankkarte mitfotografieren.</span>`;
+  else if(G.sizesFoto) msg+=`<br><span class="sub">≈ hochgerechnet (geschätzt) aus der ${G.sizesAuto==="mass"&&!G.meas?"eingetragenen":"gemessenen"} Hose (${escH((G.sizes.find(z=>!z.est)||{}).n||"")}).</span>`;
   else if(G.sizes.some(z=>z.est)) msg+=`<br><span class="sub">≈ hochgerechnet (geschätzt): die Seite nennt Maße nur für ${escH(G.sizes.filter(z=>!z.est).map(z=>z.n).join(", ")||"eine Größe")}.</span>`;
   // ein Satz für die Shop-Ansicht: gewählte Größe mit Begründung, sonst die Empfehlung
   const why=!B?"":cur>=0?`${G.sizes[cur].n}: ${sizeReason(A.V[cur])}`+(A.best!==cur?` · Empfehlung ${G.sizes[A.best].n}`:""):`Empfehlung ${G.sizes[A.best].n}: ${sizeReason(A.V[A.best])}`;
@@ -5165,6 +5169,18 @@ function gradeSizes(G,mdl){
   else if(li>=0) for(let k=Math.max(0,li-2);k<=Math.min(LET.length-1,li+2);k++) add(LET[k],(k-li)*2,(k-li),k===li);
   else if(EU) for(let e=EU-4;e<=EU+6;e+=2) add(String(e),(e-EU),(e-EU)/2,e===EU);
   return out.length>=2?out:null;
+}
+/* Größen für Hosen ohne Größenliste (Einzel-Formular, Fotos ohne Tabelle, ältere gespeicherte Hosen): um die jetzige Größe
+   über die Größensprünge (gradeSizes), die anderen „≈ geschätzt“; ohne bekannte Maße (Normbund) auch die jetzige. So ist die
+   Größenauswahl bei jeder Hose da. Hosen: W aus dem Bund (Umfang in Zoll − 1), Röcke: EU-Größe (36 ≙ 68 cm, je 4 cm eine Größe) */
+function autoSizes(G){
+  if(!G||!G.m3||Array.isArray(G.sizes)&&G.sizes.length>=2) return false;
+  const D=garmentDims(G), c=2*D.waist, W=Math.round(c/2.54-1);
+  const L=G.m3.rock?gradeSizes(G,{size:String(clamp(36+2*Math.round((c-68)/4),32,56))}):W>=23&&W<=44?gradeSizes(G,{w:W,size:"W"+W}):null;
+  if(!L) return false;
+  G.sizes=L.map(({cur,...z})=>cur&&!D.est?z:{...z,est:true}); G.size=L.findIndex(z=>z.cur); G.sizesFoto=true; G.sizesEst=false;
+  G.sizesAuto=D.est?"normbund":"mass";
+  return true;
 }
 function garmentWidthCm(){
   if(!g.key) return null;
@@ -5459,6 +5475,7 @@ $("own-go").addEventListener("click",async()=>{
       [G.m3.f,G.m3.b].forEach((uv,k)=>uv.forEach((r,i)=>{ if(i%3) return; const y=(k&&G.m3.tvb?G.m3.tvb:G.m3.tv)[i]*320;
         px.beginPath(); px.moveTo(r[0]*320,y); px.lineTo(r[1]*320,y); px.moveTo(r[2]*320,y); px.lineTo(r[3]*320,y); px.stroke(); })); };
     im.src=G.m3.atlas;
+    autoSizes(G);                                         // Größen um die eingetragene/gemessene herum
     const saved=addOwnGarment(G);
     const D=garmentDims(G), icr=icOf(G.m3), r0=x=>x.toFixed(0);
     const lenHow=D.man.len?"eingetragen":G.meas?(G.meas.ref==="model"?"gemessen am Foto mit Model":"gemessen mit "+REFS[G.meas.ref].dat):G.waist?"geschätzt aus dem Bund":"grob geschätzt, Bund unbekannt";
@@ -5818,12 +5835,15 @@ function parseSizeText(text){
    nur gerade, bis 42 und mehr): 2 cm Umfang je Größe = 1 cm flach je Zahl, Länge +0,5 cm je Zahl. Saum: ¼ des Bund-Sprungs.
    Sind zwei oder mehr Größen gemessen, gilt ihr Abstand (auf das 0,4- bis 2,5-Fache des üblichen begrenzt).
    ref: Index der Größe, für die Maße ohne Größenangabe gelten (Größe des Models oder die gewählte). */
-function sizeSeries(T,ref){
+function sizeSeries(T,ref,refDims){
   const S=T.sizes, n=S.length; if(n<2) return null;
   const meas=S.map((_,k)=>{ const td=tableDims(T,k), o={};
     for(const q of ["waist","len","hem"]) if(td[q]!=null) o[q]=td[q];
     if(o.len==null&&td.inseam!=null&&o.waist!=null) o.len=td.inseam+.62*o.waist;
     return o; });
+  // Größen ohne jedes Maß (nur Varianten-Namen, z. B. Shopify): die gemessene Hose (Bankkarte, A4, eingetragener Bund) ist die
+  // Bezugsgröße, die anderen über die Größensprünge
+  if(refDims&&ref>=0&&ref<n&&!meas.some(m=>m.waist!=null)) for(const q of ["waist","len","hem"]) if(refDims[q]!=null) meas[ref][q]=refDims[q];
   if(T.loose&&Object.keys(T.loose).length&&ref>=0&&ref<n){
     const td=tableDims({sizes:[],rows:Object.fromEntries(Object.entries(T.loose).map(([k,x])=>[k,{vals:[x.v],sect:x.sect}]))},0);
     for(const q of ["waist","len","hem"]) if(td[q]!=null&&meas[ref][q]==null) meas[ref][q]=td[q];
@@ -6431,7 +6451,11 @@ function upRender(){
 }
 /* Alle Tabellen zusammen: erste Angabe je Maß zählt */
 function upTable(){
-  const ts=UP.items.filter(i=>i.kind==="table").map(i=>i.tab); if(!ts.length) return null;
+  const ts=UP.items.filter(i=>i.kind==="table").map(i=>i.tab);
+  // keine Tabelle, aber der Shop nennt Größen (Shopify-Varianten ohne Maße): die Namen als Größenliste, die Maße kommen von
+  // der gemessenen Hose (sizeSeries mit Bezug)
+  if(!ts.length){ const gs=UP.link&&Array.isArray(UP.link.groessen)&&!UP.items.some(i=>i.kind==="wait")?UP.link.groessen:null;   // erst, wenn alle Texte gelesen sind
+    return gs&&gs.length>=2?{sizes:gs,rows:{},part:{},loose:{},material:""}:null; }
   const T={sizes:[],rows:{},part:{},loose:{},material:""};
   for(const t of ts){ if(!T.sizes.length&&t.sizes.length) T.sizes=t.sizes; for(const [k,r] of Object.entries(t.rows)) if(!T.rows[k]) T.rows[k]=r; if(!T.material&&t.material) T.material=t.material;
     for(const [z,P] of Object.entries(t.part||{})) T.part[z]={...(T.part[z]||{}),...P};
@@ -6488,7 +6512,7 @@ async function upBuild(){
   // Bezugsgröße für Maße ohne Größenangabe: die Größe des Models, wenn sie in der Liste steht, sonst die gewählte
   const mS=UP.link&&UP.link.model&&UP.link.model.size?normSize(String(UP.link.model.size).replace(/\s*X\s*/i,"/")):null;
   const refI=T&&mS?T.sizes.findIndex(z=>normSize(z)===mS||normSize(z).split("/")[0]===mS.split("/")[0]):-1;
-  const ser=T&&T.sizes.length>1?sizeSeries(T,refI>=0?refI:si):null;
+  const D0=garmentDims(G), ser=T&&T.sizes.length>1?sizeSeries(T,refI>=0?refI:si,D0.est?null:{waist:D0.waist,len:D0.len,hem:G.hem||null}):null;
   if(T){
     const td=tableDims(T,si), mSz=UP.link&&UP.link.model&&UP.link.model.size, got=[];
     const sz=T.sizes.length>1?`Größe ${T.sizes[si]}${mSz&&String(mSz).split(/[\/X]/)[0].replace(/^W/i,"")===T.sizes[si]?" (wie am Model)":""}: `:"";
@@ -6546,6 +6570,7 @@ async function upBuild(){
   if(!G.sizes&&G.meas&&G.meas.ref!=="model"&&!M0rock(G)){ const W=Math.round(2*garmentDims(G).waist/2.54-1), L=W>=23&&W<=44?gradeSizes(G,{w:W,size:"W"+W}):null;
     if(L){ G.sizes=L.map(({cur,...z})=>cur?z:{...z,est:true}); G.size=L.findIndex(z=>z.cur); G.sizesFoto=true;
       notes.push(`Keine Größenangabe: Größen um die gemessene (≈ W${W}) hochgerechnet`); } }
+  if(!G.sizes&&autoSizes(G)) notes.push(G.sizesAuto==="normbund"?"Maße der Hose unbekannt: Größen geschätzt (für echte Größen eine Bankkarte mitfotografieren oder die Bundweite eintragen)":`Größen um die jetzige (${G.sizes[G.size].n}) hochgerechnet`);
   G.label=UP.key&&GARMENTS[UP.key]?GARMENTS[UP.key].label:UP.link&&UP.link.name?shortLabel(UP.link.name):nextName();     // neu gebaut: Name bleibt
   if(UP.link) G.link=UP.link.url;
   const err=realismus(G,info);
@@ -6593,7 +6618,8 @@ async function linkImport(url){
       +`Einmal Netlify mit GitHub verbinden (Anleitung in doku/netlify-einrichten.md), dann geht es. Bis dahin: Bilder aus dem Shop speichern und hier hineinziehen.</div>`); return; }
     if(gen!==UP.linkGen) return;
     if(!j.ok){ upMsg(`<div class="dbad">${escH(j.error||"Die Seite ließ sich nicht lesen.")}</div>`); return; }
-    UP.link={url:j.url,name:j.name,model:j.model||{},geschlecht:j.geschlecht,material:typeof j.material==="string"?j.material.trim().slice(0,160):""};
+    UP.link={url:j.url,name:j.name,model:j.model||{},geschlecht:j.geschlecht,material:typeof j.material==="string"?j.material.trim().slice(0,160):"",
+      groessen:Array.isArray(j.groessen)?[...new Set(j.groessen.map(z=>String(z).replace(/\s+/g,"").slice(0,12)).filter(Boolean))].slice(0,30):null};
     const info=[j.name?`<b>${escH(j.name)}</b>`:"Seite gelesen", `${j.bilder.length} Bilder`];
     if(j.model&&j.model.height) info.push(`Model ${escH(j.model.height)} cm${j.model.size?", trägt "+escH(j.model.size):""}`);
     upMsg(info.join(" · ")+"<br>Bilder werden geholt …");

@@ -1,0 +1,4 @@
+{"title":"Shopify Jeans nur Varianten","description":"<p>Weite Jeans. Größen siehe Auswahl.</p>",
+ "options":[{"name":"Weite","position":1,"values":["30","31","32","33","34"]}],
+ "variants":[{"option1":"30"},{"option1":"31"},{"option1":"32"},{"option1":"33"},{"option1":"34"}],
+ "images":["/assets/referenz/fotos/flach-vorne-hinten/vorne.jpg","/assets/referenz/fotos/flach-vorne-hinten/hinten.jpg"]}

@@ -358,3 +358,5 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
 19. Fünfte Gegenprüfung (15.10.): Fenster nach Lücke wieder 350 ms offen (Schließen nach Bestätigung hielt zwei vertauschte
    Bilder fest), Tiefe unbekannt = nach vorn für die Person, „kurz“ nur aus Produkt-Adresse und Namenskern, Capri als Farbe,
    Faserarten statt Namen. Offen: alter Link bleibt beim Hineinziehen fremder Fotos ohne „Neue Hose“.
+20. Größenauswahl sichtbar (16.10.): Netlify-Branch `claude/new-session-fbr0jp` war 29 Commits zurück (nachgezogen); Größen
+   jetzt für jede Hose (`autoSizes`), Shopify-Varianten ohne Maße mit der gemessenen Hose als Bezug.

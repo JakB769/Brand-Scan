@@ -416,3 +416,23 @@ Zwei Prüfer, zwei Skeptiker, 6 Funde, 4 bestätigt, behoben:
 - Testreihe: 41 Befehle; `tlag` war einmal unter Last (parallel rechnende Prüfer) rot und allein zweimal grün (Skelett
   40 ms bei Grenze 40). Er misst einen Weg, den diese Runden nicht berühren.
 - Schlusslauf auf 1e1d5f1 ohne parallele Last: alle 41 Befehle grün.
+
+## Sitzung 16.10. (Auftrag: Größenauswahl fertigstellen, 3D-Avatar aus Selbst-Scan)
+
+### Aufgabe 1: Größenauswahl – was gefehlt hat
+- **Nicht ausgeliefert:** Netlify baut laut `doku/netlify-einrichten.md` den Branch `claude/new-session-fbr0jp`. Der lag 29 Commits
+  hinter `3d-modell-verbesserung`; die ganze Größenarbeit vom 15.10. war dort nicht drin. → Branch per Fast-Forward nachgezogen
+  (kein Force, `main` unverändert). Ab jetzt wird jeder Stand auf beide Branches gepusht.
+- **Nur bei manchen Hosen sichtbar:** Größen gab es nur mit Maßtabelle, Model-Größe aus dem Link oder Bankkarte/A4. Ohne das
+  (Einzel-Formular, Fotos ohne Maßstab, ältere gespeicherte Hosen) blieb der Bereich leer. → `autoSizes`: Größen um die jetzige
+  über die Größensprünge (W aus dem Bund; Röcke EU), die anderen „≈ geschätzt“; ohne bekannte Maße alle geschätzt mit Hinweis.
+  Bund von Hand ändern rechnet sie neu. Beim Laden ergänzt (`checkGarment`).
+- **Shopify-Varianten ohne Maße:** Die Varianten-Namen landeten nur als Text, ohne Tabelle entstand keine Größenliste (es kamen
+  W28–W38 statt der Shop-Größen). → `upTable` nimmt die Varianten als Größenliste, `sizeSeries` die gemessene Hose (Bankkarte,
+  eingetragener Bund) als Bezugsgröße für die vorgewählte Variante.
+- Unverändert und nachgerechnet: Zonen, Urteile, Empfehlung, Begründung, Größenwechsel im 3D. Profile (Körper aus der Größe)
+  wie in der Handrechnung oben: Jakob W33 „Bund passt, Länge passt“, Fabian W34 „Bund passt, Länge passt“, Philip W31
+  „Bund passt, Länge 2 cm zu lang“ (App-Ausgabe `werkzeuge/passform-rechnung.mjs`, alle 11 Größen je Profil).
+- Screenshots (Handy 430 × 932): `docs/groessenauswahl_handy.png` (unter dem 3D-Modell), `docs/groessenauswahl_wechsel_w36.png`
+  (W36 gewählt, Hose sichtbar weiter), `docs/groessenauswahl_anprobe.png` (Shop-Anprobe). Werkzeug: `werkzeuge/groessen-bild.mjs`.
+- Tests: `tgroessen` (Einzel-Formular, Bund ändern, gespeicherte Hosen), `tlink` (Shopify nur Varianten-Namen + Bankkarte).

@@ -125,8 +125,24 @@ let geladen=await p.evaluate(()=>Object.values(window.__dbg.GARMENTS).map(G=>({n
 pruefe(geladen.some(x=>x.n===11&&x.s===6)&&geladen.some(x=>x.n===3),'nach dem Neuladen: Größen und gewählte Größe noch da: '+JSON.stringify(geladen));
 await p.evaluate(()=>{ const a=JSON.parse(localStorage.getItem('massScanHosen')); for(const o of a) if(o.G.sizes) o.G.sizes=[{n:'<b>x</b>',waist:999},{n:5,waist:40},{n:'S'}]; localStorage.setItem('massScanHosen',JSON.stringify(a)); });
 await p.reload(); await p.waitForTimeout(800);
-geladen=await p.evaluate(()=>Object.values(window.__dbg.GARMENTS).map(G=>({sizes:G.sizes,size:G.size,bad:G.bad})));
-pruefe(geladen.length>=2&&geladen.every(x=>x.sizes===null&&x.size===null&&!x.bad),'unsinnige Größen beim Laden verworfen, Hose bleibt');
+geladen=await p.evaluate(()=>Object.values(window.__dbg.GARMENTS).map(G=>({n:(G.sizes||[]).map(z=>z.n),w:(G.sizes||[]).map(z=>z.waist),auto:G.sizesAuto,size:G.size,bad:G.bad})));
+// unsinnige Größen verworfen; seit 16.10. bekommt jede Hose ohne gültige Liste hochgerechnete Größen (W aus dem Bund)
+pruefe(geladen.length>=2&&geladen.every(x=>x.auto&&x.n.length>=5&&x.n.every(n=>/^W\d{2}$/.test(n))&&x.w.every(w=>w>20&&w<70)&&x.size>=0&&!x.bad),
+  'unsinnige Größen beim Laden verworfen, Hose bleibt, Größen hochgerechnet: '+geladen.map(x=>x.n.join(' ')).join(' | '));
+
+// Einzel-Formular (Fotos + Bund flach 40 cm = 80 cm = 31,5 Zoll − 1): Größen um die eingetragene herum (W30), sichtbar, mit Empfehlung; Bund ändern
+// rechnet die Größen neu
+await p.setInputFiles('#own-front',R+'material/produktfotos/front.jpg'); await p.setInputFiles('#own-back',R+'material/produktfotos/back.jpg');
+await p.fill('#own-waist','40'); await p.click('#own-go');
+await p.waitForFunction(()=>/Fertig/.test(document.getElementById('own-msg').textContent),null,{timeout:90000}); await p.waitForTimeout(800);
+const formG=()=>p.evaluate(()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key]; return {n:(G.sizes||[]).map(z=>(z.est?'≈':'')+z.n), cur:G.sizes&&G.sizes[G.size]&&G.sizes[G.size].n,
+  auto:G.sizesAuto, vis:!document.getElementById('g-sizes').hidden, chips:document.querySelectorAll('#g-szrow .szchip').length,
+  best:document.querySelectorAll('#g-szrow .szchip.best').length, msg:document.getElementById('g-szmsg').innerText}; });
+let F=await formG();
+pruefe(F.vis&&F.chips>=5&&F.best===1&&F.cur==='W30'&&F.auto==='mass'&&F.n.filter(n=>!n.startsWith('≈')).length===1&&/Empfehlung|passt|eng|weit/.test(F.msg),
+  'Einzel-Formular: Größen sichtbar ('+F.n.join(' ')+'), jetzige W30 eingetragen, Empfehlung da');
+await p.fill('#g-waist','42'); await p.waitForTimeout(500); F=await formG();
+pruefe(F.cur==='W32'&&F.chips>=5,'Bund von Hand auf 42 cm: Größen neu um W32 ('+F.n.join(' ')+')');
 
 pruefe(!errs.length,'keine Skriptfehler'+(errs.length?': '+errs.slice(0,3).join(' | '):''));
 await b.close(); srv.close();
