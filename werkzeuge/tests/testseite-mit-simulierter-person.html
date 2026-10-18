@@ -126,6 +126,10 @@ select{background:var(--surface-2);border:1px solid transparent;border-radius:va
 .hud-bottom{display:flex;flex-direction:column;gap:10px;padding:clamp(12px,3.5vw,20px);padding-bottom:calc(clamp(12px,3.5vw,20px) + env(safe-area-inset-bottom,0px));
   background:linear-gradient(to top,rgba(0,0,0,.45),rgba(0,0,0,0))}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
+/* Hosen in der Anprobe: eine Zeile zum Wischen, sonst decken viele Hosen (Shop mit 20+ Produkten) das ganze Kamerabild zu */
+#gchips{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+#gchips::-webkit-scrollbar{display:none}
+#gchips>.chip{flex:none}
 .chip{border-radius:999px;padding:9px 15px;font-size:14px;min-height:40px;font-weight:500;color:var(--glass-dim)}
 .chip[aria-pressed=true]{background:rgba(255,255,255,.92);border-color:transparent;color:#1d1d1f;font-weight:600}
 .chip:disabled{opacity:.35}
@@ -745,8 +749,9 @@ const fillT=(t,x,y)=>{ if(!stage.classList.contains("mirror")) return ctx.fillTe
 let landmarker=null, stream=null, running=false, starting=false;
 let facing="user", lastTime=-1, held=false;         // Frontkamera: man sieht sich selbst (Wechsel mit dem Knopf)
 let mode="cal", phase="cal";
+const scanProben=[];                                  // Messwerte im Haltefenster des Scans (Median beim Erfassen)
 let live=null, ref=null, stableSince=0, badSince=0, camCount=1, nearScale=null, clean=false, sideSince=0, wasStraight=true, wasFull=false, scaleT=0;
-const HOLD_MS=700, STABLE_CM=3.2, WIN_MS=600;     // Scan: so lange ruhig (ms), so wenig Schwanken (cm) im Fenster (ms)
+const HOLD_MS=500, STABLE_CM=3.2, WIN_MS=450;     // Scan: so lange ruhig (ms), so wenig Schwanken (cm) im Fenster (ms)
 const caps={cal:null, side:null};
 const STORE="massScanSerie";
 const cam={fk:.8};
@@ -1004,11 +1009,23 @@ async function startCamera(){
   }
   $("reset").disabled=false;
   starting=false; clearSm();
-  coach("Geh ein paar Schritte zurück","","warn",true); cue("Geh ein paar Schritte zurück",true);
+  coach("Geh ein paar Schritte zurück","bis du ganz im Bild bist, von Kopf bis Fuß","warn",true); cue("Geh ein paar Schritte zurück, bis du ganz im Bild bist",true);
   if(!running){ running=true; $("g3dbox").hidden=true; requestAnimationFrame(loop); }   // 3D-Ansicht teilt sich die Grafik mit der Anprobe
   camUI();
 }
 
+/* Was beim Scan fehlt (Kopf, Füße), für den Hinweis „Weiter zurück“. Wechselt erst, wenn die neue Antwort 0,5 s gleich bleibt
+   (ruhige Oberfläche, kein Flackern zwischen „Füße“ und „Kopf“ an der Bildkante). */
+const GG={w:null,neu:null,seit:0};
+function ganzGrund(topN,botN,L,V,now){
+  const kopf=(topN!=null&&topN<=.008)||!(V(0)&&L[0].y>.01);
+  const fuss=(botN!=null&&botN>=.992)||![27,28,29,30,31,32].some(i=>V(i)&&L[i].y<.985);
+  const w=kopf&&fuss?"Kopf und Füße nicht sichtbar":fuss?"Füße nicht sichtbar":kopf?"Kopf nicht sichtbar":null;
+  if(w===GG.w){ GG.neu=w; return GG.w; }
+  if(w!==GG.neu){ GG.neu=w; GG.seit=now; }
+  if(now-GG.seit>=500) GG.w=w;
+  return GG.w;
+}
 /* ---------- Silhouette ---------- */
 function maskBounds(d,w,h){
   const sx=Math.max(1,Math.floor(w/150)); let t=-1,b=-1;
@@ -1360,7 +1377,8 @@ function analyse0(res){
   const nowT=performance.now();
   if(held){ setStatus("Messwert eingefroren","ok"); lvl=null; }
   else if(phase==="cal"){
-    if(!full){ setStatus("Für die Maße einmal ganz ins Bild","warn"); big="Geh einen Schritt zurück"; small="Ganz ins Bild, von Kopf bis Fuß"; voice=big; }
+    if(!full){ const w=ganzGrund(topN,botN,L,V,nowT);
+      setStatus(w||"Für die Maße einmal ganz ins Bild","warn"); big="Weiter zurück"; small=w||"Ganz ins Bild, von Kopf bis Fuß"; voice=w?big+", "+w:big; }
     else if(!legsOk){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
     else if(!upright){ setStatus("Beine nicht senkrecht","warn"); big="Stell dich gerade hin"; voice=big; }
     else if(vis<.5){ setStatus("Hüfte schlecht sichtbar","warn"); big="Bleib kurz so"; }
@@ -1377,7 +1395,8 @@ function analyse0(res){
   if(ok) badSince=0; else if(!badSince) badSince=nowT;
   const counting=!held&&phase==="cal"&&(ok||(stableSince>0&&nowT-badSince<450));
   if(counting){
-    if(!stableSince) stableSince=nowT;
+    if(!stableSince){ stableSince=nowT; scanProben.length=0; }
+    if(ok&&live) scanProben.push(live);
     setStatus("Scan …","ok");
     if(nowT-stableSince>=HOLD_MS&&ok&&calH) captureCal();
     else coach("","",null);
@@ -1458,10 +1477,13 @@ function analyse0(res){
   const arms=[[11,13,15,17,19],[12,14,16,18,20]].map(ix=>ix.map(i=>({x:jv("ax"+i,L[i].x)*vw,y:jv("ay"+i,L[i].y)*vh,
     v:L[i].visibility??1,zr:jv("az"+i,(L[i].z||0)-hz)})));
   trackSure(L,V,aspect,{bone,yaw,ppc:pxPerCm,H:Hk});
-  drawGarment(hipBand,beltYf,pxPerCm,botN,ref?tr:0,bone,yCrotch,vw,vh,{yaw,half:fc.half,arms,mask:m,roll,zBack,hipPx:[hipX*vw,hipYf*vh],shPx:[shX*vw,shYf*vh],
-    shirt:g.key&&PASSFORM.shirtDarueber&&Math.abs(roll)<.35?shirtHem(L,V):null});
+  // Vor dem Ende des Scans weder Hose noch Messpunkte (18.10.): erst ganz ins Bild, gerade stehen, kurz ruhig. Vorher lag die Hose
+  // schon beim Hereinkommen auf, mit Maßstab aus der Rumpflänge geraten, und sprang beim Scan auf die richtige Größe.
+  const zeigen=!(phase==="cal"&&!held);
+  if(zeigen) drawGarment(hipBand,beltYf,pxPerCm,botN,ref?tr:0,bone,yCrotch,vw,vh,{yaw,half:fc.half,arms,mask:m,roll,zBack,hipPx:[hipX*vw,hipYf*vh],shPx:[shX*vw,shYf*vh],
+    shirt:g.key&&PASSFORM.shirtDarueber&&Math.abs(roll)<.35?shirtHem(L,V,m):null});
   if(window.__lagLog&&window.__lagLog.length&&g3.pos&&g3.M){ const M=g3.M, NR=M.nr, C=K3+1, i=window.__lagRow??Math.round(NR*.72); let x=0,y=0,n=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=((0*NR+i)*2+f)*C+j; x+=g3.pos[k*3]; y+=g3.pos[k*3+1]; n++; } window.__lagLog[window.__lagLog.length-1].mesh=[x/n,y/n]; x=0; y=0; n=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=((0*NR+NR-4)*2+f)*C+j; x+=g3.pos[k*3]; y+=g3.pos[k*3+1]; n++; } window.__lagLog[window.__lagLog.length-1].saum=[x/n,y/n]; }
-  if(!clean) draw(L,{topN,botN},{hipY,waistY,crotchY:crotchY??hipY+PASSFORM.schrittOhne*kU0,crotchFresh,beltY},{hipBand,waistBand},legs,cmPerUnit,vw,vh);
+  if(zeigen&&!clean) draw(L,{topN,botN},{hipY,waistY,crotchY:crotchY??hipY+PASSFORM.schrittOhne*kU0,crotchFresh,beltY},{hipBand,waistBand},legs,cmPerUnit,vw,vh);
   if(dbg.on) window.__messung={shirt:shirt.show>.02&&shirt.ys?{show:shirt.show,ys:shirt.ys.filter(v=>v!=null)}:null,hipY,shY,kneeY,beltY,waistY,crotchY,crotchFresh,topN,botN,hipBand,waistBand,hipD:Math.abs(L[23].x-L[24].x),
     legs:legs.map(l=>({thigh:l.thigh,knee:l.knee,thighY:l.thighY,kneeY:l.kneeY})),L:L.map(q=>({x:q.x,y:q.y,v:q.visibility}))};
   render(s);
@@ -1665,8 +1687,18 @@ function sceneTint(vw,vh){
    Je Spalte zwischen den Hüften wird vom Bauch nach unten gesucht, wo die Farbe von der des Oberteils (Bauch) zu der
    der eigenen Hose (Oberschenkel) wechselt. Nur wenn beide Farben deutlich verschieden sind (sonst bleibt alles, wie es
    ist); zeitlich geglättet, blendet weich aus, wenn nichts mehr gefunden wird. Koordinaten als Anteil des Bildes. */
-const shirt={c:null,x:null,at:0,xs:null,ys:null,show:0,ok:false};
-function shirtHem(L,V){
+const shirt={c:null,x:null,at:0,xs:null,ys:null,show:0,ok:false,hit:0};
+/* Parabel y = a + b·x + c·x² durch Punkte (kleinste Quadrate), x zentriert; null bei zu wenigen Punkten */
+function parabel(P){
+  if(P.length<4) return null;
+  const mx=P.reduce((a,p)=>a+p[0],0)/P.length; let S=[0,0,0,0,0],T=[0,0,0];
+  for(const [x0,y] of P){ const x=x0-mx; let k=1; for(let i=0;i<5;i++){ S[i]+=k; if(i<3) T[i]+=k*y; k*=x; } }
+  const A=[[S[0],S[1],S[2]],[S[1],S[2],S[3]],[S[2],S[3],S[4]]], det=m=>m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])-m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])+m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+  const D=det(A); if(Math.abs(D)<1e-18) return null;
+  const k=[0,1,2].map(j=>det(A.map((r,i)=>r.map((v,c)=>c===j?T[i]:v)))/D);
+  return x=>{ const u=x-mx; return k[0]+k[1]*u+k[2]*u*u; };
+}
+function shirtHem(L,V,mk){
   const now=performance.now(), N=24, H=64;
   if(now-shirt.at<90) return shirt.show>.02?shirt:null;
   const dt=Math.min(.5,(now-shirt.at)/1000); shirt.at=now;
@@ -1708,7 +1740,10 @@ function shirtHem(L,V){
           // aussah, bei heller Jeans unter grauem Shirt 2–4 cm zu tief). Darüber muss überwiegend Oberteil sein.
           const SP=[P[0]-S[0],P[1]-S[1],P[2]-S[2]], sp2=SP[0]*SP[0]+SP[1]*SP[1]+SP[2]*SP[2]||1;
           const tv=(r,c)=>{ const i=(clamp(r,0,H-1)*N+c)*4; return clamp(((d[i]-S[0])*SP[0]+(d[i+1]-S[1])*SP[1]+(d[i+2]-S[2])*SP[2])/sp2,-.5,1.5); };
-          for(let c=0;c<N;c++){ let best=.35, hem=null;
+          // Nur Spalten, die laut Segmentierung (Maske der Person) auf Hüfthöhe zur Person gehören: Wand oder Möbel neben der Hüfte
+          // geben sonst Kanten, die wie ein Saum aussehen
+          const inP=c=>{ if(!mk) return true; const nx=x0+(c+.5)/N*(x1-x0), X=clamp(Math.round(nx*mk.w),0,mk.w-1), Y=clamp(Math.round(hipY*mk.h),0,mk.h-1); return mk.d[Y*mk.w+X]>.5; };
+          for(let c=0;c<N;c++){ let best=.35, hem=null; if(!inP(c)) continue;
             for(let r=r0+2;r<=r1;r++){ const st=(tv(r,c)+tv(r+1,c)+tv(r+2,c))/3-(tv(r-1,c)+tv(r-2,c)+tv(r-3,c))/3; if(st>best){ best=st; hem=r; } }
             if(hem==null) continue;
             let up=0, n=0; for(let r=r0;r<hem;r++){ up+=tv(r,c); n++; }
@@ -1718,11 +1753,17 @@ function shirtHem(L,V){
             // Ein Shirtsaum ist glatt: jede Spalte höchstens ±2,5 cm vom Median (hell gewaschene Jeans am Schlitz sah wie das Shirt
             // aus, der Saum lag dort 4–6 cm zu tief und schnitt ein Rechteck aus der 3D-Hose)
             const mh=med(sm.filter(q=>q!=null)), tol=2.5/(T>0?(.29*(num($("height").value)||175))/T:100);
-            found={xs,ys:sm.map(q=>q==null?null:clamp(q,mh-tol,mh+tol))}; } } } } }
-  if(found){ const a=shirt.ys&&shirt.ys.length===found.ys.length?clamp(dt*4,.15,1):1;
-    shirt.xs=found.xs; shirt.ys=found.ys.map((v,c)=>v==null?(shirt.ys&&shirt.ys[c]):shirt.ys&&shirt.ys[c]!=null&&a<1?shirt.ys[c]+(v-shirt.ys[c])*a:v);
-    shirt.show=Math.min(1,shirt.show+dt*3); }
-  else shirt.show=Math.max(0,shirt.show-dt*1.5);
+            // Saubere Kante (18.10.): Parabel durch die Spalten statt Zickzack von Spalte zu Spalte (ein Saum ist eine sanfte Kurve)
+            const pts=[]; sm.forEach((q,c)=>{ if(q!=null) pts.push([xs[c],clamp(q,mh-tol,mh+tol)]); });
+            const pf=parabel(pts);
+            found={xs,ys:pf?xs.map(x=>clamp(pf(x),mh-tol,mh+tol)):sm.map(q=>q==null?null:clamp(q,mh-tol,mh+tol))}; } } } } }
+  // Ohne Flackern: erst nach zwei Funden hintereinander einblenden, erst nach drei Fehlschlägen ausblenden; die Kante folgt
+  // weich (etwa 0,12 s), einzelne Ausreißer-Bilder ändern nichts
+  shirt.hit=found?Math.min(3,shirt.hit+1):Math.max(0,shirt.hit-1);
+  if(found){ const a=shirt.ys&&shirt.ys.length===found.ys.length?clamp(1-Math.exp(-dt/.12),.15,1):1;
+    shirt.xs=found.xs; shirt.ys=found.ys.map((v,c)=>v==null?(shirt.ys&&shirt.ys[c]):shirt.ys&&shirt.ys[c]!=null&&a<1?shirt.ys[c]+(v-shirt.ys[c])*a:v); }
+  if(shirt.hit>=2&&shirt.ys) shirt.show=Math.min(1,shirt.show+dt*3);
+  else if(shirt.hit===0) shirt.show=Math.max(0,shirt.show-dt*1.5);
   return shirt.show>.02&&shirt.ys?shirt:null;
 }
 /* Das Stück der 3D-Hose über dem Saum des Oberteils weg (mit weicher Kante), Ergebnis in einer eigenen Fläche */
@@ -3424,7 +3465,7 @@ function avatarZeichnen(gl,vw,vh,P,A,o){
   gl.uniform4f(G.loc.ab,o.cx,o.floor,o.ppc,o.yw);
   const b=o.band||[0,0,0,0]; gl.uniform4f(G.loc.band,b[0],b[1],b[2],b[3]);
   // Farben aus dem Scan (Erscheinung), sonst neutrale Puppe; etwas aufgehellt (Zimmerlicht, die Darstellung beleuchtet selbst)
-  const FA=AV.daten&&AV.daten.farben||{}, hell=c=>c&&c.map(x=>Math.min(1,x*1.12+.03));
+  const FA=AV.daten&&AV.daten.farben||{}, hell=c=>c&&c.map(x=>Math.min(1,x/1.1));   // Licht der Ansicht hellt vorn um etwa 1,1 auf: so wie im Kamerabild
   const f=hell(FA.haut)||o.farbe||[.80,.72,.65], hm=hell(FA.oberteil)||[.70,.71,.74], ha=hell(FA.haare), fu=hell(FA.fuss)||f;
   gl.uniform3f(G.loc.farbe,f[0],f[1],f[2]); gl.uniform3f(G.loc.hemd,hm[0],hm[1],hm[2]);
   gl.uniform3f(G.loc.haar,...(ha||f)); gl.uniform3f(G.loc.fuss,fu[0],fu[1],fu[2]);
@@ -3480,19 +3521,29 @@ function avatarScanGeeicht(){ if(!AVS.on) return; AVS.stufe="drehen"; AVS.t0=per
    je Bild ein paar Bildpunkte aus einer Mini-Kopie (96 Punkte breit), am Ende je Farbe der Median. Gespeichert werden nur die
    vier Farben, kein Bild. */
 const AVF={c:null,x:null};
-function avatarFarbProbe(L,sek){
+function avatarFarbProbe(L,sek,mk){
   if(!video.videoWidth||!L||!AVS.farben) return;
   if(!AVF.c){ AVF.c=document.createElement("canvas"); AVF.x=AVF.c.getContext("2d",{willReadFrequently:true}); }
-  const W=96, H=Math.max(2,Math.round(W*video.videoHeight/video.videoWidth)); if(AVF.c.width!==W||AVF.c.height!==H){ AVF.c.width=W; AVF.c.height=H; }
+  const W=160, H=Math.max(2,Math.round(W*video.videoHeight/video.videoWidth)); if(AVF.c.width!==W||AVF.c.height!==H){ AVF.c.width=W; AVF.c.height=H; }
   AVF.x.drawImage(video,0,0,W,H); const d=AVF.x.getImageData(0,0,W,H).data;
-  const at=(x,y)=>{ const X=Math.round(x*W), Y=Math.round(y*H); if(!(X>=1&&Y>=1&&X<W-1&&Y<H-1)) return null; const c=[[],[],[]];
+  // 18.10.: nur Punkte, die laut Segmentierung (Maske der Person) zur Person gehören; vorher landeten Wand (Oberteil zu hell),
+  // Stirn (statt Haaren) und Boden (statt Socken) in den Farben
+  const inP=(x,y)=>!mk||mk.d[clamp(Math.round(y*mk.h),0,mk.h-1)*mk.w+clamp(Math.round(x*mk.w),0,mk.w-1)]>.7;
+  const at=(x,y)=>{ const X=Math.round(x*W), Y=Math.round(y*H); if(!(X>=1&&Y>=1&&X<W-1&&Y<H-1)) return null;
+    if(!inP(x,y)||!inP(x-1.5/W,y)||!inP(x+1.5/W,y)||!inP(x,y-1.5/H)||!inP(x,y+1.5/H)) return null; const c=[[],[],[]];
     for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const i=((Y+dy)*W+X+dx)*4; for(let k=0;k<3;k++) c[k].push(d[i+k]); }
     return c.map(a=>a.sort((p,q)=>p-q)[4]/255); };
   const ok=i=>L[i]&&(L[i].visibility??1)>.6, F=AVS.farben, add=(k,q)=>{ if(q&&F[k].length<400) F[k].push(q); };
   if(sek==="vorn"&&ok(0)&&ok(7)&&ok(8)) for(const e of [7,8]) add("haut",at(L[0].x*.55+L[e].x*.45,L[0].y*.55+L[e].y*.45+.004));
-  if(ok(2)&&ok(5)&&ok(9)&&ok(10)){ const ey=(L[2].y+L[5].y)/2, my=(L[9].y+L[10].y)/2; add("haare",at((L[2].x+L[5].x)/2,ey-1.4*Math.max(.003,my-ey))); }
-  if(ok(11)&&ok(12)&&ok(23)&&ok(24)){ const sy=(L[11].y+L[12].y)/2, hy=(L[23].y+L[24].y)/2; add("oberteil",at((L[11].x+L[12].x)/2,sy+.35*(hy-sy))); }
-  for(const i of [31,32]) if(ok(i)) add("fuss",at(L[i].x,L[i].y-.004));
+  // Haare: oberes Viertel des Kopfes (vom obersten Punkt der Maske über der Nase bis zur Nase), von vorn, hinten und der Seite
+  if(ok(0)&&mk){ const x=L[0].x, m5=(xx,yy)=>mk.d[clamp(Math.round(yy*mk.h),0,mk.h-1)*mk.w+clamp(Math.round(xx*mk.w),0,mk.w-1)]>.5;
+    let y=L[0].y; while(y>.003&&m5(x,y-.003)) y-=.003;
+    const top=y, nh=L[0].y-top; if(nh>.02) for(const f of [.15,.25,.35]) add("haare",at(x,top+f*nh)); }
+  // Oberteil: Brust bzw. Rücken (nur von vorn und hinten, von der Seite liegt der Arm davor), drei Punkte nahe der Mitte
+  if((sek==="vorn"||sek==="hinten")&&ok(11)&&ok(12)&&ok(23)&&ok(24)){ const sy=(L[11].y+L[12].y)/2, hy=(L[23].y+L[24].y)/2, sx=(L[11].x+L[12].x)/2, sw=Math.abs(L[11].x-L[12].x);
+    for(const [u,v] of [[0,.3],[-.15,.4],[.15,.4]]) add("oberteil",at(sx+u*sw,sy+v*(hy-sy))); }
+  // Füße: Mitte zwischen Ferse und Zehen (Socken, Schuhe)
+  for(const [h,t] of [[29,31],[30,32]]) if(ok(h)&&ok(t)) add("fuss",at((L[h].x+L[t].x)/2,(L[h].y+L[t].y)/2));
 }
 function avatarFarbenFertig(F){
   if(!F) return null; const med=a=>a.length?[0,1,2].map(k=>{ const v=a.map(c=>c[k]).sort((p,q)=>p-q); return +v[v.length>>1].toFixed(3); }):null;
@@ -3505,7 +3556,7 @@ function avatarScanBild(o){
   AVS.ly=yw; AVS.lt=now; AVS.bins.add(Math.floor((yw+Math.PI)/(2*Math.PI)*24)%24);
   const ay=Math.abs(yw), sek=ay<.3?"vorn":ay>Math.PI-.3?"hinten":Math.abs(ay-Math.PI/2)<.28?(yw>0?"seiteL":"seiteR"):null;
   const zuSchnell=AVS.w>1.6;
-  try{ avatarFarbProbe(o.L,sek); }catch(_){}
+  try{ avatarFarbProbe(o.L,sek,o.m); }catch(_){}
   if(sek&&o.cmPerUnit&&!zuSchnell){                    // auch ohne Kopf im Bild: Maßstab dann aus der Rumpflänge des Frontal-Scans
     const fr=sek==="vorn"||sek==="hinten", cm=n=>n*o.aspect*o.cmPerUnit;
     const w=torsoSpan(o.m,o.waistY,o.L,o.armHalfN,fr), h=torsoSpan(o.m,o.hipY,o.L,o.armHalfN,fr);
@@ -3988,6 +4039,51 @@ function finishMask(m,w,h){
 /* Hose vom Untergrund trennen: Farb-Freistellung, und wenn die KI geladen ist, zusätzlich die KI. Sind beide sich
    einig, gilt die Farbkante (pixelgenau); sind sie uneinig, die KI (sie scheitert nicht an Mustern und ähnlichen Farben). */
 function segGarment(cv){
+  const S=segGarment0(cv);
+  if(S&&!S.pre) try{ const B=bodenImSpalt(cv,S); if(B!==S){ for(const k of ["ki","iou","fused"]) if(S[k]!==undefined) B[k]=S[k]; B.boden=true; return B; } }catch(e){ console.warn("Spalt",e); }
+  return S;
+}
+/* Boden zwischen den Beinen, den beide Freistellungen mitnehmen (18.10.): zwischen den Beinen liegt der Boden oft heller im Licht
+   als am Bildrand, wo das Farbmodell den Untergrund lernt. Auf der Rückseite der Testjeans verband er die Säume (Beine unten
+   verschmolzen, Holz im Stoffbild am Saum). Farbe des Bodens aus dem sichtbaren Spalt lernen und Punkte derselben Farbe auf der
+   Seite der Beine (unten, oder oben bei einem Foto auf dem Kopf) aus der Maske nehmen, wenn sie deutlich näher am Spalt-Boden als
+   am Stoff liegen. */
+function bodenImSpalt(cv,S){
+  const w=S.w, h=S.h, m=S.m; if(w!==cv.width||h!==cv.height) return S;
+  const d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
+  const gap=[], gy=[], gw=[];
+  for(let y=S.y0;y<S.y1;y++){ const r=[]; let st=-1;
+    for(let x=S.x0;x<=S.x1;x++){ const on=x<S.x1&&m[y*w+x]; if(on&&st<0) st=x; if(!on&&st>=0){ if(x-st>2) r.push([st,x-1]); st=-1; } }
+    if(r.length===2&&r[1][0]-r[0][1]>6){ gy.push(y); gw.push(r[1][0]-r[0][1]); for(let x=r[0][1]+3;x<=r[1][0]-3;x++) gap.push(y*w+x); } }
+  if(gap.length<150||gy.length<8) return S;
+  // Beine dort, wohin der Spalt breiter wird; geprüft wird die ganze Beinhälfte (ab 35 % der Höhe vom Bund): der Boden kann den
+  // Spalt bis weit nach oben füllen, sichtbar ist er dann nur unten zwischen den Säumen
+  const my=gy.reduce((a,b)=>a+b,0)/gy.length, mw=gw.reduce((a,b)=>a+b,0)/gw.length;
+  const unten=gy.reduce((a,y,k)=>a+(y-my)*(gw[k]-mw),0)>=0, H0=S.y1-S.y0;
+  const ya=unten?Math.round(S.y0+.35*H0):S.y0, yb=unten?S.y1:Math.round(S.y1-.35*H0);
+  // Farbton (Helligkeit herausgerechnet): heller beleuchtetes Holz hat denselben Ton wie das dunklere im Spalt; Helligkeit zählt wenig
+  const F=i=>{ const r=d[i*4],g=d[i*4+1],b=d[i*4+2], s3=r+g+b+1; return [300*r/s3,300*g/s3,300*b/s3,.12*s3/3]; };
+  const px=(idx,max)=>{ const st=Math.max(1,Math.floor(idx.length/max)), o=new Float32Array(Math.ceil(idx.length/st)*4+4); let k=0;
+    for(let j=0;j<idx.length;j+=st){ const f=F(idx[j]); o.set(f,k*4); k++; } return [o,k]; };
+  const km=(o,n,K)=>{ const C=[]; for(let i=0;i<n&&C.length<K;i+=Math.max(1,Math.floor(n/K))) C.push([o[i*4],o[i*4+1],o[i*4+2],o[i*4+3]]);
+    for(let t=0;t<8;t++){ const A=C.map(()=>[0,0,0,0,0]); for(let i=0;i<n;i++){ let bk=0,bd=1e9; for(let k=0;k<C.length;k++){ let q=0; for(let c=0;c<4;c++) q+=(o[i*4+c]-C[k][c])**2; if(q<bd){bd=q;bk=k;} }
+        for(let c=0;c<4;c++) A[bk][c]+=o[i*4+c]; A[bk][4]++; }
+      for(let k=0;k<C.length;k++) if(A[k][4]) C[k]=A[k].slice(0,4).map(v=>v/A[k][4]); } return C; };
+  // Stoff: Kern der Maske außerhalb der Beinhälfte (Gesäß, Bund)
+  const core=morph(m,w,h,true,4), stoff=[];
+  for(let y=unten?S.y0:yb;y<(unten?ya:S.y1);y++) for(let x=S.x0;x<S.x1;x+=2){ const i=y*w+x; if(core[i]) stoff.push(i); }
+  if(stoff.length<300) return S;
+  const [pb,nb]=px(gap,3000), [pg,ng]=px(stoff,6000), FB=km(pb,nb,4), GM=km(pg,ng,8);
+  const dm=(K,f)=>{ let bd=1e9; for(const c of K){ let q=0; for(let k=0;k<4;k++) q+=(f[k]-c[k])**2; if(q<bd) bd=q; } return bd; };
+  const out=m.slice(); let n=0;
+  for(let y=ya;y<yb;y++) for(let x=S.x0;x<S.x1;x++){ const i=y*w+x; if(!m[i]) continue; const f=F(i); if(dm(FB,f)<.3*dm(GM,f)){ out[i]=0; n++; } }
+  if(n<40) return S;
+  const B=finishMask(out,w,h);
+  // nie mehr als ein Zehntel der Hose wegnehmen (sonst war es doch Stoff in Bodenfarbe)
+  let a0=0,a1=0; for(let i=0;i<w*h;i++){ a0+=m[i]; a1+=B.m[i]; }
+  return a1>=.9*a0?B:S;
+}
+function segGarment0(cv){
   const w=cv.width,h=cv.height; let Cl=null, err=null;
   try{ Cl=segClassic(cv); }catch(e){ err=e; }
   if(!aiSeg||(Cl&&Cl.pre)){ if(Cl) return Cl; throw err; }
@@ -3998,7 +4094,34 @@ function segGarment(cv){
   let i0=0,u0=0; for(let i=0;i<w*h;i++){ if(A.m[i]&&Cl.m[i]) i0++; if(A.m[i]||Cl.m[i]) u0++; }
   const iou=u0?i0/u0:0;
   if(iou>.92){ Cl.iou=iou; return Cl; }
+  // Uneinig: bisher galt dann die KI. Auf der Rückseite der Testjeans (18.10.) nahm sie den hell beleuchteten Boden zwischen den
+  // Beinen und unter dem Saum mit: Beine verschmolzen (kein Spalt → als Rock/Röhre gebaut, „ein Block“), Länge 121 statt 107 cm.
+  // Jetzt: was beide sagen, gilt; strittige Bildpunkte gehören zur Hose, wenn ihre Farbe näher an der Hose (gemeinsame Fläche)
+  // liegt als am Untergrund rund um beide Masken.
+  try{ const F=fuseMasks(cv,A,Cl); if(F){ F.ki=true; F.iou=iou; F.fused=true; return F; } }catch(e){ console.warn("Masken",e); }
   A.ki=true; A.iou=iou; return A;
+}
+function fuseMasks(cv,A,C){
+  const w=cv.width,h=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
+  const both=new Uint8Array(w*h), any=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){ both[i]=A.m[i]&&C.m[i]?1:0; any[i]=A.m[i]||C.m[i]?1:0; }
+  const core=morph(both,w,h,true,3), far=morph(any,w,h,false,6);
+  // 3×3 gemittelte Farbe (Rauschen, Maserung)
+  const f=new Float32Array(w*h*3);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let r=0,g=0,b=0,n=0;
+    for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++) for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){ const i=(yy*w+xx)*4; r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++; }
+    const o=(y*w+x)*3; f[o]=r/n; f[o+1]=g/n; f[o+2]=b/n; }
+  const probe=(test,max)=>{ let n=0; for(let i=0;i<w*h;i++) if(test(i)) n++; if(n<50) return null;
+    const st=Math.max(1,Math.floor(n/max)), px=new Float32Array(Math.ceil(n/st)*3+3); let k=0,j=0;
+    for(let i=0;i<w*h;i++) if(test(i)&&j++%st===0){ px[k*3]=f[i*3]; px[k*3+1]=f[i*3+1]; px[k*3+2]=f[i*3+2]; k++; }
+    return [px,k]; };
+  const pg=probe(i=>core[i],6000), pb=probe(i=>!far[i],6000); if(!pg||!pb) return null;
+  const G=kmeans(pg[0],pg[1],8), B=kmeans(pb[0],pb[1],10);
+  const dm=(K,i)=>{ let bd=1e9; for(const c of K){ const q=(f[i*3]-c[0])**2+(f[i*3+1]-c[1])**2+(f[i*3+2]-c[2])**2; if(q<bd) bd=q; } return bd; };
+  const m=both.slice();
+  // deutlich näher an der Hose (Abstand unter 0,63 × Abstand zum Untergrund): heller beleuchteter Boden liegt oft zwischen beiden
+  for(let i=0;i<w*h;i++) if(any[i]&&!both[i]&&dm(G,i)<.4*dm(B,i)) m[i]=1;
+  return finishMask(m,w,h);
 }
 function segClassic(cv){
   const w=cv.width,h=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
@@ -4562,28 +4685,68 @@ function quadOf(hull){
 }
 const shoelace=Q=>Math.abs(Q.reduce((s,p,i)=>{ const q=Q[(i+1)%Q.length]; return s+p[0]*q[1]-q[0]*p[1]; },0))/2;
 /* Bezugsobjekt suchen: eigener Fleck neben der Hose, fast vollständig rechteckig, Seitenverhältnis passend */
+/* Maske „anders als der Boden ringsum“ (18.10.): Boden je Stelle als Median eines großen Fensters (auf einem Drittel der Größe,
+   Fenster etwa 90 Bildpunkte, gut doppelt so groß wie eine Karte), Abstand mit Helligkeits-Spielraum (Schatten, Maserung).
+   Für die Karte, wenn segColor sie nicht vom Boden trennt: Licht zwischen den Beinen macht den Boden dort heller als am
+   Bildrand, segColor hält ihn für Hose, und die Karte verschwindet in diesem Fleck (Rückseite der Testjeans). */
+function localContrastMask(d,w,h){
+  const q=3, sw=Math.max(1,Math.floor(w/q)), sh=Math.max(1,Math.floor(h/q)), sm=new Uint8Array(sw*sh*3);
+  for(let y=0;y<sh;y++) for(let x=0;x<sw;x++) for(let c=0;c<3;c++){ let s=0;
+    for(let yy=0;yy<q;yy++) for(let xx=0;xx<q;xx++) s+=d[((y*q+yy)*w+x*q+xx)*4+c];
+    sm[(y*sw+x)*3+c]=s/(q*q); }
+  // Median je Farbkanal im Fenster (2r+1)², Histogramm mit 64 Stufen, das zeilenweise mitwandert
+  const r=15, bg=new Uint8Array(sw*sh*3), hist=new Int32Array(64);
+  for(let c=0;c<3;c++) for(let y=0;y<sh;y++){
+    hist.fill(0); let n=0; const ya=Math.max(0,y-r), yb=Math.min(sh-1,y+r);
+    const add=(x,v)=>{ for(let yy=ya;yy<=yb;yy++){ hist[sm[(yy*sw+x)*3+c]>>2]+=v; n+=v; } };
+    for(let x=0;x<=Math.min(sw-1,r);x++) add(x,1);
+    for(let x=0;x<sw;x++){
+      if(x>0){ if(x+r<sw) add(x+r,1); if(x-r-1>=0) add(x-r-1,-1); }
+      let k=0,acc=0; const half=n>>1; while(k<63&&acc+hist[k]<=half){ acc+=hist[k]; k++; }
+      bg[(y*sw+x)*3+c]=k*4+2; } }
+  // Abstand jeder Stelle (3×3 gemittelt) zum Boden dort (bilinear aus dem kleinen Raster)
+  const dist=new Float32Array(w*h), B=[0,0,0], P=[0,0,0];
+  for(let y=0;y<h;y++){ const fy=clamp((y+.5)/q-.5,0,sh-1), y0=fy|0, y1=Math.min(sh-1,y0+1), ay=fy-y0;
+    for(let x=0;x<w;x++){ const fx=clamp((x+.5)/q-.5,0,sw-1), x0=fx|0, x1=Math.min(sw-1,x0+1), ax=fx-x0;
+      for(let c=0;c<3;c++) B[c]=(bg[(y0*sw+x0)*3+c]*(1-ax)+bg[(y0*sw+x1)*3+c]*ax)*(1-ay)+(bg[(y1*sw+x0)*3+c]*(1-ax)+bg[(y1*sw+x1)*3+c]*ax)*ay;
+      P[0]=P[1]=P[2]=0; let k=0;
+      for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++) for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){ const i=(yy*w+xx)*4; P[0]+=d[i]; P[1]+=d[i+1]; P[2]+=d[i+2]; k++; }
+      P[0]/=k; P[1]/=k; P[2]/=k;
+      const s=clamp((P[0]*B[0]+P[1]*B[1]+P[2]*B[2])/(B[0]*B[0]+B[1]*B[1]+B[2]*B[2]+1),.6,1.4);
+      dist[y*w+x]=Math.hypot(P[0]-s*B[0],P[1]-s*B[1],P[2]-s*B[2]); } }
+  const pr=[]; for(let i=0;i<w*h;i+=7) pr.push(dist[i]); pr.sort((a,b)=>a-b);
+  const T=Math.max(20,2.5*pr[pr.length>>1]), m=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++) m[i]=dist[i]>T?1:0;
+  return m;
+}
 function findReference(cv,kind){
   const R=REFS[kind], w=cv.width,h=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
-  let m=segColor(d,w,h); m=morph(morph(m,w,h,true,1),w,h,false,1);
-  const lab=new Int32Array(w*h), st=new Int32Array(w*h), comps=[]; let cur=0;
-  for(let s0=0;s0<w*h;s0++){ if(!m[s0]||lab[s0]) continue;
-    cur++; let n=0,sp=0; st[sp++]=s0; lab[s0]=cur; const pts=[];
-    while(sp){ const i=st[--sp], x=i%w, y=(i/w)|0; n++;
-      if(x===0||!m[i-1]||x===w-1||!m[i+1]||i<w||!m[i-w]||i>=w*h-w||!m[i+w]) pts.push([x,y]);
-      if(x>0&&m[i-1]&&!lab[i-1]){lab[i-1]=cur;st[sp++]=i-1;} if(x<w-1&&m[i+1]&&!lab[i+1]){lab[i+1]=cur;st[sp++]=i+1;}
-      if(i>=w&&m[i-w]&&!lab[i-w]){lab[i-w]=cur;st[sp++]=i-w;} if(i<w*h-w&&m[i+w]&&!lab[i+w]){lab[i+w]=cur;st[sp++]=i+w;} }
-    comps.push({n,pts});
-  }
-  comps.sort((a,b)=>b.n-a.n);
-  const want=R.h/R.w; let best=null;
-  for(const c of comps.slice(1,12)){                  // der größte Fleck ist die Hose
-    if(c.n<w*h*.0004) break;
-    const Q=quadOf(convexHull(c.pts)); if(!Q) continue;
-    const fill=c.n/shoelace(Q);
-    const L=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]), s1=(L(Q[0],Q[1])+L(Q[2],Q[3]))/2, s2=(L(Q[1],Q[2])+L(Q[3],Q[0]))/2;
-    const asp=Math.max(s1,s2)/Math.min(s1,s2), err=Math.abs(asp/want-1);
-    if(fill>.88&&err<.3&&(!best||err<best.err)) best={Q,s1,s2,err,n:c.n};
-  }
+  const want=R.h/R.w;
+  // Flecken der Maske, je Fleck das umschließende Viereck; Karte/Blatt: fast ganz gefüllt, Seitenverhältnis passend
+  const suche=(m,ab)=>{
+    const lab=new Int32Array(w*h), st=new Int32Array(w*h), comps=[]; let cur=0;
+    for(let s0=0;s0<w*h;s0++){ if(!m[s0]||lab[s0]) continue;
+      cur++; let n=0,sp=0; st[sp++]=s0; lab[s0]=cur; const pts=[];
+      while(sp){ const i=st[--sp], x=i%w, y=(i/w)|0; n++;
+        if(x===0||!m[i-1]||x===w-1||!m[i+1]||i<w||!m[i-w]||i>=w*h-w||!m[i+w]) pts.push([x,y]);
+        if(x>0&&m[i-1]&&!lab[i-1]){lab[i-1]=cur;st[sp++]=i-1;} if(x<w-1&&m[i+1]&&!lab[i+1]){lab[i+1]=cur;st[sp++]=i+1;}
+        if(i>=w&&m[i-w]&&!lab[i-w]){lab[i-w]=cur;st[sp++]=i-w;} if(i<w*h-w&&m[i+w]&&!lab[i+w]){lab[i+w]=cur;st[sp++]=i+w;} }
+      comps.push({n,pts});
+    }
+    comps.sort((a,b)=>b.n-a.n);
+    let best=null;
+    for(const c of comps.slice(ab,ab+24)){
+      if(c.n<w*h*.0004) break;
+      const Q=quadOf(convexHull(c.pts)); if(!Q) continue;
+      const fill=c.n/shoelace(Q);
+      const L=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]), s1=(L(Q[0],Q[1])+L(Q[2],Q[3]))/2, s2=(L(Q[1],Q[2])+L(Q[3],Q[0]))/2;
+      const asp=Math.max(s1,s2)/Math.min(s1,s2), err=Math.abs(asp/want-1);
+      if(fill>.88&&err<.3&&(!best||err<best.err)) best={Q,s1,s2,err,n:c.n};
+    }
+    return best; };
+  // erst die Farb-Freistellung (der größte Fleck ist die Hose), sonst „anders als der Boden ringsum“
+  const mo=m=>morph(morph(m,w,h,true,1),w,h,false,1);
+  const best=suche(mo(segColor(d,w,h)),1)||suche(mo(localContrastMask(d,w,h)),0);
   if(!best) return null;
   const long=Math.max(best.s1,best.s2), short=Math.min(best.s1,best.s2);
   return {Q:best.Q,pxPerCm:(long/R.h+short/R.w)/2,aspErr:best.err,kind,share:best.n/(w*h)};
@@ -4705,8 +4868,11 @@ function refineReference(hi,Qa,kind){
   for(const mm of [m0,morph(morph(m0,w,h,false,5),w,h,true,5)]){ const r=search(mm); if(r&&(!best||r.score<best.score)) best=r; }
   if(!best) return null;
   const pts=best.pts, hull=best.hull, Q=best.Q0;
-  const R=refineQuad(pts.filter(p=>distToHull(p,hull)<3),Q);
-  return orderQuad(R.map(p=>[p[0]+x0,p[1]+y0]));
+  const R=refineQuad(pts.filter(p=>distToHull(p,hull)<3),Q).map(p=>[p[0]+x0,p[1]+y0]);
+  // Muss zum groben Fund passen: eine zweifarbige Karte zerfällt im Ausschnitt manchmal in Hälften, und eine Hälfte hat fast das
+  // Seitenverhältnis einer Karte (1,26 statt 1,59). Dann lieber das grobe Viereck (wird danach auf die Kanten gesetzt).
+  const fl=shoelace(R)/Math.max(1,shoelace(orderQuad(Qa)));
+  return fl>.8&&fl<1.25?orderQuad(R):null;
 }
 function distToHull(p,H){
   let best=1e9;
@@ -4816,9 +4982,12 @@ function askCorners(hi,guess,kind,title){
 /* Foto mit Bezugsobjekt: groß laden, gerade rechnen, Objekt finden und bestätigen lassen, Maßstab bestimmen */
 async function photoWithReference(file,say,kind,title,meta){
   let hi=await fileToCanvas(file,2400,say);
-  const lev=levelBySensor(hi,meta); if(lev) hi=lev.cv;
+  // Große Zwischenbilder sofort freigeben (Breite 0): Safari auf dem iPhone begrenzt den Speicher aller Zeichenflächen zusammen
+  // und liefert darüber leere Flächen statt eines Fehlers
+  const frei=c=>{ if(c){ c.width=0; c.height=0; } };
+  const lev=levelBySensor(hi,meta); if(lev&&lev.cv!==hi){ const alt=hi; hi=lev.cv; frei(alt); }
   say(`${REFS[kind].name} wird gesucht …`);
-  const k=900/hi.height, sm=scaleCanvas(hi,k), r0=findReference(sm,kind);
+  const k=900/hi.height, sm=scaleCanvas(hi,k), r0=findReference(sm,kind); frei(sm);
   let guess=null;
   if(r0){ guess=refineReference(hi,r0.Q.map(p=>[p[0]/k,p[1]/k]),kind)||orderQuad(r0.Q.map(p=>[p[0]/k,p[1]/k])); guess=orderQuad(snapQuadToEdges(hi,guess)); }
   say(`Bitte ${REFS[kind].akk} bestätigen oder die Ecken antippen …`);
@@ -4834,7 +5003,7 @@ async function photoWithReference(file,say,kind,title,meta){
     const R=REFS[kind], L=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]), longFirst=L(Q[0],Q[1])+L(Q[2],Q[3])>L(Q[1],Q[2])+L(Q[3],Q[0]);
     const a=longFirst?R.h:R.w, b=longFirst?R.w:R.h, s=Math.max(L(Q[0],Q[1]),L(Q[1],Q[2]))/Math.max(a,b);
     const H=homography(Q,[[0,0],[a*s,0],[a*s,b*s],[0,b*s]]), r=warpWhole(hi,H,Math.max(1800,hi.height));
-    hi=r.cv; Q=Q.map(p=>m3x3.ap(r.A,p));
+    frei(hi); hi=r.cv; Q=Q.map(p=>m3x3.ap(r.A,p));
     warn.push(`Ohne Neigungsdaten im Foto wurde nur über ${R.akk} gerade gerechnet; das ist ungenauer als ein senkrechtes Foto`);
   }
   const c=quadCheck(Q,kind);
@@ -5700,8 +5869,19 @@ function setMode(n){
   mode=n; held=false; $("hold").textContent="Halten";
   [["cal","m-cal"],["leg","m-leg"],["top","m-top"]].forEach(([k,id])=>$(id).setAttribute("aria-pressed",String(k===mode)));
 }
+/* Scan-Werte: Median je Messwert über das Haltefenster (18.10.). Vorher zählte der letzte gefilterte Wert nach 0,7 s Ruhe;
+   der Median über alle ruhigen Bilder ist genauer und erlaubt ein kürzeres Fenster (0,5 s). */
+function scanMedian(){
+  if(scanProben.length<3) return live;
+  const out={...live};
+  for(const k of ["cmPerUnit","shoulder","waist","hip","thighL","thighR","kneeL","kneeR","inseam","leg","shoulderN","torso"]){
+    const v=scanProben.map(q=>q[k]).filter(x=>x!=null&&isFinite(x)).sort((a,b)=>a-b);
+    if(v.length>=3) out[k]=v[v.length>>1]; }
+  return out;
+}
 function captureCal(){
   if(!live||live.hip==null||live.shoulder==null) return;
+  live=scanMedian(); scanProben.length=0;
   ref={hip:live.hip,shoulder:live.shoulder,shoulderN:live.shoulderN,torso:live.torso};
   // Hüfte über die Körpergröße eichen (Hüftgelenk 53 % der Größe + 2 cm Sohle über dem Boden), siehe hipFix
   if(HIPF.raw&&HIPF.botN!=null&&live.cmPerUnit){ const Hh=num($("height").value)||175, yA=HIPF.botN-(.53*Hh+2)/live.cmPerUnit;
@@ -6841,7 +7021,8 @@ function refInPhoto(cv){
 }
 async function classifyFlat(it,noPose=false){
   if(!aiSeg) await withTimeout(loadAiSeg(),9000);
-  let S=null; try{ S=segGarment(it.cv); }catch(e){ it.kind="none"; it.note="keine Hose erkannt"; return; }
+  // ohne Boden-Bereinigung: die Prüfung auf Haut (Foto mit Person) soll den Umriss sehen, wie ihn die Freistellung liefert
+  let S=null; try{ S=segGarment0(it.cv); }catch(e){ it.kind="none"; it.note="keine Hose erkannt"; return; }
   // Haut im Umriss (Beine unter Shorts, Hände): Foto mit Person, nur angeschnitten (ohne Gesicht erkennt die Pose-Erkennung
   // sie nicht). Oben am Bildrand abgeschnitten: nicht die ganze Hose im Bild.
   // Hautfarbe allein reicht nicht: ausgewaschenes Denim unter warmem Zimmerlicht und Holzdielen liegen im selben Farbbereich.
@@ -6967,6 +7148,8 @@ function sideCheck(front,back){
   if(f>1.25*b&&f>.1) return "Vorder- und Rückseite vertauscht? Auf dem Foto „Vorderseite“ sind Gesäßtaschen zu sehen. Mit ⇄ tauschen.";
   if(f<.095&&b<.095) return "Beide Fotos sehen wie die Vorderseite aus (keine Gesäßtaschen zu sehen). Ist das zweite wirklich die Rückseite?";
   if(f>.125&&b>.125&&Math.max(f,b)<1.25*Math.min(f,b)) return "Beide Fotos sehen wie die Rückseite aus (Gesäßtaschen auf beiden). Ist das erste wirklich die Vorderseite?";
+  // knapp entschieden (Taschenkanten fast gleich stark): Zuordnung zeigen und um Bestätigung bitten, statt still zu raten
+  if(Math.max(f,b)<1.25*Math.min(f,b)) return "Vorne und hinten nicht sicher erkannt. Bitte oben prüfen: links die Vorderseite (Schlitz, Knopf), rechts die Rückseite (Gesäßtaschen). Falsch? Mit ⇄ tauschen.";
   return "";
 }
 async function upBuild(){

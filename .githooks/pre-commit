@@ -1,0 +1,14 @@
+#!/bin/sh
+# Pflicht-Test „Neue Hose aus Fotos“ (werkzeuge/tests/tneuehose.mjs) vor jedem Commit, der die Modellerzeugung berührt (18.10.):
+# Fotos → Vorder-/Rückseite → Karte → 3D-Hose → Rig und Physik. Eingeschaltet über `npm install` (Skript „prepare“ setzt
+# core.hooksPath auf .githooks). Nur im Notfall überspringen: git commit --no-verify
+geaendert=$(git diff --cached --name-only)
+echo "$geaendert" | grep -qE '^(app/index\.html|app/hosen-auswahl\.js|werkzeuge/tests/tneuehose\.mjs|werkzeuge/tests/baue-testseite\.mjs)$' || exit 0
+# Stellen der Modellerzeugung (Funktionsnamen in den Änderungen oder im Kopf der Änderungsblöcke)
+muster='buildGarment|loadGarmentPhoto|photoWithReference|levelBySensor|findReference|refineReference|snapQuadToEdges|localContrastMask|quadCheck|segGarment|segClassic|segColor|fuseMasks|aiMask|finishMask|classifyFlat|upAssign|upBuild|upAdd|garmentProfile|normalizeProfile|alignRows|fillLegGap|pantsShape|rockShape|flatSideScore|pocketEdges|garmentDims|drape3d|cloth3d|pose3d|draw3d|hiHalf'
+if echo "$geaendert" | grep -q '^werkzeuge/tests/tneuehose\.mjs$' || git diff --cached -U0 -- app/index.html | grep -E '^(@@|[+-])' | grep -qE "$muster"; then
+  echo "Modellerzeugung geändert: Pflicht-Test „Neue Hose aus Fotos“ läuft (etwa 1–2 Minuten) …"
+  node werkzeuge/tests/baue-testseite.mjs >/dev/null && node werkzeuge/tests/tneuehose.mjs || {
+    echo "Neue Hose aus Fotos: Test rot, Commit abgebrochen (Bilder in docs/test-neue-hose/)."; exit 1; }
+fi
+exit 0

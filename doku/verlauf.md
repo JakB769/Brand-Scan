@@ -366,3 +366,17 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    Kleidung (Baggy-Jeans, lockeres Shirt) macht den Umriss 8–12 cm breiter als den Körper → erkannt am Knie (fast so breit wie
    der Oberschenkel), Umriss dann nur Obergrenze; Kamera am Boden streckt die Beine (Hüftgelenk 60 % statt 53 % der Größe) →
    Längen auf den menschlichen Bereich begrenzt, Hinweis. Hüftumfang an der stärksten Stelle des Gesäßes, nicht am Gelenk.
+22. „Neue Hose aus Fotos ist ein Block ohne Physik“ (18.10.): eine Bild-zu-3D-KI hat es in der App nie gegeben (Hunyuan3D und
+   die 3D-Dienste waren nur getestet und verworfen, siehe 12./A2). „KI“ ist die Freistellung (MediaPipe magic_touch). Mit den
+   Testfotos des Nutzers (`assets/referenz/fotos/flach-vorne-hinten/`) nachgestellt: auf der Rückseite nahm die KI-Maske den hell
+   beleuchteten Boden zwischen und unter den Beinen mit; bei Uneinigkeit mit der Farb-Freistellung galt bisher immer die KI →
+   Beine verbunden, Länge 121 statt 107 cm, Holz im Stoffbild am Saum; fehlt der Spalt auf beiden Fotos, wird daraus ein Rock
+   bzw. eine Röhre („Block“). Behoben: `fuseMasks` (strittige Punkte nach Farbe), `bodenImSpalt` (Bodenfarbe aus dem Spalt).
+   Dazu: Karte auf der Rückseite (silber/gelb auf hellem Holz) jetzt automatisch (`localContrastMask`), halbe Karte als
+   „verfeinert“ verworfen (vorher Länge 194 cm). Länge: vorne 109, hinten 107 → 108 cm, Maßband 105 (+3); das Geraderechnen
+   über die Neigung ist stimmig (Karte danach 1,589–1,599 statt 1,586, ohne Geraderechnen 1,655), Restabweichung ungeklärt.
+   Pflicht-Test `tneuehose.mjs` in `npm test` und im Commit-Haken `.githooks/pre-commit`.
+23. Start der Anprobe (18.10.): „Geh ein paar Schritte zurück, bis du ganz im Bild bist“, im Scan „Weiter zurück · Füße/Kopf
+   nicht sichtbar“; vor dem Scan weder Hose noch Messpunkte; Scan 0,5 s statt 0,7 s Ruhe, Median über das Haltefenster.
+   T-Shirt: Personen-Maske, Saum als Parabel, Ein-/Ausblenden mit Hysterese (Test: reingesteckt, ohne Oberteil, Flackern).
+   Hosen-Knöpfe in der Anprobe eine Zeile zum Wischen (mit 26 Hosen war das Kamerabild ganz zugedeckt).

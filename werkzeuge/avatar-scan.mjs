@@ -64,7 +64,7 @@ for (let t = 0, ruhig = 0; t < 240 && ruhig < 3; t++) { await p.waitForTimeout(5
 await p.setInputFiles("#slot-hinten input", HINTEN);
 for (let t = 0; t < 400; t++) { await p.waitForTimeout(500); if (await dialoge()) continue;
   const m = await p.evaluate(() => document.getElementById("drop-msg").innerText); if (/Fertig/.test(m) && !/berechnet|wird/.test(m)) break; }
-console.log("Hose:", await p.evaluate(() => { const G = window.__dbg.GARMENTS[window.__dbg.g.key]; return G ? G.label + (G.sizes ? ", Größen " + G.sizes.map(z => z.size).join("/") : "") : "keine"; }));
+console.log("Hose:", await p.evaluate(() => { const G = window.__dbg.GARMENTS[window.__dbg.g.key]; return G ? G.label + (G.sizes ? ", Größen " + G.sizes.map(z => z.n || z.size).join("/") : "") : "keine"; }));
 
 // Scan: Knopf, Einwilligung, Frontal-Scan im Stehen
 const bild = f => "data:image/jpeg;base64," + fs.readFileSync(TMP + "/" + f).toString("base64");

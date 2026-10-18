@@ -1,5 +1,5 @@
-// Scan-Ablauf (11.10.): hinstellen → nach etwa einer Sekunde gescannt, die Hose liegt sofort auf (auch schon vorher und auch
-// nah an der Kamera), kein Pflicht-Drehen; die Seite wird nebenbei gemessen, wenn man sich einmal dreht; näher kommen geht
+// Scan-Ablauf (11.10., 18.10.): hinstellen → nach etwa einer Sekunde gescannt; vorher („Weiter zurück“, „Füße nicht sichtbar“)
+// weder Hose noch Messpunkte, danach liegt die Hose sofort auf; kein Pflicht-Drehen; die Seite wird nebenbei gemessen, wenn man sich einmal dreht; näher kommen geht
 // sofort, die Hose bleibt richtig groß. Dazu Robustheit: Rumpf geneigt und Handstand (Hose dreht mit), schneller Sprung.
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -16,17 +16,17 @@ const alpha=(lat,hgt)=>p.evaluate(([lat,hgt])=>{ const c=document.getElementById
   const cmN=.8/180, X=Math.round((.5+lat*cmN/(1280/720))*c.width), Y=Math.round((.9-hgt*cmN)*c.height);
   return x.getImageData(X,Y,1,1).data[3]; },[lat,hgt]);
 const zustand=()=>p.evaluate(()=>({cal:document.getElementById('step-cal').classList.contains('done'),side:document.getElementById('step-side').classList.contains('done'),
-  big:document.getElementById('coachBig').textContent,status:document.getElementById('statusText').textContent,ppc:window.__dbg.g3.lastPpc,
+  big:document.getElementById('coachBig').textContent,small:document.getElementById('coachSmall').textContent,status:document.getElementById('statusText').textContent,ppc:window.__dbg.g3.lastPpc,
   frame:window.__dbg.g3.frame?{up:window.__dbg.g3.frame.up,top:window.__dbg.g3.frame.top}:null}));
 
-// 1) Nah an der Kamera ins Bild (Füße nicht zu sehen): noch kein Scan, aber die Hose liegt schon auf
+// 1) Nah an der Kamera ins Bild (Füße nicht zu sehen): noch kein Scan, Hinweis, was fehlt; nichts eingezeichnet
 await p.evaluate(()=>Object.assign(window.__mode,{zoom:1.7,hueftY:.45,rand:'raten'}));
 await p.click('#quick');
 await p.waitForTimeout(2500);
 let z=await zustand();
-pruefe(!z.cal&&/ganz ins Bild/.test(z.status),`nah: kein Scan ohne ganzen Körper, Hinweis „${z.status}“`);
+pruefe(!z.cal&&/Weiter zurück/.test(z.big)&&/Füße nicht sichtbar/.test(z.small),`nah: kein Scan ohne ganzen Körper, Hinweis „${z.big} · ${z.small}“`);
 const nahA=await p.evaluate(()=>{ const c=document.getElementById('overlay'), d=c.getContext('2d').getImageData(0,0,c.width,c.height).data; let n=0; for(let i=3;i<d.length;i+=16) if(d[i]>200) n++; return n; });
-pruefe(nahA>500,`nah: Hose liegt trotzdem schon auf (${nahA} deckende Bildpunkte)`);
+pruefe(nahA<20,`nah: vor dem Scan weder Hose noch Messpunkte (${nahA} deckende Bildpunkte)`);
 
 // 2) Zurücktreten (ganz im Bild): Scan nach kurzer Zeit, ohne Drehen
 await p.evaluate(()=>Object.assign(window.__mode,{zoom:1,rand:'raten'}));

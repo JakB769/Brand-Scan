@@ -512,3 +512,53 @@ zahlt. Joe (vom Nutzer, ohne Lizenzangabe) ist eine bekleidete Figur aus Einzelt
   die Datenschutzerklärung der App.
 - `koerper.js` 482 KB gezippt: lädt nur bei Bedarf; kleiner ginge mit weniger Targets oder PCA.
 - Schlusslauf 16.10.: `npm test` grün (40 Testdateien, 560 Prüfpunkte, darunter `tavatar` mit 47), Stand `bd6721d`.
+
+## Sitzung 18.10. (Auftrag: neue Hose aus Fotos reparieren, Start der Anprobe, T-Shirt, eigener Avatar)
+
+### Aufgabe 1: Neue Hose aus Fotos – was kaputt war und wie es behoben ist
+
+**Vorab ehrlich:** Eine Bild-zu-3D-KI hat es in der App nie gegeben (git-Verlauf: Hunyuan3D und die externen 3D-Dienste wurden
+nur getestet und verworfen, flache Hüllen, kein Rig, Kosten). Die „KI“ im Ablauf ist die Freistellung (MediaPipe magic_touch).
+Das 3D-Modell entsteht wie bisher aus Umriss, Maßen und Stoffbild beider Fotos; daran wurde nichts durch Ersatz-Geometrie ersetzt.
+
+**Ursache „Block ohne Physik“ (nachgestellt mit den Testfotos `assets/referenz/fotos/flach-vorne-hinten/`):**
+1. Rückseite: die KI-Maske nahm den hell beleuchteten Boden zwischen und unter den Beinen mit. Bei Uneinigkeit mit der
+   Farb-Freistellung galt bisher immer die KI → Beine verbunden, Länge 121 statt 107 cm, Holz im Stoffbild am Saum. Fehlt der
+   Spalt zwischen den Beinen auf beiden Fotos, baut der Generator daraus einen Rock bzw. eine Röhre ohne Beine: der „Block“.
+   Auch die Farb-Freistellung nahm den Boden im Spalt mit (er ist heller als am Bildrand, wo sie den Untergrund lernt).
+   Behoben: `fuseMasks` (was beide sagen, gilt; strittige Punkte nach Farbe) und `bodenImSpalt` (Bodenfarbe aus dem sichtbaren
+   Spalt, Vergleich nach Farbton, ganze Beinhälfte). Ergebnis: Beine ab dem Schritt getrennt, Rückseite 106,8 cm.
+2. Karte auf der Rückseite (silber/gelb auf hellem Holz) wurde nicht gefunden → nur die Vorderseite gab den Maßstab.
+   Behoben: `localContrastMask` (Boden je Stelle aus der Umgebung) als zweiter Weg. Danach fand die Verfeinerung nur die
+   silberne Hälfte (Seitenverhältnis 1,26 passt fast zur Karte) → Länge 194 cm; jetzt wird eine Verfeinerung verworfen, deren
+   Fläche nicht zum groben Fund passt. Beide Karten jetzt automatisch: 1,599 und 1,589 (Soll 1,586).
+3. Vorne/hinten knapp entschieden → Hinweis mit der Bitte zu prüfen (⇄ tauscht); die Felder zeigen die Zuordnung.
+4. iPhone: große Zwischenbilder werden sofort freigegeben (Safari begrenzt den Speicher aller Zeichenflächen und liefert sonst
+   leere Flächen). Auf einem echten iPhone nicht geprüft.
+
+**Länge:** vorne 109,0, hinten 106,8 → 108 cm; Maßband 105 → **+3 cm, das Ziel ± 2 ist nicht erreicht.** Geprüft, dass es nicht
+am Geraderechnen liegt: ohne Neigungsdaten ist die Karte im Foto 4,3 % zu lang (1,655), nach dem Geraderechnen 0,8 % (1,599);
+die Neigung (8,2° bzw. 8,8°) passt zur Verzerrung der Karte; die Messzeilen-Hochrechnung (÷ 0,985) ist begründet. Mögliche
+Ursachen ohne Beleg: Maßband anders angelegt (z. B. unter dem Bund), Hose liegt etwa 1 cm über dem Boden (≈ 1 %), Karte leicht
+gebogen. Der Test prüft darum 105 ± 3,5 cm und fängt Rückfälle wie 112 oder 194 cm.
+
+**Pflicht-Test `werkzeuge/tests/tneuehose.mjs`** (in `npm test` und im Commit-Haken `.githooks/pre-commit`, eingeschaltet über
+`npm install`): Drag & Drop beider Fotos, Vorder-/Rückseite, Karte auf beiden Fotos, beide Fotos benutzt, kein Rock, Länge,
+Bund 41,7 cm (W32), Hosenliste zeigt den Bund, zwei Beine von vorn, kein Quader, Seitenverhältnis, Tiefe, ≥ 1500 Punkte,
+Rückseite aus dem Rückseiten-Foto (Taschenkanten 22 gegen 13 geschätzt), Rig (Knie hoch verformt die Hose um 130 Bildpunkte),
+Physik (beim Heben hängt der Stoff nach, in Ruhe nicht). Bilder: `docs/test-neue-hose/`.
+
+### Aufgabe 2: Start der Anprobe
+- Anweisung „Geh ein paar Schritte zurück, bis du ganz im Bild bist“, im Scan „Weiter zurück · Füße nicht sichtbar“ / „Kopf
+  nicht sichtbar“ (wechselt erst nach 0,5 s gleicher Antwort).
+- Vor dem Ende des Scans weder Hose noch Messpunkte (vorher lag die Hose schon beim Hereinkommen auf, mit geratenem Maßstab).
+- Scan schneller ohne Genauigkeitsverlust: 0,5 s statt 0,7 s Ruhe, dafür Median über alle ruhigen Bilder statt des letzten
+  Werts. Attrappe: gescannt 1,2 s nach dem Zurücktreten.
+- Hosen-Knöpfe in der Anprobe eine Zeile zum Wischen (mit 26 Hosen war das Kamerabild ganz zugedeckt).
+
+### Aufgabe 3: T-Shirt über dem Bund
+Die Erkennung gab es (Farbe Shirt ↔ Hose je Spalte). Neu: nur Spalten, die laut Segmentierung (Personen-Maske) zur Person
+gehören; Saum als glatte Kurve (Parabel) statt Zickzack; Ein-/Ausblenden mit Hysterese (zwei Funde an, drei Fehlschläge aus).
+`toberteil.mjs`: über dem Bund (Hose darüber weg), kurz, reingesteckt, ohne Oberteil, gleiche Farbe, Flackern (verrauschtes,
+zitterndes Bild: Saum schwankt 0,37 cm, nie ausgeblendet) – alle grün. Grenze: gleiche Farbe wie die Hose wird nicht erkannt
+(dann bleibt der Bund sichtbar, nichts wird falsch weggeschnitten).
