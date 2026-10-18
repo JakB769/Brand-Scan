@@ -562,3 +562,18 @@ gehören; Saum als glatte Kurve (Parabel) statt Zickzack; Ein-/Ausblenden mit Hy
 `toberteil.mjs`: über dem Bund (Hose darüber weg), kurz, reingesteckt, ohne Oberteil, gleiche Farbe, Flackern (verrauschtes,
 zitterndes Bild: Saum schwankt 0,37 cm, nie ausgeblendet) – alle grün. Grenze: gleiche Farbe wie die Hose wird nicht erkannt
 (dann bleibt der Bund sichtbar, nichts wird falsch weggeschnitten).
+
+### Aufgabe 4: Eigener Avatar als zweiter Weg
+- Oben neben „Kamera starten“: „🧍 Eigener Avatar“ → Einwilligung (Anleitung, Datenschutz: nur Zahlen im Browser, keine
+  Bilder, löschbar) → gleiche Startanweisung wie die Anprobe („Geh ein paar Schritte zurück …“, „Weiter zurück · Füße nicht
+  sichtbar“) → Frontal-Scan → einmal langsam drehen → Avatar mit der gewählten Hose in der bestehenden 3D-Ansicht (drehen,
+  Vorne/Seite/Hinten, Zoom, Größe wechseln mit Passform-Urteil). Gespeichert im Profil (Neu scannen, ✕ löschen).
+- Erscheinung: Haut, Haare, Oberteil und Füße aus dem Kamerabild, jetzt nur aus Punkten innerhalb der Personen-Maske (vorher
+  Wand im Oberteil, Stirn statt Haaren, Boden statt Socken); Fußproben, die wie der Boden vor den Zehen aussehen, verworfen.
+- Hosen-Auswahl als Komponente `<passform-hosen>` (`app/hosen-auswahl.js`): Daten per Adresse oder Liste (auch Shopify-
+  Produkte), im Shop alle Produkte mit Anprobe (`/proxy/produkte`); Test `tauswahl.mjs` (in `npm test`). Fund dabei: Produkte
+  ohne Preis zeigten „false“ → behoben.
+- Lizenz: Körpermodell MakeHuman (CC0 1.0, kommerziell frei, nur Daten übernommen), siehe Sitzung 16.10.
+- Handy-Emulation (`werkzeuge/avatar-option-handy.mjs`, iPhone 13 und Pixel 7, Attrappe): Einwilligung, Hinweis zu nah,
+  Frontal-Scan 1,9–2,2 s, Avatar nach 14–15 s, Hosen-Auswahl, Ansichten, Zoom 1,96×, Größe W26 → W36 macht den Bund breiter,
+  Ansicht-Knöpfe ganz zu sehen (vorher auf dem iPhone abgeschnitten → umbrechen jetzt). Bilder `docs/test-avatar/`.

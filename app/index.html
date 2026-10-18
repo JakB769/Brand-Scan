@@ -3426,7 +3426,12 @@ function avatarFarbProbe(L,sek,mk){
   if((sek==="vorn"||sek==="hinten")&&ok(11)&&ok(12)&&ok(23)&&ok(24)){ const sy=(L[11].y+L[12].y)/2, hy=(L[23].y+L[24].y)/2, sx=(L[11].x+L[12].x)/2, sw=Math.abs(L[11].x-L[12].x);
     for(const [u,v] of [[0,.3],[-.15,.4],[.15,.4]]) add("oberteil",at(sx+u*sw,sy+v*(hy-sy))); }
   // Füße: Mitte zwischen Ferse und Zehen (Socken, Schuhe)
-  for(const [h,t] of [[29,31],[30,32]]) if(ok(h)&&ok(t)) add("fuss",at((L[h].x+L[t].x)/2,(L[h].y+L[t].y)/2));
+  // Probe nur, wenn sie sich vom Boden direkt vor den Zehen unterscheidet (sonst lag sie auf dem Boden, nicht auf Socke oder Schuh)
+  for(const [h,t] of [[29,31],[30,32]]) if(ok(h)&&ok(t)){ const q=at((L[h].x+L[t].x)/2,(L[h].y+L[t].y)/2);
+    const bx=L[t].x+.5*(L[t].x-L[h].x), by=L[t].y+.5*(L[t].y-L[h].y), X=Math.round(bx*W), Y=Math.round(by*H);
+    if(!q||!(X>=0&&Y>=0&&X<W&&Y<H)||inP(bx,by)) continue;
+    const i=(Y*W+X)*4, bo=[d[i]/255,d[i+1]/255,d[i+2]/255];
+    if(Math.hypot(q[0]-bo[0],q[1]-bo[1],q[2]-bo[2])>.12) add("fuss",q); }
 }
 function avatarFarbenFertig(F){
   if(!F) return null; const med=a=>a.length?[0,1,2].map(k=>{ const v=a.map(c=>c[k]).sort((p,q)=>p-q); return +v[v.length>>1].toFixed(3); }):null;
