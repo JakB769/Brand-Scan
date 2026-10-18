@@ -25,7 +25,7 @@ import { zugriffsGrenze } from "./grenze.mjs";
 
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const SEITE = path.resolve(HIER, "../../app/index.html");
-const KOERPER = path.resolve(HIER, "../../app/avatar/koerper.js");
+const KOERPER = path.resolve(HIER, "../../app/avatar/koerper.js"), AUSWAHL = path.resolve(HIER, "../../app/hosen-auswahl.js");
 const SHOP = /^[a-z0-9][a-z0-9-]{0,60}\.myshopify\.com$/, PRODUKT = /^\d{1,20}$/;
 
 const json = (res, status, o) => { res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }); res.end(JSON.stringify(o)); };
@@ -43,7 +43,7 @@ function lies(req, max) {
 export function kundenSeite(html, produkt) {
   const marke = '<script type="module">';
   if (!html.includes(marke)) throw new Error("app/index.html hat kein Modul-Skript");
-  const cfg = JSON.stringify({ hosen: "hose?produkt=" + produkt }).replace(/</g, "\\u003c");
+  const cfg = JSON.stringify({ hosen: "hose?produkt=" + produkt, produkte: "produkte", produkt }).replace(/</g, "\\u003c");
   return html.replace(marke, `<script>window.PASSFORM_KUNDE=${cfg};</script>\n${marke}`);
 }
 
@@ -66,6 +66,19 @@ export function erstelleServer({ secret, daten = path.join(HIER, "daten"), seite
         if (u.pathname === "/proxy/avatar/koerper.js") {
           try { const b = await fs.promises.readFile(KOERPER); res.writeHead(200, { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=86400" }); return res.end(b); }
           catch { return text(res, 404, "nicht gefunden"); }
+        }
+        // Hosen-Auswahl (app/hosen-auswahl.js): Komponente und die Produkte dieses Shops mit Anprobe (Name und Vorschaubild aus der
+        // abgelegten Hose; Shop-Daten wie Preise kämen später über die Admin-API)
+        if (u.pathname === "/proxy/hosen-auswahl.js") {
+          try { const b = await fs.promises.readFile(AUSWAHL); res.writeHead(200, { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" }); return res.end(b); }
+          catch { return text(res, 404, "nicht gefunden"); }
+        }
+        if (u.pathname === "/proxy/produkte") {
+          const dir = path.join(daten, shop), out = [];
+          let namen = []; try { namen = (await fs.promises.readdir(dir)).filter(n => /^\d{1,20}\.json$/.test(n)).slice(0, 500); } catch {}
+          for (const n of namen) { try { const j = JSON.parse(await fs.promises.readFile(path.join(dir, n), "utf8")), h = (j.hosen || [])[0], G = h && h.G || {};
+            out.push({ id: n.slice(0, -5), titel: String(G.label || "Hose").slice(0, 120), bild: typeof G.src === "string" && G.src.startsWith("data:image/") && G.src.length < 200000 ? G.src : "" }); } catch {} }
+          return json(res, 200, { produkte: out });
         }
         if (!PRODUKT.test(produkt)) return text(res, 400, "Produkt fehlt");
         if (u.pathname === "/proxy/anprobe") {

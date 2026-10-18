@@ -92,7 +92,7 @@ pruefe(Math.abs(m.leg-z.leg)<2.5,`Hüftgelenk über dem Boden: Avatar ${f(m.leg)
 const roh=await p.evaluate(()=>localStorage.getItem('passformAvatar')||'');
 pruefe(roh.length>50&&roh.length<3000&&!/data:|blob:|base64/.test(roh),`gespeichert: ${roh.length} Zeichen, keine Bilder`);
 const keys=Object.keys(JSON.parse(roh)).sort().join(',');
-pruefe(keys==='H,at,g,kamera,lose,m,ohneTiefe,p,rest,v,z',`gespeicherte Felder: ${keys}`);
+pruefe(keys==='H,at,farben,g,kamera,lose,m,ohneTiefe,p,rest,v,z',`gespeicherte Felder: ${keys}`);
 
 // 4) Ansicht: Avatar in der 3D-Ansicht, Knöpfe, Zoom
 u=await ui(); pruefe(/Neu scannen/.test(u.scan)&&u.del&&u.ans,`mit Avatar: „${u.scan.trim()}“, ✕ und Ansicht-Knöpfe sichtbar`);
@@ -128,9 +128,13 @@ await p.click('#avReset'); await p.waitForTimeout(1200);
 v=await p.evaluate(()=>({yaw:window.__dbg.v3d.yaw,zoom:window.__dbg.v3d.zoom||1}));
 pruefe(v.zoom===1,`Reset: Zoom ${v.zoom}×`);
 // Bild: Avatar sichtbar (hautfarbene Punkte oberhalb der Hose), Hose davor
-const px=await p.evaluate(()=>{ const c=document.getElementById('g3dview'), x=c.getContext('2d').getImageData(0,0,c.width,c.height).data; let haut=0,n=0;
-  for(let i=0;i<x.length;i+=4*7){ if(x[i+3]<200) continue; n++; if(x[i]>150&&x[i]>x[i+2]+25&&x[i+1]>x[i+2]) haut++; } return {haut,n}; });
-pruefe(px.haut>300,`Avatar im Bild (${px.haut} hautfarbene von ${px.n} gezeichneten Stichproben)`);
+// Avatar im Bild: gezeichnete Punkte in den oberen 40 % (Kopf, Oberkörper; die Hose liegt tiefer)
+const px=await p.evaluate(()=>{ const c=document.getElementById('g3dview'), H=Math.round(c.height*.4), x=c.getContext('2d').getImageData(0,0,c.width,H).data; let n=0;
+  for(let i=0;i<x.length;i+=4*7) if(x[i+3]>200) n++; return n; });
+pruefe(px>300,`Avatar im Bild (${px} gezeichnete Stichproben über der Hose)`);
+// Erscheinung: vier Farben aus dem Kamerabild (Chromiums künstliche Kamera zeigt ein grünes Testbild), nur Zahlen gespeichert
+const fa=JSON.parse(roh).farben||{}, farbe=c=>Array.isArray(c)&&c.length===3&&c.every(x=>typeof x==='number'&&x>=0&&x<=1);
+pruefe(['haut','haare','oberteil','fuss'].every(k=>farbe(fa[k]))&&Object.keys(fa).length===4,`Farben aus dem Kamerabild: ${JSON.stringify(fa)}`);
 
 // Größenwechsel am Avatar: kleinste und größte Größe antippen → Bund der Hose am Avatar sichtbar weiter, Urteil je Zone da
 const bund=()=>p.evaluate(()=>{ const D=window.__dbg, P=D.g3.pos, NR=D.g3.nr, C=D.g3.nRing/(4*NR); let a=1e9,b=-1e9;

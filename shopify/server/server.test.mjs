@@ -62,6 +62,10 @@ pruefe(await st(signiert(`/proxy/hose?produkt=999`)) === 404, "Produkt ohne Hose
 { const r = await fetch(APP + signiert(`/proxy/avatar/koerper.js`)), t = await r.text();
   pruefe(r.status === 200 && /javascript/.test(r.headers.get("content-type")) && t.includes("PASSFORM_KOERPER"), "Körpermodell des Avatars über den Proxy (ohne Produkt)");
   pruefe(await st(`/proxy/avatar/koerper.js?shop=${SHOP}`) === 401, "Körpermodell ohne Signatur: 401"); }
+{ const r = await fetch(APP + signiert(`/proxy/produkte`)), j = await r.json();
+  pruefe(r.status === 200 && j.produkte.length === 1 && j.produkte[0].id === PRODUKT && /^data:image\//.test(j.produkte[0].bild), `Produkte mit Anprobe für die Hosen-Auswahl: ${j.produkte.map(p => p.id + " " + p.titel).join(", ")}`);
+  const k = await fetch(APP + signiert(`/proxy/hosen-auswahl.js`));
+  pruefe(k.status === 200 && (await k.text()).includes("passform-hosen"), "Komponente Hosen-Auswahl über den Proxy"); }
 { const r = await fetch(APP + signiert(`/proxy/hose?produkt=${PRODUKT}`)), j = await r.json();
   pruefe(r.status === 200 && j.hosen && j.hosen.length === 1 && /^data:image\//.test(j.hosen[0].G.m3.atlas), "Hose des Produkts kommt als hosen.json"); }
 
