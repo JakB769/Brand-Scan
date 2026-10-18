@@ -29,11 +29,12 @@ const r1=await p.evaluate(async()=>{ const el=document.createElement('passform-h
   for(let t=0;t<50&&!el.shadowRoot.querySelector('button');t++) await new Promise(r=>setTimeout(r,50));
   const B=[...el.shadowRoot.querySelectorAll('button')];
   return {n:B.length,titel:B.map(x=>x.querySelector('b').textContent),bilder:B.map(x=>{ const i=x.querySelector('img'); return i?i.getAttribute('src'):null; }),
-    preis:B[0]&&B[0].querySelector('span')?.textContent,html:el.shadowRoot.innerHTML.includes('<b>fett</b>'),produkte:el.produkte.map(q=>q.id)}; });
+    preis:B[0]&&B[0].querySelector('span')?.textContent,alles:el.shadowRoot.textContent+B.map(x=>x.querySelector('img')?.getAttribute('src')||'').join(' '),html:el.shadowRoot.innerHTML.includes('<b>fett</b>'),produkte:el.produkte.map(q=>q.id)}; });
 pruefe(r1.n===3&&r1.produkte.join()==='101,102,103',`Liste aus der Adresse (quelle): ${r1.n} Hosen, ids ${r1.produkte.join(', ')}`);
 pruefe(r1.titel[1]==='Chino <b>fett</b>'&&!r1.html,'Titel als Text, kein eingeschleustes HTML');
 pruefe(r1.bilder[0]==='/bild/a.png'&&r1.bilder[1]===null,`Bilder nur aus sicheren Quellen (javascript: weggelassen): ${JSON.stringify(r1.bilder)}`);
 pruefe(r1.preis==='49.95','Preis aus der ersten Variante');
+pruefe(!/false|undefined|null/.test(r1.alles),'keine Platzhalter wie „false“ oder „undefined“ in der Liste (Produkte ohne Preis/Bild)');
 
 // 2) Auswahl: Tippen → Ereignis mit id und Produkt, aria-pressed; .gewaehlt von außen
 const r2=await p.evaluate(async()=>{ const el=document.getElementById('a'); let ev=null; document.addEventListener('hose-gewaehlt',e=>{ ev={id:e.detail.id,titel:e.detail.produkt.titel}; });

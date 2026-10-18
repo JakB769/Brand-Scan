@@ -58,17 +58,20 @@ for (const name of GER) {
   await p.waitForTimeout(1500); const z = await p.evaluate(() => window.__dbg.v3d.zoom || 1);
   pruefe(z > 1.3, `${name}: Zoom ${z.toFixed(2)}`); await bild("5_zoom.png", "#g3dbox");
   await p.tap("#avReset").catch(() => {}); await p.waitForTimeout(600);
-  const gr = await p.evaluate(() => { const B = [...document.querySelectorAll("#g3dbox .szrow button, #g3dbox [data-size]")]; return B.length; });
   const breit = () => p.evaluate(() => { const c = window.__dbg.g3.c; if (!c) return 0; const t = document.createElement("canvas"); t.width = c.width; t.height = c.height; const x = t.getContext("2d"); x.drawImage(c, 0, 0);
-    const d = x.getImageData(0, 0, c.width, c.height).data; let x0 = 1e9, x1 = -1; const y = Math.round(c.height * .3); for (let i = 0; i < c.width; i++) if (d[(y * c.width + i) * 4 + 3] > 40) { x0 = Math.min(x0, i); x1 = Math.max(x1, i); } return x1 - x0; });
-  const groessen = await p.evaluate(() => [...document.querySelectorAll("#g3dbox button")].filter(x => /^≈?W?\d/.test(x.textContent.trim())).map(x => x.textContent.trim()));
-  console.log(`       Größen in der Ansicht: ${groessen.join(", ") || "(keine Knöpfe gefunden, " + gr + ")"}`);
+    const d = x.getImageData(0, 0, c.width, c.height).data; let y0 = -1; for (let y = 0; y < c.height && y0 < 0; y++) for (let i = 0; i < c.width; i++) if (d[(y * c.width + i) * 4 + 3] > 40) { y0 = y; break; }
+    const y = y0 + 12; let x0 = 1e9, x1 = -1; for (let i = 0; i < c.width; i++) if (d[(y * c.width + i) * 4 + 3] > 40) { x0 = Math.min(x0, i); x1 = Math.max(x1, i); } return x1 - x0; });
+  const groessen = await p.evaluate(() => [...document.querySelectorAll("#g-szrow .szchip")].map(x => x.textContent.trim().split(/\s/)[0]));
+  console.log(`       Größen: ${groessen.join(", ")}`);
   if (groessen.length >= 2) {
-    const kn = async i => { await p.evaluate(i => [...document.querySelectorAll("#g3dbox button")].filter(x => /^≈?W?\d/.test(x.textContent.trim()))[i].click(), i); await p.waitForTimeout(1500); };
+    const kn = async i => { await p.evaluate(i => document.querySelectorAll("#g-szrow .szchip")[i].click(), i); await p.evaluate(() => document.getElementById("g3dbox").scrollIntoView({ block: "start" })); await p.waitForTimeout(2200); };
     await kn(0); const w0 = await breit(); await bild("6_groesse_klein.png", "#g3dbox");
     await kn(groessen.length - 1); const w1 = await breit(); await bild("6_groesse_gross.png", "#g3dbox");
-    pruefe(w1 > w0, `${name}: Größe wechseln ändert die Hose am Avatar (Breite ${w0} → ${w1} Bildpunkte)`);
-  }
+    pruefe(w1 > w0, `${name}: Größe ${groessen[0]} → ${groessen[groessen.length - 1]} ändert die Hose am Avatar (Bund ${w0} → ${w1} Bildpunkte)`);
+  } else pruefe(false, `${name}: Größenknöpfe gefunden`);
+  // Ansicht-Knöpfe passen in die Breite (keiner abgeschnitten)
+  const knopfRand = await p.evaluate(() => { const r = document.getElementById("g3dbox").getBoundingClientRect(); return [...document.querySelectorAll(".avansicht .chip")].every(b => { const q = b.getBoundingClientRect(); return q.left >= r.left - 1 && q.right <= r.right + 1; }); });
+  pruefe(knopfRand, `${name}: Ansicht-Knöpfe ganz zu sehen`);
   pruefe(!errs.length, `${name}: keine Skriptfehler` + (errs.length ? ": " + errs.slice(0, 2).join(" | ") : ""));
   await ctx.close();
 }

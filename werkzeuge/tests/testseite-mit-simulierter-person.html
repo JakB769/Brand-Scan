@@ -73,7 +73,7 @@ select{background:var(--surface-2);border:1px solid transparent;border-radius:va
   background:radial-gradient(ellipse at 50% 30%,#ffffff,#e8e8ed 70%)}   /* waagrecht ziehen dreht, senkrecht scrollt die Seite weiter */
 @media (prefers-color-scheme:dark){ .g3dbox canvas{background:radial-gradient(ellipse at 50% 30%,#3a3a3c,#1c1c1e 70%)} }
 .g3dbox .sub{font-size:13px;color:var(--chalk-faint);margin:6px auto 10px}
-.avansicht{display:flex;gap:6px;justify-content:center;margin-top:8px}.avansicht .chip{min-width:56px}
+.avansicht{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}.avansicht .chip{min-width:44px;padding:9px 12px}
 .avrow{justify-content:center;gap:8px;align-items:center}.avrow .gdel{position:static;flex:none}
 
 /* ---- Bühne (Kamera) ---- */
@@ -127,6 +127,8 @@ select{background:var(--surface-2);border:1px solid transparent;border-radius:va
   background:linear-gradient(to top,rgba(0,0,0,.45),rgba(0,0,0,0))}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 /* Hosen in der Anprobe: eine Zeile zum Wischen, sonst decken viele Hosen (Shop mit 20+ Produkten) das ganze Kamerabild zu */
+/* vor dem Ende des Scans: keine Größen-Urteile und Messwerte (sie beruhen noch auf geratenem Maßstab) */
+.stage.vorscan #szchips,.stage.vorscan #hudRead{display:none}
 #gchips{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
 #gchips::-webkit-scrollbar{display:none}
 #gchips>.chip{flex:none}
@@ -1480,6 +1482,7 @@ function analyse0(res){
   // Vor dem Ende des Scans weder Hose noch Messpunkte (18.10.): erst ganz ins Bild, gerade stehen, kurz ruhig. Vorher lag die Hose
   // schon beim Hereinkommen auf, mit Maßstab aus der Rumpflänge geraten, und sprang beim Scan auf die richtige Größe.
   const zeigen=!(phase==="cal"&&!held);
+  if(stage.classList.contains("vorscan")===zeigen) stage.classList.toggle("vorscan",!zeigen);   // Größen-Urteile und Messwerte erst nach dem Scan
   if(zeigen) drawGarment(hipBand,beltYf,pxPerCm,botN,ref?tr:0,bone,yCrotch,vw,vh,{yaw,half:fc.half,arms,mask:m,roll,zBack,hipPx:[hipX*vw,hipYf*vh],shPx:[shX*vw,shYf*vh],
     shirt:g.key&&PASSFORM.shirtDarueber&&Math.abs(roll)<.35?shirtHem(L,V,m):null});
   if(window.__lagLog&&window.__lagLog.length&&g3.pos&&g3.M){ const M=g3.M, NR=M.nr, C=K3+1, i=window.__lagRow??Math.round(NR*.72); let x=0,y=0,n=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=((0*NR+i)*2+f)*C+j; x+=g3.pos[k*3]; y+=g3.pos[k*3+1]; n++; } window.__lagLog[window.__lagLog.length-1].mesh=[x/n,y/n]; x=0; y=0; n=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=((0*NR+NR-4)*2+f)*C+j; x+=g3.pos[k*3]; y+=g3.pos[k*3+1]; n++; } window.__lagLog[window.__lagLog.length-1].saum=[x/n,y/n]; }

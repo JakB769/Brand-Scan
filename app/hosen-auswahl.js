@@ -18,13 +18,13 @@
 function produkteAus(daten) {
   const liste = Array.isArray(daten) ? daten : daten && (daten.products || daten.produkte || daten.hosen || daten.items) || [];
   const txt = v => typeof v === "string" ? v : v == null ? "" : String(v);
-  const bildVon = p => { const b = p.bild ?? p.image ?? p.src ?? p.thumbnail ?? (Array.isArray(p.images) && p.images[0]) ?? p.featured_image;
+  const bildVon = p => { const b = p.bild ?? p.image ?? p.src ?? p.thumbnail ?? (Array.isArray(p.images) && p.images.length ? p.images[0] : null) ?? p.featured_image;
     return txt(b && typeof b === "object" ? b.src || b.url : b); };
   return liste.filter(p => p && typeof p === "object" && (p.id != null || p.handle)).slice(0, 500).map(p => ({
     id: txt(p.id ?? p.handle).slice(0, 80),
     titel: txt(p.titel ?? p.title ?? p.name ?? p.label).slice(0, 120),
     bild: bildVon(p),
-    preis: txt(p.preis ?? p.price ?? (Array.isArray(p.variants) && p.variants[0] && p.variants[0].price) ?? "").slice(0, 30),
+    preis: txt(p.preis ?? p.price ?? (Array.isArray(p.variants) && p.variants[0] ? p.variants[0].price : null) ?? "").slice(0, 30),
     url: txt(p.url ?? (p.handle ? "/products/" + p.handle : "")).slice(0, 300),
   }));
 }
