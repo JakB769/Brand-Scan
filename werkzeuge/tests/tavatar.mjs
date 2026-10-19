@@ -185,7 +185,9 @@ u=await ui(); const leer=await p.evaluate(()=>localStorage.getItem('passformAvat
 pruefe(!u.form&&!u.del&&!u.ans&&leer===null&&/Avatar aus Selbst-Scan/.test(u.scan),'zweites Tippen: Avatar und gespeicherte Maße gelöscht');
 await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView({block:'center'}));
 let sub2=''; for(let t=0;t<50&&!/Puppe/.test(sub2);t++){ await p.waitForTimeout(200); sub2=await p.evaluate(()=>document.getElementById('g3dSub').textContent); }
-pruefe(/Puppe/.test(sub2),'3D-Ansicht wieder mit der Puppe'+(/Puppe/.test(sub2)?'':': „'+sub2.slice(0,80)+'“'));
+const diag=/Puppe/.test(sub2)?'':await p.evaluate(()=>{ const D=window.__dbg, v=D.v3d, b=document.getElementById('g3dbox'), r=b.getBoundingClientRect();
+  return JSON.stringify({vis:v.vis,raf:v.raf,hidden:b.hidden,form:!!D.AV.form,rechnet:D.AV.rechnet,top:Math.round(r.top),h:Math.round(r.height),ih:innerHeight,key:D.g.key,teuer:Math.round(v.teuer||0),ausg:v.ausgelassen}); });
+pruefe(/Puppe/.test(sub2),'3D-Ansicht wieder mit der Puppe'+(/Puppe/.test(sub2)?'':': „'+sub2.slice(0,60)+'“ '+diag));
 
 // 8) Weite Kleidung (Attrappe wie sonst: Knie so breit wie der Oberschenkel): erkannt, Umfänge nur als Obergrenze, Hinweis
 await p.evaluate(()=>{ window.__mode.knieSchmal=0; window.__mode.yaw=0; });
