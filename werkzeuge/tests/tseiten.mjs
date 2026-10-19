@@ -50,7 +50,8 @@ pruefe(/dasselbe Foto/.test(m),'zweimal dasselbe Foto: Warnung');
 // 4) ohne Hinweis im Dateinamen, Rückseite zuerst: Gesäßtaschen ordnen richtig zu
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'seiten-')); fs.copyFileSync(echt+'karte_hinten_IMG_7268.jpg',tmp+'/IMG_A.jpg'); fs.copyFileSync(echt+'karte_vorne_IMG_7267.jpg',tmp+'/IMG_B.jpg');
 await neu(); await p.setInputFiles('#drop-in',[tmp+'/IMG_A.jpg',tmp+'/IMG_B.jpg']); m=await fertig(); let l=await liste();
-pruefe(l[0]==='Rückseite, flach'&&/^Vorderseite, flach/.test(l[1])&&!/vertauscht/.test(m),'ohne Namen, Rückseite zuerst: richtig zugeordnet ('+l.join(' | ')+')');
+// seit 19.10. findet die Ersatzsuche die Karte auch hinten (gleiche Karte wie vorne): „· Bankkarte als Maßstab“ dahinter erlaubt
+pruefe(/^Rückseite, flach( · Bankkarte als Maßstab)?$/.test(l[0])&&/^Vorderseite, flach/.test(l[1])&&!/vertauscht/.test(m),'ohne Namen, Rückseite zuerst: richtig zugeordnet ('+l.join(' | ')+')');
 // Passe (hinten) gegen Eingriff der Vordertaschen (sideSlope): schräge Nähte oben laufen hinten zur Mitte nach unten
 const slope=()=>p.evaluate(()=>{ const I=window.__dbg.UP.items, v=I.find(i=>i.side==='vorne'), h=I.find(i=>i.side==='hinten'); return [v&&v.dbg?v.dbg.slope:null,h&&h.dbg?h.dbg.slope:null]; });
 let sl=await slope(); pruefe(sl[0]!=null&&sl[1]!=null&&sl[1]>sl[0]+.08,`Passe/Vordertaschen (Fotos des Nutzers): hinten ${sl[1]?.toFixed(2)}, vorne ${sl[0]?.toFixed(2)}`);
