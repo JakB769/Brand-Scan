@@ -4746,16 +4746,17 @@ function findReference(cv,kind,opt={}){
       comps.push({id:cur,n,pts,b:[x0,y0,x1,y1]});
     }
     comps.sort((a,b)=>b.n-a.n); return {lab,comps}; };
-  // Karte/Blatt: fast ganz gefülltes Viereck (Pixel ≈ Fläche des Vierecks; abgerundete Ecken bis 1,1, mehr ist kein Viereck) mit passendem
-  // Seitenverhältnis; pruef: zusätzliche Bedingung je Fleck
-  const suche=(F,ab,pruef)=>{ let best=null;
-    for(const c of F.comps.slice(ab,ab+24)){
+  // Karte/Blatt: fast ganz gefülltes Viereck mit passendem Seitenverhältnis; pruef (nur Ersatzsuche): zusätzliche Bedingung je Fleck,
+  // dort auch höchstens 1,12 Füllgrad (abgerundete Ecken bis 1,1, mehr ist kein Viereck). Die Farb-Freistellung bleibt wie vor dem
+  // 18.10. ohne Obergrenze: das Viereck aus der Hülle schneidet bei schräger Karte Ecken ab (card_15grad, tlaenge).
+  const suche=(F,ab,pruef,anz=11)=>{ let best=null;
+    for(const c of F.comps.slice(ab,ab+anz)){
       if(c.n<w*h*.0004) break;
       const Q=quadOf(convexHull(c.pts)); if(!Q) continue;
       const fill=c.n/shoelace(Q);
       const L=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]), s1=(L(Q[0],Q[1])+L(Q[2],Q[3]))/2, s2=(L(Q[1],Q[2])+L(Q[3],Q[0]))/2;
       const asp=Math.max(s1,s2)/Math.min(s1,s2), err=Math.abs(asp/want-1);
-      if(fill>.88&&fill<1.12&&err<.3&&(!best||err<best.err)&&(!pruef||pruef(c,F.lab,Q))) best={Q,s1,s2,err,n:c.n};
+      if(fill>.88&&err<.3&&(!best||err<best.err)&&(!pruef||fill<1.12&&pruef(c,F.lab,Q))) best={Q,s1,s2,err,n:c.n};
     }
     return best; };
   // erst die Farb-Freistellung (der größte Fleck ist die Hose)
@@ -4778,7 +4779,7 @@ function findReference(cv,kind,opt={}){
           let g=0; for(const o of [1.5,2.5,3.5]){ const p=col(px+nx*o,py+ny*o), q=col(px-nx*o,py-ny*o); g=Math.max(g,Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2])); } v.push(g); }
         v.sort((p,q)=>p-q); mn=Math.min(mn,v[v.length>>1]); }
       return mn>=30; };
-    best=suche(flecken(mo(localContrastMask(d,w,h))),0,pruef);
+    best=suche(flecken(mo(localContrastMask(d,w,h))),0,pruef,24);
   }
   if(!best) return null;
   const long=Math.max(best.s1,best.s2), short=Math.min(best.s1,best.s2);
