@@ -614,3 +614,10 @@ dem Stand vom 16.10. (591a1b7, damals grün) und vor dem 18.10. (fd30daf): die T
 statt 10 (die Stoffphysik dämpft bei so wenigen Bildern stärker; dokumentiert: allein 80–82 %, unter Last 65 %). Also keine
 Folge der heutigen Änderungen; Test unverändert gelassen, am Gerät mit 30–60 Bildern/s nicht betroffen.
 
+**`tferse` „hinten_schraeg: 81 Pixel durchsichtig“** (seit 7dff876): seit vor dem Scan nichts mehr gezeichnet wird, startet die
+Stoffphysik mit der fertigen Pose; die Säume liegen jetzt gestaucht auf dem Schuh (vorher dunkle Streifen am Saum) und
+berühren sich schräg von hinten. Der Spalt zwischen den Beinen darüber ist dadurch ringsum eingeschlossen und zählte als
+Loch (Bild angesehen: Hintergrund zwischen den Beinen, kein Loch im Stoff). Der Test zählt jetzt nur durchsichtige Pixel,
+die auf einem Bein liegen (Netz je Bein wie im Shader projiziert, 1,5 Pixel Abstand zur Kante). Gegenprobe: ein künstliches
+Loch von 8 × 8 Pixeln mitten im Bein wird in allen acht Posen gefunden (64 Pixel), der Spalt nicht.
+

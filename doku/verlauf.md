@@ -391,4 +391,6 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    Farbe aus der Vorsuche als Startwert für das Ecken-Fenster, `vorscan` sofort bei Kamerastart/„Neu scannen“, Saumkante beim
    Kamerawechsel zurückgesetzt. Neuer Test `tersatzkarte.mjs`. `tlag` rot in diesem Container auch auf 591a1b7 (6 statt 10
    Bilder/s), keine Folge der Änderungen.
+26. `tferse` (19.10.): Spalt zwischen sich berührenden, gestauchten Säumen (schräg hinten) zählte als Loch; Test prüft jetzt je
+   Bein über das projizierte Netz. Ursache der neuen Saumform: Physik startet erst nach dem Scan (7dff876).
 

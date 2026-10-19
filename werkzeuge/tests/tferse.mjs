@@ -1,7 +1,7 @@
 // Ferse blickdicht (Attrappe): die 3D-Hose allein (WebGL-Fläche) von hinten, schräg hinten, seitlich, beim Gehen und mit
 // gehobenem Knie; gezählt werden durchsichtige Pixel, die ganz von Hose umschlossen sind (vom Bildrand aus nicht erreichbar,
 // also nicht der Spalt zwischen den Beinen), im unteren Viertel der Hose (Ferse und Saum). Dazu: Stoffbild ohne Boden zwischen den Beinen.
-// Bilder nach ausgabe/ferse_*.png (Löcher rot). Aufruf: node tferse.mjs [Testseite]
+// Bilder nach ausgabe/ferse_*.png (Löcher rot, eingeschlossener Spalt zwischen den Beinen gelb). Aufruf: node tferse.mjs [Testseite]
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
 import fs from 'node:fs';
@@ -30,12 +30,29 @@ for(const [n,m] of posen){
     while(st.length){ const i=st.pop(), xx=i%w; if(xx>0) push(i-1); if(xx<w-1) push(i+1); if(i>=w) push(i-w); if(i<w*(h-1)) push(i+w); }
     // nur das untere Viertel (Ferse, Saum): weiter oben kann der Spalt zwischen zwei sich berührenden Beinen ringsum
     // eingeschlossen sein (schräg von hinten, in der Höhe der Knie), das ist kein Loch im Stoff
-    let loch=0; const ym=y0+.75*(y1-y0);
-    for(let i=0;i<w*h;i++) if(!op(i)&&!vis[i]){ if(((i/w)|0)>=ym){ loch++; D[i*4]=255; D[i*4+1]=0; D[i*4+2]=0; D[i*4+3]=255; } }
+    // Dazu je Bein seine Fläche im Bild (19.10.): Netz des Beins wie im Shader projiziert (Vierecke zwischen benachbarten Ringen).
+    // Ein Loch zählt nur, wo ein Bein Stoff haben müsste: berühren sich die gestauchten Säume schräg von hinten, ist der Spalt
+    // zwischen den Beinen darüber ringsum eingeschlossen, liegt aber auf keinem Bein (dort sieht man zu Recht durch).
+    const g3=window.__dbg.g3, ov=document.getElementById('overlay'), vw=ov.width, vh=ov.height, rs=w/vw, NR=g3.nr, C=g3.nRing/(4*NR), P=g3.pos;
+    const foc=window.__dbg.cam.fk*Math.max(vw,vh), pc=[vw/2,vh/2];
+    const pr=(s,r,f,j)=>{ const k=(((s*NR+r)*2+f)*C+j)*3, kk=foc/Math.max(1,foc+P[k+2]); return [(pc[0]+(P[k]-pc[0])*kk)*rs,(pc[1]+(P[k+1]-pc[1])*kk)*rs]; };
+    const tris=[]; const quad=(a,b,c,d)=>{ tris.push([a,b,c],[b,d,c]); };
+    for(let s=0;s<2;s++) for(let r=0;r+1<NR;r++){
+      for(let f=0;f<2;f++) for(let j=0;j+1<C;j++) quad(pr(s,r,f,j),pr(s,r,f,j+1),pr(s,r+1,f,j),pr(s,r+1,f,j+1));
+      for(const j of [0,C-1]) quad(pr(s,r,0,j),pr(s,r,1,j),pr(s,r+1,0,j),pr(s,r+1,1,j)); }      // Nähte zwischen vorderer und hinterer Hälfte
+    const inTri=(x,y,[a,b,c])=>{ const d1=(x-b[0])*(a[1]-b[1])-(a[0]-b[0])*(y-b[1]), d2=(x-c[0])*(b[1]-c[1])-(b[0]-c[0])*(y-c[1]), d3=(x-a[0])*(c[1]-a[1])-(c[0]-a[0])*(y-a[1]);
+      return !((d1<0||d2<0||d3<0)&&(d1>0||d2>0||d3>0)); };
+    // mit 1,5 Pixeln Abstand zum Rand des Beins (Rasterung, Kantenglättung und Faltenrelief im Shader verschieben die Kante um
+    // etwa einen Pixel): ein Loch im Stoff liegt im Bein, nicht auf seiner Kante
+    const drin=(x,y)=>tris.some(t=>inTri(x,y,t));
+    const imBein=(x,y)=>[[0,0],[1.5,0],[-1.5,0],[0,1.5],[0,-1.5]].every(([dx,dy])=>drin(x+.5+dx,y+.5+dy));
+    let loch=0, spalt=0; const ym=y0+.75*(y1-y0);
+    for(let i=0;i<w*h;i++) if(!op(i)&&!vis[i]){ const y=(i/w)|0; if(y<ym) continue;
+      if(imBein(i%w,y)){ loch++; D[i*4]=255; D[i*4+1]=0; D[i*4+2]=0; D[i*4+3]=255; } else { spalt++; D[i*4]=255; D[i*4+1]=200; D[i*4+2]=0; D[i*4+3]=255; } }
     x.putImageData(id,0,0); const o=document.createElement('canvas'); o.width=w; o.height=h; const ox=o.getContext('2d'); ox.fillStyle='#8ac'; ox.fillRect(0,0,w,h); ox.drawImage(t,0,0);
-    return {loch,png:o.toDataURL('image/png')}; });
+    return {loch,spalt,png:o.toDataURL('image/png')}; });
   fs.writeFileSync(A+'ferse_'+n+'.png',Buffer.from(r.png.split(',')[1],'base64'));
-  pruefe(r.loch<=3,`${n}: keine Löcher an Ferse und Saum (${r.loch} Pixel durchsichtig)`);
+  pruefe(r.loch<=3,`${n}: keine Löcher an Ferse und Saum (${r.loch} Pixel durchsichtig${r.spalt?`; ${r.spalt} im Spalt zwischen den Beinen, gelb, kein Loch`:''})`);
 }
 // Stoffbild: zwischen den Beinen kein Hintergrund (Flachfoto der Testhose auf weißem Grund: Spalt muss stofffarben sein)
 const sp=await p.evaluate(async()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key], im=new Image(); im.src=G.m3.atlas; await im.decode();
