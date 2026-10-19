@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import path from 'path';
 import { starte } from '../server.mjs';
-const hier=fileURLToPath(new URL('.',import.meta.url)), R=path.resolve(hier,'../..')+'/', NM=R+'node_modules/', A=hier+'ausgabe/', OUT=R+'docs/test-neue-hose/';
+const hier=fileURLToPath(new URL('.',import.meta.url)), R=path.resolve(hier,'../..')+'/', NM=R+'node_modules/', A=hier+'ausgabe/', OUT=process.env.NEUEHOSE_BILDER||R+'docs/test-neue-hose/';   // Commit-Haken: nach ausgabe/, sonst ändert jeder Commit die Bilder
 const argF=process.argv.indexOf('--fotos'), FOTOS=argF>0?process.argv[argF+1].split(','):['vorne.jpg','hinten.jpg'].map(n=>R+'assets/referenz/fotos/flach-vorne-hinten/'+n);
 const ECHT={len:105,waist:41.5};                 // Länge vom Nutzer mit dem Maßband gemessen; Bund: W32 flach (nicht gemessen)
 fs.mkdirSync(OUT,{recursive:true});

@@ -8,7 +8,9 @@ echo "$geaendert" | grep -qE '^(app/index\.html|app/hosen-auswahl\.js|werkzeuge/
 muster='buildGarment|loadGarmentPhoto|photoWithReference|levelBySensor|findReference|refineReference|snapQuadToEdges|localContrastMask|quadCheck|segGarment|segClassic|segColor|fuseMasks|aiMask|finishMask|classifyFlat|upAssign|upBuild|upAdd|garmentProfile|normalizeProfile|alignRows|fillLegGap|pantsShape|rockShape|flatSideScore|pocketEdges|garmentDims|drape3d|cloth3d|pose3d|draw3d|hiHalf'
 if echo "$geaendert" | grep -q '^werkzeuge/tests/tneuehose\.mjs$' || git diff --cached -U0 -- app/index.html | grep -E '^(@@|[+-])' | grep -qE "$muster"; then
   echo "Modellerzeugung geändert: Pflicht-Test „Neue Hose aus Fotos“ läuft (etwa 1–2 Minuten) …"
-  node werkzeuge/tests/baue-testseite.mjs >/dev/null && node werkzeuge/tests/tneuehose.mjs || {
-    echo "Neue Hose aus Fotos: Test rot, Commit abgebrochen (Bilder in docs/test-neue-hose/)."; exit 1; }
+  # Bilder nach werkzeuge/tests/ausgabe/ (nicht ins Repo): sonst wären sie nach jedem Commit wieder geändert (Physik-Zeitpunkt)
+  bilder="$(pwd)/werkzeuge/tests/ausgabe/test-neue-hose/"
+  node werkzeuge/tests/baue-testseite.mjs >/dev/null && NEUEHOSE_BILDER="$bilder" node werkzeuge/tests/tneuehose.mjs || {
+    echo "Neue Hose aus Fotos: Test rot, Commit abgebrochen (Bilder in $bilder)."; exit 1; }
 fi
 exit 0
