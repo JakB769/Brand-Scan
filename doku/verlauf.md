@@ -387,3 +387,8 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    vor dem Scan sichtbar → mit `vorscan` ausgeblendet. (4) Oberteil-Zustand blieb nach neuem Scan oder Kamera-Neustart stehen
    → zurückgesetzt. (5) Saum-Parabel wurde über die gefundenen Spalten hinaus verlängert (Ausreißer am Rand) → begrenzt.
    Dazu `tsammlung.mjs`: Netlify-Fall kopiert `app/hosen-auswahl.js` mit (vorher 404 im Test, nicht in der App).
+25. Zweite Gegenprüfung 19.10.: Ersatz-Kartensuche nur für fast rechteckige Flecken (dunkle Karte fand sonst Stücke vom Bund),
+   Farbe aus der Vorsuche als Startwert für das Ecken-Fenster, `vorscan` sofort bei Kamerastart/„Neu scannen“, Saumkante beim
+   Kamerawechsel zurückgesetzt. Neuer Test `tersatzkarte.mjs`. `tlag` rot in diesem Container auch auf 591a1b7 (6 statt 10
+   Bilder/s), keine Folge der Änderungen.
+

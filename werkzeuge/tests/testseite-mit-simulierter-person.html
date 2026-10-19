@@ -990,6 +990,7 @@ async function startCamera(){
   if(!(h>=120&&h<=230)){ showError("Bitte zuerst eine Körpergröße zwischen 120 und 230 cm eintragen.");
     $("height").focus(); $("height").scrollIntoView({block:"center"}); return; }
   starting=true; $("error").hidden=true; camT0=performance.now(); camUI();
+  stage.classList.toggle("vorscan",phase==="cal"&&!held);   // Größen-Urteile erst nach dem Scan, schon bevor das erste Bild ausgewertet ist
   shirt.hit=0; shirt.show=0; shirt.ys=null;          // Saumkante des Oberteils neu suchen (Shop: schließen und wieder öffnen)
   const gen=++camGen;                              // wird die Kamera unterwegs wieder ausgemacht (✕ in der Shop-Anprobe), hier aufhören
   // Ton und Sprache brauchen auf iOS eine echte Nutzeraktion zum Freischalten
@@ -4771,6 +4772,9 @@ function findReference(cv,kind,opt={}){
     // dem anderen Foto bleibt es bei der Farb-Freistellung: in Fotos ohne Karte sonst eine Hosenecke als „Karte“ (Gegenprüfung).
     const col=(x,y)=>{ const X=clamp(Math.round(x),0,w-1), Y=clamp(Math.round(y),0,h-1), i=(Y*w+X)*4; return [d[i],d[i+1],d[i+2]]; };
     const pruef=(c,lab,Q)=>{
+      // flach von oben fotografierte Karte: fast ein Rechteck (echte Karte hinten: 2°, Seiten ±4 %). Stücke vom Bund in Kartenfarbe
+      // (dunkle Karte neben dunkler Jeans) sind Trapeze mit 30° und mehr; Farbe und Kante allein ließen sie durch (Gegenprüfung 19.10.)
+      { const k=quadCheck(Q,kind); if(k.ang>15||k.sideDiff>.25) return false; }
       const f=refFarbe(cv,Q,d); if(!f||Math.hypot(f[0]-opt.farbe[0],f[1]-opt.farbe[1],f[2]-opt.farbe[2])>55) return false;
       const cx=Q.reduce((a,p)=>a+p[0],0)/4, cy=Q.reduce((a,p)=>a+p[1],0)/4; let mn=1e9;
       for(let k=0;k<4;k++){ const a=Q[k], b=Q[(k+1)%4], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; let nx=-(b[1]-a[1])/L, ny=(b[0]-a[0])/L;
@@ -5253,7 +5257,9 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   const rk=k=>refKind&&typeof refKind==="object"?refKind[k]||"":refKind;
   const load=(f,k,t)=>f&&f.loaded?f.loaded:loadGarmentPhoto(f,say,rk(k),t);
   // Farbe der Karte gilt nur innerhalb einer Hose (Vorderseite → Rückseite), nicht für die nächste
-  if(!(frontFile&&frontFile.loaded)&&!(backFile&&backFile.loaded)) KARTE_FARBE.card=KARTE_FARBE.a4=null;
+  // Startwert: Farben aus der Vorsuche beim Hochladen (opts.farbe), sonst bekäme ein Foto, dessen Karte nur die Ersatzsuche fand, im
+  // Fenster keinen Vorschlag (es wird zuerst geladen, bevor eine Karte bestätigt ist)
+  if(!(frontFile&&frontFile.loaded)&&!(backFile&&backFile.loaded)){ KARTE_FARBE.card=KARTE_FARBE.a4=null; if(opts.farbe) Object.assign(KARTE_FARBE,opts.farbe); }
   let fp=await load(frontFile,"front","Vorderseite"), bp=null;
   if(backFile) bp=await load(backFile,"back","Rückseite");
   const loaded={fp,bp};
@@ -6080,7 +6086,8 @@ $("flip").addEventListener("click",async()=>{
   if(camBusy||starting) return;
   const vorher=facing; facing=facing==="user"?"environment":"user"; $("flip").disabled=true;
   // Filter neu ansetzen (das Bild ist jetzt gespiegelt bzw. nicht mehr), der Scan bleibt
-  const neu=()=>{ for(const k in oe) delete oe[k]; for(const k in oj) delete oj[k]; for(const k in bt) delete bt[k]; hist.length=0; g3.cOk=false; lastTime=-1; };
+  const neu=()=>{ for(const k in oe) delete oe[k]; for(const k in oj) delete oj[k]; for(const k in bt) delete bt[k]; hist.length=0; g3.cOk=false; lastTime=-1;
+    shirt.hit=0; shirt.show=0; shirt.ys=null; };   // Saumkante aus der anderen Kamera passt nicht
   try{ await openStream(); neu(); }
   catch(e){ facing=vorher;                                                   // zurück zur vorigen Kamera statt schwarzem Bild
     try{ await openStream(); neu(); }catch(_){}
@@ -6095,11 +6102,11 @@ $("full").addEventListener("click",()=>{
   else if(!on&&document.fullscreenElement) document.exitFullscreen().catch(()=>{});
 });
 $("hold").addEventListener("click",()=>{ held=!held; $("hold").textContent=held?"Weiter":"Halten"; });
-$("m-cal").addEventListener("click",()=>{ setMode("cal"); phase="cal"; clearSm(); });
+$("m-cal").addEventListener("click",()=>{ setMode("cal"); phase="cal"; clearSm(); stage.classList.toggle("vorscan",!held); });
 $("m-leg").addEventListener("click",()=>setMode("leg"));
 $("m-top").addEventListener("click",()=>setMode("top"));
 function scanZuruecksetzen(){
-  caps.cal=caps.side=null; ref=null; held=false; phase="cal"; clearSm(); setMode("cal");
+  caps.cal=caps.side=null; ref=null; held=false; phase="cal"; clearSm(); setMode("cal"); stage.classList.add("vorscan");
   ["step-cal","step-side"].forEach(i=>$(i).classList.remove("done"));
   $("v-cal").textContent=$("v-side").textContent="offen";
   $("m-leg").disabled=$("m-top").disabled=true;
@@ -7227,7 +7234,8 @@ async function upBuild(){
   if(back&&!front.loaded&&!back.loaded&&!!front.ref!==!!back.ref){ const [a,b]=front.ref?[front,back]:[back,front];
     if(a.refFarbe&&b.cv) try{ const kd=refInPhoto(b.cv,{kind:a.ref,farbe:a.refFarbe}); if(kd){ b.ref=kd; b.refFarbe=refInPhoto.farbe; upRender(); } }catch(_){} }
   const refK={front:front.loaded?"":front.ref||"",back:back&&!back.loaded?back.ref||"":""};
-  try{ r=await buildGarment(src(front),back?src(back):null,t=>{ if(gen===UP.gen) upMsg(`${have.join(" · ")}<br>${escH(t)}`); },refK,{worn:!back&&wornB?{cv:wornB.cv,L:wornB.person.L,pm:wornB.person.pm}:null,art:UP.art}); }
+  const farbe={}; for(const i of [front,back]) if(i&&!i.loaded&&i.ref&&i.refFarbe&&!farbe[i.ref]) farbe[i.ref]=i.refFarbe;
+  try{ r=await buildGarment(src(front),back?src(back):null,t=>{ if(gen===UP.gen) upMsg(`${have.join(" · ")}<br>${escH(t)}`); },refK,{worn:!back&&wornB?{cv:wornB.cv,L:wornB.person.L,pm:wornB.person.pm}:null,art:UP.art,farbe}); }
   catch(e){ if(gen===UP.gen) upMsg(`<div class="dbad">${escH(e&&e.message||"Das hat nicht geklappt.")}</div>`); return; }
   if(r&&r.info&&r.info.loaded){ front.loaded=r.info.loaded.fp; if(back) back.loaded=r.info.loaded.bp; }
   if(gen!==UP.gen) return;                          // inzwischen kam etwas Neues dazu
@@ -7425,7 +7433,7 @@ $("avOption").addEventListener("click",()=>{
   if(!g.key){ showError("Für den Avatar zuerst unten eine Hose anlegen (Fotos hineinziehen oder Link einfügen)."); return; }
   if(avatarAktiv()){ view3dKick(); $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"}); return; }
   avatarScanStart(); });
-loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,parseSizeText:typeof parseSizeText!=="undefined"?parseSizeText:null,sizeSeries:typeof sizeSeries!=="undefined"?sizeSeries:null,tableDims:typeof tableDims!=="undefined"?tableDims:null,PERF:typeof PERF!=="undefined"?PERF:null,HIPF:typeof HIPF!=="undefined"?HIPF:null,segGarment:typeof segGarment!=="undefined"?segGarment:null,isSkin:typeof isSkin!=="undefined"?isSkin:null,kmeans:typeof kmeans!=="undefined"?kmeans:null,fileToCanvas:typeof fileToCanvas!=="undefined"?fileToCanvas:null,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null,wornMask:typeof wornMask!=="undefined"?wornMask:null,wornSeeds:typeof wornSeeds!=="undefined"?wornSeeds:null,loadAiSeg:typeof loadAiSeg!=="undefined"?loadAiSeg:null,cropGarment:typeof cropGarment!=="undefined"?cropGarment:null,findGaps:typeof findGaps!=="undefined"?findGaps:null,flatSideScore:typeof flatSideScore!=="undefined"?flatSideScore:null,GEN:typeof GEN!=="undefined"?GEN:null,legCm:typeof legCm!=="undefined"?legCm:null,clearSm:typeof clearSm!=="undefined"?clearSm:null,trk:typeof trk!=="undefined"?trk:null,sizeAll:typeof sizeAll!=="undefined"?sizeAll:null,sizeVerdict:typeof sizeVerdict!=="undefined"?sizeVerdict:null,sizeReason:typeof sizeReason!=="undefined"?sizeReason:null,bodyMeas:typeof bodyMeas!=="undefined"?bodyMeas:null,sizeGarment:typeof sizeGarment!=="undefined"?sizeGarment:null,cutOf:typeof cutOf!=="undefined"?cutOf:null,AUS:typeof AUS!=="undefined"?AUS:null,AV:typeof AV!=="undefined"?AV:null,AVS:typeof AVS!=="undefined"?AVS:null,avatarAnpassen:typeof avatarAnpassen!=="undefined"?avatarAnpassen:null,avatarBauen:typeof avatarBauen!=="undefined"?avatarBauen:null,avatarDaten:typeof avatarDaten!=="undefined"?avatarDaten:null,avatarAnzeigen:typeof avatarAnzeigen!=="undefined"?avatarAnzeigen:null,avMasse:typeof avMasse!=="undefined"?avMasse:null,avatarScanZiele:typeof avatarScanZiele!=="undefined"?avatarScanZiele:null,v3d:typeof v3d!=="undefined"?v3d:null,caps:typeof caps!=="undefined"?caps:null,garmentDims:typeof garmentDims!=="undefined"?garmentDims:null}; buildPicker(); renderSeries(); loadSharedGarments().then(wolkeStart);
+loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,parseSizeText:typeof parseSizeText!=="undefined"?parseSizeText:null,sizeSeries:typeof sizeSeries!=="undefined"?sizeSeries:null,tableDims:typeof tableDims!=="undefined"?tableDims:null,PERF:typeof PERF!=="undefined"?PERF:null,HIPF:typeof HIPF!=="undefined"?HIPF:null,segGarment:typeof segGarment!=="undefined"?segGarment:null,findReference:typeof findReference!=="undefined"?findReference:null,refFarbe:typeof refFarbe!=="undefined"?refFarbe:null,orderQuad:typeof orderQuad!=="undefined"?orderQuad:null,scaleCanvas:typeof scaleCanvas!=="undefined"?scaleCanvas:null,readPhotoMeta:typeof readPhotoMeta!=="undefined"?readPhotoMeta:null,levelBySensor:typeof levelBySensor!=="undefined"?levelBySensor:null,isSkin:typeof isSkin!=="undefined"?isSkin:null,kmeans:typeof kmeans!=="undefined"?kmeans:null,fileToCanvas:typeof fileToCanvas!=="undefined"?fileToCanvas:null,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null,wornMask:typeof wornMask!=="undefined"?wornMask:null,wornSeeds:typeof wornSeeds!=="undefined"?wornSeeds:null,loadAiSeg:typeof loadAiSeg!=="undefined"?loadAiSeg:null,cropGarment:typeof cropGarment!=="undefined"?cropGarment:null,findGaps:typeof findGaps!=="undefined"?findGaps:null,flatSideScore:typeof flatSideScore!=="undefined"?flatSideScore:null,GEN:typeof GEN!=="undefined"?GEN:null,legCm:typeof legCm!=="undefined"?legCm:null,clearSm:typeof clearSm!=="undefined"?clearSm:null,trk:typeof trk!=="undefined"?trk:null,sizeAll:typeof sizeAll!=="undefined"?sizeAll:null,sizeVerdict:typeof sizeVerdict!=="undefined"?sizeVerdict:null,sizeReason:typeof sizeReason!=="undefined"?sizeReason:null,bodyMeas:typeof bodyMeas!=="undefined"?bodyMeas:null,sizeGarment:typeof sizeGarment!=="undefined"?sizeGarment:null,cutOf:typeof cutOf!=="undefined"?cutOf:null,AUS:typeof AUS!=="undefined"?AUS:null,AV:typeof AV!=="undefined"?AV:null,AVS:typeof AVS!=="undefined"?AVS:null,avatarAnpassen:typeof avatarAnpassen!=="undefined"?avatarAnpassen:null,avatarBauen:typeof avatarBauen!=="undefined"?avatarBauen:null,avatarDaten:typeof avatarDaten!=="undefined"?avatarDaten:null,avatarAnzeigen:typeof avatarAnzeigen!=="undefined"?avatarAnzeigen:null,avMasse:typeof avMasse!=="undefined"?avMasse:null,avatarScanZiele:typeof avatarScanZiele!=="undefined"?avatarScanZiele:null,v3d:typeof v3d!=="undefined"?v3d:null,caps:typeof caps!=="undefined"?caps:null,garmentDims:typeof garmentDims!=="undefined"?garmentDims:null}; buildPicker(); renderSeries(); loadSharedGarments().then(wolkeStart);
 avatarUI(); { const a=avatarGespeichert(); if(a) avatarAnzeigen(a).catch(e=>console.warn("Avatar",e)); }   // gespeicherter Avatar
 </script>
 </body>

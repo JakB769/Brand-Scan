@@ -596,3 +596,21 @@ Fünf Funde, alle echt, alle behoben:
 5. Saumlinie des Oberteils am Rand über die gefundenen Spalten hinaus verlängert (konnte dort hochschnellen) → begrenzt.
 Dazu im Test `tsammlung.mjs`: Netlify-Fall kopiert `app/hosen-auswahl.js` mit (404 nur im Test).
 
+### Zweite Gegenprüfung 19.10. (Agenten prüfen die Korrekturen, jeder Fund gegengeprüft)
+Vier Funde bestätigt, alle behoben, einer widerlegt:
+1. **Dunkle Karte → Stück vom Bund als „Karte“** (hoch): mit einer Kartenfarbe wie die Jeans fand die Ersatzsuche auf den
+   Bershka-Fotos ohne Karte Stücke vom Bund (Farbe passt, Kanten ringsum). Jetzt zusätzlich: fast ein Rechteck (Winkel ≤ 15°,
+   Gegenseiten ±25 %). Geprüft mit 216 Farben × Karte/A4 × beide Fotos: nie eine Karte (vorher 17 Treffer); echte Karte hinten
+   weiter gefunden. Neuer Test `tersatzkarte.mjs` (in `npm test`), schlägt mit dem alten Stand fehl.
+2. Farbe aus der Vorsuche beim Hochladen kam nicht im Ecken-Fenster an (wurde je Hose zurückgesetzt, bevor sie gebraucht
+   wurde) → wird jetzt als Startwert mitgegeben.
+3. Shop-Größe und Begründung blitzten beim Kamerastart und nach „Neu scannen“ kurz auf (`vorscan` erst im nächsten
+   ausgewerteten Bild) → sofort gesetzt; `tscan.mjs` prüft beides.
+4. Kamerawechsel (vorne/hinten) behielt die Saumkante des Oberteils der anderen Kamera → zurückgesetzt.
+Widerlegt: „halbe Karte statt ganzer“ bei zweifarbiger Karte (tritt bei gerade liegender Karte nicht auf, älter als heute).
+
+**Nebenbei gefunden:** `tlag.mjs` meldet in diesem Container „Saum-Ausschlag 62–64 % (< 70 %)“, auch auf
+dem Stand vom 16.10. (591a1b7, damals grün) und vor dem 18.10. (fd30daf): die Testmaschine schafft heute nur 6 Bilder/s
+statt 10 (die Stoffphysik dämpft bei so wenigen Bildern stärker; dokumentiert: allein 80–82 %, unter Last 65 %). Also keine
+Folge der heutigen Änderungen; Test unverändert gelassen, am Gerät mit 30–60 Bildern/s nicht betroffen.
+

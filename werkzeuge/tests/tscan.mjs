@@ -22,6 +22,7 @@ const zustand=()=>p.evaluate(()=>({cal:document.getElementById('step-cal').class
 // 1) Nah an der Kamera ins Bild (Füße nicht zu sehen): noch kein Scan, Hinweis, was fehlt; nichts eingezeichnet
 await p.evaluate(()=>Object.assign(window.__mode,{zoom:1.7,hueftY:.45,rand:'raten'}));
 await p.click('#quick');
+pruefe(await p.evaluate(()=>document.getElementById('stage').classList.contains('vorscan')),'Kamera gestartet: Größen-Urteile schon vor dem ersten Bild ausgeblendet');
 await p.waitForTimeout(2500);
 let z=await zustand();
 pruefe(!z.cal&&/Weiter zurück/.test(z.big)&&/Füße nicht sichtbar/.test(z.small),`nah: kein Scan ohne ganzen Körper, Hinweis „${z.big} · ${z.small}“`);
@@ -91,6 +92,13 @@ await p.evaluate(()=>{ window.__mode.shift=.15; }); await p.waitForTimeout(350);
 const x1=(await zustand()).frame.top[0], soll=.15*(await p.evaluate(()=>document.getElementById('overlay').width));
 pruefe((x1-x0)/soll>.85,`Sprung um 15 % der Bildbreite: nach 0,35 s ${Math.round((x1-x0)/soll*100)} % gefolgt`);
 await p.evaluate(()=>{ window.__mode.shift=0; }); await p.waitForTimeout(800);
+
+// 7) Größen-Urteile (Knöpfe, Shop-Größe, Begründung) erst nach dem Scan: nach dem Scan sichtbar, „Neu scannen“ blendet sie sofort
+//    aus (nicht erst mit dem nächsten ausgewerteten Bild), beim Kamera-Neustart ebenso (Gegenprüfung 19.10.)
+const vs=()=>p.evaluate(()=>document.getElementById('stage').classList.contains('vorscan'));
+pruefe(!(await vs()),'nach dem Scan: Größen-Urteile sichtbar (kein vorscan)');
+const sofort=await p.evaluate(()=>{ document.getElementById('reset').click(); return document.getElementById('stage').classList.contains('vorscan')&&getComputedStyle(document.getElementById('szwhy')).display==='none'; });
+pruefe(sofort,'„Neu scannen“: Größen-Urteile sofort ausgeblendet');
 
 pruefe(!errs.length,'keine Skriptfehler'+(errs.length?': '+errs.slice(0,3).join(' | '):''));
 await b.close();
