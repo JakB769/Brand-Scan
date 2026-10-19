@@ -395,3 +395,6 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    Bein über das projizierte Netz. Ursache der neuen Saumform: Physik startet erst nach dem Scan (7dff876).
 27. `fuseMasks` (19.10.): nur-KI-Punkte bleiben außer bei Bodenfarbe, nur-Farbe-Punkte nur bei Stofffarbe (dunkel auf dunkel
    wieder 113 statt 125 cm, Testjeans unverändert). `tseiten`: Rückseite darf jetzt „· Bankkarte als Maßstab“ tragen.
+28. Abschluss 19.10.: `view3dSub` (Untertitel direkt beim Löschen des Avatars), Shopify-Test wartet auf „gewählt“ und
+   „Anprobieren“; Gesamtlauf 43/45 grün (`tlag` Bildrate der Testmaschine, Shopify-Test behoben), Handy-Emulation grün.
+

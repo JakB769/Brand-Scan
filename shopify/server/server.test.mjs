@@ -74,7 +74,9 @@ pruefe(await st(signiert(`/proxy/hose?produkt=999`)) === 404, "Produkt ohne Hose
   const p = await (await b.newContext({ viewport: { width: 430, height: 900 } })).newPage(); const errs = [];
   p.on("pageerror", e => errs.push(e.message));
   await p.goto(`${SHOPURL}/apps/passform/anprobe?produkt=${PRODUKT}`);
-  await p.waitForFunction(() => document.querySelector("#gwrap .gbtn[aria-pressed='true']"), null, { timeout: 20000 }).catch(() => {});
+  // warten, bis die Hose gewählt UND „Anprobieren“ eingeblendet ist: beides kommt kurz nacheinander (gemessen etwa 50 ms), vorher
+  // prüfte der Test manchmal genau dazwischen (19.10.); bleibt der Knopf weg, schlägt die Prüfung unten weiter fehl
+  await p.waitForFunction(() => { const e = document.getElementById("tryon"); return document.querySelector("#gwrap .gbtn[aria-pressed='true']") && e && e.offsetParent !== null; }, null, { timeout: 20000 }).catch(() => {});
   const z = await p.evaluate(() => { const sicht = id => { const e = document.getElementById(id); return !!e && e.offsetParent !== null; };
     return { kunde: document.body.classList.contains("kunde"), gewaehlt: !!document.querySelector("#gwrap .gbtn[aria-pressed='true']"),
       knopf: document.getElementById("tryon").textContent.trim(), tryon: sicht("tryon"), hoehe: sicht("height"),

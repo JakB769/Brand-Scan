@@ -626,3 +626,26 @@ deutlicher Stofffarbe; dunkle Jeans auf dunklem Teppich liegt farblich nah am Bo
 KI hatte recht). Jetzt getrennt: Punkte nur der KI bleiben, außer sie sehen deutlich wie der Boden aus; Punkte nur der Farbe
 kommen nur bei deutlicher Stofffarbe dazu. Geprüft: `tki` 113 cm (Soll 111 ± 4), `tneuehose` unverändert grün (zwei Beine,
 107,7 cm, Rückseite echt), Renders angesehen.
+
+**Dazu:** `tavatar` meldete in langen Testläufen ab und zu „3D-Ansicht nicht wieder mit der Puppe“: der Untertitel der Ansicht
+wurde nur beim Zeichnen erneuert. Jetzt direkt beim Löschen (`view3dSub`); allein dreimal grün, im Gesamtlauf grün.
+`shopify/server/server.test.mjs` prüfte ab und zu zwischen „Hose gewählt“ und „Anprobieren eingeblendet“ (gemessen 50 ms
+auseinander, kein Flackern): wartet jetzt auf beides.
+
+### Abschluss 19.10.
+**Gesamtlauf** (jeder Schritt von `npm test` einzeln, damit ein roter Test die anderen nicht verdeckt): 43 von 45 grün.
+- `tlag` rot: Testmaschine 6 Bilder/s, auch auf dem Stand vom 16.10. (591a1b7) und vom 17.10. (fd30daf) rot; keine Folge der Änderungen.
+- `shopify/server/server.test.mjs` einmal rot (Zeitpunkt im Test, siehe oben), behoben, einzeln dreimal grün.
+**Handy-Emulation** (`werkzeuge/avatar-option-handy.mjs`): iPhone 13 und Pixel 7 grün (Scan 1,7/1,9 s, Avatar nach 13/14 s,
+Größe W26 → W36 macht den Bund am Avatar breiter, Knöpfe ganz zu sehen). Bilder `docs/test-avatar/`, angesehen.
+**Neue Hose aus Fotos** (`tneuehose`, Pflicht vor jedem Commit an der Modellerzeugung): Bilder `docs/test-neue-hose/`, angesehen
+(zwei Beine, Gesäßtaschen hinten, Saum gestaucht, gebeugtes Knie).
+
+**Offen / nicht geprüft:**
+- Länge der Testjeans 107,7 cm gegen Maßband 105 (+3 cm), Ursache nicht belegt (siehe Aufgabe 1).
+- Safari/echtes iPhone nicht testbar (kein WebKit hier); Bildrate am echten Gerät nicht gemessen.
+- Avatar: Maßband-Werte von Jakob fehlen (±2 cm nur an der Attrappe geprüft); Fußfarbe im einfarbigen Testbild nicht
+  bestimmbar (dann Hautfarbe); Kragen-Kante am Hals des Körpermodells sichtbar.
+- Vorschaubilder in der Hosen-Auswahl zeigen bei manchen Testhosen Boden zwischen den Beinen (Foto, nicht das 3D-Modell).
+- `tlag` braucht eine schnellere Testmaschine oder eine an die Bildrate angepasste Grenze (bewusst nicht gelockert).
+
