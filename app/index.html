@@ -3004,6 +3004,13 @@ function shadow3d(mask,vw,vh,ppc,foc,pc,src=g3.c){
    Läuft nur, solange die Kamera aus ist und die Ansicht zu sehen ist (die Grafik wird mit der Live-Anprobe geteilt). */
 const v3d={yaw:.45,drag:null,idle:0,raf:0,vis:true,last:0};
 function view3dKick(){ if(!v3d.raf) v3d.raf=requestAnimationFrame(view3dFrame); }
+/* Untertitel der 3D-Ansicht: auch direkt beim Löschen/Laden des Avatars, nicht nur beim nächsten gezeichneten Bild (außerhalb des
+   Sichtbereichs zeichnet die Ansicht nicht und der Text blieb stehen) */
+function view3dSub(G=g.key&&GARMENTS[g.key]){
+  if(!G) return;
+  const sub=(avatarAktiv()?`Dein Avatar (${Math.round(AV.form.H)} cm) · ziehen zum Drehen, zwei Finger, + und − oder Strg + Mausrad zum Zoomen`:"3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen")+(G.backEst?" · Rückseite geschätzt (kein Foto von hinten)":"");
+  if($("g3dSub").textContent!==sub) $("g3dSub").textContent=sub;
+}
 /* Puppe: Hüftgelenk 52 %, Knie 28,5 %, Knöchel 4,5 % der Größe; Hüftgelenke 10 % auseinander; Bund 4,5 % über dem Hüftgelenk */
 function view3dPose(G,W,H,yw,sync){
   if(avatarAktiv()) return avatarPose(G,W,H,yw,sync,AV.form);
@@ -3104,9 +3111,7 @@ function view3dFrame(now){
   const box=$("g3dbox"), cvs=$("g3dview"), G=g.key&&GARMENTS[g.key];
   const show=!!(G&&G.m3&&!G.bad&&!running&&init3d());
   box.hidden=!show; if(!show||!v3d.vis) return;
-  const av=avatarAktiv();
-  const sub=(av?`Dein Avatar (${Math.round(AV.form.H)} cm) · ziehen zum Drehen, zwei Finger, + und − oder Strg + Mausrad zum Zoomen`:"3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen")+(G.backEst?" · Rückseite geschätzt (kein Foto von hinten)":"");
-  if($("g3dSub").textContent!==sub) $("g3dSub").textContent=sub;
+  view3dSub(G);
   const dt=clamp((now-(v3d.last||now))/1000,0,.1); v3d.last=now;
   if(v3d.ziel!=null){ const d=wrapA(v3d.ziel-v3d.yaw); v3d.yaw+=d*Math.min(1,dt*9); if(Math.abs(d)<.003){ v3d.yaw=v3d.ziel; v3d.ziel=null; } }   // Knopf Vorne/Seite/Hinten
   else if(!v3d.drag&&now-v3d.idle>2500) v3d.yaw+=dt*.5;           // dreht sich langsam, bis jemand zieht
@@ -3521,7 +3526,7 @@ async function avatarAnzeigen(a){
 }
 function avatarLoeschen(){
   try{ localStorage.removeItem(AV_KEY); }catch(_){}
-  AV.form=null; AV.daten=null; if(AV.gl) AV.gl.key=null; v3d.zoom=1; v3d.pan=0; avatarUI(); renderSizes(true); view3dKick();
+  AV.form=null; AV.daten=null; if(AV.gl) AV.gl.key=null; v3d.zoom=1; v3d.pan=0; avatarUI(); renderSizes(true); view3dSub(); view3dKick();
 }
 /* Avatar gilt nur für seine Größe: steht oben eine andere (andere Person, Testprofil), zeigt die 3D-Ansicht die Puppe */
 function avatarAktiv(){ const h=num($("height").value); return !!(AV.form&&!v3d.ohneAvatar&&(!(h>=120&&h<=230)||Math.abs(h-AV.form.H)<=1)); }
