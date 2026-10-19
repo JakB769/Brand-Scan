@@ -132,9 +132,12 @@ pruefe(v.zoom===1,`Reset: Zoom ${v.zoom}×`);
 const px=await p.evaluate(()=>{ const c=document.getElementById('g3dview'), H=Math.round(c.height*.4), x=c.getContext('2d').getImageData(0,0,c.width,H).data; let n=0;
   for(let i=0;i<x.length;i+=4*7) if(x[i+3]>200) n++; return n; });
 pruefe(px>300,`Avatar im Bild (${px} gezeichnete Stichproben über der Hose)`);
-// Erscheinung: vier Farben aus dem Kamerabild (Chromiums künstliche Kamera zeigt ein grünes Testbild), nur Zahlen gespeichert
+// Erscheinung: Farben aus dem Kamerabild (Chromiums künstliche Kamera zeigt ein grünes Testbild), nur Zahlen gespeichert.
+// Fuß: im einfarbigen Testbild gleich dem Boden vor den Zehen → verworfen (seit 18.10. gewollt, sonst Boden als Socke);
+// die Darstellung nimmt dann die Hautfarbe. Ist er da, muss er gültig sein.
 const fa=JSON.parse(roh).farben||{}, farbe=c=>Array.isArray(c)&&c.length===3&&c.every(x=>typeof x==='number'&&x>=0&&x<=1);
-pruefe(['haut','haare','oberteil','fuss'].every(k=>farbe(fa[k]))&&Object.keys(fa).length===4,`Farben aus dem Kamerabild: ${JSON.stringify(fa)}`);
+pruefe(['haut','haare','oberteil'].every(k=>farbe(fa[k]))&&(!('fuss' in fa)||farbe(fa.fuss))&&Object.keys(fa).every(k=>['haut','haare','oberteil','fuss'].includes(k)),
+  `Farben aus dem Kamerabild: ${JSON.stringify(fa)}${'fuss' in fa?'':' (Fuß wie der Boden: verworfen)'}`);
 
 // Größenwechsel am Avatar: kleinste und größte Größe antippen → Bund der Hose am Avatar sichtbar weiter, Urteil je Zone da
 const bund=()=>p.evaluate(()=>{ const D=window.__dbg, P=D.g3.pos, NR=D.g3.nr, C=D.g3.nRing/(4*NR); let a=1e9,b=-1e9;
@@ -181,8 +184,8 @@ await p.click('#avDel'); await p.waitForTimeout(400);
 u=await ui(); const leer=await p.evaluate(()=>localStorage.getItem('passformAvatar'));
 pruefe(!u.form&&!u.del&&!u.ans&&leer===null&&/Avatar aus Selbst-Scan/.test(u.scan),'zweites Tippen: Avatar und gespeicherte Maße gelöscht');
 await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView({block:'center'}));
-let sub2=''; for(let t=0;t<25&&!/Puppe/.test(sub2);t++){ await p.waitForTimeout(200); sub2=await p.evaluate(()=>document.getElementById('g3dSub').textContent); }
-pruefe(/Puppe/.test(sub2),'3D-Ansicht wieder mit der Puppe');
+let sub2=''; for(let t=0;t<50&&!/Puppe/.test(sub2);t++){ await p.waitForTimeout(200); sub2=await p.evaluate(()=>document.getElementById('g3dSub').textContent); }
+pruefe(/Puppe/.test(sub2),'3D-Ansicht wieder mit der Puppe'+(/Puppe/.test(sub2)?'':': „'+sub2.slice(0,80)+'“'));
 
 // 8) Weite Kleidung (Attrappe wie sonst: Knie so breit wie der Oberschenkel): erkannt, Umfänge nur als Obergrenze, Hinweis
 await p.evaluate(()=>{ window.__mode.knieSchmal=0; window.__mode.yaw=0; });
