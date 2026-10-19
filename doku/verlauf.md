@@ -380,3 +380,10 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    nicht sichtbar“; vor dem Scan weder Hose noch Messpunkte; Scan 0,5 s statt 0,7 s Ruhe, Median über das Haltefenster.
    T-Shirt: Personen-Maske, Saum als Parabel, Ein-/Ausblenden mit Hysterese (Test: reingesteckt, ohne Oberteil, Flackern).
    Hosen-Knöpfe in der Anprobe eine Zeile zum Wischen (mit 26 Hosen war das Kamerabild ganz zugedeckt).
+24. Gegenprüfung 19.10. (fünf Funde, alle nachgeprüft und behoben): (1) die Ersatz-Kartensuche (`localContrastMask`) fand in
+   Fotos ohne Karte Hosenecken als „Karte“ (Bershka-Testfotos) → läuft nur noch mit der Farbe der Karte vom anderen Foto und
+   verlangt eine Kante auf allen vier Seiten; Fotos ohne Karte wieder ohne Maßstab wie vorher. (2) Flächenprüfung in
+   `refineReference` verwarf auch angetippte Ecken → nur noch für die automatische Suche. (3) Shop-Größe und Begründung waren
+   vor dem Scan sichtbar → mit `vorscan` ausgeblendet. (4) Oberteil-Zustand blieb nach neuem Scan oder Kamera-Neustart stehen
+   → zurückgesetzt. (5) Saum-Parabel wurde über die gefundenen Spalten hinaus verlängert (Ausreißer am Rand) → begrenzt.
+   Dazu `tsammlung.mjs`: Netlify-Fall kopiert `app/hosen-auswahl.js` mit (vorher 404 im Test, nicht in der App).

@@ -54,9 +54,11 @@ await B.ctx.close();
 //    Löschen bleibt gelöscht
 const ordner=ausgabe+'netlify/'; fs.mkdirSync(ordner,{recursive:true});
 fs.copyFileSync(seite,ordner+'index.html'); fs.copyFileSync(datei,ordner+'hosen.json');
+// Hosen-Auswahl liegt in der Testseite unter ../../app/ (von / aus: /app/)
+fs.mkdirSync(ordner+'app',{recursive:true}); fs.copyFileSync(hier+'../../app/hosen-auswahl.js',ordner+'app/hosen-auswahl.js');
 const srv=http.createServer((q,r)=>{ const f=ordner+(q.url.split('?')[0]==='/'?'index.html':decodeURIComponent(q.url.split('?')[0].slice(1)));
   if(!fs.existsSync(f)){ r.writeHead(404); r.end(); return; }
-  r.writeHead(200,{'content-type':f.endsWith('.json')?'application/json':'text/html; charset=utf-8'}); r.end(fs.readFileSync(f)); });
+  r.writeHead(200,{'content-type':f.endsWith('.json')?'application/json':f.endsWith('.js')?'application/javascript':'text/html; charset=utf-8'}); r.end(fs.readFileSync(f)); });
 await new Promise(r=>srv.listen(0,'127.0.0.1',r)); const url=`http://127.0.0.1:${srv.address().port}/`;
 const C=await neu(url); await C.p.waitForTimeout(800);
 const l3=await liste(C.p), sp=await C.p.evaluate(()=>JSON.parse(localStorage.getItem('massScanHosen')||'[]').length);

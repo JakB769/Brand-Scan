@@ -128,7 +128,7 @@ select{background:var(--surface-2);border:1px solid transparent;border-radius:va
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 /* Hosen in der Anprobe: eine Zeile zum Wischen, sonst decken viele Hosen (Shop mit 20+ Produkten) das ganze Kamerabild zu */
 /* vor dem Ende des Scans: keine Größen-Urteile und Messwerte (sie beruhen noch auf geratenem Maßstab) */
-.stage.vorscan #szchips,.stage.vorscan #hudRead{display:none}
+.stage.vorscan #szchips,.stage.vorscan #hudRead,.stage.vorscan #szshop,.stage.vorscan #szwhy{display:none}
 #gchips{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
 #gchips::-webkit-scrollbar{display:none}
 #gchips>.chip{flex:none}
@@ -876,6 +876,7 @@ async function startCamera(){
   if(!(h>=120&&h<=230)){ showError("Bitte zuerst eine Körpergröße zwischen 120 und 230 cm eintragen.");
     $("height").focus(); $("height").scrollIntoView({block:"center"}); return; }
   starting=true; $("error").hidden=true; camT0=performance.now(); camUI();
+  shirt.hit=0; shirt.show=0; shirt.ys=null;          // Saumkante des Oberteils neu suchen (Shop: schließen und wieder öffnen)
   const gen=++camGen;                              // wird die Kamera unterwegs wieder ausgemacht (✕ in der Shop-Anprobe), hier aufhören
   // Ton und Sprache brauchen auf iOS eine echte Nutzeraktion zum Freischalten
   try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(_){}
@@ -1365,6 +1366,7 @@ function analyse(res){
   // schon beim Hereinkommen auf, mit Maßstab aus der Rumpflänge geraten, und sprang beim Scan auf die richtige Größe.
   const zeigen=!(phase==="cal"&&!held);
   if(stage.classList.contains("vorscan")===zeigen) stage.classList.toggle("vorscan",!zeigen);   // Größen-Urteile und Messwerte erst nach dem Scan
+  if(!zeigen){ shirt.hit=0; shirt.show=0; shirt.ys=null; }   // keine Saumkante aus einem früheren Durchgang (andere Person, andere Höhe)
   if(zeigen) drawGarment(hipBand,beltYf,pxPerCm,botN,ref?tr:0,bone,yCrotch,vw,vh,{yaw,half:fc.half,arms,mask:m,roll,zBack,hipPx:[hipX*vw,hipYf*vh],shPx:[shX*vw,shYf*vh],
     shirt:g.key&&PASSFORM.shirtDarueber&&Math.abs(roll)<.35?shirtHem(L,V,m):null});
   if(zeigen&&!clean) draw(L,{topN,botN},{hipY,waistY,crotchY:crotchY??hipY+PASSFORM.schrittOhne*kU0,crotchFresh,beltY},{hipBand,waistBand},legs,cmPerUnit,vw,vh);
@@ -1640,7 +1642,9 @@ function shirtHem(L,V,mk){
             // Saubere Kante (18.10.): Parabel durch die Spalten statt Zickzack von Spalte zu Spalte (ein Saum ist eine sanfte Kurve)
             const pts=[]; sm.forEach((q,c)=>{ if(q!=null) pts.push([xs[c],clamp(q,mh-tol,mh+tol)]); });
             const pf=parabel(pts);
-            found={xs,ys:pf?xs.map(x=>clamp(pf(x),mh-tol,mh+tol)):sm.map(q=>q==null?null:clamp(q,mh-tol,mh+tol))}; } } } } }
+            // nur zwischen den Spalten mit Fund auswerten, außen flach weiter (eine Parabel kippt an den Rändern stark)
+            const xa=pts.length?pts[0][0]:0, xb=pts.length?pts[pts.length-1][0]:0;
+            found={xs,ys:pf?xs.map(x=>clamp(pf(clamp(x,xa,xb)),mh-tol,mh+tol)):sm.map(q=>q==null?null:clamp(q,mh-tol,mh+tol))}; } } } } }
   // Ohne Flackern: erst nach zwei Funden hintereinander einblenden, erst nach drei Fehlschlägen ausblenden; die Kante folgt
   // weich (etwa 0,12 s), einzelne Ausreißer-Bilder ändern nichts
   shirt.hit=found?Math.min(3,shirt.hit+1):Math.max(0,shirt.hit-1);
@@ -4607,38 +4611,70 @@ function localContrastMask(d,w,h){
   for(let i=0;i<w*h;i++) m[i]=dist[i]>T?1:0;
   return m;
 }
-function findReference(cv,kind){
+function findReference(cv,kind,opt={}){
   const R=REFS[kind], w=cv.width,h=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
   const want=R.h/R.w;
-  // Flecken der Maske, je Fleck das umschließende Viereck; Karte/Blatt: fast ganz gefüllt, Seitenverhältnis passend
-  const suche=(m,ab)=>{
+  // Flecken der Maske (Pixelzahl, Rand, Rahmen, Kennzahl im Etikettenfeld)
+  const flecken=m=>{
     const lab=new Int32Array(w*h), st=new Int32Array(w*h), comps=[]; let cur=0;
     for(let s0=0;s0<w*h;s0++){ if(!m[s0]||lab[s0]) continue;
-      cur++; let n=0,sp=0; st[sp++]=s0; lab[s0]=cur; const pts=[];
-      while(sp){ const i=st[--sp], x=i%w, y=(i/w)|0; n++;
+      cur++; let n=0,sp=0,x0=w,y0=h,x1=0,y1=0; st[sp++]=s0; lab[s0]=cur; const pts=[];
+      while(sp){ const i=st[--sp], x=i%w, y=(i/w)|0; n++; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
         if(x===0||!m[i-1]||x===w-1||!m[i+1]||i<w||!m[i-w]||i>=w*h-w||!m[i+w]) pts.push([x,y]);
         if(x>0&&m[i-1]&&!lab[i-1]){lab[i-1]=cur;st[sp++]=i-1;} if(x<w-1&&m[i+1]&&!lab[i+1]){lab[i+1]=cur;st[sp++]=i+1;}
         if(i>=w&&m[i-w]&&!lab[i-w]){lab[i-w]=cur;st[sp++]=i-w;} if(i<w*h-w&&m[i+w]&&!lab[i+w]){lab[i+w]=cur;st[sp++]=i+w;} }
-      comps.push({n,pts});
+      comps.push({id:cur,n,pts,b:[x0,y0,x1,y1]});
     }
-    comps.sort((a,b)=>b.n-a.n);
-    let best=null;
-    for(const c of comps.slice(ab,ab+24)){
+    comps.sort((a,b)=>b.n-a.n); return {lab,comps}; };
+  // Karte/Blatt: fast ganz gefülltes Viereck (Pixel ≈ Fläche des Vierecks; abgerundete Ecken bis 1,1, mehr ist kein Viereck) mit passendem
+  // Seitenverhältnis; pruef: zusätzliche Bedingung je Fleck
+  const suche=(F,ab,pruef)=>{ let best=null;
+    for(const c of F.comps.slice(ab,ab+24)){
       if(c.n<w*h*.0004) break;
       const Q=quadOf(convexHull(c.pts)); if(!Q) continue;
       const fill=c.n/shoelace(Q);
       const L=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]), s1=(L(Q[0],Q[1])+L(Q[2],Q[3]))/2, s2=(L(Q[1],Q[2])+L(Q[3],Q[0]))/2;
       const asp=Math.max(s1,s2)/Math.min(s1,s2), err=Math.abs(asp/want-1);
-      if(fill>.88&&err<.3&&(!best||err<best.err)) best={Q,s1,s2,err,n:c.n};
+      if(fill>.88&&fill<1.12&&err<.3&&(!best||err<best.err)&&(!pruef||pruef(c,F.lab,Q))) best={Q,s1,s2,err,n:c.n};
     }
     return best; };
-  // erst die Farb-Freistellung (der größte Fleck ist die Hose), sonst „anders als der Boden ringsum“
+  // erst die Farb-Freistellung (der größte Fleck ist die Hose)
   const mo=m=>morph(morph(m,w,h,true,1),w,h,false,1);
-  const best=suche(mo(segColor(d,w,h)),1)||suche(mo(localContrastMask(d,w,h)),0);
+  const F1=flecken(mo(segColor(d,w,h)));
+  let best=suche(F1,1);
+  if(!best&&opt.farbe){
+    // Ersatzsuche (18.10.), nur wenn dieselbe Karte schon auf dem anderen Foto gefunden ist (opt.farbe = ihre Farbe): „anders als
+    // der Boden ringsum“ (localContrastMask) findet sie auch, wo segColor hellen Boden zur Hose zählt (Rückseite der Testjeans).
+    // Diese Maske markiert aber auch Stücke der Hose (Ecken am Saum und am Bund); darum zählt ein Fleck nur mit der Farbe der Karte
+    // und mit einer Kante auf allen vier Seiten (je Seite Median des Farbsprungs quer zur Seite, davon das Minimum). Ohne Karte auf
+    // dem anderen Foto bleibt es bei der Farb-Freistellung: in Fotos ohne Karte sonst eine Hosenecke als „Karte“ (Gegenprüfung).
+    const col=(x,y)=>{ const X=clamp(Math.round(x),0,w-1), Y=clamp(Math.round(y),0,h-1), i=(Y*w+X)*4; return [d[i],d[i+1],d[i+2]]; };
+    const pruef=(c,lab,Q)=>{
+      const f=refFarbe(cv,Q,d); if(!f||Math.hypot(f[0]-opt.farbe[0],f[1]-opt.farbe[1],f[2]-opt.farbe[2])>55) return false;
+      const cx=Q.reduce((a,p)=>a+p[0],0)/4, cy=Q.reduce((a,p)=>a+p[1],0)/4; let mn=1e9;
+      for(let k=0;k<4;k++){ const a=Q[k], b=Q[(k+1)%4], L=Math.hypot(b[0]-a[0],b[1]-a[1])||1; let nx=-(b[1]-a[1])/L, ny=(b[0]-a[0])/L;
+        if((((a[0]+b[0])/2-cx)*nx+((a[1]+b[1])/2-cy)*ny)<0){ nx=-nx; ny=-ny; }
+        const v=[]; for(let j=1;j<=11;j++){ const t=.1+.8*j/12, px=a[0]+(b[0]-a[0])*t, py=a[1]+(b[1]-a[1])*t;
+          let g=0; for(const o of [1.5,2.5,3.5]){ const p=col(px+nx*o,py+ny*o), q=col(px-nx*o,py-ny*o); g=Math.max(g,Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2])); } v.push(g); }
+        v.sort((p,q)=>p-q); mn=Math.min(mn,v[v.length>>1]); }
+      return mn>=30; };
+    best=suche(flecken(mo(localContrastMask(d,w,h))),0,pruef);
+  }
   if(!best) return null;
   const long=Math.max(best.s1,best.s2), short=Math.min(best.s1,best.s2);
   return {Q:best.Q,pxPerCm:(long/R.h+short/R.w)/2,aspErr:best.err,kind,share:best.n/(w*h)};
 }
+/* Farbe eines gefundenen Bezugsobjekts (Median über ein Raster im Inneren des Vierecks), um dieselbe Karte auf dem anderen Foto
+   wiederzuerkennen */
+function refFarbe(cv,Q,d=null){
+  const w=cv.width,h=cv.height; if(!d) d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
+  const R=[],G=[],B=[];
+  for(let u=.2;u<=.81;u+=.1) for(let v=.2;v<=.81;v+=.1){ const top=[Q[0][0]+(Q[1][0]-Q[0][0])*u,Q[0][1]+(Q[1][1]-Q[0][1])*u], bot=[Q[3][0]+(Q[2][0]-Q[3][0])*u,Q[3][1]+(Q[2][1]-Q[3][1])*u];
+    const X=Math.round(top[0]+(bot[0]-top[0])*v), Y=Math.round(top[1]+(bot[1]-top[1])*v); if(X<0||Y<0||X>=w||Y>=h) continue;
+    const i=(Y*w+X)*4; R.push(d[i]); G.push(d[i+1]); B.push(d[i+2]); }
+  if(R.length<5) return null; const med=a=>a.sort((p,q)=>p-q)[a.length>>1]; return [med(R),med(G),med(B)];
+}
+const KARTE_FARBE={card:null,a4:null};          // zuletzt gefundene/bestätigte Karte bzw. Blatt (für das andere Foto derselben Hose)
 /* ---------- Bezugsobjekt genau vermessen ----------
    Karten haben abgerundete Ecken: der äußerste Punkt liegt auf der Rundung, nicht auf der gedachten Ecke, und
    eine Karte erschiene dadurch etwa 2–3 % zu klein. Darum durch jede Kante eine Gerade legen (nur ihr mittlerer Teil)
@@ -4711,7 +4747,7 @@ function scaleCanvas(cv,k){
   const x=c.getContext("2d",{willReadFrequently:true}); x.imageSmoothingQuality="high"; x.drawImage(cv,0,0,c.width,c.height); return c;
 }
 /* Grob gefundenes Bezugsobjekt im großen Bild genau vermessen: nur ein Ausschnitt um das Objekt wird freigestellt */
-function refineReference(hi,Qa,kind){
+function refineReference(hi,Qa,kind,grob=false){
   let x0=Math.min(...Qa.map(p=>p[0])),x1=Math.max(...Qa.map(p=>p[0])),y0=Math.min(...Qa.map(p=>p[1])),y1=Math.max(...Qa.map(p=>p[1]));
   const mx=(x1-x0)*.6, my=(y1-y0)*.6; x0=Math.max(0,Math.floor(x0-mx)); y0=Math.max(0,Math.floor(y0-my));
   x1=Math.min(hi.width,Math.ceil(x1+mx)); y1=Math.min(hi.height,Math.ceil(y1+my));
@@ -4759,6 +4795,8 @@ function refineReference(hi,Qa,kind){
   const R=refineQuad(pts.filter(p=>distToHull(p,hull)<3),Q).map(p=>[p[0]+x0,p[1]+y0]);
   // Muss zum groben Fund passen: eine zweifarbige Karte zerfällt im Ausschnitt manchmal in Hälften, und eine Hälfte hat fast das
   // Seitenverhältnis einer Karte (1,26 statt 1,59). Dann lieber das grobe Viereck (wird danach auf die Kanten gesetzt).
+  // (nur, wenn Qa ein gefundenes Viereck ist; nach einem Tipp ist Qa ein großzügiges Suchfeld)
+  if(!grob) return orderQuad(R);
   const fl=shoelace(R)/Math.max(1,shoelace(orderQuad(Qa)));
   return fl>.8&&fl<1.25?orderQuad(R):null;
 }
@@ -4875,13 +4913,13 @@ async function photoWithReference(file,say,kind,title,meta){
   const frei=c=>{ if(c){ c.width=0; c.height=0; } };
   const lev=levelBySensor(hi,meta); if(lev&&lev.cv!==hi){ const alt=hi; hi=lev.cv; frei(alt); }
   say(`${REFS[kind].name} wird gesucht …`);
-  const k=900/hi.height, sm=scaleCanvas(hi,k), r0=findReference(sm,kind); frei(sm);
+  const k=900/hi.height, sm=scaleCanvas(hi,k), r0=findReference(sm,kind,{farbe:KARTE_FARBE[kind]}); frei(sm);
   let guess=null;
-  if(r0){ guess=refineReference(hi,r0.Q.map(p=>[p[0]/k,p[1]/k]),kind)||orderQuad(r0.Q.map(p=>[p[0]/k,p[1]/k])); guess=orderQuad(snapQuadToEdges(hi,guess)); }
+  if(r0){ guess=refineReference(hi,r0.Q.map(p=>[p[0]/k,p[1]/k]),kind,true)||orderQuad(r0.Q.map(p=>[p[0]/k,p[1]/k])); guess=orderQuad(snapQuadToEdges(hi,guess)); }
   say(`Bitte ${REFS[kind].akk} bestätigen oder die Ecken antippen …`);
   const Q0=await askCorners(hi,guess,kind,title);   // Ecken sind dort schon sichtbar eingerastet
   if(!Q0) return {cv:scaleCanvas(hi,900/hi.height),hi,lev,ref:null,warn:[]};
-  let Q=Q0;
+  let Q=Q0; try{ KARTE_FARBE[kind]=refFarbe(hi,orderQuad(Q0)); }catch(_){}
   const warn=[];
   if(!lev){
     // Keine Neigungsdaten: über die vier Ecken gerade rechnen (Homographie Foto → Draufsicht).
@@ -5093,6 +5131,8 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   // Schon geladene Fotos ({loaded}) werden nicht noch einmal geladen: Ecken der Karte und Umriss nur einmal bestätigen.
   const rk=k=>refKind&&typeof refKind==="object"?refKind[k]||"":refKind;
   const load=(f,k,t)=>f&&f.loaded?f.loaded:loadGarmentPhoto(f,say,rk(k),t);
+  // Farbe der Karte gilt nur innerhalb einer Hose (Vorderseite → Rückseite), nicht für die nächste
+  if(!(frontFile&&frontFile.loaded)&&!(backFile&&backFile.loaded)) KARTE_FARBE.card=KARTE_FARBE.a4=null;
   let fp=await load(frontFile,"front","Vorderseite"), bp=null;
   if(backFile) bp=await load(backFile,"back","Rückseite");
   const loaded={fp,bp};
@@ -6899,13 +6939,13 @@ async function upAnalyse0(it){
   it.cv=cv;
   await classifyFlat(it,pers&&pers.na);
   // flach fotografiert mit Bankkarte oder A4-Blatt daneben: als Maßstab benutzen (Ecken bestätigen wie im Einzel-Formular)
-  if(it.kind==="flat"){ try{ it.ref=refInPhoto(it.cv); }catch(_){ it.ref=""; } }
+  if(it.kind==="flat"){ try{ it.ref=refInPhoto(it.cv); it.refFarbe=refInPhoto.farbe; }catch(_){ it.ref=""; } }
 }
 /* Liegt eine Bankkarte oder ein A4-Blatt im Foto? Grobe Suche auf 900 px Höhe (dieselbe wie beim Einzel-Formular) */
-function refInPhoto(cv){
+function refInPhoto(cv,opt={}){
   const k=Math.min(1,900/cv.height), sm=k<1?scaleCanvas(cv,k):cv;
-  for(const kind of ["card","a4"]) if(findReference(sm,kind)) return kind;
-  return "";
+  for(const kind of opt.kind?[opt.kind]:["card","a4"]){ const r=findReference(sm,kind,opt); if(r){ refInPhoto.farbe=refFarbe(sm,orderQuad(r.Q)); return kind; } }
+  refInPhoto.farbe=null; return "";
 }
 async function classifyFlat(it,noPose=false){
   if(!aiSeg) await withTimeout(loadAiSeg(),9000);
@@ -6992,7 +7032,7 @@ function upRender(){
   $("drop-list").querySelectorAll("[data-back]").forEach(b=>b.onclick=async()=>{ const it=UP.items.find(i=>i.id===+b.dataset.back); if(!it) return;
     for(const i of UP.items){ if(i.fix==="hinten") i.fix=null; if(i!==it&&i.kind==="flat"&&i.side==="hinten") i.extra=true; }
     it.fix="hinten"; it.kind="wait"; it.note="wird als Rückseite geprüft …"; it.person=null; upRender();
-    try{ await classifyFlat(it); if(it.kind==="flat"){ try{ it.ref=refInPhoto(it.cv); }catch(_){ it.ref=""; } } }catch(e){ it.kind="none"; it.note="nicht lesbar"; }
+    try{ await classifyFlat(it); if(it.kind==="flat"){ try{ it.ref=refInPhoto(it.cv); it.refFarbe=refInPhoto.farbe; }catch(_){ it.ref=""; } } }catch(e){ it.kind="none"; it.note="nicht lesbar"; }
     UP.items=UP.items.filter(i=>!(i!==it&&i.kind==="flat"&&i.side==="hinten"));
     upAssign(); upRender(); upBuild(); });
   $("drop-list").querySelectorAll("[data-sw]").forEach(b=>b.onclick=()=>{ const it=UP.items.find(i=>i.id===+b.dataset.sw); if(!it) return;
@@ -7062,6 +7102,9 @@ async function upBuild(){
   let r=null; window.__ownCheck=$("own-check").checked;      // „Umriss immer prüfen“ gilt auch hier
   // aus der Datei selbst bauen (Neigungsdaten des iPhones, Maßstab im Foto), Ausschnitte aus Screenshots aus dem Bild
   const src=i=>i.loaded?{loaded:i.loaded}:i.file&&!i.from?i.file:i.cv;
+  // Karte nur auf einem Foto gefunden: auf dem anderen gezielt dieselbe suchen (gleiche Farbe, Kante ringsum)
+  if(back&&!front.loaded&&!back.loaded&&!!front.ref!==!!back.ref){ const [a,b]=front.ref?[front,back]:[back,front];
+    if(a.refFarbe&&b.cv) try{ const kd=refInPhoto(b.cv,{kind:a.ref,farbe:a.refFarbe}); if(kd){ b.ref=kd; b.refFarbe=refInPhoto.farbe; upRender(); } }catch(_){} }
   const refK={front:front.loaded?"":front.ref||"",back:back&&!back.loaded?back.ref||"":""};
   try{ r=await buildGarment(src(front),back?src(back):null,t=>{ if(gen===UP.gen) upMsg(`${have.join(" · ")}<br>${escH(t)}`); },refK,{worn:!back&&wornB?{cv:wornB.cv,L:wornB.person.L,pm:wornB.person.pm}:null,art:UP.art}); }
   catch(e){ if(gen===UP.gen) upMsg(`<div class="dbad">${escH(e&&e.message||"Das hat nicht geklappt.")}</div>`); return; }

@@ -1,6 +1,6 @@
 # Passform-Projekt: Live-Anprobe für Hosen als Shopify-App
 
-Übergabe aus einem Claude-Chat (1.–7. Oktober 2026) an Claude Code. Diese Datei ist der Einstieg (früher auch als `UEBERGABE.md` mitgeliefert, Inhalt identisch).
+Übergabe aus einem Claude-Chat (1.–7. Oktober 2026) an Claude Code; diese Datei ist der Einstieg.
 Antworte dem Nutzer auf **Deutsch**.
 
 ## Worum es geht
@@ -31,7 +31,7 @@ Geschäftsplan, Preise (39 / 99 / 249 € pro Monat, vom Nutzer bestätigt), Kon
 | `werkzeuge/pruefstand.mjs` | **Prüfstand**: echte Seite und echte Erkennung mit einem Foto als Kamerabild (`node werkzeuge/pruefstand.mjs foto.jpg 180 [link]`), Bild nach `werkzeuge/tests/ausgabe/pruefstand.png`, Messwerte in der Konsole. Braucht ffmpeg. |
 | `prototypen/` | Sieben ältere Stände, nummeriert und datiert. Nur zum Nachschlagen. |
 | `werkzeuge/tests/testseite-mit-simulierter-person.html` | Aktuelle Seite mit Attrappe statt MediaPipe (siehe „Testen“). |
-| `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“ (die alten `t.mjs` bis `te.mjs` mit harten Pfaden sind seit 11.10. gelöscht). |
+| `werkzeuge/tests/t*.mjs` | Playwright-Skripte, siehe „Testen“. |
 | `werkzeuge/python/` | Der ursprüngliche Python-Weg vom Foto zum Modell. Inzwischen nach JavaScript portiert, als Referenz nützlich. |
 | `werkzeuge/bausteine/` | `g3d.js` (3D-Darstellung) und `gen.js` (Generator, Blickrichtung) als Einzelstücke, bevor sie in die Seite kamen. **Nicht mehr ganz aktuell**, die Wahrheit steht in `app/index.html`. |
 | `material/produktfotos/` | `front.jpg`, `back.jpg` (Bershka Super Baggy Jeans, 702×900), der fertige Atlas und das Modell als JSON. Gute Testdaten. |
@@ -118,6 +118,8 @@ Diese Datei wird bei jeder Anfrage mitgeladen und ist darum bewusst kurz. Die De
 - Kamera muss beim Tippen **sofort** starten und den weitesten Winkel nehmen.
 - Schreibt oft per Spracheingabe; „Buntweite“ heißt Bundweite.
 - Antworten kurz, ehrlich, mit klarer Aussage, was geprüft ist und was nicht.
+- **Nutzungslimit: unfertige Aufgaben nach dem Reset sofort fortsetzen**, auch beim 2./3. Mal (19.10.): bei längeren Aufträgen
+  stündlichen geplanten Auftrag in die Sitzung legen (`create_trigger`), am Ende löschen.
 - **Bei jeder Änderung am Ende die Datei anhängen** (Wunsch vom 10.10.): `app/index.html` mit SendUserFile schicken,
   damit sie direkt getestet werden kann (z. B. auf Netlify Drop). Geänderte andere Dateien, die sie zum Testen brauchen, dazu.
 

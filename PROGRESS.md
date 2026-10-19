@@ -577,3 +577,22 @@ zitterndes Bild: Saum schwankt 0,37 cm, nie ausgeblendet) – alle grün. Grenze
 - Handy-Emulation (`werkzeuge/avatar-option-handy.mjs`, iPhone 13 und Pixel 7, Attrappe): Einwilligung, Hinweis zu nah,
   Frontal-Scan 1,9–2,2 s, Avatar nach 14–15 s, Hosen-Auswahl, Ansichten, Zoom 1,96×, Größe W26 → W36 macht den Bund breiter,
   Ansicht-Knöpfe ganz zu sehen (vorher auf dem iPhone abgeschnitten → umbrechen jetzt). Bilder `docs/test-avatar/`.
+- Referenzclips (`werkzeuge/avatar-scan.mjs`, echte Erkennung, Jakob 1,79 m in der Baggy-Jeans, Kamera am Boden):
+  v2-01 → v2-02 und v1-01 → v1-04 geben denselben Avatar (Bund 78,3/78,4, Hüfte 94,8, Schrittlänge 90,3/91,3 cm); weite
+  Kleidung erkannt (Umriss nur Obergrenze, darum Durchschnittskörper); v1 Beinlänge im Scan 107,1 cm (Kamera am Boden streckt
+  die Beine) → auf 99,8 begrenzt. Bilder und Werte `docs/test-avatar/avatar_v1*`, `avatar_v2*`. ±2 cm gegen Jakob ist nicht
+  prüfbar: es gibt keine Maßband-Werte von ihm und die Clips zeigen weite Kleidung (an der Attrappe stimmt es, `tavatar.mjs`).
+
+### Gegenprüfung 19.10. (Agenten, danach jeder Fund selbst nachgeprüft)
+Fünf Funde, alle echt, alle behoben:
+1. **Ersatz-Kartensuche fand Hosenecken als Karte** in Fotos ohne Karte (Bershka-Testfotos: Vorder- und Rückseite je eine
+   „Karte“; das hätte falsche Maße ergeben). Entscheidung: die Ersatzsuche läuft nur noch, wenn auf dem anderen Foto derselben
+   Hose schon eine Karte gefunden oder bestätigt ist, und nimmt nur einen Fleck in deren Farbe (Abstand ≤ 55) mit Kante auf
+   allen vier Seiten. Geprüft: Bershka vorne/hinten ohne und mit Kartenfarbe → keine Karte; Testjeans vorne gefunden, hinten
+   mit der Farbe von vorne gefunden (roh und gerade gerechnet); `tneuehose` weiter „Karte auf beiden Fotos automatisch“.
+2. Flächenprüfung in `refineReference` verwarf auch selbst angetippte Ecken → nur noch bei der automatischen Suche.
+3. Shop-Größe und Begründung schon vor dem Scan zu sehen → vor dem Scan ausgeblendet wie Größenknöpfe und Messwerte.
+4. Oberteil-Erkennung behielt ihren Zustand nach neuem Scan oder Kamera-Neustart → zurückgesetzt.
+5. Saumlinie des Oberteils am Rand über die gefundenen Spalten hinaus verlängert (konnte dort hochschnellen) → begrenzt.
+Dazu im Test `tsammlung.mjs`: Netlify-Fall kopiert `app/hosen-auswahl.js` mit (404 nur im Test).
+
