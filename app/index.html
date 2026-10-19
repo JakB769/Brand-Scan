@@ -4012,8 +4012,10 @@ function fuseMasks(cv,A,C){
   const G=kmeans(pg[0],pg[1],8), B=kmeans(pb[0],pb[1],10);
   const dm=(K,i)=>{ let bd=1e9; for(const c of K){ const q=(f[i*3]-c[0])**2+(f[i*3+1]-c[1])**2+(f[i*3+2]-c[2])**2; if(q<bd) bd=q; } return bd; };
   const m=both.slice();
-  // deutlich näher an der Hose (Abstand unter 0,63 × Abstand zum Untergrund): heller beleuchteter Boden liegt oft zwischen beiden
-  for(let i=0;i<w*h;i++) if(any[i]&&!both[i]&&dm(G,i)<.4*dm(B,i)) m[i]=1;
+  // Nur die KI: bleibt, außer die Farbe ist deutlich näher am Untergrund (Abstand unter 0,63 × Abstand zur Hose; heller beleuchteter
+  // Boden zwischen den Beinen). Nur die Farbe: kommt dazu, wenn sie deutlich näher an der Hose liegt. Vorher galt für beide die
+  // zweite Regel; dunkle Jeans auf dunklem Teppich verlor so ihre dunklen Teile (KI richtig, Farbweg nicht: Länge 125 statt 111 cm).
+  for(let i=0;i<w*h;i++) if(any[i]&&!both[i]){ const g=dm(G,i), b=dm(B,i); if(A.m[i]?!(b<.4*g):g<.4*b) m[i]=1; }
   return finishMask(m,w,h);
 }
 function segClassic(cv){

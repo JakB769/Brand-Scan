@@ -77,7 +77,7 @@ Diese Datei wird bei jeder Anfrage mitgeladen und ist darum bewusst kurz. Die De
 ## Entscheidungen und Erkenntnisse, die man nicht noch einmal herausfinden muss
 
 - **Schuh im Stoff-Fall ist eine Höhenform, keine Kapsel.** Der Fuß geht durch die Saumöffnung nach vorn hinaus; eine Kapsel drückt den Saum seitlich weg (nach hinten unter die Ferse oder vorn über die Spitze).
-- **Freistellung: bei Uneinigkeit nicht der KI folgen.** Sie nimmt hell beleuchteten Boden zwischen den Beinen mit (Beine verbunden → Rock, „Block“); strittige Punkte nach Farbe (`fuseMasks`), Boden im Spalt nach Farbton (`bodenImSpalt`).
+- **Freistellung uneinig: keiner Seite blind folgen.** KI nimmt hellen Boden im Spalt mit („Block“), Farbe verliert dunkle Jeans auf Dunklem: nur-KI bleibt außer bei Bodenfarbe, nur-Farbe nur bei Stofffarbe (`fuseMasks`, `bodenImSpalt`).
 - **Vorne/hinten an flachen Fotos: Gesäßtaschen-Kanten, nicht Bildähnlichkeit.** Zwei Fotos derselben Seite sind sich nicht ähnlicher als Vorder- und Rückseite (beides ≈ 0,5); Knopf, Etikett und Innenbund waren als Merkmal unzuverlässig (Innenbund auch auf Rückseiten erkannt).
 
 - **Hosen dauerhaft: Netlify Blobs, nicht `localStorage`.** Der Browser-Speicher gehört genau einer Adresse; jede Netlify-Vorschau und jeder Drop hat eine eigene. Der Blob-Speicher gehört der Website und gilt für alle Deploys.

@@ -621,3 +621,8 @@ Loch (Bild angesehen: Hintergrund zwischen den Beinen, kein Loch im Stoff). Der 
 die auf einem Bein liegen (Netz je Bein wie im Shader projiziert, 1,5 Pixel Abstand zur Kante). Gegenprobe: ein künstliches
 Loch von 8 × 8 Pixeln mitten im Bein wird in allen acht Posen gefunden (64 Pixel), der Spalt nicht.
 
+**`tki` „Dunkel auf dunkel mit KI: 125 cm“** (echte Regression aus 7dff876): `fuseMasks` behielt strittige Punkte nur bei
+deutlicher Stofffarbe; dunkle Jeans auf dunklem Teppich liegt farblich nah am Boden, also fielen ihre dunklen Teile weg (die
+KI hatte recht). Jetzt getrennt: Punkte nur der KI bleiben, außer sie sehen deutlich wie der Boden aus; Punkte nur der Farbe
+kommen nur bei deutlicher Stofffarbe dazu. Geprüft: `tki` 113 cm (Soll 111 ± 4), `tneuehose` unverändert grün (zwei Beine,
+107,7 cm, Rückseite echt), Renders angesehen.

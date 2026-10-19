@@ -393,4 +393,5 @@ Hand-Verdeckung auf den Knien größer als die Hand; Gesäß in der Hocke seitli
    Bilder/s), keine Folge der Änderungen.
 26. `tferse` (19.10.): Spalt zwischen sich berührenden, gestauchten Säumen (schräg hinten) zählte als Loch; Test prüft jetzt je
    Bein über das projizierte Netz. Ursache der neuen Saumform: Physik startet erst nach dem Scan (7dff876).
-
+27. `fuseMasks` (19.10.): nur-KI-Punkte bleiben außer bei Bodenfarbe, nur-Farbe-Punkte nur bei Stofffarbe (dunkel auf dunkel
+   wieder 113 statt 125 cm, Testjeans unverändert). `tseiten`: Rückseite darf jetzt „· Bankkarte als Maßstab“ tragen.
