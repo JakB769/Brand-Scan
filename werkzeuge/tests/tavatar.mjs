@@ -86,7 +86,8 @@ pruefe(Math.abs(m.H-180)<.5,`Avatar ${f(m.H)} cm groß (180)`);
 pruefe(Math.abs(m.hipW-z.hipW)<2&&Math.abs(m.waistW-z.waistW)<2.5,`Avatar trifft die Breiten (Hüfte ${f(m.hipW-z.hipW)}, Taille ${f(m.waistW-z.waistW)} cm)`);
 pruefe(m.hipD>=z.hipD-1&&m.hipD<z.hipD+6,`Avatar-Tiefe Hüfte ${f(m.hipD)} cm: nicht flacher als gemessen, höchstens so tief wie ein realer Körper`);
 pruefe(a.lose===false&&a.kamera===false&&await p.evaluate(()=>document.getElementById('avMsg').hidden),'enge Silhouette, Beine 53 % der Größe (Attrappe): keine Warnung');
-pruefe(Math.abs(m.leg-z.leg)<2.5,`Hüftgelenk über dem Boden: Avatar ${f(m.leg)}, Scan ${f(z.leg)} cm`);
+// geeicht (22.10., AV_EICH.leg): der Scan misst die Hüftpunkte der Erkennung 4,3 % höher als das Hüftgelenk des Körpermodells
+pruefe(Math.abs(m.leg-z.leg/1.043)<2.5,`Hüftgelenk über dem Boden: Avatar ${f(m.leg)}, Scan ${f(z.leg)} cm (geeicht ${f(z.leg/1.043)})`);
 
 // 3) gespeichert, nur Zahlen
 const roh=await p.evaluate(()=>localStorage.getItem('passformAvatar')||'');

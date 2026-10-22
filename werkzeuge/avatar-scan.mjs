@@ -23,7 +23,10 @@ const [VORNE, HINTEN] = ["assets/referenz/fotos/flach-vorne-hinten/vorne.jpg", "
 fs.mkdirSync(OUT, { recursive: true }); const TMP = fs.mkdtempSync("/tmp/avatar-scan-");
 execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-i", CLIP, "-vf", `fps=${FPS}`, TMP + "/f%04d.jpg"]);
 const frames = fs.readdirSync(TMP).filter(f => /^f\d+\.jpg$/.test(f)).sort();
-{ const d = +execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", SCAN]).toString();
+// --scanbild: festes Bild für den Frontal-Scan (z. B. gerenderter Körper zum Eichen der Messpunkte), --nurfrontal: danach Ende
+const SCANBILD = arg("scanbild", null), NUR_FRONTAL = process.argv.includes("--nurfrontal");
+if (SCANBILD) fs.copyFileSync(path.resolve(R, SCANBILD), TMP + "/scan.jpg");
+else { const d = +execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", SCAN]).toString();
   execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-ss", String(Math.min(2, d / 2)), "-i", SCAN, "-frames:v", "1", TMP + "/scan.jpg"]); }
 
 const srv = await starte(0), port = srv.address().port;
@@ -58,17 +61,20 @@ await p.fill("#height", String(H));
 // Testhose aus den flachen Fotos (wie drehung.mjs)
 const dialoge = async () => { const o = await p.evaluate(() => ["refDlg", "segDlg"].filter(i => { const d = document.getElementById(i); return d && !d.hidden; }).join(","));
   if (/refDlg/.test(o)) { await p.click("#refOk").catch(() => {}); return true; } if (/segDlg/.test(o)) { await p.click("#segOk").catch(() => {}); return true; } return false; };
+if (!NUR_FRONTAL) {
 await p.setInputFiles("#slot-vorne input", VORNE);
 for (let t = 0, ruhig = 0; t < 240 && ruhig < 3; t++) { await p.waitForTimeout(500); if (await dialoge()) { ruhig = 0; continue; }
   ruhig = await p.evaluate(() => window.__dbg.UP.items.length > 0 && window.__dbg.UP.items.every(i => i.kind !== "wait")) ? ruhig + 1 : 0; }
 await p.setInputFiles("#slot-hinten input", HINTEN);
 for (let t = 0; t < 400; t++) { await p.waitForTimeout(500); if (await dialoge()) continue;
   const m = await p.evaluate(() => document.getElementById("drop-msg").innerText); if (/Fertig/.test(m) && !/berechnet|wird/.test(m)) break; }
+}
 console.log("Hose:", await p.evaluate(() => { const G = window.__dbg.GARMENTS[window.__dbg.g.key]; return G ? G.label + (G.sizes ? ", Größen " + G.sizes.map(z => z.n || z.size).join("/") : "") : "keine"; }));
 
 // Scan: Knopf, Einwilligung, Frontal-Scan im Stehen
 const bild = f => "data:image/jpeg;base64," + fs.readFileSync(TMP + "/" + f).toString("base64");
 await p.evaluate(([src, k]) => window.__setRef(src, k), [bild("scan.jpg"), K]);
+if (process.argv.includes("--armdbg")) await p.evaluate(() => { window.__armDbg = []; });
 await p.click("#avScan"); await p.waitForTimeout(300);
 const dlg = await p.evaluate(() => ({ offen: !document.getElementById("avDlg").hidden, text: document.getElementById("avDlg").innerText }));
 console.log("Einwilligung:", dlg.offen ? "offen" : "FEHLT", "|", dlg.text.replace(/\s+/g, " ").slice(0, 160));
@@ -78,8 +84,10 @@ for (let t = 0; t < 80; t++) { await p.waitForTimeout(500);
   if (await p.evaluate(() => window.__dbg.AVS.stufe === "drehen")) { geeicht = true; break; } }
 console.log(geeicht ? "Frontal-Scan fertig, jetzt drehen" : "Frontal-Scan NICHT fertig geworden");
 const cal = await p.evaluate(() => { const c = window.__dbg.caps.cal || {}; const r = v => v == null ? null : Math.round(v * 10) / 10;
-  return Object.fromEntries(["waist", "hip", "thighL", "thighR", "kneeL", "kneeR", "leg", "inseam", "torso", "shoulder"].map(k => [k, r(c[k])])); });
+  return Object.fromEntries(["waist", "hip", "thighL", "thighR", "kneeL", "kneeR", "leg", "inseam", "torso", "shoulder", "armU", "armL", "foreW", "upperW", "chest"].map(k => [k, r(c[k])])); });
 console.log("Frontal-Scan:", JSON.stringify(cal));
+if (process.argv.includes("--armdbg")) console.log("Arme:", JSON.stringify(await p.evaluate(() => (window.__armDbg || []).slice(-6))));
+if (NUR_FRONTAL) { await b.close(); srv.close(); fs.rmSync(TMP, { recursive: true, force: true }); process.exit(0); }
 
 // Drehung Bild für Bild (virtuelle Uhr), höchstens zwei Durchgänge
 await p.evaluate(([src, k]) => window.__setRef(src, k), [bild(frames[0]), K]);

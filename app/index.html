@@ -207,14 +207,17 @@ details.adv>.advbody{display:flex;flex-direction:column;gap:14px;padding:4px 0 8
 .dropbig{font-size:19px;font-weight:600;color:var(--brass)}
 .dropsub{font-size:14px;color:var(--chalk-dim);margin-top:6px;line-height:1.45}
 .slots{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.slot{border:2px dashed var(--line-2);border-radius:var(--r);padding:10px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;transition:background .15s,border-color .15s}
-.slot:hover,.slot.over{border-color:var(--brass);background:var(--accent-soft)}
-.slot.full{border-style:solid;border-color:var(--line)}
+.slot,.otslot{border:2px dashed var(--line-2);border-radius:var(--r);padding:10px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;transition:background .15s,border-color .15s}
+.slot:hover,.slot.over,.otslot:hover,.otslot.over{border-color:var(--brass);background:var(--accent-soft)}
+.slot.full,.otslot.full{border-style:solid;border-color:var(--line)}
 .slot.est{border-style:dashed}
-.slot b{font-size:16px;color:var(--chalk)}
+.slot b,.otslot b{font-size:16px;color:var(--chalk)}
 .slotsub{font-size:12px;color:var(--chalk-dim);line-height:1.3}
 .slotimg{width:100%;max-width:120px;aspect-ratio:3/4;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden}
 .slotimg img{width:100%;height:100%;object-fit:contain}
+.otart{gap:8px;flex-wrap:wrap}.otart .chip[aria-pressed="true"]{border-color:var(--brass)}
+.otliste{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.otliste:empty{display:none}
+.otliste .gchip{display:flex;align-items:center;gap:6px}
 .slotimg span{font-size:30px;color:var(--brass)}
 .slot.est .slotimg img{opacity:.45}
 .droplist{display:flex;flex-direction:column;gap:8px}
@@ -372,8 +375,8 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
   <p class="hint">Tippe ins Bild, um die letzte Ansage zu wiederholen.</p>
 
 
-  <section class="card">
-    <h2>Hose</h2>
+  <section class="card" id="hoseCard">
+    <h2>Hose oder Rock hochladen</h2>
     <form class="linkrow" id="link-form" autocomplete="off" novalidate>
       <input type="url" id="link-in" inputmode="url" placeholder="🔗 Link zur Hose im Shop einfügen" aria-label="Link zur Hose im Shop">
       <button id="link-go" type="submit" title="Seite holen: Bilder, Maßtabelle und Model-Größe übernehmen" aria-label="Seite holen">⇩</button>
@@ -406,26 +409,11 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
       <p id="fit-txt"></p>
     </div>
     <div class="gwrap" id="gwrap"></div>
-    <div id="g3dbox" class="g3dbox" hidden>
-      <passform-hosen id="avHosen" aria-label="Hose zum Anprobieren wählen" leer="Noch keine Hosen."></passform-hosen>
-      <canvas id="g3dview" width="360" height="460" aria-label="3D-Modell der gewählten Hose, mit dem Finger oder der Maus drehbar, mit zwei Fingern oder dem Mausrad zoomen"></canvas>
-      <div class="avansicht" role="group" aria-label="Ansicht">
-        <button class="chip" data-ansicht="0" title="Von vorn">Vorne</button><button class="chip" data-ansicht="1.5708" title="Von der Seite">Seite</button><button class="chip" data-ansicht="3.1416" title="Von hinten">Hinten</button><button class="chip" id="avZoomAus" title="Kleiner" aria-label="Verkleinern">−</button><button class="chip" id="avZoomEin" title="Größer (oder zwei Finger, Strg + Mausrad)" aria-label="Vergrößern">+</button><button class="chip" id="avReset" title="Ansicht zurücksetzen" aria-label="Ansicht zurücksetzen">⟲</button>
-      </div>
-      <div class="sub" id="g3dSub">3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen</div>
-      <div class="row avrow">
-        <button id="avScan" title="Mit der Kamera einmal um die eigene Achse drehen: daraus entsteht dein 3D-Körper, die Hose sitzt darauf">🧍 Avatar aus Selbst-Scan</button>
-        <button id="avDel" class="gdel" hidden title="Avatar und Maße löschen" aria-label="Avatar löschen">✕</button>
-      </div>
-      <p id="avMsg" class="sub" hidden></p>
-      <div class="row">
-        <button id="tryon" class="primary" title="So würde es im Shop aussehen: Kamera im Vollbild, nur die Hose, ✕ schließt">▶ Anprobieren wie im Shop</button>
-        <button id="g-glb" title="3D-Datei (glTF/GLB) der Hose sichern: für Shopify (3D-Modell am Produkt), Blender oder jeden 3D-Betrachter">⇩ 3D-Datei (.glb)</button>
-      </div>
     </div>
-    <div class="gsizes" id="g-sizes" hidden>
-      <div class="szrow" id="g-szrow" role="group" aria-label="Größe wählen"></div>
-      <div class="szmsg" id="g-szmsg" aria-live="polite"></div>
+    <div class="row otart" id="g-kat" role="group" aria-label="Art (automatisch erkannt, hier ändern)" hidden>
+      <button class="chip" data-kat="hose" aria-pressed="false" title="Lange Hose: Saum am Knöchel">👖 Hose</button>
+      <button class="chip" data-kat="shorts" aria-pressed="false" title="Kurze Hose: Saum zwischen Oberschenkel und Knie">🩳 Shorts</button>
+      <button class="chip" data-kat="rock" aria-pressed="false" title="Rock: ohne Beine, sitzt in der Taille">👗 Rock</button>
     </div>
     <div class="gdims" id="gdims">
       <div class="dim"><label for="g-len">Hosenlänge, cm <span class="sub">außen, vom Bund bis zum Saum</span></label>
@@ -515,6 +503,58 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
       <input type="file" id="g-import" accept=".json,application/json" hidden>
     </div>
     </div></details>
+  </section>
+
+  <section class="card" id="otCard">
+    <h2>Oberteil hochladen</h2>
+    <div class="slots" id="ot-slots" role="group" aria-label="Fotos des Oberteils: Vorderseite und Rückseite">
+      <div class="otslot" id="ot-vorne" data-side="vorne" tabindex="0" role="button" aria-label="Foto der Vorderseite des Oberteils wählen (flach, von oben)">
+        <input type="file" accept="image/*,.heic,.heif" hidden>
+        <div class="slotimg"><span>＋</span></div><b>Vorderseite</b><span class="slotsub">flach, von oben · Aufdruck, Ausschnitt</span></div>
+      <div class="otslot" id="ot-hinten" data-side="hinten" tabindex="0" role="button" aria-label="Foto der Rückseite des Oberteils wählen (flach, von oben)">
+        <input type="file" accept="image/*,.heic,.heif" hidden>
+        <div class="slotimg"><span>＋</span></div><b>Rückseite</b><span class="slotsub">flach · fehlt sie, entsteht sie aus dem Stoff der Vorderseite</span></div>
+    </div>
+    <div class="row otart" id="ot-art" role="group" aria-label="Art des Oberteils (automatisch erkannt, hier ändern)" hidden>
+      <button class="chip" data-art="tshirt" aria-pressed="false" title="T-Shirt: kurze Ärmel">👕 T-Shirt</button>
+      <button class="chip" data-art="langarm" aria-pressed="false" title="Langarm: Ärmel bis zum Handgelenk">🧥 Langarm</button>
+      <button class="chip" data-art="top" aria-pressed="false" title="Trägertop: ohne Ärmel">🎽 Top</button>
+    </div>
+    <div class="dropmsg" id="ot-msg" aria-live="polite"></div>
+    <div class="otliste" id="ot-liste" role="group" aria-label="Oberteile"></div>
+    </div>
+    <details class="adv" id="ot-mass"><summary>Maße und Maßtabelle des Oberteils</summary><div class="advbody">
+      <label>Brustumfang des Oberteils, cm <span class="sub">(flach gemessen × 2)</span><input type="text" autocomplete="off" id="ot-brust" inputmode="decimal" placeholder="geschätzt"></label>
+      <label>Länge, cm <span class="sub">vom Schulterpunkt am Kragen bis zum Saum</span><input type="text" autocomplete="off" id="ot-laenge" inputmode="decimal" placeholder="aus dem Foto"></label>
+      <label>Maßtabelle (Text aus dem Shop einfügen)<textarea id="ot-tab" rows="3" placeholder="z. B. Größe S M L / Brustumfang 96 102 108 / Länge 70 72 74"></textarea></label>
+    </div></details>
+  </section>
+
+  <section class="card" id="g3dcard" hidden>
+    <h2>Anprobe in 3D</h2>
+    <div id="g3dbox" class="g3dbox" hidden>
+      <passform-produkte id="avHosen" aria-label="Oberteil und Hose zum Anprobieren wählen" leer="Noch keine Kleidung."></passform-produkte>
+      <canvas id="g3dview" width="360" height="460" aria-label="3D-Modell der gewählten Hose, mit dem Finger oder der Maus drehbar, mit zwei Fingern oder dem Mausrad zoomen"></canvas>
+      <div class="avansicht" role="group" aria-label="Ansicht">
+        <button class="chip" data-ansicht="0" title="Von vorn">Vorne</button><button class="chip" data-ansicht="1.5708" title="Von der Seite">Seite</button><button class="chip" data-ansicht="3.1416" title="Von hinten">Hinten</button><button class="chip" id="avZoomAus" title="Kleiner" aria-label="Verkleinern">−</button><button class="chip" id="avZoomEin" title="Größer (oder zwei Finger, Strg + Mausrad)" aria-label="Vergrößern">+</button><button class="chip" id="avReset" title="Ansicht zurücksetzen" aria-label="Ansicht zurücksetzen">⟲</button>
+      </div>
+      <div class="sub" id="g3dSub">3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen</div>
+      <div class="row avrow">
+        <button id="avScan" title="Mit der Kamera einmal um die eigene Achse drehen: daraus entsteht dein 3D-Körper, die Hose sitzt darauf">🧍 Avatar aus Selbst-Scan</button>
+        <button id="avDel" class="gdel" hidden title="Avatar und Maße löschen" aria-label="Avatar löschen">✕</button>
+      </div>
+      <p id="avMsg" class="sub" hidden></p>
+      <div class="row">
+        <button id="tryon" class="primary" title="So würde es im Shop aussehen: Kamera im Vollbild, nur die Hose, ✕ schließt">▶ Anprobieren wie im Shop</button>
+        <button id="g-glb" title="3D-Datei (glTF/GLB) der Hose sichern: für Shopify (3D-Modell am Produkt), Blender oder jeden 3D-Betrachter">⇩ 3D-Datei (.glb)</button>
+      </div>
+    </div>
+    <div class="gsizes" id="g-sizes" hidden>
+      <div class="szrow" id="g-szrow" role="group" aria-label="Größe wählen"></div>
+      <div class="szmsg" id="g-szmsg" aria-live="polite"></div>
+    <div class="gsizes" id="ot-sizes" hidden>
+      <div class="szrow" id="ot-szrow" role="group" aria-label="Größe des Oberteils wählen"></div>
+      <div class="szmsg" id="ot-szmsg" aria-live="polite"></div>
   </section>
 
   <section class="card">
@@ -1041,6 +1081,35 @@ function findCrotch(m,hipY,kneeY,L){
 }
 /* Lauf der Silhouette an einem Bein: enthält er auch das andere Bein (weite Hose, Rock, Beine berühren sich), wird er in
    der Mitte zwischen beiden Beinachsen geteilt. Vorher maß „Oberschenkel“ dann beide Beine zusammen. */
+/* Arme im Frontal-Scan (22.10., für den Avatar): Länge Oberarm (Schulter → Ellbogen) und Unterarm (Ellbogen → Handgelenk),
+   Breite des Unterarms (45 % zum Handgelenk, bei T-Shirt nackt: Maß für Gewicht und Muskeln) und des Oberarms (60 %, oft Ärmel).
+   Nur gerade hängende, sicher erkannte Arme; Mittel beider Seiten. */
+function armMasse(m,L,aspect,cmPerUnit){
+  if(!m||!cmPerUnit) return {};
+  const ok=i=>L[i]&&(L[i].visibility??1)>.6&&L[i].x>0&&L[i].x<1&&L[i].y>0&&L[i].y<1, len=(a,b)=>Math.hypot((L[b].x-L[a].x)*aspect,L[b].y-L[a].y);
+  const o={armU:[],armL:[],foreW:[],upperW:[]};
+  for(const [sh,el,wr] of [[11,13,15],[12,14,16]]){
+    // Ellbogen oft leicht gebeugt (Referenzclip: 135–149°): Oberarm-Länge und Breiten gelten ab 130°, der Unterarm (Länge) nur
+    // gestreckt (gebeugt zeigt er womöglich zur Kamera und wirkt kürzer)
+    const wi=ok(sh)&&ok(el)&&ok(wr)?angleAt(L[sh],L[el],L[wr]):0;
+    if(wi<130||!(L[wr].y>L[el].y&&L[el].y>L[sh].y)) continue;
+    o.armU.push(len(sh,el)*cmPerUnit); if(wi>=155) o.armL.push(len(el,wr)*cmPerUnit);
+    const f=limbWidth(m,L[el],L[wr],.45,aspect,6/cmPerUnit), u=limbWidth(m,L[sh],L[el],.6,aspect,8/cmPerUnit);
+    if(f!=null) o.foreW.push(f*cmPerUnit); if(u!=null) o.upperW.push(u*cmPerUnit); }
+  const r={}; for(const k in o) if(o[k].length) r[k]=o[k].reduce((a,b)=>a+b,0)/o[k].length;
+  return r;
+}
+/* Breite eines Glieds quer zum Knochen A → B an der Stelle t aus der Personenmaske (gleich große Einheiten in x und y:
+   X = x·aspect). Je Seite höchstens cap; liegt das Glied am Körper an (Maske läuft weiter), zählt nur die andere Seite doppelt. */
+function limbWidth(m,A,B,t,aspect,cap){
+  const ax=A.x*aspect, ay=A.y, dx=B.x*aspect-ax, dy=B.y-ay, l=Math.hypot(dx,dy); if(l<1e-4) return null;
+  const nx=-dy/l, ny=dx/l, px=ax+dx*t, py=ay+dy*t, st=.5/m.h;
+  const inM=(X,Y)=>{ const x=X/aspect; if(x<0||x>1||Y<0||Y>1) return false; return m.d[clamp(Math.round(Y*m.h),0,m.h-1)*m.w+clamp(Math.round(x*m.w),0,m.w-1)]>.5; };
+  if(!inM(px,py)) return null;
+  const side=sg=>{ let d=0; while(d<cap&&inM(px+nx*sg*(d+st),py+ny*sg*(d+st))) d+=st; return d<cap?d:null; };
+  const a=side(1), b=side(-1);
+  return a!=null&&b!=null?a+b:a!=null?2*a:b!=null?2*b:null;
+}
 function legRun(m,ny,xThis,xOther){
   const r=runNear(m,ny,xThis); if(!r) return null;
   if(xOther>r.l&&xOther<r.r){ const mid=(xThis+xOther)/2; const o=xThis<xOther?{l:r.l,r:mid}:{l:mid,r:r.r}; return {...o,w:o.r-o.l,c:(o.l+o.r)/2}; }
@@ -1249,10 +1318,13 @@ function analyse(res){
     kneeR:!isSide&&bothStraight&&legs[1].knee?toCm(legs[1].knee.w):null,
     inseam:(full&&crotchFresh&&bothStraight)?(botN-crotchY)*cmPerUnit:null,
     leg:full?(botN-hipY)*cmPerUnit:null,
-    shoulderN, torso:(hipY-shY)*cmPerUnit
+    shoulderN, torso:(hipY-shY)*cmPerUnit,
+    ...(isSide?{}:armMasse(m,L,aspect,cmPerUnit)),
+    // Brust (22.10., Avatar und Oberteile): Rumpf ohne Arme 22 % der Strecke Schulter → Hüfte unter den Schulterpunkten
+    chest:!isSide&&m?(b=>b&&!b.unsure?toCm(b.w):null)(torsoSpan(m,shY+.22*(hipY-shY),L,armHalfN,true)):null
   };
   if(!held) live=s;
-  if(AVS.on) avatarScanBild({m,L,hipY,waistY,aspect,cmPerUnit,armHalfN,ganz:full});   // Dreh-Scan für den Avatar
+  if(AVS.on) avatarScanBild({m,L,hipY,waistY,chestY:shY+.22*(hipY-shY),aspect,cmPerUnit,armHalfN,ganz:full});   // Dreh-Scan für den Avatar
 
   wasStraight=legsOk;
   const vis=isSide?Math.max(L[23].visibility??1,L[24].visibility??1)
@@ -1370,6 +1442,7 @@ function analyse(res){
   if(!zeigen){ shirt.hit=0; shirt.show=0; shirt.ys=null; }   // keine Saumkante aus einem früheren Durchgang (andere Person, andere Höhe)
   if(zeigen) drawGarment(hipBand,beltYf,pxPerCm,botN,ref?tr:0,bone,yCrotch,vw,vh,{yaw,half:fc.half,arms,mask:m,roll,zBack,hipPx:[hipX*vw,hipYf*vh],shPx:[shX*vw,shYf*vh],
     shirt:g.key&&PASSFORM.shirtDarueber&&Math.abs(roll)<.35?shirtHem(L,V,m):null});
+  if(zeigen) try{ oberteilLive(vw,vh,pxPerCm,{yaw,arms,hipPx:[hipX*vw,hipYf*vh],shPx:[shX*vw,shYf*vh]}); }catch(e){ console.warn("Oberteil",e); }
   if(zeigen&&!clean) draw(L,{topN,botN},{hipY,waistY,crotchY:crotchY??hipY+PASSFORM.schrittOhne*kU0,crotchFresh,beltY},{hipBand,waistBand},legs,cmPerUnit,vw,vh);
   if(dbg.on) window.__messung={shirt:shirt.show>.02&&shirt.ys?{show:shirt.show,ys:shirt.ys.filter(v=>v!=null)}:null,hipY,shY,kneeY,beltY,waistY,crotchY,crotchFresh,topN,botN,hipBand,waistBand,hipD:Math.abs(L[23].x-L[24].x),
     legs:legs.map(l=>({thigh:l.thigh,knee:l.knee,thighY:l.thighY,kneeY:l.kneeY})),L:L.map(q=>({x:q.x,y:q.y,v:q.visibility}))};
@@ -1805,7 +1878,9 @@ const PASSFORM={
   massRand:1.1,          // Maßstab-Untergrenze: Oberschenkel, Rumpf, Schulter-/Hüftbreite erscheinen im Bild höchstens so viel länger als echt
   massRandUnten:1.1,     // dasselbe für den Unterschenkel (Kamera am Boden: näher an der Kamera, wirkt größer als die Hüfte)
   sitzCm:-.5,            // Bundoberkante relativ zur Bundlinie am Körper (15 % des Rumpfs über dem Hüftgelenk); negativ = tiefer.
-  rockSitzCm:9,          // Röcke sitzen meist in der Taille: so viel höher als Hosen (Zalando-Rock: Model-Fotos)
+  rockSitzCm:9,
+  stoffHoehe:1.2,        // flach liegende Hose: ihre Oberseite liegt im Mittel so viele cm über dem Boden (2 Lagen, Nähte, Bund); die
+                         // Karte liegt auf dem Boden. Näher an der Kamera wirkt die Hose größer (Testjeans: 107,7 statt 105 cm)          // Röcke sitzen meist in der Taille: so viel höher als Hosen (Zalando-Rock: Model-Fotos)
                          // Vorher fest +1,6 cm (1,5 % der Hosenlänge über der Linie): die Hose saß zu hoch.
   einrollen:.4,          // unterster Teil der Leibhöhe (Anteil), der am Körper zwischen den Beinen nach hinten läuft
                          // (Schrittbogen): dort rollen Mitte vorne und hinten zur Schrittmitte ein
@@ -2970,6 +3045,7 @@ function draw3d(M,P,vw,vh,tint){
   garment(0);
   depthOnly(0,g3.oArm);
   garment(1);
+  if(P.nachher) P.nachher(gl,vw,vh,P);               // z. B. das Oberteil (über dem Bund), im selben Tiefenpuffer
   return info;
 }
 /* Schatten der Hose auf dem Körper: weich (klein gezeichnet, groß aufgelegt), 0,6 cm nach unten versetzt, dazu unter
@@ -3007,13 +3083,17 @@ function view3dKick(){ if(!v3d.raf) v3d.raf=requestAnimationFrame(view3dFrame); 
 /* Untertitel der 3D-Ansicht: auch direkt beim Löschen/Laden des Avatars, nicht nur beim nächsten gezeichneten Bild (außerhalb des
    Sichtbereichs zeichnet die Ansicht nicht und der Text blieb stehen) */
 function view3dSub(G=g.key&&GARMENTS[g.key]){
-  if(!G) return;
+  if(!G&&!otAktiv()) return;
+  if(!G){ const t=(avatarAktiv()?`Dein Avatar (${Math.round(AV.form.H)} cm)`:"Standardkörper in deiner Größe")+" · ziehen zum Drehen"+(otAktiv().backEst?" · Rückseite geschätzt (aus dem Stoff der Vorderseite)":"");
+    if($("g3dSub").textContent!==t) $("g3dSub").textContent=t; return; }
   const sub=(avatarAktiv()?`Dein Avatar (${Math.round(AV.form.H)} cm) · ziehen zum Drehen, zwei Finger, + und − oder Strg + Mausrad zum Zoomen`:"3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen")+(G.backEst?" · Rückseite geschätzt (kein Foto von hinten)":"");
   if($("g3dSub").textContent!==sub) $("g3dSub").textContent=sub;
 }
 /* Puppe: Hüftgelenk 52 %, Knie 28,5 %, Knöchel 4,5 % der Größe; Hüftgelenke 10 % auseinander; Bund 4,5 % über dem Hüftgelenk */
 function view3dPose(G,W,H,yw,sync){
   if(avatarAktiv()) return avatarPose(G,W,H,yw,sync,AV.form);
+  // Oberteil gewählt: an einem Körper zeigen (Standardkörper in der eingetragenen Größe), nicht an der flachen Puppe
+  if(otAktiv()&&!sync){ const A=otKoerper(); if(A) return avatarPose(G,W,H,yw,sync,A); }
   const Hc=clamp(num($("height").value)||175,120,220), D=garmentDims(G), fab=stoffVon(G);
   const hipH=.52*Hc, beltH=hipH+.045*Hc, ppc=H*.9/Math.max(beltH+6,D.len+10), floor=H*.955, Y=h=>floor-h*ppc;
   // Füße wie beim Stoff-Fall (drape3d) etwa 27 cm auseinander, Hüftgelenke 18 cm
@@ -3024,6 +3104,17 @@ function view3dPose(G,W,H,yw,sync){
   const info=draw3d(G.m3,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:Hc,rot:G.rot||null,ql:G.ql||null,offK:G.offK??null,drape,drapeW:sync?1:drapeW(drape),ppc,cmH:D.cmW,cmL:D.len,
     kHem:D.hem/(G.m3.hw[G.m3.nr-1]*D.cmW),h,belt:[cx,Y(beltH),0],yCrotch:Y(.47*Hc),bone,foc,pc,arms:[],inner:innerColor(G)},W,H,G.farbe||[1,1,1]);
   return {info,bone,ppc,floor,cx,Hc,beltH,Y,yw,fab,D};
+}
+/* Nur Körper und Oberteil (keine Hose gewählt): dieselbe Lage und Projektion wie avatarPose, eigener Durchgang im Grafik-Kontext */
+function figurOhneHose(W,H,yw,A,O){
+  const gl=g3.gl; if(!gl) return null;
+  const Hc=A.H, z=avatarAktiv()?v3d.zoom||1:1, ppc0=H*.9/(Hc+4), Yf=.42*Hc+(avatarAktiv()?avatarPan(z,Hc,v3d.pan||0):0), yF=H*.955-.42*Hc*ppc0, ppc=ppc0*z, floor=yF+Yf*ppc, cx=W/2;
+  if(g3.c.width!==W||g3.c.height!==H){ g3.c.width=W; g3.c.height=H; }
+  gl.viewport(0,0,W,H); gl.clearColor(0,0,0,0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND);
+  const P={foc:6*Math.max(W,H),pc:[W/2,H/2]}, V=O&&AV.kd?otFuer(O,A):null, Y=otHoehen(AV.kd,A), oo={cx,floor,ppc,yw,oben:otBand(V),slip:[Y.schritt-5,Y.huefte+2,0,1]};
+  avatarZeichnen(gl,W,H,P,A,oo); if(V) otZeichnen(gl,W,H,P,V,V.P,V.N,oo);
+  return {cx,floor,ppc};
 }
 /* Hose am Avatar: Skelett aus seinen Gelenken (Hüfte, Knie, Knöchel), Bund auf seiner Bundlinie (Hüftgelenk + 15 % Rumpf, wie
    beim Scan), Schritt an seinem Schritt. Ganzer Körper im Bild; Zoom (v3d.zoom) um die Höhe der Oberschenkel */
@@ -3038,10 +3129,11 @@ function avatarPose(G,W,H,yw,sync,A){
   const bone=[[gl.hl,gl.kl,gl.al],[gl.hr,gl.kr,gl.ar]].map(b=>b.map(S)), beltH=m.leg+.15*m.torso;
   const foc=6*Math.max(W,H), pc=[W/2,H/2];
   mesh3d(g.key,G.m3); const drape=drapeFor(G,Hc,sync?undefined:12);
-  const vorher=(gl2,vw,vh,P)=>avatarZeichnen(gl2,vw,vh,P,A,{cx,floor,ppc,yw,band:avatarBand(floor,ppc)});
+  const O=otAktiv(), V=O&&AV.kd?otFuer(O,A):null, oo={cx,floor,ppc,yw,band:avatarBand(floor,ppc),oben:otBand(V)};
+  const vorher=(gl2,vw,vh,P)=>avatarZeichnen(gl2,vw,vh,P,A,oo), nachher=V?(gl2,vw,vh,P)=>otZeichnen(gl2,vw,vh,P,V,V.P,V.N,oo):null;
   const info=draw3d(G.m3,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:Hc,rot:G.rot||null,ql:G.ql||null,offK:G.offK??null,drape,drapeW:sync?1:drapeW(drape),ppc,cmH:D.cmW,cmL:D.len,
     kHem:D.hem/(G.m3.hw[G.m3.nr-1]*D.cmW),h:[c,0,s],belt:S([(gl.hl[0]+gl.hr[0])/2,beltH,(gl.hl[2]+gl.hr[2])/2]),yCrotch:floor-m.inseam*ppc,bone,foc,pc,arms:[],
-    inner:innerColor(G),vorher,tiefe:{hip:m.hipD,waist:m.waistD},hwK:m.hipW/2/Math.max(1,Math.abs(gl.hl[0]-gl.hr[0]))},W,H,G.farbe||[1,1,1]);
+    inner:innerColor(G),vorher,nachher,tiefe:{hip:m.hipD,waist:m.waistD},hwK:m.hipW/2/Math.max(1,Math.abs(gl.hl[0]-gl.hr[0]))},W,H,G.farbe||[1,1,1]);
   return {info,bone,ppc,floor,cx,Hc,beltH,Y:h=>floor-h*ppc,yw,fab,D,avatar:A};
 }
 /* 3D-Datei (glTF 2.0 binär, .glb) der gewählten Hose, frontal an der Puppe, ohne Nachschwingen: für Shopify (3D-Modell am
@@ -3108,17 +3200,22 @@ function view3dFrame(now){
   // nur jedes zweite Bild rechnen, also 30 statt 60 Bilder/s; die Drehung bleibt gleich schnell (Zeit aus now)
   if((v3d.teuer||0)>12&&!v3d.drag&&!v3d.pinch&&v3d.ziel==null&&!v3d.ausgelassen){ v3d.ausgelassen=true; view3dKick(); return; }
   v3d.ausgelassen=false; const tF=performance.now(), teuer=()=>{ v3d.teuer=.8*(v3d.teuer||0)+.2*(performance.now()-tF); };
-  const box=$("g3dbox"), cvs=$("g3dview"), G=g.key&&GARMENTS[g.key];
-  const show=!!(G&&G.m3&&!G.bad&&!running&&init3d());
-  box.hidden=!show; if(!show||!v3d.vis) return;
-  view3dSub(G);
+  const box=$("g3dbox"), cvs=$("g3dview"), G=g.key&&GARMENTS[g.key], O=otAktiv(), hose=!!(G&&G.m3&&!G.bad);
+  const show=!!((hose||O)&&!running&&init3d());
+  box.hidden=!show; $("g3dcard").hidden=!show; if(!show||!v3d.vis) return;
+  view3dSub(hose?G:null);
   const dt=clamp((now-(v3d.last||now))/1000,0,.1); v3d.last=now;
   if(v3d.ziel!=null){ const d=wrapA(v3d.ziel-v3d.yaw); v3d.yaw+=d*Math.min(1,dt*9); if(Math.abs(d)<.003){ v3d.yaw=v3d.ziel; v3d.ziel=null; } }   // Knopf Vorne/Seite/Hinten
   else if(!v3d.drag&&now-v3d.idle>2500) v3d.yaw+=dt*.5;           // dreht sich langsam, bis jemand zieht
-  mesh3d(g.key,G.m3);
+  if(hose) mesh3d(g.key,G.m3);
   // scharf auf Handys: Bildpunkte nach Pixeldichte (höchstens doppelt, Grafikleistung), bei Pixeldichte 1 wie bisher 360 × 460
   { const k=Math.min(2,Math.max(1,window.devicePixelRatio||1)), bw=Math.round(360*k); if(cvs.width!==bw){ cvs.width=bw; cvs.height=Math.round(460*k); g3.cOk=false; } }
   const W=cvs.width, H=cvs.height, x=cvs.getContext("2d");
+  // nur ein Oberteil (keine Hose gewählt): Körper und Oberteil
+  if(!hose){ const A=otKoerper(); if(!A){ view3dKick(); return; }
+    const r=figurOhneHose(W,H,v3d.yaw,A,O); x.clearRect(0,0,W,H);
+    if(r){ x.fillStyle="rgba(0,0,0,.28)"; x.beginPath(); x.ellipse(r.cx,r.floor+1,.16*A.H*r.ppc,.028*A.H*r.ppc,0,0,7); x.fill(); x.drawImage(g3.c,0,0); v3d.boden={floor:r.floor,ppc:r.ppc}; }
+    teuer(); view3dKick(); return; }
   if(!g3.texReady){ view3dKick(); return; }
   const {info,bone,ppc,floor,cx,Hc,beltH,Y,yw,avatar}=view3dPose(G,W,H,v3d.yaw);
   x.clearRect(0,0,W,H);
@@ -3177,7 +3274,10 @@ function view3dFrame(now){
    Querschnitt des Avatars (konvexe Hülle, wie ein Maßband), nicht aus einer angenommenen Ellipse. Gespeichert werden nur
    Geschlecht, Regler und Maße, keine Bilder. */
 const AV={kd:null,laed:null,form:null,gl:null,key:null,zeit:0};
-const AV_KEY="passformAvatar", AV_PAR=["gewicht","muskel","waist-circ","hips-circ","gesaess","waisttohip-dist","thigh-circ","knee-circ","calf-circ","upperleg-height","lowerleg-height"];
+const AV_KEY="passformAvatar", AV_PAR=["gewicht","muskel","waist-circ","hips-circ","gesaess","waisttohip-dist","thigh-circ","knee-circ","calf-circ","upperleg-height","lowerleg-height",
+  // 22.10. (Körpermodell v2): Oberkörper und Arme, damit der Scan auch in weiter Kleidung die Form bestimmt (Schulterbreite,
+  // Rumpf- und Armlängen, Arme als Maß für Gewicht/Muskeln); fehlen im Körpermodell v1 → wirken nicht
+  "shoulder-dist","napetowaist-dist","upperarm-length","lowerarm-length","upperarm-circ","bust-circ"];
 function avatarDaten(){
   if(AV.kd) return Promise.resolve(AV.kd);
   if(AV.laed) return AV.laed;
@@ -3187,7 +3287,9 @@ function avatarDaten(){
       AV.kd={M,nV:M.nV,nK:M.nK,idx:new Uint16Array(bin,M.idx,M.nT*3),teil:new Uint8Array(bin,M.teil,M.nV),
         mitte:{m:new Int16Array(bin,M.mitte.m,M.nV*3),f:new Int16Array(bin,M.mitte.f,M.nV*3)},
         T:M.targets.map(t=>({name:t.name.slice(0,-1),dir:t.name.endsWith("+")?1:-1,g:t.g,n:t.n,s:t.s,i:new Uint16Array(bin,t.i,t.n),
-          d:t.b===8?new Int8Array(bin,t.d,t.n*3):new Int16Array(bin,t.d,t.n*3)}))};
+          d:t.b===8?new Int8Array(bin,t.d,t.n*3):new Int16Array(bin,t.d,t.n*3)})),
+        // Skelett-Gewichte (Körpermodell v2, 22.10.): je Vertex 4 Knochengruppen und Gewichte (Summe 255), für Oberteile und Posen
+        gew:M.gew?{i:new Uint8Array(bin,M.gew.i,M.nV*4),w:new Uint8Array(bin,M.gew.w,M.nV*4),gruppen:M.gruppen}:null};
       delete window.PASSFORM_KOERPER; ok(AV.kd); }catch(e){ AV.laed=null; no(e); } };
     if(window.PASSFORM_KOERPER) return fertig();
     const sc=document.createElement("script"); sc.src=window.PASSFORM_AVATAR_URL||"avatar/koerper.js"; sc.async=true;
@@ -3224,6 +3326,22 @@ function avSchnitt(kd,P,h,maske,seite=0){
   const hull=lo.slice(0,-1).concat(hi.slice(0,-1)); let U=0; for(let k=0;k<hull.length;k++){ const p=hull[k], q=hull[(k+1)%hull.length]; U+=Math.hypot(q[0]-p[0],q[1]-p[1]); }
   return {W:x1-x0,D:z1-z0,U,cx:(x0+x1)/2,cz:(z0+z1)/2};
 }
+/* Breite eines Arms (Teil 3, Seite sd: 1 links x > 0) quer zum Knochen A → B an der Stelle t: Mittel aus der Ausdehnung in zwei
+   Richtungen quer zum Knochen (von vorn sieht man je nach Drehung des Unterarms die schmale oder die breite Seite) */
+function avArmBreite(kd,P,A,B,t,sd){
+  // Schnitt der Arm-Dreiecke mit der Ebene quer zum Knochen (wie avSchnitt, nur schräg): stabil, auch wo das Netz grob ist
+  const d=[B[0]-A[0],B[1]-A[1],B[2]-A[2]], L=Math.hypot(...d)||1; for(let k=0;k<3;k++) d[k]/=L;
+  let u=[d[1],-d[0],0]; const lu=Math.hypot(...u)||1; u=u.map(x=>x/lu); const v=[d[1]*u[2]-d[2]*u[1],d[2]*u[0]-d[0]*u[2],d[0]*u[1]-d[1]*u[0]];
+  const O=[A[0]+d[0]*t*L,A[1]+d[1]*t*L,A[2]+d[2]*t*L], I=kd.idx, T=kd.teil, h=k=>(P[k*3]-O[0])*d[0]+(P[k*3+1]-O[1])*d[1]+(P[k*3+2]-O[2])*d[2];
+  let u0=1e9,u1=-1e9,v0=1e9,v1=-1e9,n=0;
+  for(let i=0;i<I.length;i+=3){ const a=I[i],b=I[i+1],c=I[i+2];
+    if(T[a]!==3||T[b]!==3||T[c]!==3||(P[a*3]+P[b*3]+P[c*3])*sd<0) continue;
+    const ha=h(a),hb=h(b),hc=h(c); if((ha>0&&hb>0&&hc>0)||(ha<0&&hb<0&&hc<0)) continue;
+    for(const [p,q,hp,hq] of [[a,b,ha,hb],[b,c,hb,hc],[c,a,hc,ha]]) if(hp*hq<0){ const f=hp/(hp-hq), w=[0,1,2].map(k=>P[p*3+k]+f*(P[q*3+k]-P[p*3+k])-O[k]);
+      const x=w[0]*u[0]+w[1]*u[1]+w[2]*u[2], y=w[0]*v[0]+w[1]*v[1]+w[2]*v[2]; if(Math.hypot(x,y)>9) continue;
+      n++; u0=Math.min(u0,x); u1=Math.max(u1,x); v0=Math.min(v0,y); v1=Math.max(v1,y); } }
+  return n>6?((u1-u0)+(v1-v0))/2:0;
+}
 /* Damm-Punkte: Mittellinie (|x| < 0,3 cm) zwischen Knie und Hüftgelenk an beiden Mittelkörpern; dieselben Punkte für jede Form */
 function avDamm(kd){
   const S=new Set();
@@ -3238,6 +3356,10 @@ function avMasse(kd,P,voll=false){
   let H=0; for(let k=0;k<kd.nK;k++) if(P[k*3+1]>H) H=P[k*3+1];
   const G=n=>avGelenk(kd,P,n), hl=G("l-upper-leg"), hr=G("r-upper-leg"), kl=G("l-knee"), kr=G("r-knee"), sl=G("l-shoulder"), sr=G("r-shoulder"), al=G("l-ankle"), ar=G("r-ankle");
   const hipY=(hl[1]+hr[1])/2, shY=(sl[1]+sr[1])/2, torso=shY-hipY, waistY=hipY+.28*torso, kneeY=(kl[1]+kr[1])/2;
+  // Arme (Körpermodell v2): Gelenke Schulter → Ellbogen → Handgelenk
+  const arm=kd.M.gelenke["l-elbow"]?(()=>{ const el=G("l-elbow"), er=G("r-elbow"), wl=G("l-hand"), wr=G("r-hand"), d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+    return {el,er,wl,wr,armU:(d(sl,el)+d(sr,er))/2,armL:(d(el,wl)+d(er,wr))/2,
+      fore:(avArmBreite(kd,P,el,wl,.45,1)+avArmBreite(kd,P,er,wr,.45,-1))/2, upper:(avArmBreite(kd,P,sl,el,.6,1)+avArmBreite(kd,P,sr,er,.6,-1))/2}; })():null;
   // Schritt: tiefster der festen Damm-Punkte (Mittellinie zwischen Knie und Hüftgelenk, einmal am Mittelkörper gewählt). Vorher
   // „tiefster Punkt mit |x| < 1,5 cm“: bei dickeren Oberschenkeln rutschten Innenschenkel in diese Zone, der Schritt sprang um
   // bis zu 5 cm und die Anpassung rechnete mit falschen Ableitungen. Begrenzt auf 3–10 % der Größe unter dem Hüftgelenk.
@@ -3248,23 +3370,48 @@ function avMasse(kd,P,voll=false){
   const sch=(h,m,sd)=>avSchnitt(kd,P,h,m,sd)||{W:0,D:0,U:0,cx:0,cz:0};
   let hipMax=null;
   if(voll) for(let t=0;t<=.6001;t+=.1){ const S=avSchnitt(kd,P,hipY-t*(hipY-crotch),R); if(S&&(!hipMax||S.cz-S.D/2<hipMax.cz-hipMax.D/2)) hipMax=S; }
-  return {H,hipY,shY,torso,waistY,kneeY,crotch,thighY,gel:{hl,hr,kl,kr,al,ar,sl,sr},hipMax,
+  // Brust (Oberteile): Rumpf ohne Arme 22 % des Rumpfs unter den Schultergelenken (Brustwarzenlinie am Mittelkörper)
+  const chestY=shY-.22*torso;
+  return {H,hipY,shY,torso,waistY,kneeY,crotch,thighY,chestY,gel:{hl,hr,kl,kr,al,ar,sl,sr,...(arm?{el:arm.el,er:arm.er,wl:arm.wl,wr:arm.wr}:{})},hipMax,arm,
+    shoulderW:Math.abs(sl[0]-sr[0]), chest:sch(chestY,2),
     waist:sch(waistY,R), hip:sch(hipY,R), thighL:sch(thighY,4,1), thighR:sch(thighY,4,-1), kneeL:sch(kneeY,4,1), kneeR:sch(kneeY,4,-1)};
 }
 /* Messwerte des Avatars, skaliert auf die Körpergröße (für Anpassung, Größenauswahl und Anzeige) */
 function avMessung(M,s){
   return {H:M.H*s,leg:M.hipY*s,torso:M.torso*s,inseam:M.crotch*s,
     waistW:M.waist.W*s,waistD:M.waist.D*s,waist:M.waist.U*s, hipW:M.hip.W*s,hipD:M.hip.D*s,hip:(M.hipMax||M.hip).U*s,
-    thighW:(M.thighL.W+M.thighR.W)/2*s,thigh:(M.thighL.U+M.thighR.U)/2*s, kneeW:(M.kneeL.W+M.kneeR.W)/2*s,knee:(M.kneeL.U+M.kneeR.U)/2*s};
+    thighW:(M.thighL.W+M.thighR.W)/2*s,thigh:(M.thighL.U+M.thighR.U)/2*s, kneeW:(M.kneeL.W+M.kneeR.W)/2*s,knee:(M.kneeL.U+M.kneeR.U)/2*s,
+    shoulder:M.shoulderW*s, ...(M.arm?{armU:M.arm.armU*s,armL:M.arm.armL*s,foreW:M.arm.fore*s,upperW:M.arm.upper*s}:{}),
+    ...(M.chest?{chest:M.chest.U*s,chestW:M.chest.W*s,chestD:M.chest.D*s}:{})};
 }
-/* Anpassen (gedämpftes Gauß-Newton, Jacobi-Matrix numerisch): Avatar-Silhouette und Längen ≈ Scan. Ziel z: H (Pflicht),
-   waistW/waistD, hipW/hipD, thighW, kneeW, leg (Hüftgelenk über dem Boden), inseam (Schritt über dem Boden), alle cm;
-   fehlende werden ausgelassen. Regler sanft zur Mitte gezogen (σ 0,6), damit unbestimmte (Wade) natürlich bleiben. */
-function avatarAnpassen(kd,g,z){
-  const SIG={waistW:1,waistD:1.2,hipW:1,hipD:1.2,thighW:.8,kneeW:.8,leg:1,inseam:1.2}, keys=Object.keys(SIG).filter(k=>isFinite(z[k])&&z[k]>0);
-  const P=new Float32Array(kd.nV*3), np=AV_PAR.length;
-  const res=v=>{ const p={}; AV_PAR.forEach((k,i)=>p[k]=v[i]); avatarRoh(kd,g,p,P); const M=avMasse(kd,P), s=z.H/M.H, m=avMessung(M,s);
-    return keys.map(k=>(m[k]-z[k])/SIG[k]).concat(v.map(x=>x/.6)); };
+/* Eichung Scan ↔ Avatar (22.10.): 12 zufällige Körper (Mann/Frau, 152–194 cm, alle Regler ±0,7) mit Armen nach unten gerendert und
+   durch den echten Frontal-Scan geschickt (werkzeuge/avatar-eichen.mjs). Je Maß: Scan ÷ Avatar im Mittel und Streuung (relativ).
+   Die Erkennung setzt Schulter-, Hüft- und Handgelenkpunkte anders als das Skelett des Körpermodells; ohne Eichung lag die Taille
+   des Avatars 8 % zu schmal und der Oberschenkel 10 % zu breit. Ober- und Unterarm einzeln streuen 8 %, zusammen 2,7 %. */
+const AV_EICH={shoulder:[.937,.031],torso:[.969,.038],leg:[1.043,.021],inseam:[1.022,.009],arm:[.998,.027],armU:[1.056,.084],foreW:[.983,.083],upperW:[.873,.085],
+  waistW:[.920,.041],hipW:[.969,.041],kneeW:[1.015,.019],thighW:[1.106,.129],waistD:[1,.05],hipD:[1,.05],
+  // Brust von vorn: die hängenden Arme liegen an und werden oft mitgemessen (1,48 ± 0,15), darum schwach; Tiefe von der Seite ungeeicht
+  chestW:[1.475,.10],chestD:[1,.08]};
+/* Anpassen (gedämpftes Gauß-Newton, Jacobi-Matrix numerisch): geeichte Avatar-Maße ≈ Scan. Ziel z: H (Pflicht), Breiten und
+   Tiefen (waistW/waistD, hipW/hipD, thighW, kneeW), Längen (leg Hüftgelenk, inseam Schritt über dem Boden, torso, arm, armU),
+   Schulterbreite, Arme (foreW Unterarm, upperW Oberarm), alle cm; fehlende werden ausgelassen. Regler sanft zur Mitte gezogen
+   (σ 0,6), damit unbestimmte (Wade) natürlich bleiben.
+   Weite Kleidung (lose): Umriss an Brust, Taille, Hüfte, Oberschenkel, Knie ist die Kleidung, nicht der Körper. Er gilt dann nur
+   als Obergrenze (der Körper ist nie breiter als die Kleidung). Ein schwacher Zug zu „Umriss minus übliche Weite“ machte Jakob am
+   Referenzclip (Baggy-Jeans, weites Shirt: 10 cm Luft an der Taille) schwerer statt schlanker und ist wieder raus. Die Form kommt
+   dann aus dem, was Kleidung nicht verändert: Längen, Schultern, Arme (Oberarm als Obergrenze, nackter Unterarm). Vorher wurde jede Zone durch den
+   Durchschnittskörper ersetzt: an den Referenzclips (Baggy-Jeans) kam immer der Standardkörper heraus. Oberarm: oft im Ärmel,
+   immer nur Obergrenze. */
+const AV_LOSE={waistW:1,waistD:1,hipW:1,hipD:1,thighW:1,kneeW:1,chestW:1,chestD:1};   // Zonen, die bei weiter Kleidung nur Obergrenze sind
+function avatarAnpassen(kd,g,z,lose=false){
+  const keys=Object.keys(AV_EICH).filter(k=>isFinite(z[k])&&z[k]>0), P=new Float32Array(kd.nV*3), np=AV_PAR.length;
+  const res=v=>{ const p={}; AV_PAR.forEach((k,i)=>p[k]=v[i]); avatarRoh(kd,g,p,P); const M=avMasse(kd,P), s=z.H/M.H, m=avMessung(M,s), r=[];
+    if(isFinite(m.armU)&&isFinite(m.armL)) m.arm=m.armU+m.armL;
+    for(const k of keys){ if(!isFinite(m[k])) continue; const [c,sd]=AV_EICH[k], pred=c*m[k], sig=sd*z[k]+.4;
+      if(k==="upperW"){ r.push(Math.max(0,pred-z[k])/sig); continue; }
+      if(lose&&AV_LOSE[k]){ r.push(Math.max(0,pred-z[k])/sig); continue; }
+      r.push((pred-z[k])/sig); }
+    return r.concat(v.map(x=>x/.6)); };
   let v=new Array(np).fill(0), r=res(v), e=r.reduce((t,x)=>t+x*x,0), lam=.05;
   for(let it=0;it<10;it++){
     const J=[]; for(let j=0;j<np;j++){ const w=v.slice(); w[j]+=.04; const rj=res(w); J.push(rj.map((x,i)=>(x-r[i])/.04)); }
@@ -3299,22 +3446,404 @@ function avatarBauen(kd,g,p,H){
   const kopf={y0:.925*H,zc:zn?zs/zn:0,yo:.96*H};
   return {g,p,H,P,N,m,gel:Object.fromEntries(Object.entries(M.gel).map(([k,v])=>[k,sk(v)])),M,s,kopf};
 }
+/* ---------- Haltung des Körpermodells (22.10., Körpermodell v2) ----------
+   Linear Blend Skinning mit den 16 Knochengruppen aus MakeHuman (koerper_bauen.py). Ziel z: Richtungen (Welt, cm-Raum des Avatars)
+   je Knochen, fehlende bleiben wie in der Ruhehaltung: oaL/oaR Oberarm (Schulter → Ellbogen), uaL/uaR Unterarm, osL/osR
+   Oberschenkel, usL/usR Unterschenkel, rumpf (Becken → Brust). Unterarm und Unterschenkel drehen mit ihrem oberen Knochen mit
+   (sonst verdreht sich die Hand), dann auf ihre eigene Richtung. Ergebnis: Punkte, Normalen, neue Gelenke. */
+const AV_GR=["becken","bauch","brust","kopf","oberarm.L","oberarm.R","unterarm.L","unterarm.R","hand.L","hand.R","oberschenkel.L","oberschenkel.R","unterschenkel.L","unterschenkel.R","fuss.L","fuss.R"];
+const m3x={ rot:(k,a)=>{ const c=Math.cos(a), s=Math.sin(a), t=1-c, [x,y,z]=k; return [t*x*x+c,t*x*y-s*z,t*x*z+s*y, t*x*y+s*z,t*y*y+c,t*y*z-s*x, t*x*z-s*y,t*y*z+s*x,t*z*z+c]; },
+  ap:(R,v)=>[R[0]*v[0]+R[1]*v[1]+R[2]*v[2],R[3]*v[0]+R[4]*v[1]+R[5]*v[2],R[6]*v[0]+R[7]*v[1]+R[8]*v[2]],
+  mul:(A,B)=>{ const C=new Array(9); for(let i=0;i<3;i++) for(let j=0;j<3;j++) C[i*3+j]=A[i*3]*B[j]+A[i*3+1]*B[3+j]+A[i*3+2]*B[6+j]; return C; },
+  id:()=>[1,0,0,0,1,0,0,0,1],
+  nrm:v=>{ const l=Math.hypot(v[0],v[1],v[2])||1; return [v[0]/l,v[1]/l,v[2]/l]; },
+  zw:(a,b)=>{ a=m3x.nrm(a); b=m3x.nrm(b); const c=clamp(a[0]*b[0]+a[1]*b[1]+a[2]*b[2],-1,1), k=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]], sn=Math.hypot(...k);
+    if(sn<1e-6) return c>0?m3x.id():m3x.rot([0,0,1],Math.PI); return m3x.rot(k.map(x=>x/sn),Math.atan2(sn,c)); } };
+/* Knochen-Transformationen T(x) = n + R (x − o) je Gruppe aus der Ruhehaltung (Gelenke gel) und dem Ziel z */
+function avatarKnochen(gel,z={}){
+  const d=(a,b)=>[b[0]-a[0],b[1]-a[1],b[2]-a[2]], T=new Array(16), I=m3x.id(), hip=[(gel.hl[0]+gel.hr[0])/2,(gel.hl[1]+gel.hr[1])/2,(gel.hl[2]+gel.hr[2])/2];
+  const sh=[(gel.sl[0]+gel.sr[0])/2,(gel.sl[1]+gel.sr[1])/2,(gel.sl[2]+gel.sr[2])/2];
+  const Rr=z.rumpf?m3x.zw(d(hip,sh),z.rumpf):I, ap=(t,x)=>{ const q=m3x.ap(t.R,[x[0]-t.o[0],x[1]-t.o[1],x[2]-t.o[2]]); return [t.n[0]+q[0],t.n[1]+q[1],t.n[2]+q[2]]; };
+  T[0]={R:I,o:hip,n:hip};
+  // Bauch dreht halb, Brust und Kopf ganz (um die Hüftmitte)
+  const half=z.rumpf?(()=>{ const a=m3x.nrm(d(hip,sh)), b=m3x.nrm(z.rumpf), k=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]], sn=Math.hypot(...k);
+    return sn<1e-6?I:m3x.rot(k.map(x=>x/sn),Math.atan2(sn,a[0]*b[0]+a[1]*b[1]+a[2]*b[2])/2); })():I;
+  T[1]={R:half,o:hip,n:hip}; T[2]={R:Rr,o:hip,n:hip}; T[3]=T[2];
+  for(const [s,i] of [["l",0],["r",1]]){ const S=s==="l"?"L":"R", so=gel["s"+s], el=gel["e"+s], wr=gel["w"+s];
+    if(el&&wr){ const n0=ap(T[2],so), Ro=z["oa"+S]?m3x.zw(d(so,el),z["oa"+S]):Rr, to={R:Ro,o:so,n:n0}, ne=ap(to,el);
+      const Ru=z["ua"+S]?m3x.mul(m3x.zw(m3x.ap(Ro,d(el,wr)),z["ua"+S]),Ro):Ro;
+      T[4+i]=to; T[6+i]={R:Ru,o:el,n:ne}; T[8+i]=T[6+i]; }
+    else T[4+i]=T[6+i]=T[8+i]=T[2];
+    const hj=gel["h"+s], kn=gel["k"+s], an=gel["a"+s];
+    const Rt=z["os"+S]?m3x.zw(d(hj,kn),z["os"+S]):I, tt={R:Rt,o:hj,n:hj}, nk=ap(tt,kn);
+    const Rs=z["us"+S]?m3x.mul(m3x.zw(m3x.ap(Rt,d(kn,an)),z["us"+S]),Rt):Rt;
+    T[10+i]=tt; T[12+i]={R:Rs,o:kn,n:nk}; T[14+i]=T[12+i]; }
+  return {T,ap};
+}
+/* Punkte P (und Normalen N) in die Haltung bringen; gew: Gewichte des Körpermodells (oder einer Vorlage, gleiche Gruppen) */
+function avatarHaltung(gew,P,N,K,n,outP,outN){
+  outP=outP||new Float32Array(n*3); if(N) outN=outN||new Float32Array(n*3);
+  const T=K.T, gi=gew.i, gw=gew.w;
+  for(let k=0;k<n;k++){ let x=0,y=0,z=0,nx=0,ny=0,nz=0; const px=P[k*3],py=P[k*3+1],pz=P[k*3+2];
+    for(let j=0;j<4;j++){ const w=gw[k*4+j]/255; if(!w) continue; const t=T[gi[k*4+j]], R=t.R, qx=px-t.o[0], qy=py-t.o[1], qz=pz-t.o[2];
+      x+=w*(t.n[0]+R[0]*qx+R[1]*qy+R[2]*qz); y+=w*(t.n[1]+R[3]*qx+R[4]*qy+R[5]*qz); z+=w*(t.n[2]+R[6]*qx+R[7]*qy+R[8]*qz);
+      if(N){ const a=N[k*3],b=N[k*3+1],c=N[k*3+2]; nx+=w*(R[0]*a+R[1]*b+R[2]*c); ny+=w*(R[3]*a+R[4]*b+R[5]*c); nz+=w*(R[6]*a+R[7]*b+R[8]*c); } }
+    outP[k*3]=x; outP[k*3+1]=y; outP[k*3+2]=z;
+    if(N){ const l=Math.hypot(nx,ny,nz)||1; outN[k*3]=nx/l; outN[k*3+1]=ny/l; outN[k*3+2]=nz/l; } }
+  return {P:outP,N:outN};
+}
+/* ---------- Oberteile: Vorlagen aus dem Körpermodell (22.10.) ----------
+   Je Art eine Vorlage, gebaut auf dem Körper, der sie trägt (Avatar oder Standardkörper derselben Größe; MakeHuman CC0, also auch
+   kommerziell frei): Rumpf als Ringe vom Halsausschnitt bis zum Saum, Ärmel als Ringe entlang Schulter → Ellbogen (→ Handgelenk),
+   Träger als Bänder über die Schulter. Jeder Ring folgt dem Körperquerschnitt plus Weite; unter der Brust fällt der Stoff gerade
+   (hängt von Brust und Schulterblättern), statt in die Taille zu laufen. Die Fotos liegen nur als Textur auf Vorder- und
+   Rückseite; Maße (Brust, Länge, Ärmel) skalieren die Vorlage. Gewichte je Punkt vom nächsten Körperpunkt: jede Haltung des
+   Körpers (avatarHaltung) gilt auch für das Oberteil.
+   Metadaten je Art (wo sie sitzt): Saum zwischen zwei Körperhöhen (ein Top wird nie über den Nabel hinaus gezogen, ein T-Shirt
+   nie über das Gesäß), Ärmelende als Anteil des Arms, Ausschnitt vorn/hinten (cm unter dem Halsansatz), Weite je Zone (Umfang, cm). */
+const OT_ARTEN={
+  tshirt:{name:"T-Shirt",saum:["nabel","unterschritt","gesaess"],aermel:{min:.18,max:.5,std:.3},hals:{vorn:2.6,hinten:.8,weite:1.2},weite:{brust:10,taille:12,saum:13,arm:6}},
+  langarm:{name:"Langarm",saum:["nabel","unterschritt","gesaess"],aermel:{min:.8,max:1.04,std:.98},hals:{vorn:2.4,hinten:.8,weite:1.0},weite:{brust:9,taille:11,saum:12,arm:4}},
+  top:{name:"Trägertop",saum:["unterbrust","gesaess","nabel"],aermel:null,hals:{vorn:8,hinten:4,weite:0},traeger:2.4,weite:{brust:3,taille:5,saum:6,arm:0}}
+};
+const OT_K=48;                                         // Punkte je Rumpf-Ring
+/* Körperhöhen (cm über dem Boden) für die Metadaten */
+function otHoehen(kd,A){
+  const M=A.M, s=A.s, hipY=M.hipY*s, shY=M.shY*s, T=M.torso*s, neck=avGelenk(kd,A.P,"neck")[1];
+  return {hals:neck,schulter:shY,achsel:shY-.17*T,brust:M.chestY*s,unterbrust:M.chestY*s-.11*T,taille:M.waistY*s,nabel:hipY+.2*T,
+    hueftknochen:hipY+.15*T,huefte:hipY+.05*T,gesaess:hipY-.1*T,schritt:M.crotch*s,unterschritt:M.crotch*s-12,hps:neck-2,T,hipY,shY};
+}
+/* Querschnitt in Höhe y (Teile in der Maske: Bit t für Teil t), als Radius je Richtung um die Achse (cx, cz): θ 0 vorn (+z),
+   π/2 links (+x). Lücken werden zwischen den Nachbarn aufgefüllt. */
+function otRing(kd,P,y,maske,K,cx,cz,kappe=null){
+  const I=kd.idx, T=kd.teil, r=new Float32Array(K); let n=0;
+  // kappe: [x,y,z,Radius] je Schulter: Arm-Punkte so nah am Schultergelenk zählen zum Rumpf (Deltamuskel unter der Schulternaht)
+  // Teil 3 (Arm) enthält auch Schlüsselbein und obere Brust (Gewichte am Schlüsselbein): die zählen zum Rumpf, wenn ihr stärkster
+  // Knochen am Rumpf hängt (Gruppe ≤ 3)
+  const G=kd.gew, rumpf=k=>G&&G.i[k*4]<=3;
+  // kappe: nur Arm-Punkte über dem Schultergelenk (− 3 cm) im Umkreis q[3]: Oberseite der Schulter, nicht der hängende Oberarm
+  const ok=k=>((maske>>T[k])&1)||(kappe&&T[k]===3&&(rumpf(k)||kappe.some(q=>P[k*3+1]>q[1]-3&&(P[k*3]-q[0])**2+(P[k*3+1]-q[1])**2+(P[k*3+2]-q[2])**2<q[3]*q[3])));
+  for(let t=0;t<I.length;t+=3){ const a=I[t],b=I[t+1],c=I[t+2];
+    if(!ok(a)||!ok(b)||!ok(c)) continue;
+    const ya=P[a*3+1]-y, yb=P[b*3+1]-y, yc=P[c*3+1]-y;
+    if((ya>0&&yb>0&&yc>0)||(ya<0&&yb<0&&yc<0)) continue;
+    for(const [u,v,yu,yv] of [[a,b,ya,yb],[b,c,yb,yc],[c,a,yc,ya]]) if(yu*yv<0){ const f=yu/(yu-yv);
+      const x=P[u*3]+f*(P[v*3]-P[u*3])-cx, z=P[u*3+2]+f*(P[v*3+2]-P[u*3+2])-cz, d=Math.hypot(x,z);
+      const k=((Math.round(Math.atan2(x,z)/(2*Math.PI)*K)%K)+K)%K; if(d>r[k]) r[k]=d; n++; } }
+  if(n<8) return null;
+  otLuecken(r); return r;
+}
+function otLuecken(r){ const K=r.length;
+  for(let k=0;k<K;k++) if(!r[k]){ let a=1,b=1; while(a<K&&!r[(k-a+K)%K]) a++; while(b<K&&!r[(k+b)%K]) b++;
+    const ra=r[(k-a+K)%K], rb=r[(k+b)%K]; r[k]=(ra*b+rb*a)/(a+b)||ra||rb; } }
+const otGlatt=(r,n=2)=>{ const K=r.length; for(let it=0;it<n;it++){ const o=r.slice(); for(let k=0;k<K;k++) r[k]=(o[(k-1+K)%K]+2*o[k]+o[(k+1)%K])/4; } return r; };
+/* Querschnitt eines Arms quer zum Knochen (Mittelpunkt O, Richtung d, Bezug vorn fv, seitlich su), nur Teil 3, Seite sd */
+function otArmRing(kd,P,O,d,fv,su,sd,K){
+  const I=kd.idx, T=kd.teil, r=new Float32Array(K), h=k=>(P[k*3]-O[0])*d[0]+(P[k*3+1]-O[1])*d[1]+(P[k*3+2]-O[2])*d[2]; let n=0;
+  for(let i=0;i<I.length;i+=3){ const a=I[i],b=I[i+1],c=I[i+2];
+    if(T[a]!==3||T[b]!==3||T[c]!==3||(P[a*3]+P[b*3]+P[c*3])*sd<0) continue;
+    const ha=h(a),hb=h(b),hc=h(c); if((ha>0&&hb>0&&hc>0)||(ha<0&&hb<0&&hc<0)) continue;
+    for(const [p,q,hp,hq] of [[a,b,ha,hb],[b,c,hb,hc],[c,a,hc,ha]]) if(hp*hq<0){ const f=hp/(hp-hq), w=[0,1,2].map(k=>P[p*3+k]+f*(P[q*3+k]-P[p*3+k])-O[k]);
+      const x=w[0]*su[0]+w[1]*su[1]+w[2]*su[2], z=w[0]*fv[0]+w[1]*fv[1]+w[2]*fv[2], dd=Math.hypot(x,z); if(dd>13) continue;
+      const k=((Math.round(Math.atan2(x,z)/(2*Math.PI)*K)%K)+K)%K; if(dd>r[k]) r[k]=dd; n++; } }
+  if(n<6) return null; otLuecken(r); return r;
+}
+/* Vorlage bauen. A: Körper (avatarBauen), art: Schlüssel in OT_ARTEN, o: {laenge: cm vom Schulterpunkt (seitlicher Halsansatz) bis
+   zum Saum, brust: Umfang der Kleidung (cm), aermel: Anteil des Arms, saum: Name einer Körperhöhe (statt Länge)}. Ergebnis:
+   Punkte P, Normalen N (in Ruhehaltung), Dreiecke idx, je Punkt Teil (0 Rumpf, 1 Ärmel links, 2 rechts, 3 Träger) und
+   Parameter (Rumpf: θ, Höhe; Ärmel: φ, Strecke ab Schulter in cm; Träger: Seite, Lage) für die Textur, Gewichte gew. */
+function otVorlage(kd,A,art,o={}){
+  const D=OT_ARTEN[art]||OT_ARTEN.tshirt, Y=otHoehen(kd,A), K=OT_K, m=A.m;
+  // Körper 0,6 cm entlang der Normalen aufgeblasen: auch an schrägen Flächen (Schultern) liegt der Stoff dann darüber, nicht nur
+  // waagrecht daneben (sonst 0,15 cm über der Schulter: Haut stach durch)
+  const P=new Float32Array(A.P.length); for(let k=0;k<A.P.length;k++) P[k]=A.P[k]+A.N[k]*.6;
+  // Weite: aus dem Brustumfang der Kleidung, sonst Vorgabe der Art (Umfang → Radius: / 2π)
+  const eB=o.brust>0&&m.chest>0?clamp(o.brust-m.chest,-4,60):D.weite.brust, kE=eB/(D.weite.brust||1);
+  const eT=D.weite.taille*Math.max(.3,kE), eS=D.weite.saum*Math.max(.3,kE);
+  // Saum: aus der Länge (wie in Maßtabellen vom höchsten Schulterpunkt am Kragen, hps) oder direkt als Höhe (aus dem Foto),
+  // begrenzt auf die Höhen der Art
+  const [hi,lo,std]=D.saum.map(k=>Y[k]), yTop=Y.hals-1;
+  // Der Stoff läuft über Schulter und Brust: senkrecht fällt er etwa 6 % weniger, als er lang ist
+  let yHem=o.saum&&Y[o.saum]!=null?Y[o.saum]:o.hemY>0?o.hemY:o.laenge>0?Y.hps-.94*o.laenge:std;
+  const hemFrei=yHem; yHem=clamp(yHem,lo,hi);
+  // Achse: senkrecht, Mitte des Rumpfs zwischen Brust und Taille (Stoff fällt senkrecht, Schwerkraft)
+  let cz=0; { let n=0; for(let k=0;k<kd.nK;k++){ const y=P[k*3+1]; if(kd.teil[k]===1&&y<Y.brust&&y>Y.taille){ cz+=P[k*3+2]; n++; } } cz=n?cz/n:0; }
+  // Ringe: oben dicht (Hals, Schultern), unten weiter
+  const ys=[]; for(let y=yTop+1.2;y>yHem+.01;){ ys.push(y); y-=y>Y.achsel?1.1:y>Y.unterbrust?1.6:2.2; } ys.push(yHem);
+  const ease=y=>{ if(y>=Y.achsel) return .4+(eB*.6-.4)*clamp((Y.schulter+4-y)/(Y.schulter+4-Y.achsel),0,1);
+    if(y>=Y.brust) return eB*.6+(eB-eB*.6)*clamp((Y.achsel-y)/(Y.achsel-Y.brust),0,1);
+    if(y>=Y.taille) return eB+(eT-eB)*(Y.brust-y)/(Y.brust-Y.taille||1); return eT+(eS-eT)*clamp((Y.taille-y)/(Y.taille-yHem||1),0,1); };
+  const R=[]; let prev=null, kappe=art==="top"?[]:[A.gel.sl,A.gel.sr].map(q=>[q[0],q[1],q[2],12]);
+  for(const y of ys){
+    const maske=y>Y.achsel-1?(1|2|4):(2|4), r=otRing(kd,P,y,maske,K,0,cz,y>Y.achsel-1?kappe:null)||(prev?prev.slice():new Float32Array(K).fill(12));
+    otGlatt(r,2); const e=ease(y)/(2*Math.PI);
+    for(let k=0;k<K;k++) r[k]+=e;
+    // unter der Brust fällt der Stoff: nie enger als der Ring darüber (leicht nach innen, 0,5 % je cm)
+    if(prev&&y<Y.brust) for(let k=0;k<K;k++) r[k]=Math.max(r[k],prev.r[k]*(1-.005*(prev.y-y)));
+    R.push({y,r}); prev={y,r}; }
+  // auch senkrecht glätten (über der Brust; darunter fällt der Stoff ohnehin gerade): Halsausschnitt und Schultern ohne Zacken
+  for(let it=0;it<3;it++){ const o=R.map(q=>q.r.slice());
+    for(let i=1;i<R.length-1;i++) if(R[i].y>Y.brust) for(let k=0;k<K;k++) R[i].r[k]=Math.max(o[i][k],(o[i-1][k]+2*o[i][k]+o[i+1][k])/4); }
+  // Saumkante: Rest auf die Saumhöhe; Ausschnitt und (Top) Armlöcher: Punkte über der Schnittlinie auf die Linie gesetzt
+  // Top: Ausschnitt vorn/hinten in der Mitte, steigt bis zum Träger (Ansatz yS), fällt dann ins Armloch (Achsel − 1 cm)
+  const hwS=(R.find(q=>q.y<=Y.achsel+7)||R[R.length-1]).r[K/4], xs=.5*(Math.abs(A.gel.sl[0])+7), sS=clamp(xs/Math.max(1,hwS),.3,.85);
+  const th=k=>k/K*2*Math.PI, cut=t=>{ const c=Math.cos(t);
+    if(art==="top"){ const sx=Math.abs(Math.sin(t)), yS=Y.achsel+7, yN=yS-(c>0?D.hals.vorn:D.hals.hinten);
+      return sx<sS?yN+(yS-yN)*(sx/sS)**2:yS-(yS-(Y.achsel-1))*sstep(sS,Math.min(.97,sS+.25),sx); }
+    return yTop+1.2-(c>0?D.hals.vorn*c*c:D.hals.hinten*c*c); };
+  // Punkte
+  const pos=[], tl=[], prm=[], idx=[];
+  const nr=R.length, add=(x,y,z,t,a,b)=>{ pos.push(x,y,z); tl.push(t); prm.push(a,b); return pos.length/3-1; };
+  // Halsausschnitt etwas weiter als der Hals
+  for(let i=0;i<nr;i++) for(let k=0;k<=K;k++){ const t=th(k%K), Ri=R[i], c=cut(t);
+    let y=Ri.y, rr=Ri.r[k%K];
+    if(y>c){ // auf die Schnittlinie: Radius des Rings in dieser Höhe (interpoliert)
+      let j=i; while(j<nr-1&&R[j].y>c) j++; const a=R[Math.max(0,j-1)], b=R[j], f=a===b?0:clamp((a.y-c)/(a.y-b.y),0,1);
+      rr=a.r[k%K]+(b.r[k%K]-a.r[k%K])*f+(art==="top"?.2:D.hals.weite*(Math.cos(t)>0?1:.6)*(1-f*0)); y=c; }
+    add(Math.sin(t)*rr,y,cz+Math.cos(t)*rr,0,t,y); }
+  for(let i=0;i<nr-1;i++) for(let k=0;k<K;k++){ const a=i*(K+1)+k, b=a+1, c=a+K+1, d=c+1; idx.push(a,c,b, b,c,d); }
+  // Ärmel (T-Shirt, Langarm): Ringe quer zum Arm, ab 3 cm vor dem Schultergelenk bis zum Ärmelende (Anteil der Armlänge)
+  const KA=24, sleeves=[];
+  if(D.aermel&&A.gel.el){ const af=clamp(o.aermel??D.aermel.std,D.aermel.min,D.aermel.max);
+    for(const [sd,S,E,W,part] of [[1,A.gel.sl,A.gel.el,A.gel.wl,1],[-1,A.gel.sr,A.gel.er,A.gel.wr,2]]){
+      const l1=Math.hypot(E[0]-S[0],E[1]-S[1],E[2]-S[2]), l2=Math.hypot(W[0]-E[0],W[1]-E[1],W[2]-E[2]), sEnd=af*(l1+l2), d1=m3x.nrm([E[0]-S[0],E[1]-S[1],E[2]-S[2]]), d2=m3x.nrm([W[0]-E[0],W[1]-E[1],W[2]-E[2]]);
+      const at=s=>{ if(s<=l1){ const p=[S[0]+d1[0]*s,S[1]+d1[1]*s,S[2]+d1[2]*s]; const b=sstep(l1-4,l1+4,s); return {p,d:m3x.nrm(d1.map((v,k)=>v*(1-b*.5)+d2[k]*b*.5))}; }
+        const q=s-l1, p=[E[0]+d2[0]*q,E[1]+d2[1]*q,E[2]+d2[2]*q], b=sstep(-4,4,q); return {p,d:m3x.nrm(d1.map((v,k)=>v*(1-b*.5-.5*sstep(0,4,q))+d2[k]*(b*.5+.5*sstep(0,4,q))))}; };
+      const ss=[]; for(let s=-5;s<sEnd;s+=s<6?1.2:2) ss.push(s); ss.push(sEnd);
+      const base=pos.length/3; let rPrev=null;
+      for(const s of ss){ const {p,d}=at(Math.max(0,s)), O=s<0?[S[0]+d1[0]*s,S[1]+d1[1]*s,S[2]+d1[2]*s]:p;
+        let fv=[0,0,1]; const dz=fv[0]*d[0]+fv[1]*d[1]+fv[2]*d[2]; fv=m3x.nrm([fv[0]-dz*d[0],fv[1]-dz*d[1],fv[2]-dz*d[2]]);
+        const su=[d[1]*fv[2]-d[2]*fv[1],d[2]*fv[0]-d[0]*fv[2],d[0]*fv[1]-d[1]*fv[0]].map(v=>v*sd);
+        let r=otArmRing(kd,P,s<0?S:O,d,fv,su,sd,KA)||rPrev||new Float32Array(KA).fill(5); r=otGlatt(r.slice(),2);
+        // Weite: oben eng an der Schulter, zum Ärmelsaum offener; nie enger als 4 cm Radius (Ärmel hängt offen)
+        const e=(D.weite.arm*(.35+.65*clamp(s/Math.max(6,sEnd),0,1))+.6)/(2*Math.PI)*2;
+        for(let k=0;k<KA;k++) r[k]=Math.max(r[k]+e,s<2?r[k]+e:4);
+        if(rPrev&&s>2) for(let k=0;k<KA;k++) r[k]=Math.max(r[k],rPrev[k]*.97);
+        rPrev=r;
+        for(let k=0;k<=KA;k++){ const ph=k/KA*2*Math.PI, c=Math.cos(ph), sn=Math.sin(ph);
+          add(O[0]+(fv[0]*c+su[0]*sn)*r[k%KA],O[1]+(fv[1]*c+su[1]*sn)*r[k%KA],O[2]+(fv[2]*c+su[2]*sn)*r[k%KA],part,ph,Math.max(0,s)); } }
+      for(let i=0;i<ss.length-1;i++) for(let k=0;k<KA;k++){ const a=base+i*(KA+1)+k, b=a+1, c=a+KA+1, dd=c+1;
+        if(sd>0) idx.push(a,b,c, b,dd,c); else idx.push(a,c,b, b,c,dd); }
+      sleeves.push({part,sEnd,l1,l2,af}); } }
+  // Träger (Top): Band in der Ebene x = ±xs vom Ausschnitt vorn über die Schulter zum Rücken, 0,35 cm über dem Körper
+  if(D.traeger){ const w=D.traeger, yS=Y.achsel+7;
+    for(const sd of [1,-1]){ const prof=otSchnittX(kd,P,sd*xs,Y,cz); if(!prof) continue;
+      const pts=prof.filter(q=>q.y>=yS-.5), base=pos.length/3;
+      if(pts.length<4) continue;
+      for(const q of pts) for(const dx of [-w/2,w/2]) add(sd*xs+dx,q.y+q.ny*.35,q.z+q.nz*.35,3,sd,q.t);
+      for(let i=0;i<pts.length-1;i++){ const a=base+i*2; if(sd>0) idx.push(a,a+1,a+2, a+1,a+3,a+2); else idx.push(a,a+2,a+1, a+1,a+2,a+3); } } }
+  const n=pos.length/3, Pf=Float32Array.from(pos), N=otNormalen(Pf,idx,n);
+  return {art,P:Pf,N,idx:n<65536?Uint16Array.from(idx):Uint32Array.from(idx),n,tl:Uint8Array.from(tl),prm:Float32Array.from(prm),
+    gew:otGewichte(kd,A,Pf,tl,n),nr,K,KA,sleeves,Y,yHem,yTop,hemFrei,eB,cz,ringY:R.map(q=>q.y)};
+}
+/* Körper in der Ebene x = x0 (Rumpf und Hals) geschnitten: Linie über die Schulter von vorn nach hinten, obere Hälfte, mit
+   Normalen (nach außen, in y/z); t = Lage entlang der Linie (0 vorn … 1 hinten) */
+function otSchnittX(kd,P,x0,Y,cz){
+  const I=kd.idx, T=kd.teil, pts=[];
+  const G=kd.gew, no=k=>T[k]===2||(T[k]===3&&!(G&&G.i[k*4]<=3)&&Math.abs(P[k*3])>Math.abs(x0)+6);
+  for(let i=0;i<I.length;i+=3){ const a=I[i],b=I[i+1],c=I[i+2]; if(no(a)||no(b)||no(c)) continue;
+    const xa=P[a*3]-x0, xb=P[b*3]-x0, xc=P[c*3]-x0; if((xa>0&&xb>0&&xc>0)||(xa<0&&xb<0&&xc<0)) continue;
+    for(const [u,v,hu,hv] of [[a,b,xa,xb],[b,c,xb,xc],[c,a,xc,xa]]) if(hu*hv<0){ const f=hu/(hu-hv);
+      const y=P[u*3+1]+f*(P[v*3+1]-P[u*3+1]), z=P[u*3+2]+f*(P[v*3+2]-P[u*3+2]); if(y>Y.achsel-2) pts.push([y,z]); } }
+  if(pts.length<10) return null;
+  // nach Winkel um einen Punkt unter der Schulter sortiert, je 6° der äußerste (Umriss)
+  const yc=Y.achsel-4, B=new Map();
+  for(const [y,z] of pts){ const a=Math.atan2(z-cz,y-yc), k=Math.round(a/(Math.PI/30)), d=Math.hypot(z-cz,y-yc); if(!B.has(k)||B.get(k).d<d) B.set(k,{y,z,d,a}); }
+  const L=[...B.values()].filter(q=>Math.abs(q.a)<Math.PI*.62).sort((p,q)=>q.a-p.a);   // vorn (+z) → oben → hinten
+  if(L.length<4) return null;
+  return L.map((q,i)=>{ const p=L[Math.max(0,i-1)], n=L[Math.min(L.length-1,i+1)], ty=n.y-p.y, tz=n.z-p.z, l=Math.hypot(ty,tz)||1;
+    let ny=tz/l, nz=-ty/l; if(ny*(q.y-yc)+nz*(q.z-cz)<0){ ny=-ny; nz=-nz; } return {y:q.y,z:q.z,ny,nz,t:i/(L.length-1)}; });
+}
+function otNormalen(P,idx,n){
+  const N=new Float32Array(n*3);
+  for(let t=0;t<idx.length;t+=3){ const a=idx[t]*3,b=idx[t+1]*3,c=idx[t+2]*3;
+    const ux=P[b]-P[a],uy=P[b+1]-P[a+1],uz=P[b+2]-P[a+2],vx=P[c]-P[a],vy=P[c+1]-P[a+1],vz=P[c+2]-P[a+2];
+    const nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; for(const q of [a,b,c]){ N[q]+=nx; N[q+1]+=ny; N[q+2]+=nz; } }
+  for(let k=0;k<N.length;k+=3){ const l=Math.hypot(N[k],N[k+1],N[k+2])||1; N[k]/=l; N[k+1]/=l; N[k+2]/=l; }
+  return N;
+}
+/* Gewichte: vom nächsten Körperpunkt (Gitter mit 3 cm Zellen). Rumpf und Träger nur von Rumpf, Becken, Schultern (nicht von
+   den Beinen: sonst hebt sich der Saum mit dem Oberschenkel), Ärmel nur vom Arm ihrer Seite. */
+function otGewichte(kd,A,P,tl,n){
+  const G=kd.gew, out={i:new Uint8Array(n*4),w:new Uint8Array(n*4)}; if(!G){ for(let k=0;k<n;k++) out.w[k*4]=255; return out; }
+  const BP=A.P, C=3, cell=new Map(), key=(x,y,z)=>((Math.floor(x/C)+500)*1000+(Math.floor(y/C)+500))*1000+(Math.floor(z/C)+500);
+  const rumpfOk=k=>{ const g=G.i[k*4]; return g<=5; };      // becken, bauch, brust, kopf, oberarm.L/R
+  for(let k=0;k<kd.nK;k++){ const q=key(BP[k*3],BP[k*3+1],BP[k*3+2]); let a=cell.get(q); if(!a) cell.set(q,a=[]); a.push(k); }
+  for(let v=0;v<n;v++){ const x=P[v*3],y=P[v*3+1],z=P[v*3+2], t=tl[v], sd=t===1?1:t===2?-1:0; let best=-1,bd=1e18;
+    for(let rad=1;rad<=6&&best<0;rad++) for(let i=-rad;i<=rad;i++) for(let j=-rad;j<=rad;j++) for(let l=-rad;l<=rad;l++){
+      const a=cell.get(key(x+i*C,y+j*C,z+l*C)); if(!a) continue;
+      for(const k of a){ if(sd?(kd.teil[k]!==3||BP[k*3]*sd<0):!rumpfOk(k)) continue;
+        const d=(BP[k*3]-x)**2+(BP[k*3+1]-y)**2+(BP[k*3+2]-z)**2; if(d<bd){ bd=d; best=k; } } }
+    if(best<0){ out.w[v*4]=255; continue; }
+    for(let j=0;j<4;j++){ out.i[v*4+j]=G.i[best*4+j]; out.w[v*4+j]=G.w[best*4+j]; } }
+  return out;
+}
+/* ---------- Oberteil im Foto (flach von oben) ----------
+   Aus der Freistellung (segGarment): Rumpf (Kanten je Zeile, unterhalb der Achsel als Gerade nach oben fortgesetzt), Saum,
+   Achsel (dort wird die Fläche nach oben deutlich breiter, ohne Ärmel schmaler: Armloch), Schulter (Oberkante an der Rumpfkante),
+   Halsausschnitt (oberster Punkt in der Mitte), Ärmel (Fläche außerhalb der Rumpfkanten, Hauptachse, Länge, Breiten).
+   Art: keine Ärmel → Trägertop; Ärmel kürzer als 55 % der Rumpflänge → T-Shirt, sonst Langarm.
+   Hose statt Oberteil (zwei Beine, kein Ärmel): hose = true. Alles in Bildpunkten des Fotos. */
+function otFotoProfil(S){
+  const {m,w,h}=S, X0=S.x0, X1=S.x1, Y0=S.y0, Y1=S.y1, HH=Y1-Y0;
+  const runs=y=>{ const r=[]; let st=-1; for(let x=X0;x<=X1;x++){ const on=x<X1&&m[y*w+x]; if(on&&st<0) st=x; if(!on&&st>=0){ if(x-st>1) r.push([st,x-1]); st=-1; } } return r; };
+  let cx=0,cn=0; for(let y=Math.round(Y0+.6*HH);y<Y1-.05*HH;y++) for(let x=X0;x<X1;x++) if(m[y*w+x]){ cx+=x; cn++; } cx=cn?cx/cn:(X0+X1)/2;
+  const um=y=>{ const r=runs(y); return r.find(q=>q[0]<=cx&&q[1]>=cx)||null; };
+  const ws=[]; for(let y=Math.round(Y0+.6*HH);y<Y1-.06*HH;y++){ const q=um(y); if(q) ws.push(q[1]-q[0]); }
+  // Hose? zwei Beine unten (zwei breite Läufe in der unteren Hälfte) und kein Ärmel
+  let zwei=0; for(let y=Math.round(Y0+.7*HH);y<Y1;y+=2){ const r=runs(y).filter(q=>q[1]-q[0]>.06*(X1-X0)); if(r.length===2) zwei++; }
+  const hose=zwei>.6*(.3*HH/2);
+  if(ws.length<10) return hose?{hose:true}:null;
+  ws.sort((a,b)=>a-b); const wT=ws[ws.length>>1];
+  let hemRow=Y1-1; for(let y=Y1-1;y>Y0+.5*HH;y--){ const q=um(y); if(q&&q[1]-q[0]>.6*wT){ hemRow=y; break; } }
+  // Achsel: nach oben die erste Zeile, ab der die Fläche um > 15 % breiter (Ärmel) oder < 85 % schmaler (Armloch) wird, 3 Zeilen lang
+  let ap=-1, armel=false;
+  for(let y=Math.round(Y0+.62*HH),n=0;y>Y0+.08*HH;y--){ const q=um(y), b=q?q[1]-q[0]:0, rs=runs(y);
+    const breit=rs.length&&rs[rs.length-1][1]-rs[0][0]>1.18*wT, schmal=b<.86*wT;
+    if(breit||schmal){ if(++n>=3){ ap=y+2; armel=breit; break; } } else n=0; }
+  if(ap<0){ ap=Math.round(Y0+.3*HH); armel=false; }
+  // Rumpfkanten als Geraden (unterhalb der Achsel gemessen)
+  const fit=sd=>{ let sx=0,sy=0,sxx=0,sxy=0,n=0; for(let y=Math.round(ap+.06*HH);y<hemRow-.04*HH;y+=2){ const q=um(y); if(!q) continue; const v=sd<0?q[0]:q[1]; sx+=y; sy+=v; sxx+=y*y; sxy+=y*v; n++; }
+    const b=n>2?(n*sxy-sx*sy)/((n*sxx-sx*sx)||1):0, a=n?(sy-b*sx)/n:cx+sd*wT/2; return [a,b,ap-.25*HH,hemRow]; };
+  const xlC=fit(-1), xrC=fit(1), xl=otLinie(xlC), xr=otLinie(xrC);
+  // Schulter: oberste Zeile mit Stoff 15 % innerhalb der Rumpfkante; Hals: oberster Punkt in der Mitte
+  const top=x=>{ x=Math.round(x); for(let y=Y0;y<ap;y++) if(m[y*w+x]) return y; return ap; };
+  const shL=top(xl(ap)+.15*wT), shR=top(xr(ap)-.15*wT), shRow=(shL+shR)/2, shRow0=shRow;
+  let neckRow=top(cx); if(neckRow<=shRow) neckRow=shRow+.02*HH;
+  // Ärmel: je Seite die Fläche außerhalb der Rumpfkante (über der Achsel und bis 30 % darunter, falls er hängt)
+  const sleeves=[];
+  if(armel) for(const sd of [-1,1]){ let n=0,mx=0,my=0; const pts=[];
+    for(let y=Y0;y<Math.min(hemRow,ap+.3*HH);y+=2){ const e=sd<0?xl(y)-3:xr(y)+3; for(let x=X0;x<X1;x+=2) if(m[y*w+x]&&(sd<0?x<e:x>e)){ pts.push(x,y); mx+=x; my+=y; n++; } }
+    if(n<30) continue;
+    // Ecken am Ärmelsaum: oben = äußerster Punkt (bei mehreren der oberste), unten = tiefster Punkt; Ansatz = Mitte zwischen
+    // Schulterpunkt und Achsel an der Rumpfkante. (Die Hauptachse der Fläche zeigte bei kurzen, breiten Ärmeln quer.)
+    let ti=0,bi=0; for(let i=2;i<pts.length;i+=2){ const ex=pts[i]*sd, et=pts[ti]*sd; if(ex>et||(ex===et&&pts[i+1]<pts[ti+1])) ti=i; if(pts[i+1]>pts[bi+1]) bi=i; }
+    const TC=[pts[ti],pts[ti+1]], BC=[pts[bi],pts[bi+1]], sp=[sd<0?xl(shRow0):xr(shRow0),shRow0], achsel=[sd<0?xl(ap):xr(ap),ap];
+    const root=[(sp[0]+achsel[0])/2,(sp[1]+achsel[1])/2], cuff=[(TC[0]+BC[0])/2,(TC[1]+BC[1])/2], L0=Math.hypot(cuff[0]-root[0],cuff[1]-root[1])||1;
+    const ax=[(cuff[0]-root[0])/L0,(cuff[1]-root[1])/L0], len=L0;
+    // Breite quer zur Achse an der Stelle f (0 Ansatz … 1 Ende): Kanten entlang der Senkrechten (nach oben: nv)
+    const nv=[ax[1],-ax[0]]; if(nv[1]>0){ nv[0]=-nv[0]; nv[1]=-nv[1]; }
+    const quer=f=>{ const c=[root[0]+(cuff[0]-root[0])*f,root[1]+(cuff[1]-root[1])*f]; const ed=sg=>{ let d=0; while(d<.5*HH){ const x=Math.round(c[0]+nv[0]*sg*(d+1)), y=Math.round(c[1]+nv[1]*sg*(d+1)); if(x<0||y<0||x>=w||y>=h||!m[y*w+x]) break; d++; } return d; };
+      return {c,o:ed(1),u:ed(-1)}; };
+    const Q=[0,.25,.5,.75,.95].map(f=>({f,...quer(f)}));
+    // Ärmellänge wie im Shop gemessen: oben entlang, vom Schulterpunkt bis zur oberen Ecke am Saum
+    const oben=Math.hypot(TC[0]-sp[0],TC[1]-sp[1]);
+    sleeves.push({sd,root,cuff,ax,nv,len,oben,quer:Q}); }
+  const torsoH=hemRow-shRow, sl=sleeves.length?sleeves.reduce((a,q)=>a+q.oben,0)/sleeves.length:0;
+  const art=!sleeves.length?"top":sl<.55*torsoH?"tshirt":"langarm";      // Ärmel (oben gemessen) zu Rumpflänge: T-Shirt 0,3, Langarm 0,9
+  return {cx,wT,hemRow,ap,shRow,neckRow,oben:Y0,xlC,xrC,xl,xr,sleeves,art,hose,armel,torsoH,ratio:torsoH/wT,box:[X0,Y0,X1,Y1]};
+}
+const otLinie=c=>y=>c[0]+c[1]*clamp(y,c[2],c[3]);
+/* Profil zum Speichern (ohne Funktionen) und zurück */
+const otProfilRoh=F=>({cx:F.cx,wT:F.wT,hemRow:F.hemRow,ap:F.ap,shRow:F.shRow,neckRow:F.neckRow,oben:F.oben,xlC:F.xlC,xrC:F.xrC,art:F.art,torsoH:F.torsoH,ratio:F.ratio,
+  sleeves:F.sleeves.map(q=>({sd:q.sd,root:q.root,cuff:q.cuff,nv:q.nv,len:q.len,oben:q.oben,quer:q.quer}))});
+const otProfilAus=F=>({...F,xl:otLinie(F.xlC),xr:otLinie(F.xrC)});
+/* Atlas: links die Vorderseite, rechts die Rückseite (je der Ausschnitt um die Fläche, gleiches Seitenverhältnis), außerhalb der
+   Fläche mit der nächsten Stofffarbe aufgefüllt (sonst bluten an den Kanten Boden und Hintergrund ein). Gibt die Abbildung
+   Foto → Atlas je Seite zurück. */
+const OT_ATLAS=1024;
+function otAtlasHaelfte(ax,cv,S,ox){
+  const pad=6, bx=S.x0-pad, by=S.y0-pad, bw=S.x1-S.x0+2*pad, bh=S.y1-S.y0+2*pad, A=OT_ATLAS, k=Math.min(A/2/bw,A/bh);
+  const dw=Math.round(bw*k), dh=Math.round(bh*k), dx=ox+Math.round((A/2-dw)/2), dy=Math.round((A-dh)/2);
+  const c=document.createElement("canvas"); c.width=A/2; c.height=A; const x=c.getContext("2d",{willReadFrequently:true});
+  x.drawImage(cv,bx,by,bw,bh,dx-ox,dy,dw,dh);
+  const id=x.getImageData(0,0,A/2,A), d=id.data, W=A/2, mm=new Uint8Array(W*A);
+  for(let y=0;y<A;y++){ const sy=Math.round(by+(y-dy+.5)/k-.5); if(sy<0||sy>=S.h) continue;
+    for(let xx=0;xx<W;xx++){ const sx=Math.round(bx+(xx-dx+ox+.5)/k-.5); if(sx>=0&&sx<S.w) mm[y*W+xx]=S.m[sy*S.w+sx]; } }
+  const core=morph(mm,W,A,true,2); let last=-1;
+  for(let y=0;y<A;y++){ let any=false; for(let xx=0;xx<W;xx++) if(core[y*W+xx]){ any=true; break; }
+    if(!any){ if(last>=0) d.copyWithin(y*W*4,last*W*4,(last+1)*W*4); continue; }
+    const near=new Int16Array(W).fill(-1); let l=-1; for(let xx=0;xx<W;xx++){ if(core[y*W+xx]) l=xx; near[xx]=l; }
+    l=-1; for(let xx=W-1;xx>=0;xx--){ if(core[y*W+xx]) l=xx; if(l>=0&&(near[xx]<0||l-xx<xx-near[xx])) near[xx]=l; }
+    for(let xx=0;xx<W;xx++){ const i=(y*W+xx)*4, j=(y*W+near[xx])*4; if(near[xx]!==xx){ d[i]=d[j]; d[i+1]=d[j+1]; d[i+2]=d[j+2]; } d[i+3]=255; }
+    last=y; }
+  for(let y=0;y<A;y++){ let any=false; for(let xx=0;xx<W;xx++) if(core[y*W+xx]){ any=true; break; } if(any){ for(let y2=0;y2<y;y2++) d.copyWithin(y2*W*4,y*W*4,(y+1)*W*4); break; } }
+  x.putImageData(id,0,0); ax.drawImage(c,ox,0);
+  return {k,bx,by,dx:dx-ox,dy,ox:ox/A};   // Foto (px) → Atlas: u = ox + (dx + (px − bx)·k)/A, v = (dy + (py − by)·k)/A
+}
+/* Rückseite ohne Foto (oder unbrauchbar): Form der gespiegelten Vorderseite, Stoff per Textursynthese (Image Quilting) aus ruhigen
+   Stellen der Vorderseite: dieselbe Maschen-/Webstruktur und Farbe, aber ohne Aufdruck, Knopfleiste oder Taschen. Nie einfarbig. */
+function otRueckseite(cv,S){
+  const w=S.w, h=S.h, src=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
+  const P=Math.max(16,Math.round(Math.min(S.x1-S.x0,S.y1-S.y0)/14)), O=Math.max(4,P>>2), core=morph(S.m,w,h,true,Math.ceil(P/2)+2);
+  // Unruhe je Kandidat (Kanten, Aufdruck): mittlerer Helligkeitssprung; die ruhigsten 40 % sind die Quelle
+  const lum=i=>.3*src[i*4]+.59*src[i*4+1]+.11*src[i*4+2], cand=[];
+  for(let y=S.y0;y<S.y1-P;y+=Math.max(2,P>>2)) for(let x=S.x0;x<S.x1-P;x+=Math.max(2,P>>2)){
+    if(!core[(y+(P>>1))*w+x+(P>>1)]||!core[y*w+x]||!core[(y+P-1)*w+x+P-1]||!core[y*w+x+P-1]||!core[(y+P-1)*w+x]) continue;
+    let g=0; for(let yy=y;yy<y+P;yy+=2) for(let xx=x;xx<x+P-2;xx+=2){ const i=yy*w+xx; g+=Math.abs(lum(i)-lum(i+2)); }
+    cand.push([x,y,g]); }
+  if(cand.length<4) return null;
+  cand.sort((a,b)=>a[2]-b[2]); const pool=cand.slice(0,Math.max(4,Math.round(cand.length*.4)));
+  const out=document.createElement("canvas"); out.width=w; out.height=h; const ox=out.getContext("2d"), od=ox.createImageData(w,h), d=od.data;
+  const acc=new Float32Array(w*h*3), wt=new Float32Array(w*h); let seed=7; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const st=P-O;
+  for(let y=S.y0-O;y<S.y1;y+=st) for(let x=S.x0-O;x<S.x1;x+=st){
+    let best=null, bd=1e18;
+    for(let t=0;t<10;t++){ const c=pool[Math.floor(rnd()*pool.length)]; let e=0,n=0;
+      for(let yy=0;yy<P;yy+=2) for(let xx=0;xx<P;xx+=2){ if(yy>=O&&xx>=O) continue; const X=x+xx, Y=y+yy; if(X<0||Y<0||X>=w||Y>=h) continue; const q=Y*w+X; if(!wt[q]) continue;
+        const i=((c[1]+yy)*w+c[0]+xx)*4; for(let k=0;k<3;k++) e+=(acc[q*3+k]/wt[q]-src[i+k])**2; n++; }
+      e=n?e/n:rnd(); if(e<bd){ bd=e; best=c; } }
+    for(let yy=0;yy<P;yy++) for(let xx=0;xx<P;xx++){ const X=x+xx, Y=y+yy; if(X<0||Y<0||X>=w||Y>=h) continue;
+      const f=Math.min(1,(xx+1)/O,(yy+1)/O,(P-xx)/O,(P-yy)/O), q=Y*w+X, i=((best[1]+yy)*w+best[0]+xx)*4;
+      for(let k=0;k<3;k++) acc[q*3+k]+=src[i+k]*f; wt[q]+=f; } }
+  // Form gespiegelt (an der Mitte des Rumpfs), Stoff nur innerhalb; außen das Original (Untergrund)
+  const mx=S.x0+S.x1, m2=new Uint8Array(w*h);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const X=mx-x; m2[y*w+x]=X>=0&&X<w?S.m[y*w+X]:0; }
+  for(let q=0;q<w*h;q++){ const i=q*4; if(m2[q]&&wt[q]){ for(let k=0;k<3;k++) d[i+k]=acc[q*3+k]/wt[q]; } else { d[i]=src[i]; d[i+1]=src[i+1]; d[i+2]=src[i+2]; } d[i+3]=255; }
+  ox.putImageData(od,0,0);
+  return {cv:out,S:{...S,m:m2,x0:w-S.x1,x1:w-S.x0}};
+}
+/* Texturkoordinaten der Vorlage V aus den Profilen von Vorder- (F) und Rückseite (B) und ihrer Lage im Atlas (af, ab) */
+function otUV(V,F,B,af,ab){
+  const n=V.n, uv=new Float32Array(n*2), Y=V.Y, A=OT_ATLAS;
+  const zuAtlas=(a,px,py)=>[a.ox+(a.dx+(px-a.bx)*a.k)/A,(a.dy+(py-a.by)*a.k)/A];
+  // Höhe → Fotozeile: Saum ↔ Saumzeile, Achsel ↔ Achselzeile, Schulterpunkt (Gelenk + 2 cm) ↔ Schulterzeile
+  // … und oben: Halsansatz der Vorlage ↔ Oberkante im Foto (flach liegt der Kragen kaum höher als die Schulternaht, am Körper
+  // etwa 7 cm; sonst kam über der Schulter Untergrund bzw. aufgefüllte Kragenfarbe auf die Brust)
+  const zeile=(Pf,y)=>{ const a=[[V.yHem,Pf.hemRow],[Y.achsel,Pf.ap],[Y.schulter+2,Pf.shRow],[V.yTop+1.2,Pf.oben??Pf.shRow-.04*Pf.torsoH]];
+    let i=0; while(i<a.length-2&&y>a[i+1][0]) i++;
+    const f=(y-a[i][0])/((a[i+1][0]-a[i][0])||1); return a[i][1]+(a[i+1][1]-a[i][1])*f; };
+  // Bogenlänge je Rumpf-Ring: vorn von rechts (θ = −π/2) nach links, hinten von links nach rechts
+  const K=V.K, C=K+1;
+  for(let i=0;i<V.nr;i++){ const row=i*C, L=[0]; for(let k=1;k<=K;k++){ const a=(row+k-1)*3, b=(row+k)*3; L.push(L[k-1]+Math.hypot(V.P[b]-V.P[a],V.P[b+2]-V.P[a+2])); }
+    const at=t=>{ const kk=((t%(2*Math.PI))+2*Math.PI)%(2*Math.PI)/(2*Math.PI)*K, k0=Math.floor(kk), f=kk-k0; return L[k0]+(L[Math.min(K,k0+1)]-L[k0])*f; }, tot=L[K];
+    const r0=at(-Math.PI/2+2*Math.PI)%tot;   // Lage von θ = −π/2 (= 3π/2)
+    for(let k=0;k<=K;k++){ const v=row+k, t=V.prm[v*2], y=V.P[v*3+1];
+      const tt=((t%(2*Math.PI))+2*Math.PI)%(2*Math.PI), vorn=Math.cos(tt)>=0;
+      let u; if(vorn){ const s=((L[k]-r0)%tot+tot)%tot; u=s/(tot/2); } else { const s=((L[k]-at(Math.PI/2))%tot+tot)%tot; u=s/(tot/2); }
+      u=clamp(u,0,1); const Pf=vorn?F:B, a=vorn?af:ab, py=zeile(Pf,y), px=Pf.xl(py)+u*(Pf.xr(py)-Pf.xl(py));
+      const q=zuAtlas(a,px,py); uv[v*2]=q[0]; uv[v*2+1]=q[1]; } }
+  // Ärmel und Träger
+  for(let v=V.nr*C;v<n;v++){ const t=V.tl[v];
+    if(t===1||t===2){ const sl=V.sleeves.find(q=>q.part===t), ph=V.prm[v*2], s=V.prm[v*2+1], vorn=Math.cos(ph)>=0;
+      // Ärmel links am Körper (+x) liegt vorn im Bild rechts, hinten links
+      const Pf=vorn?F:B, a=vorn?af:ab, sd=(t===1)===vorn?1:-1, ps=Pf.sleeves.find(q=>q.sd===sd)||Pf.sleeves[0];
+      if(!ps||!sl){ const q=zuAtlas(a,Pf.cx,Pf.ap); uv[v*2]=q[0]; uv[v*2+1]=q[1]; continue; }
+      const f=clamp(s/sl.sEnd,0,1), Q=ps.quer, j=Math.min(Q.length-2,Q.findIndex((q,i)=>i===Q.length-1||Q[i+1].f>=f)), g=clamp((f-Q[j].f)/((Q[j+1].f-Q[j].f)||1),0,1);
+      const c=[Q[j].c[0]+(Q[j+1].c[0]-Q[j].c[0])*g,Q[j].c[1]+(Q[j+1].c[1]-Q[j].c[1])*g], o=Q[j].o+(Q[j+1].o-Q[j].o)*g, u=Q[j].u+(Q[j+1].u-Q[j].u)*g;
+      const pp=((ph%(2*Math.PI))+2*Math.PI)%(2*Math.PI), wq=vorn?(pp<=Math.PI?(pp+Math.PI/2)/Math.PI:(pp-1.5*Math.PI)/Math.PI):1-(pp-Math.PI/2)/Math.PI;
+      const d=o-(o+u)*clamp(wq,0,1), q=zuAtlas(a,c[0]+ps.nv[0]*d,c[1]+ps.nv[1]*d); uv[v*2]=q[0]; uv[v*2+1]=q[1]; }
+    else { const vorn=V.prm[v*2+1]<.5, Pf=vorn?F:B, a=vorn?af:ab, sd=V.prm[v*2]*(vorn?1:-1);
+      const x=sd>0?Pf.xr(Pf.ap)-.18*Pf.wT:Pf.xl(Pf.ap)+.18*Pf.wT, q=zuAtlas(a,x,Pf.shRow+(Pf.ap-Pf.shRow)*.3); uv[v*2]=q[0]; uv[v*2+1]=q[1]; } }
+  return uv;
+}
 /* Darstellung im Grafik-Kontext der Hose (draw3d, Haken P.vorher): dieselbe Projektion und derselbe Tiefenpuffer, damit sich
    Körper und Hose richtig verdecken. Punkte in cm (Avatar), im Shader gedreht (Drehung yaw), skaliert (ppc) und verschoben.
    Unter der Hose (zwischen Saum und Bund, Rumpf und Unterkörper, nicht die Arme) wird der Körper nicht gezeichnet: so kann er
    nirgends durch den Stoff stoßen, auch wenn eine Größe zu eng ist. */
-const VSA=`attribute vec3 p;attribute vec3 n;attribute float tl;uniform vec2 vp;uniform vec2 pc;uniform float foc;uniform vec4 ab;
+const VSA=`attribute vec3 p;attribute vec3 n;attribute float tl;uniform vec2 vp;uniform vec2 pc;uniform float foc;uniform vec4 ab;uniform float zb;
 varying vec3 vn;varying vec3 vv;varying float vh;varying float vt;varying float vx;varying vec3 vq;
-void main(){float c=cos(ab.w),s=sin(ab.w);vec3 q=vec3(ab.x+(p.x*c+p.z*s)*ab.z,ab.y-p.y*ab.z,(p.x*s-p.z*c)*ab.z);
+void main(){float c=cos(ab.w),s=sin(ab.w);vec3 q=vec3(ab.x+(p.x*c+p.z*s)*ab.z,ab.y-p.y*ab.z,(p.x*s-p.z*c)*ab.z+zb);
 vn=vec3(n.x*c+n.z*s,-n.y,n.x*s-n.z*c);vh=p.y;vt=tl;vx=p.x;vq=p;
 vec2 r=pc+(q.xy-pc)*foc/(foc+q.z);vv=vec3((r-pc)/foc,1.);
 float d=q.z/vp.x,a=abs(d);d=a<.8?d:sign(d)*(.8+.15*(1.-exp(-(a-.8)/.15)));
 gl_Position=vec4(r.x/vp.x*2.-1.,1.-r.y/vp.y*2.,d,1.);}`;   // Tiefe bis 0,8 wie die Hose (VS3), darüber weich bis 0,95 statt geklemmt (Hände bei starkem Zoom flimmerten)
 // T-Shirt (nur eingefärbt, eng anliegend wie bei der Referenzfigur): Rumpf, Unterkörper über dem Bund, Arme bis zum halben
 // Oberarm (Abstand zum Schultergelenk unter ar.w)
-const FSA=`precision mediump float;uniform vec4 band;uniform vec3 farbe;uniform vec3 hemd;uniform vec4 al;uniform vec4 ar;uniform vec3 haar;uniform vec3 fuss;uniform vec4 kopf;varying vec3 vn;varying vec3 vv;varying float vh;varying float vt;varying float vx;varying vec3 vq;
+const FSA=`precision mediump float;uniform vec4 oben;uniform vec4 slip;uniform vec4 band;uniform vec3 farbe;uniform vec3 hemd;uniform vec4 al;uniform vec4 ar;uniform vec3 haar;uniform vec3 fuss;uniform vec4 kopf;varying vec3 vn;varying vec3 vv;varying float vh;varying float vt;varying float vx;varying vec3 vq;
 void main(){
 if(band.w>.5&&vt>1.5&&vh<band.x&&vh>(vx>0.?band.y:band.z))discard;
+if(oben.w>.5){if(vt>1.5&&vh>oben.x&&vh<oben.y)discard;if(oben.z>0.&&vt>.5&&vt<1.5&&min(distance(vq,al.xyz),distance(vq,ar.xyz))<oben.z)discard;}
 // weiche Übergänge (Halsausschnitt, Ärmel, Haaransatz): Anteile statt Ja/Nein, sonst folgt die Kante den Dreiecken (zackig)
 // Teile im Attribut tl: 0 Kopf, 1 Arm, 2 Rumpf, 3 Unterkörper (benachbarte Teile, benachbarte Zahlen: Rumpf–Arm läuft nicht über
 // den Unterkörper)
@@ -3331,6 +3860,7 @@ float f=max(dot(n,normalize(vec3(.65,-.05,-.76))),0.);
 float sky=.32+.16*(.5-.5*n.y);
 float rim=pow(1.-min(1.,-fz),3.)*.18;
 vec3 bas=mix(mix(mix(farbe,hemd,wsh),fuss,wfs),haar,whr);
+if(slip.w>.5) bas=mix(bas,vec3(.2,.21,.24),(1.-smoothstep(slip.y-.5,slip.y+.5,vh))*smoothstep(slip.x-.5,slip.x+.5,vh)*smoothstep(1.6,2.4,vt));
 vec3 c=bas*(.72*k+.16*f+sky)+vec3(rim);
 c=mix(c,c*vec3(1.04,.97,.93),.5*(1.-k));
 gl_FragColor=vec4(pow(c,vec3(.95)),1.);}`;
@@ -3341,7 +3871,7 @@ function avatarGL(gl){
   const pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,VSA)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FSA)); gl.linkProgram(pr);
   if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
   const L=n=>gl.getUniformLocation(pr,n);
-  AV.gl={gl,pr,loc:{p:gl.getAttribLocation(pr,"p"),n:gl.getAttribLocation(pr,"n"),tl:gl.getAttribLocation(pr,"tl"),vp:L("vp"),pc:L("pc"),foc:L("foc"),ab:L("ab"),band:L("band"),farbe:L("farbe"),hemd:L("hemd"),al:L("al"),ar:L("ar"),haar:L("haar"),fuss:L("fuss"),kopf:L("kopf")},key:null};
+  AV.gl={gl,pr,loc:{p:gl.getAttribLocation(pr,"p"),n:gl.getAttribLocation(pr,"n"),tl:gl.getAttribLocation(pr,"tl"),vp:L("vp"),pc:L("pc"),foc:L("foc"),ab:L("ab"),zb:L("zb"),band:L("band"),oben:L("oben"),slip:L("slip"),farbe:L("farbe"),hemd:L("hemd"),al:L("al"),ar:L("ar"),haar:L("haar"),fuss:L("fuss"),kopf:L("kopf")},key:null};
   return AV.gl;
 }
 function avatarZeichnen(gl,vw,vh,P,A,o){
@@ -3355,16 +3885,28 @@ function avatarZeichnen(gl,vw,vh,P,A,o){
   const at=(b,loc,n)=>{ if(loc<0) return; gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,n,gl.FLOAT,false,0,0); };
   at(G.vb,G.loc.p,3); at(G.nb,G.loc.n,3); at(G.tb,G.loc.tl,1);
   gl.uniform2f(G.loc.vp,vw,vh); gl.uniform2f(G.loc.pc,P.pc[0],P.pc[1]); gl.uniform1f(G.loc.foc,P.foc);
-  gl.uniform4f(G.loc.ab,o.cx,o.floor,o.ppc,o.yw);
+  gl.uniform4f(G.loc.ab,o.cx,o.floor,o.ppc,o.yw); gl.uniform1f(G.loc.zb,o.zb||0);
   const b=o.band||[0,0,0,0]; gl.uniform4f(G.loc.band,b[0],b[1],b[2],b[3]);
+  const ob=o.oben||[0,0,0,0]; gl.uniform4f(G.loc.oben,ob[0],ob[1],ob[2],ob[3]);
+  const slp=o.slip||[0,0,0,0]; gl.uniform4f(G.loc.slip,slp[0],slp[1],slp[2],slp[3]);
   // Farben aus dem Scan (Erscheinung), sonst neutrale Puppe; etwas aufgehellt (Zimmerlicht, die Darstellung beleuchtet selbst)
   const FA=AV.daten&&AV.daten.farben||{}, hell=c=>c&&c.map(x=>Math.min(1,x/1.1));   // Licht der Ansicht hellt vorn um etwa 1,1 auf: so wie im Kamerabild
-  const f=hell(FA.haut)||o.farbe||[.80,.72,.65], hm=hell(FA.oberteil)||[.70,.71,.74], ha=hell(FA.haare), fu=hell(FA.fuss)||f;
+  const f=hell(FA.haut)||o.farbe||[.80,.72,.65], hm=o.oben&&o.oben[3]?f:hell(FA.oberteil)||[.70,.71,.74], ha=hell(FA.haare), fu=hell(FA.fuss)||f;
   gl.uniform3f(G.loc.farbe,f[0],f[1],f[2]); gl.uniform3f(G.loc.hemd,hm[0],hm[1],hm[2]);
   gl.uniform3f(G.loc.haar,...(ha||f)); gl.uniform3f(G.loc.fuss,fu[0],fu[1],fu[2]);
   { const kp=A.kopf; gl.uniform4f(G.loc.kopf,kp?kp.y0:0,kp?kp.zc:0,kp?kp.yo:0,ha&&kp?1:0); }
   const sl=A.gel.sl, sr=A.gel.sr, ra=.1*A.H; gl.uniform4f(G.loc.al,sl[0],sl[1],sl[2],ra); gl.uniform4f(G.loc.ar,sr[0],sr[1],sr[2],ra);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,G.ib); gl.drawElements(gl.TRIANGLES,G.ni,gl.UNSIGNED_SHORT,0);
+  if(!o.nurTiefe){ gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,G.ib); gl.drawElements(gl.TRIANGLES,G.ni,gl.UNSIGNED_SHORT,0); }
+  for(let l=0;l<8;l++) gl.disableVertexAttribArray(l);
+}
+/* Körper nur in den Tiefenpuffer (Live-Anprobe: Arme und Hände vor dem Oberteil verdecken es), Punkte in Haltung Pp */
+function koerperTiefe(gl,vw,vh,P,A,Pp,o){
+  const G=avatarGL(gl); avatarZeichnen(gl,vw,vh,P,A,{...o,nurTiefe:true});
+  if(!G.db) G.db=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,G.db); gl.bufferData(gl.ARRAY_BUFFER,Pp,gl.DYNAMIC_DRAW);
+  gl.useProgram(G.pr); gl.enableVertexAttribArray(G.loc.p); gl.vertexAttribPointer(G.loc.p,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,G.nb); gl.enableVertexAttribArray(G.loc.n); gl.vertexAttribPointer(G.loc.n,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,G.tb); gl.enableVertexAttribArray(G.loc.tl); gl.vertexAttribPointer(G.loc.tl,1,gl.FLOAT,false,0,0);
+  gl.colorMask(false,false,false,false); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,G.ib); gl.drawElements(gl.TRIANGLES,G.ni,gl.UNSIGNED_SHORT,0); gl.colorMask(true,true,true,true);
   for(let l=0;l<8;l++) gl.disableVertexAttribArray(l);
 }
 /* Wo die Hose den Körper verdeckt (aus den Punkten der Hose in diesem Bild): Bund (tiefste Stelle des oberen Rings) und je
@@ -3457,8 +3999,8 @@ function avatarScanBild(o){
   try{ avatarFarbProbe(o.L,sek,o.m); }catch(_){}
   if(sek&&o.cmPerUnit&&!zuSchnell){                    // auch ohne Kopf im Bild: Maßstab dann aus der Rumpflänge des Frontal-Scans
     const fr=sek==="vorn"||sek==="hinten", cm=n=>n*o.aspect*o.cmPerUnit;
-    const w=torsoSpan(o.m,o.waistY,o.L,o.armHalfN,fr), h=torsoSpan(o.m,o.hipY,o.L,o.armHalfN,fr);
-    if(w&&h&&w.w>0&&h.w>0) AVS.proben[sek].push({waist:cm(w.w),hip:cm(h.w)}); }
+    const w=torsoSpan(o.m,o.waistY,o.L,o.armHalfN,fr), h=torsoSpan(o.m,o.hipY,o.L,o.armHalfN,fr), c=o.chestY!=null?torsoSpan(o.m,o.chestY,o.L,o.armHalfN,fr):null;
+    if(w&&h&&w.w>0&&h.w>0) AVS.proben[sek].push({waist:cm(w.w),hip:cm(h.w),chest:c&&c.w>0&&!c.unsure?cm(c.w):NaN}); }
   const P=AVS.proben, seiten=(P.seiteL.length>=2)+(P.seiteR.length>=2), pct=Math.min(100,Math.round(AVS.bins.size/24*100)), t=now-AVS.t0;
   // fertig: vorn, hinten, eine Seite und 3/4 der Drehung; nach 30 s mit einer Seite; nach 45 s mit dem, was da ist (Tiefe dann
   // geschätzt, Hinweis)
@@ -3476,8 +4018,12 @@ const quantil=(a,q)=>{ const b=a.filter(v=>isFinite(v)&&v>0).sort((x,y)=>x-y); r
 function avatarScanZiele(){
   const c=caps.cal||{}, P=AVS.proben, fw=k=>quantil([...P.vorn,...P.hinten].map(x=>x[k]).concat([c[k],c[k]]),.75), sd=k=>quantil([...P.seiteL,...P.seiteR].map(x=>x[k]),.25);
   const mi=(a,b)=>{ const v=[a,b].filter(x=>x>4&&x<40); return v.length?v.reduce((t,x)=>t+x,0)/v.length:NaN; };
-  return {H:AVS.H,waistW:fw("waist"),waistD:sd("waist"),hipW:fw("hip"),hipD:sd("hip"),thighW:mi(c.thighL,c.thighR),kneeW:mi(c.kneeL,c.kneeR),
-    leg:c.leg>40&&c.leg<140?c.leg:NaN,inseam:c.inseam>40&&c.inseam<120?c.inseam:NaN};
+  const H=AVS.H, im=(v,a,b)=>v>a*H&&v<b*H?v:NaN;
+  return {H,waistW:fw("waist"),waistD:sd("waist"),hipW:fw("hip"),hipD:sd("hip"),thighW:mi(c.thighL,c.thighR),kneeW:mi(c.kneeL,c.kneeR),
+    leg:c.leg>40&&c.leg<140?c.leg:NaN,inseam:c.inseam>40&&c.inseam<120?c.inseam:NaN,
+    // 22.10.: was Kleidung nicht verändert (Längen, Schultern, nackte Unterarme); nur in menschlichen Bereichen (Anteil der Größe)
+    chestW:fw("chest"),chestD:sd("chest"),shoulder:im(c.shoulder,.15,.27),torso:im(c.torso,.22,.36),arm:im((c.armU||0)+(c.armL||0),.28,.42),armU:im(c.armU,.13,.24),
+    foreW:im(c.foreW,.025,.06),upperW:im(c.upperW,.03,.08)};
 }
 /* Beinlängen im menschlichen Bereich (Hüftgelenk 49–56 % der Größe, Mittel 53 %; Schritt 40–50 %). Darüber oder darunter war
    meist die Kamera zu tief und nach oben gerichtet (Referenzclip v1: Hüftgelenk 60 % der Größe, Beine gestreckt): dann begrenzt
@@ -3498,11 +4044,8 @@ async function avatarScanFertig(){
   await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,30)));   // „wird berechnet“ erst zeigen, dann rechnen
   try{
     const kd=await avatarDaten(), lose=avatarLose(z), zf={...z}, kamera=avatarLaengen(zf);
-    // weite Kleidung: je Zone das Kleinere aus Umriss und Durchschnittskörper derselben Größe (nicht derselben Beinlänge:
-    // längere Beine machen auf dieselbe Größe skaliert alle Umfänge kleiner, Hüfte 91 statt 94 cm an den Referenzclips)
-    if(lose){ const m0=avatarBauen(kd,g,{},H).m;
-      for(const k of ["waistW","waistD","hipW","hipD","thighW","kneeW"]) if(isFinite(zf[k])&&m0[k]>0) zf[k]=Math.min(zf[k],m0[k]); }
-    const f=avatarAnpassen(kd,g,zf), A=avatarBauen(kd,g,f.p,H);
+    // weite Kleidung: Umriss nur als Obergrenze (avatarAnpassen); vorher wurde jede Zone durch den Durchschnittskörper ersetzt
+    const f=avatarAnpassen(kd,g,zf,lose), A=avatarBauen(kd,g,f.p,H);
     const r1=x=>Math.round(x*10)/10, m=Object.fromEntries(Object.entries(A.m).map(([k,v])=>[k,r1(v)]));
     const ohneTiefe=!isFinite(z.hipD)&&!isFinite(z.waistD);
     const d={v:1,g,H,p:f.p,m,z:Object.fromEntries(Object.entries(z).filter(([,v])=>isFinite(v)).map(([k,v])=>[k,r1(v)])),lose,kamera,ohneTiefe,farben,rest:r1(f.rest),at:Date.now()};
@@ -5061,6 +5604,10 @@ async function loadGarmentPhoto(file,say,refKind="",title="Foto"){
     // Mit Bezugsobjekt: groß laden, Ecken bestätigen oder antippen lassen, daraus Maßstab (und ohne Neigungsdaten die Entzerrung)
     const r=await photoWithReference(file,say,refKind,title,meta);
     cv=r.cv; lev=r.lev; ref=r.ref; warn=r.warn; hi=r.hi||null;
+    // Parallaxe (22.10.): Abstand der Kamera aus Brennweite (Kleinbild-Äquivalent, sonst 26 mm wie die Hauptkamera der meisten
+    // Handys) und Maßstab der Karte; die Hose liegt PASSFORM.stoffHoehe näher an der Kamera als die Karte
+    if(ref){ const f=(meta&&meta.f35||26)*Math.hypot(cv.width,cv.height)/43.27, h=f/ref.pxPerCm;
+      if(h>30&&h<400){ ref.abstand=+h.toFixed(1); ref.k=(h-PASSFORM.stoffHoehe)/h; } }
   }else{
     cv=await fileToCanvas(file,900,say,HI_PX); hi=cv.gross||null; cv.gross=null;
     // gerade rechnen mit den Neigungsdaten des Handys
@@ -5214,7 +5761,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   const th=document.createElement("canvas"); th.width=120; th.height=240; th.getContext("2d").drawImage(F.c,0,0,120,240);
   const cw=CW*F.sx, aspect=pf.H*nz.span/cw;
   // Mit Bezugsobjekt: Länge in cm direkt aus dem Foto (Mittel aus Vorder- und Rückseite, wenn beide einen Maßstab haben)
-  const lens=[]; if(fp.ref) lens.push(pf.Hout*nz.span/fp.ref.pxPerCm); if(bp&&bp.ref) lens.push(pb.Hout*nz.span/bp.ref.pxPerCm);
+  const lens=[]; if(fp.ref) lens.push(pf.Hout*nz.span/fp.ref.pxPerCm*(fp.ref.k||1)); if(bp&&bp.ref) lens.push(pb.Hout*nz.span/bp.ref.pxPerCm*(bp.ref.k||1));
   const refName=(fp.ref||bp&&bp.ref||{}).kind||(typeof refKind==="string"?refKind:"");   // je Foto möglich (Dateien hochladen)
   let meas=lens.length?{len:+(lens.reduce((a,b)=>a+b)/lens.length).toFixed(1),ref:refName}:null;
   if(meas&&!(meas.len>=20&&meas.len<=200)){            // unsinnig angetippte Ecken: lieber gar kein Maßstab
@@ -5476,9 +6023,21 @@ function buildPicker(){
 /* Maße einer Hose. Was eingetragen ist (manuell), gilt immer. Die eingetragene Länge hat Vorrang vor jeder Schätzung:
    ist nur sie eingetragen, gehen Bund und Saum im Verhältnis des Fotos mit. Ohne Eintrag wird geschätzt:
    aus dem Bund (falls eingetragen), sonst aus dem Maßstab im Foto (A4/Bankkarte), sonst aus einem Normbund von 40 cm. */
+/* Unterteile je Art (22.10.): wo der Saum sitzen darf, als Höhe über dem Boden (Anteil der Körpergröße): [tiefst, höchst].
+   Gilt nur für geschätzte Längen (ohne Maßband, Maßstab, Maßtabelle): ein Rock wird nie bis zum Boden gestreckt, Shorts enden
+   zwischen Oberschenkel und knapp unter dem Knie, eine lange Hose zwischen Wade und leicht gestaucht auf dem Schuh.
+   Bund: Hose auf dem Hüftknochen (Hüftgelenk 53 % + 15 % des Rumpfs, 29 % der Größe), Rock 9 cm höher (Taille). */
+const UNTEN_ARTEN={hose:{name:"Hose",saum:[-.02,.22]},shorts:{name:"Shorts",saum:[.24,.42]},rock:{name:"Rock",saum:[.09,.42]}};
+function unterArt(G){
+  if(G.kat&&UNTEN_ARTEN[G.kat]&&(G.kat==="rock")===!!G.m3.rock) return G.kat;
+  if(G.m3.rock) return "rock";
+  return (G.m3.lo||1)/G.m3.wf<1.9?"shorts":"hose";      // Länge zu Bund flach: Jeans 2,5, Bermuda 1,5, Shorts 1,2
+}
 function garmentDims(G){
   const M=G.m3, hwE=M.hw[M.nr-1], lo=M.lo||1;           // lo: Außenlänge / senkrechte Länge im Foto
-  const len=G.len||(G.meas?G.meas.len:G.waist?G.waist/M.wf*lo:G.estFlat/M.wf*lo);   // eingetragen > gemessen > aus Bund > Normbund
+  let len=G.len||(G.meas?G.meas.len:G.waist?G.waist/M.wf*lo:G.estFlat/M.wf*lo);   // eingetragen > gemessen > aus Bund > Normbund
+  if(!G.len&&!G.meas&&!G.waist){ const H=clamp(num($("height").value)||175,120,220), art=unterArt(G), bund=.5735*H+(art==="rock"?PASSFORM.rockSitzCm:0), [t,h]=UNTEN_ARTEN[art].saum;
+    len=clamp(len,bund-h*H,bund-t*H); }
   const cmW=G.waist?G.waist/M.wf:len/lo, waist=G.waist||cmW*M.wf, hem=G.hem||hwE*cmW;
   const how=G.meas?(G.meas.ref==="model"?"aus dem Foto mit Model":"aus Foto mit "+REFS[G.meas.ref].dat):G.waist?"aus Bund und Foto":"Normbund 40 cm";
   return {len,waist,hem,cmW, man:{len:!!G.len,waist:!!G.waist,hem:!!G.hem}, how, est:!G.len&&!G.waist&&!G.meas};
@@ -5496,6 +6055,7 @@ function resetDim(k){
 /* Felder mit den Werten der ausgewählten Hose füllen (das Feld, in dem gerade getippt wird, bleibt in Ruhe) */
 function fillDims(){
   const on=g.key&&GARMENTS[g.key];
+  { const k=$("g-kat"); k.hidden=!on; if(on){ const a=unterArt(GARMENTS[g.key]); for(const b of k.querySelectorAll("[data-kat]")) b.setAttribute("aria-pressed",String(b.dataset.kat===a)); } }
   for(const [id,k] of [["g-len","len"],["g-waist","waist"],["g-hemw","hem"]]){
     const el=$(id); el.disabled=!on; el.classList.remove("bad");
     if(!on){ el.value=""; continue; }
@@ -5563,11 +6123,14 @@ function pickGarment(k,scroll=true){
 /* Hosen-Auswahl (Komponente app/hosen-auswahl.js) über der 3D-Ansicht: Daten aus den Hosen dieser Seite (eigene und geteilte);
    im Shop aus dem App-Server (alle Produkte mit Anprobe, Attribut quelle). Fehlt die Datei, bleibt die Hosenliste (#gwrap). */
 function hosenAuswahlDaten(){
-  const el=$("avHosen"); if(!el||!customElements.get("passform-hosen")) return;
-  if(KUNDE_PRODUKTE){ const G=g.key&&GARMENTS[g.key]; el.gewaehlt=G&&G.produkt?G.produkt:null; return; }
-  el.produkte=Object.entries(GARMENTS).filter(([,v])=>v.m3&&!v.bad).map(([k,v])=>({id:k,titel:v.label||"Hose",bild:typeof v.src==="string"?v.src:""}));
-  el.gewaehlt=g.key||null;
+  const el=$("avHosen"); if(!el||!customElements.get("passform-produkte")) return;
+  if(KUNDE_PRODUKTE){ const G=g.key&&GARMENTS[g.key]; el.gewaehlt={unterteil:G&&G.produkt?G.produkt:null}; return; }
+  // Outfit (22.10.): Oberteile und Hosen/Röcke, je Reihe eine Auswahl
+  el.produkte=Object.entries(GARMENTS).filter(([,v])=>v.m3&&!v.bad).map(([k,v])=>({id:k,titel:v.label||"Hose",bild:typeof v.src==="string"?v.src:"",typ:"hose"}))
+    .concat(Object.values(OT.liste).map(o=>({id:o.key,titel:o.label+" · "+OT_ARTEN[otArt(o)].name,bild:"",typ:"oberteil"})));
+  el.gewaehlt={unterteil:g.key||null,oberteil:OT.aktiv||null};
 }
+const produktAuswahlDaten=()=>hosenAuswahlDaten();
 /* im Shop: Hose eines anderen Produkts nachladen (App-Proxy: hose?produkt=…) und anziehen */
 async function kundeHoseLaden(id){
   const da=Object.keys(GARMENTS).find(k=>GARMENTS[k].produkt===id&&!GARMENTS[k].bad); if(da){ if(g.key!==da) pickGarment(da,false); return; }
@@ -5816,7 +6379,7 @@ function setMode(n){
 function scanMedian(){
   if(scanProben.length<3) return live;
   const out={...live};
-  for(const k of ["cmPerUnit","shoulder","waist","hip","thighL","thighR","kneeL","kneeR","inseam","leg","shoulderN","torso"]){
+  for(const k of ["cmPerUnit","shoulder","waist","hip","thighL","thighR","kneeL","kneeR","inseam","leg","shoulderN","torso","armU","armL","foreW","upperW","chest"]){
     const v=scanProben.map(q=>q[k]).filter(x=>x!=null&&isFinite(x)).sort((a,b)=>a-b);
     if(v.length>=3) out[k]=v[v.length>>1]; }
   return out;
@@ -7301,7 +7864,269 @@ function upDrop(){ if(UP.key&&GARMENTS[UP.key]){ deleteGarment(UP.key); } UP.key
   $("drop-new").addEventListener("click",()=>{ UP.items=[]; UP.key=null; UP.size=-1; UP.art=null; UP.link=null; UP.wornLen=null; UP.gen++; $("drop-art").hidden=true; $("drop-fit").hidden=true; upRender(); upMsg(""); });
   $("link-form").addEventListener("submit",e=>{ e.preventDefault(); linkImport($("link-in").value); });
   $("drop-art").addEventListener("click",()=>{ UP.art=UP.rock?"hose":"rock"; upBuild(); });
+  // Art der gewählten Hose: Hose ↔ Shorts nur Metadaten (Saumbereich); Rock ↔ Hose braucht die Fotos (anderes Netz)
+  for(const b of $("g-kat").querySelectorAll("[data-kat]")) b.addEventListener("click",()=>{ const G=g.key&&GARMENTS[g.key]; if(!G) return; const k=b.dataset.kat;
+    if((k==="rock")!==!!G.m3.rock){ if(UP.key===g.key&&UP.items.length){ UP.art=k==="rock"?"rock":"hose"; upBuild(); } else $("g-msg").textContent="Für Rock ↔ Hose bitte die Fotos noch einmal hineinlegen (anderes 3D-Netz)."; return; }
+    ownIt(G); G.kat=k; saveOwn(); syncG(); fillDims(); updateFit(); view3dKick(); });
   $("drop-size").addEventListener("change",e=>{ UP.size=+e.target.value; upBuild(); });
+}
+/* ---------- Oberteile: Zustand, Anlegen aus Fotos, Größen, Darstellung (22.10.) ----------
+   Gespeichert je Oberteil: Atlas (Fotos vorn/hinten, JPEG), die Profile der Fotos (Lage von Rumpf, Achsel, Schulter, Ärmeln),
+   Art (erkannt und ggf. korrigiert), Maße/Maßtabelle, gewählte Größe. Die Vorlage selbst wird je Körper (Avatar oder
+   Standardkörper) und Größe neu gebaut (otFuer) und zwischengespeichert. */
+const OT={liste:{},aktiv:null,cache:null,ckey:"",gl:null,std:null,stdKey:"",bau:false,vorne:null,hinten:null};
+const OT_KEY="passformOberteile";
+const otAktiv=()=>OT.aktiv&&OT.liste[OT.aktiv]||null;
+const otArt=O=>O.art||O.artAuto||"tshirt";
+function otLaden(){
+  try{ const a=JSON.parse(localStorage.getItem(OT_KEY)||"null");
+    if(a&&Array.isArray(a.liste)) for(const o of a.liste) if(o&&typeof o.key==="string"&&/^[\w-]{1,40}$/.test(o.key)&&typeof o.atlas==="string"&&/^data:image\/(jpeg|png);base64,/.test(o.atlas)&&o.F&&o.B&&o.af&&o.ab) OT.liste[o.key]=o;
+    OT.aktiv=a&&OT.liste[a.aktiv]?a.aktiv:null; }catch(_){}
+}
+function otSpeichern(){ try{ localStorage.setItem(OT_KEY,JSON.stringify({liste:Object.values(OT.liste),aktiv:OT.aktiv})); return true; }catch(_){ return false; } }
+/* Körper, der das Oberteil trägt: Avatar, sonst Standardkörper (Mittelkörper) in der eingetragenen Größe */
+function otKoerper(){
+  if(avatarAktiv()) return AV.form;
+  if(!AV.kd){ avatarDaten().then(()=>view3dKick()).catch(()=>{}); return null; }
+  const H=clamp(num($("height").value)||175,120,220), gg=AV.daten&&AV.daten.g||AVS.g||"m", k=gg+H;
+  if(OT.stdKey!==k){ OT.std=avatarBauen(AV.kd,gg,{},H); OT.std.standard=true; OT.stdKey=k; }
+  return OT.std;
+}
+/* Maße der gewählten Größe: Maßtabelle > eingetragen > aus dem Foto geschätzt (Seitenverhältnis × Brust) */
+function otMasse(O,A){
+  const sz=O.groessen&&O.groessen.find(q=>q.n===O.groesse)||null, D=OT_ARTEN[otArt(O)];
+  const brust=sz&&sz.brust||O.masse&&O.masse.brust||null, b=brust||(A.m.chest+D.weite.brust);
+  const Y=otHoehen(AV.kd,A), F=otProfilAus(O.F);
+  // Länge: Maßtabelle oder eingetragen (ab dem höchsten Schulterpunkt), sonst aus dem Foto: Rumpf vom Schulterpunkt an der
+  // Ärmelnaht (≈ 2 cm über dem Schultergelenk) bis zum Saum im Verhältnis zur flachen Breite
+  const laenge=sz&&sz.laenge||O.masse&&O.masse.laenge||null, hemY=laenge?null:Y.schulter+2-.94*F.ratio*b/2;
+  const ps=F.sleeves[0], aermelCm=sz&&sz.aermel||(ps?(ps.oben||ps.len)/F.torsoH*(F.ratio*b/2):0);
+  const arm=A.m.armU+A.m.armL;
+  // Schulterpunkt liegt etwa auf Höhe des Schultergelenks: Ärmel ab dem Gelenk ≈ Ärmellänge
+  return {brust,laenge,hemY,aermel:aermelCm&&arm?aermelCm/arm:undefined,aermelCm,sz};
+}
+/* fertige Vorlage mit Texturkoordinaten für Oberteil O am Körper A (zwischengespeichert) */
+function otFuer(O,A){
+  const art=otArt(O), M=otMasse(O,A), key=[O.key,art,O.groesse||"",A.H,A.g,JSON.stringify(A.p||{}),A.standard?1:0,M.brust,M.laenge,M.hemY,M.aermel].join("|");
+  if(OT.ckey===key&&OT.cache) return OT.cache;
+  const V=otVorlage(AV.kd,A,art,{brust:M.brust,laenge:M.laenge,hemY:M.hemY,aermel:M.aermel});
+  V.uv=otUV(V,otProfilAus(O.F),otProfilAus(O.B),O.af,O.ab); V.O=O; V.M=M;
+  OT.cache=V; OT.ckey=key; if(OT.gl) OT.gl.vkey=null;
+  return V;
+}
+const VSO=`attribute vec3 p;attribute vec3 n;attribute vec2 uv;uniform vec2 vp;uniform vec2 pc;uniform float foc;uniform vec4 ab;uniform float zb;
+varying vec3 vn;varying vec3 vv;varying vec2 vu;
+void main(){float c=cos(ab.w),s=sin(ab.w);vec3 q=vec3(ab.x+(p.x*c+p.z*s)*ab.z,ab.y-p.y*ab.z,(p.x*s-p.z*c)*ab.z+zb);
+vn=vec3(n.x*c+n.z*s,-n.y,n.x*s-n.z*c);vu=uv;
+vec2 r=pc+(q.xy-pc)*foc/(foc+q.z);vv=vec3((r-pc)/foc,1.);
+float d=q.z/vp.x,a=abs(d);d=a<.8?d:sign(d)*(.8+.15*(1.-exp(-(a-.8)/.15)));
+gl_Position=vec4(r.x/vp.x*2.-1.,1.-r.y/vp.y*2.,d,1.);}`;
+// Foto ist schon beleuchtet: die Ansicht gibt nur Form (Licht halb dazu), Relief aus dem Helligkeitsgefälle des Fotos, Innenseite
+// in der Stofffarbe abgedunkelt
+const FSO=`precision mediump float;uniform sampler2D t;uniform vec3 tint;uniform vec3 innen;uniform vec2 ts;
+varying vec3 vn;varying vec3 vv;varying vec2 vu;
+void main(){vec3 n=normalize(vn);vec3 v=normalize(vv);float fz=dot(n,v);bool aus=fz<0.;if(fz>0.){n=-n;fz=-fz;}
+vec3 col=texture2D(t,vu).rgb;vec3 W=vec3(.3,.59,.11);float l=dot(col,W);
+float rx=dot(texture2D(t,vu+vec2(ts.x,0.)).rgb,W)-dot(texture2D(t,vu-vec2(ts.x,0.)).rgb,W);
+float ry=dot(texture2D(t,vu+vec2(0.,ts.y)).rgb,W)-dot(texture2D(t,vu-vec2(0.,ts.y)).rgb,W);
+vec3 Ld=normalize(vec3(-.38,-.55,-.74));
+float k=max((dot(n,Ld)+.35)/1.35,0.),f=max(dot(n,normalize(vec3(.65,-.05,-.76))),0.),sky=.32+.16*(.5-.5*n.y);
+float lit=.72*k+.16*f+sky, rim=pow(1.-min(1.,-fz),3.)*.1;
+vec3 c=col*(.5+.55*lit)*(1.+1.2*(rx+ry))+vec3(rim);
+if(!aus) c=innen*(.45+.35*k);
+gl_FragColor=vec4(c*tint,1.);}`;
+function otGL(gl){
+  if(OT.gl&&OT.gl.gl===gl) return OT.gl;
+  const sh=(ty,src)=>{ const o=gl.createShader(ty); gl.shaderSource(o,src); gl.compileShader(o);
+    if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  const pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,VSO)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FSO)); gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+  const L=n=>gl.getUniformLocation(pr,n);
+  OT.gl={gl,pr,loc:{p:gl.getAttribLocation(pr,"p"),n:gl.getAttribLocation(pr,"n"),uv:gl.getAttribLocation(pr,"uv"),vp:L("vp"),pc:L("pc"),foc:L("foc"),ab:L("ab"),zb:L("zb"),t:L("t"),tint:L("tint"),innen:L("innen"),ts:L("ts")},vkey:null,tkey:null,tex:null,texOk:false};
+  return OT.gl;
+}
+/* Oberteil V zeichnen: Punkte P (Ruhehaltung oder in Haltung), Lage wie der Avatar (o: cx, floor, ppc, yw) */
+function otZeichnen(gl,vw,vh,P,V,Pp,Nn,o,tint=[1,1,1]){
+  const G=otGL(gl), O=V.O;
+  if(G.tkey!==O.key+O.atlas.length){ G.tkey=O.key+O.atlas.length; G.texOk=false; const im=new Image(), tk=G.tkey;
+    im.onload=()=>{ if(G.tkey!==tk) return; if(!G.tex) G.tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,G.tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,im); gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+      G.texOk=true; view3dKick(); };
+    im.src=O.atlas; }
+  if(!G.texOk) return false;
+  const buf=(b,t,d,dyn)=>{ if(!b) b=gl.createBuffer(); gl.bindBuffer(t,b); gl.bufferData(t,d,dyn?gl.DYNAMIC_DRAW:gl.STATIC_DRAW); return b; };
+  if(G.vkey!==V){ G.ub=buf(G.ub,gl.ARRAY_BUFFER,V.uv); G.ib=buf(G.ib,gl.ELEMENT_ARRAY_BUFFER,V.idx); G.ni=V.idx.length; G.vkey=V; G.pkey=null; }
+  if(G.pkey!==Pp||Pp===V.P&&G.prest!==V){ G.vb=buf(G.vb,gl.ARRAY_BUFFER,Pp,true); G.nb=buf(G.nb,gl.ARRAY_BUFFER,Nn,true); G.pkey=Pp; G.prest=V; }
+  for(let l=0;l<8;l++) gl.disableVertexAttribArray(l);
+  gl.useProgram(G.pr);
+  const at=(b,loc,n)=>{ if(loc<0) return; gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,n,gl.FLOAT,false,0,0); };
+  at(G.vb,G.loc.p,3); at(G.nb,G.loc.n,3); at(G.ub,G.loc.uv,2);
+  gl.uniform2f(G.loc.vp,vw,vh); gl.uniform2f(G.loc.pc,P.pc[0],P.pc[1]); gl.uniform1f(G.loc.foc,P.foc);
+  gl.uniform4f(G.loc.ab,o.cx,o.floor,o.ppc,o.yw); gl.uniform1f(G.loc.zb,o.zb||0);
+  const fc=O.farbe||[.5,.5,.5]; gl.uniform3f(G.loc.innen,fc[0]*.8,fc[1]*.8,fc[2]*.8); gl.uniform3f(G.loc.tint,tint[0],tint[1],tint[2]);
+  gl.uniform2f(G.loc.ts,1.5/OT_ATLAS,1.5/OT_ATLAS);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,G.tex); gl.uniform1i(G.loc.t,0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,G.ib); gl.drawElements(gl.TRIANGLES,G.ni,V.idx instanceof Uint32Array?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT,0);
+  for(let l=0;l<8;l++) gl.disableVertexAttribArray(l);
+  return true;
+}
+/* Wo der Körper unter dem Oberteil nicht gezeichnet wird (Avatar-Shader): Rumpf zwischen Saum und Ausschnitt, Arme im Ärmel */
+function otBand(V){
+  if(!V) return [0,0,0,0];
+  let cut=1e9; const C=V.K+1; for(let k=0;k<=V.K;k++) cut=Math.min(cut,V.P[k*3+1]);
+  const sl=V.sleeves[0]; return [V.yHem+1.5,cut-1.5,sl?Math.max(0,sl.sEnd-2):0,1];
+}
+/* ---------- Live-Anprobe (Kamera) ----------
+   Haltung aus den Körperpunkten: Rumpf (Hüftmitte → Schultermitte im Bild, mit der Drehung des Körpers), Ober- und Unterarme
+   (Richtung im Bild, Tiefe aus der Verkürzung gegenüber der Armlänge des Körpers, Vorzeichen aus der Tiefe der Erkennung).
+   Vorlage und Körper gehen per Skinning in diese Haltung; der Körper zeichnet nur Tiefe (Unterarme und Hände vor dem Bauch
+   verdecken das Oberteil), dann das Oberteil. Hüftmitte des Körpers liegt auf der Hüftmitte im Bild. */
+const OTL={hp:null,ht:null,bp:null};
+function oberteilLive(vw,vh,ppc,ext){
+  const O=otAktiv(); if(!O||!ppc||!init3d()) return;
+  const A=otKoerper(); if(!A||!AV.kd||!AV.kd.gew) return;
+  const V=otFuer(O,A), gl=g3.gl, yw=ext.yaw||0, c=Math.cos(yw), s=Math.sin(yw);
+  const zuA=(dx,dy,dz)=>[(dx*c+dz*s)/ppc,-dy/ppc,(dx*s-dz*c)/ppc];
+  const z={rumpf:zuA(ext.shPx[0]-ext.hipPx[0],ext.shPx[1]-ext.hipPx[1],0)};
+  const seg=(a,b,len,k)=>{ if(!(a.v>.5&&b.v>.5)) return; const dx=b.x-a.x, dy=b.y-a.y, l=len*ppc, d2=l*l-dx*dx-dy*dy;
+    const dz=(d2>0?Math.sqrt(d2):0)*((b.zr-a.zr)>.02?1:-1)*.8; z[k]=zuA(dx,dy,dz); };
+  ext.arms.forEach((ar,i)=>{ const S=i?"R":"L"; seg(ar[0],ar[1],A.m.armU,"oa"+S); seg(ar[1],ar[2],A.m.armL,"ua"+S); });
+  const K=avatarKnochen(A.gel,z), kd=AV.kd;
+  const r=avatarHaltung(V.gew,V.P,V.N,K,V.n,OTL.hp&&OTL.hp.length===V.n*3?OTL.hp:null,OTL.ht&&OTL.ht.length===V.n*3?OTL.ht:null); OTL.hp=r.P; OTL.ht=r.N;
+  const rb=avatarHaltung(kd.gew,A.P,null,K,kd.nV,OTL.bp&&OTL.bp.length===kd.nV*3?OTL.bp:null); OTL.bp=rb.P;
+  const g0=A.gel, hx=(g0.hl[0]+g0.hr[0])/2, hy=(g0.hl[1]+g0.hr[1])/2, hz=(g0.hl[2]+g0.hr[2])/2;
+  const o={cx:ext.hipPx[0]-(hx*c+hz*s)*ppc,floor:ext.hipPx[1]+hy*ppc,ppc,yw}, P={foc:cam.fk*Math.max(vw,vh),pc:[vw/2,vh/2]};
+  const rs=PERF.rs||1, cw=Math.max(1,Math.round(vw*rs)), ch=Math.max(1,Math.round(vh*rs));   // wie die Hose (langsame Geräte: kleiner)
+  if(g3.c.width!==cw||g3.c.height!==ch){ g3.c.width=cw; g3.c.height=ch; }
+  gl.viewport(0,0,cw,ch); gl.clearColor(0,0,0,0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND);
+  koerperTiefe(gl,vw,vh,P,A,rb.P,{...o,zb:1.2*ppc});          // Körper 1,2 cm nach hinten: berührt er den Stoff, gewinnt der Stoff
+  const sc=sceneTint(vw,vh), mx=Math.max(sc.r,sc.g,sc.b)||1, tint=[sc.r,sc.g,sc.b].map(v=>(1-(1-v/mx)*.45)*clamp(.6+.4*sc.lum/120,.6,1.25));
+  if(!otZeichnen(gl,vw,vh,P,V,r.P,r.N,o,tint)) return;
+  ctx.save(); ctx.globalAlpha=g.key?g.opa*Math.max(0,g.trk??1):1; ctx.drawImage(g3.c,0,0,vw,vh); ctx.restore();
+}
+/* ---------- Anlegen aus Fotos ---------- */
+/* alle Löcher in der Fläche schließen (vom Bildrand nicht erreichbar = Stoff) */
+function otLoecherZu(S){
+  const {w,h}=S, m=S.m, aus=new Uint8Array(w*h), st=new Int32Array(w*h); let sp=0;
+  const saat=i=>{ if(!m[i]&&!aus[i]){ aus[i]=1; st[sp++]=i; } };
+  for(let x=0;x<w;x++){ saat(x); saat((h-1)*w+x); } for(let y=0;y<h;y++){ saat(y*w); saat(y*w+w-1); }
+  while(sp){ const i=st[--sp], x=i%w; if(x>0) saat(i-1); if(x<w-1) saat(i+1); if(i>=w) saat(i-w); if(i<w*h-w) saat(i+w); }
+  const o=new Uint8Array(w*h); for(let i=0;i<w*h;i++) o[i]=aus[i]?0:1;
+  return {...S,m:o};
+}
+async function otFoto(file,say){
+  const cv=await fileToCanvas(file,1400,say);
+  if(!aiSeg) await withTimeout(loadAiSeg(),9000);
+  // ohne die Regeln für Hosen (Boden im Beinspalt, Beinspalt als Loch erhalten): ein Aufdruck in Bodenfarbe riss sonst ein Loch
+  // in die Mitte, das als Beinspalt offen blieb (T-Shirt mit orangem Logo auf Holz wurde zum Top)
+  let S; try{ S=otLoecherZu(segGarment0(cv)); }catch(e){ throw new Error(String(e&&e.message||e).replace(/Hose/g,"Oberteil")); }
+  const F=otFotoProfil(S); if(!F) throw new Error("Im Foto ist kein Oberteil zu erkennen. Bitte flach auf einen Untergrund in anderer Farbe legen und von oben fotografieren.");
+  return {cv,S,F};
+}
+async function otAnlegen(){
+  const say=t=>{ $("ot-msg").textContent=t; };
+  if(!OT.vorne){ say(OT.hinten?"Es fehlt die Vorderseite.":""); return; }
+  if(OT.bau) return; OT.bau=true;
+  try{
+    say("Vorderseite wird freigestellt …");
+    const v=await otFoto(OT.vorne,say);
+    if(v.F.hose){ say("Das sieht aus wie eine Hose. Bitte oben bei „Hose oder Rock hochladen“ hineinlegen."); return; }
+    let h=null, backEst=false, warum="";
+    if(OT.hinten){ say("Rückseite wird freigestellt …"); try{ h=await otFoto(OT.hinten,say); }catch(e){ warum=String(e&&e.message||e); h=null; }
+      // Rückseite unbrauchbar (andere Form, andere Art): nicht nehmen, sondern aus dem Stoff erzeugen
+      if(h&&(Math.abs(h.F.ratio/v.F.ratio-1)>.3||(h.F.sleeves.length>0)!==(v.F.sleeves.length>0))){ warum="Die Rückseite passt nicht zur Vorderseite (andere Form)"; h=null; } }
+    if(!h){ say("Rückseite wird aus dem Stoff der Vorderseite erzeugt …"); await new Promise(r=>setTimeout(r,20));
+      const R=otRueckseite(v.cv,v.S); if(!R) throw new Error("Zu wenig ruhiger Stoff im Foto, um eine Rückseite zu erzeugen. Bitte die Rückseite fotografieren.");
+      const F=otFotoProfil(R.S); if(!F) throw new Error("Rückseite ließ sich nicht erzeugen."); h={cv:R.cv,S:R.S,F}; backEst=true; }
+    const at=document.createElement("canvas"); at.width=at.height=OT_ATLAS; const ax=at.getContext("2d");
+    const af=otAtlasHaelfte(ax,v.cv,v.S,0), ab=otAtlasHaelfte(ax,h.cv,h.S,OT_ATLAS/2);
+    // mittlere Stofffarbe (Innenseite, Liste)
+    let fr=0,fg=0,fb=0,fn=0; { const d=v.cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,v.S.w,v.S.h).data;
+      for(let y=Math.round(v.F.ap);y<v.F.hemRow;y+=4) for(let x=Math.round(v.F.xl(y)+5);x<v.F.xr(y)-5;x+=4) if(v.S.m[y*v.S.w+x]){ const i=(y*v.S.w+x)*4; fr+=d[i]; fg+=d[i+1]; fb+=d[i+2]; fn++; } }
+    const name=(OT.vorne.name||"").replace(/\.[a-z0-9]+$/i,"").replace(/[_-]+/g," ").slice(0,24)||OT_ARTEN[v.F.art].name;
+    const O={key:"o"+Date.now().toString(36),label:name,artAuto:v.F.art,art:null,atlas:at.toDataURL("image/jpeg",.86),F:otProfilRoh(v.F),B:otProfilRoh(h.F),af,ab,backEst,
+      farbe:fn?[fr/fn/255,fg/fn/255,fb/fn/255].map(x=>+x.toFixed(3)):[.5,.5,.5],masse:{},groessen:OT.tab||null,groesse:null,at:Date.now()};
+    if(O.groessen&&O.groessen.length) O.groesse=O.groessen[O.groessen.length>>1].n;
+    OT.liste[O.key]=O; OT.aktiv=O.key; const ok=otSpeichern();
+    say(`Fertig: ${OT_ARTEN[v.F.art].name} erkannt${backEst?(warum?` · ${warum}: `:" · ")+"Rückseite aus dem Stoff der Vorderseite erzeugt (geschätzt)":""}.${ok?"":" Speicher voll: nur bis zum Neuladen."}`);
+    OT.vorne=OT.hinten=null; otSlots(); otUI(); view3dKick(); $("g3dcard").scrollIntoView({block:"center",behavior:"smooth"});
+  }catch(e){ say(String(e&&e.message||e)); }
+  finally{ OT.bau=false; }
+}
+/* ---------- Größen: Maßtabelle (Text) für Oberteile ---------- */
+function otTabelle(t){
+  if(!t||!t.trim()) return null;
+  const zs=t.split(/\n+/).map(z=>z.trim()).filter(Boolean), SZ=/^(XXS|XS|S|M|L|XL|XXL|3XL|\d{2,3})$/i;
+  let gr=null; const rows={};
+  for(const z of zs){ const w=z.split(/[\s;|\t]+/).filter(Boolean), sz=w.filter(x=>SZ.test(x));
+    if(sz.length>=2&&sz.length>=w.length-2&&!gr){ gr=sz.map(x=>x.toUpperCase()); continue; }
+    const zahl=(z.match(/\d+(?:[.,]\d+)?/g)||[]).map(x=>+x.replace(",","."));
+    const key=/brust|chest|bust/i.test(z)?"brust":/ärmel|aermel|sleeve/i.test(z)?"aermel":/länge|laenge|length/i.test(z)?"laenge":null;
+    if(key&&zahl.length) rows[key]={v:zahl,halb:/1\/2|halb|flach|half|width|weite|breite/i.test(z)&&!/umfang|circ/i.test(z)}; }
+  if(!gr||!rows.brust) return null;
+  return gr.map((n,i)=>({n,brust:rows.brust.v[i]?(rows.brust.halb?2:1)*rows.brust.v[i]:null,laenge:rows.laenge&&rows.laenge.v[i]||null,aermel:rows.aermel&&rows.aermel.v[i]||null})).filter(q=>q.brust);
+}
+/* Passform je Zone: Brust (Weite = Kleidung − Körper), Länge (Saum gegen Nabel/Gesäß), Ärmel (Ende gegen Ellbogen/Handgelenk) */
+function otUrteil(O,A,sz){
+  const art=otArt(O), D=OT_ARTEN[art], M=otMasse({...O,groesse:sz?sz.n:O.groesse},A), V=otVorlage(AV.kd,A,art,{brust:M.brust,laenge:M.laenge,hemY:M.hemY,aermel:M.aermel});
+  const eB=V.eB, Y=V.Y, z=[];
+  const brust=art==="top"?(eB<-2?"zu eng":eB>12?"zu weit":"passt"):(eB<2?"zu eng":eB>22?"zu weit":"passt");
+  z.push({zone:"Brust",u:brust,t:`${eB>=0?"+":"−"}${Math.abs(eB).toFixed(0)} cm Weite`});
+  const lang=V.hemFrei<Y[D.saum[1]]-1?"zu lang":V.hemFrei>Y[D.saum[0]]+1?"zu kurz":"passt";
+  const wo=V.yHem>Y.nabel?"über dem Nabel":V.yHem>Y.hueftknochen?"an der Taille":V.yHem>Y.gesaess?"auf der Hüfte":V.yHem>Y.schritt-2?"am Gesäß":"am Oberschenkel";
+  z.push({zone:"Länge",u:lang,t:lang==="passt"?"Saum "+wo:lang==="zu lang"?"länger als vorgesehen, Saum begrenzt "+wo:"kürzer als vorgesehen, Saum "+wo});
+  if(V.sleeves[0]){ const sl=V.sleeves[0], f=sl.sEnd/(sl.l1+sl.l2), a=art==="langarm"?(f<.88?"zu kurz":f>1.03?"zu lang":"passt"):"passt"; z.push({zone:"Ärmel",u:a,t:art==="langarm"?"bis "+(f<.88?"über dem Handgelenk":"zum Handgelenk"):"kurz"}); }
+  const schlecht=z.filter(q=>q.u!=="passt");
+  return {z,ok:!schlecht.length,eB,text:z.map(q=>`${q.zone}: ${q.u} (${q.t})`).join(" · ")};
+}
+/* ---------- Oberfläche ---------- */
+function otSlots(){
+  for(const [id,f] of [["ot-vorne",OT.vorne],["ot-hinten",OT.hinten]]){ const el=$(id), img=el.querySelector(".slotimg");
+    el.classList.toggle("full",!!f); img.textContent="";
+    if(f){ const im=document.createElement("img"); im.alt=""; im.src=URL.createObjectURL(f); im.onload=()=>URL.revokeObjectURL(im.src); img.appendChild(im); }
+    else { const sp=document.createElement("span"); sp.textContent="＋"; img.appendChild(sp); } }
+}
+function otUI(){
+  const O=otAktiv(), L=$("ot-liste"); L.textContent="";
+  for(const o of Object.values(OT.liste)){ const b=document.createElement("button"); b.className="chip gchip"; b.type="button"; b.setAttribute("aria-pressed",String(o.key===OT.aktiv));
+    b.textContent=(o.key===OT.aktiv?"✓ ":"")+o.label+" · "+OT_ARTEN[otArt(o)].name;
+    b.addEventListener("click",()=>{ OT.aktiv=OT.aktiv===o.key?null:o.key; otSpeichern(); otUI(); view3dKick(); });
+    const x=document.createElement("button"); x.className="chip gdel"; x.type="button"; x.textContent="✕"; x.setAttribute("aria-label",o.label+" löschen");
+    x.addEventListener("click",()=>{ if(!x.classList.contains("sure")){ x.classList.add("sure"); x.textContent="Löschen?"; setTimeout(()=>otUI(),4000); return; }
+      delete OT.liste[o.key]; if(OT.aktiv===o.key) OT.aktiv=null; OT.cache=null; OT.ckey=""; otSpeichern(); otUI(); view3dKick(); });
+    L.appendChild(b); L.appendChild(x); }
+  $("ot-art").hidden=!O; for(const b of $("ot-art").querySelectorAll("[data-art]")) b.setAttribute("aria-pressed",String(!!O&&otArt(O)===b.dataset.art));
+  const sz=$("ot-sizes"), row=$("ot-szrow"); sz.hidden=!O; row.textContent=""; $("ot-szmsg").textContent="";
+  if(O){ const A=AV.kd&&otKoerper();
+    if(O.groessen&&O.groessen.length) for(const q of O.groessen){ const b=document.createElement("button"); b.className="chip"; b.type="button"; b.textContent=q.n;
+      b.setAttribute("aria-pressed",String(q.n===O.groesse)); b.addEventListener("click",()=>{ O.groesse=q.n; otSpeichern(); otUI(); view3dKick(); }); row.appendChild(b); }
+    if(A){ const sz0=O.groessen&&O.groessen.find(q=>q.n===O.groesse)||null, u=otUrteil(O,A,sz0);
+      let emp=""; if(O.groessen&&O.groessen.length>1){ const best=O.groessen.map(q=>({q,u:otUrteil(O,A,q)})).filter(r=>r.u.ok).sort((a,b)=>Math.abs(a.u.eB-10)-Math.abs(b.u.eB-10))[0];
+        emp=best?` · Empfehlung: ${best.q.n} (Brust ${best.u.eB>=0?"+":"−"}${Math.abs(best.u.eB).toFixed(0)} cm Weite)`:" · keine Größe passt an der Brust"; }
+      $("ot-szmsg").textContent=(sz0?sz0.n+": ":"")+(u.ok?"passt · ":"")+u.text+emp+(A.standard?" · am Standardkörper, für deine Maße Avatar scannen":"")+(O.backEst?" · Rückseite geschätzt":""); } }
+  $("ot-brust").value=O&&O.masse&&O.masse.brust?String(O.masse.brust).replace(".",","):""; $("ot-laenge").value=O&&O.masse&&O.masse.laenge?String(O.masse.laenge).replace(".",","):"";
+  if(typeof produktAuswahlDaten==="function") produktAuswahlDaten();
+}
+function otInit(){
+  otLaden(); otUI();
+  for(const id of ["ot-vorne","ot-hinten"]){ const el=$(id), fi=el.querySelector("input"), side=el.dataset.side;
+    const nimm=f=>{ if(!f) return; OT[side]=f; otSlots(); loadAiSeg(); if(OT.vorne) otAnlegen(); else $("ot-msg").textContent="Es fehlt die Vorderseite."; };
+    el.addEventListener("click",e=>{ if(e.target!==fi) fi.click(); });
+    el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fi.click(); } });
+    fi.addEventListener("change",()=>{ nimm(fi.files&&fi.files[0]); fi.value=""; });
+    el.addEventListener("dragover",e=>{ e.preventDefault(); e.stopPropagation(); el.classList.add("over"); });
+    el.addEventListener("dragleave",()=>el.classList.remove("over"));
+    el.addEventListener("drop",e=>{ e.preventDefault(); e.stopPropagation(); el.classList.remove("over"); nimm(e.dataTransfer.files&&e.dataTransfer.files[0]); }); }
+  for(const b of $("ot-art").querySelectorAll("[data-art]")) b.addEventListener("click",()=>{ const O=otAktiv(); if(!O) return; O.art=b.dataset.art===O.artAuto?null:b.dataset.art; otSpeichern(); otUI(); view3dKick(); });
+  const mass=(id,k)=>$(id).addEventListener("change",()=>{ const O=otAktiv(); if(!O) return; const v=num($(id).value); O.masse=O.masse||{};
+    if(v>20&&v<200) O.masse[k]=v; else delete O.masse[k]; otSpeichern(); otUI(); view3dKick(); });
+  mass("ot-brust","brust"); mass("ot-laenge","laenge");
+  $("ot-tab").addEventListener("change",()=>{ const t=otTabelle($("ot-tab").value), O=otAktiv(); OT.tab=t;
+    if(O){ O.groessen=t; O.groesse=t&&t.length?t[t.length>>1].n:null; otSpeichern(); otUI(); view3dKick(); }
+    $("ot-msg").textContent=t?`Maßtabelle: ${t.length} Größen (${t.map(q=>q.n).join(", ")})`:"Maßtabelle nicht erkannt (Zeile mit Größen und eine Zeile Brust/Brustumfang nötig)."; });
 }
 /* Kunden-Modus (Shopify, shopify/server): der Server setzt vor dieses Skript window.PASSFORM_KUNDE={hosen:"<Adresse der Hose>"}.
    Dann zeigt die Seite nur Größe, die Hose des Produkts, die Größen und „Anprobieren“, keine Händler-Werkzeuge. */
@@ -7313,7 +8138,9 @@ if(KUNDE_PRODUKTE) $("avHosen").setAttribute("quelle",KUNDE.produkte);
 $("avHosen").addEventListener("hose-gewaehlt",e=>{ const id=String(e.detail&&e.detail.id||"");
   if(KUNDE_PRODUKTE) return kundeHoseLaden(id);
   if(GARMENTS[id]&&g.key!==id) pickGarment(id,false); });
-customElements.whenDefined("passform-hosen").then(hosenAuswahlDaten).catch(()=>{});
+customElements.whenDefined("passform-produkte").then(hosenAuswahlDaten).catch(()=>{});
+$("avHosen").addEventListener("produkt-gewaehlt",e=>{ const d=e.detail||{}; if(d.typ!=="oberteil"||KUNDE_PRODUKTE) return;
+  OT.aktiv=d.id&&OT.liste[d.id]?d.id:null; otSpeichern(); otUI(); view3dKick(); });
 // zweiter Einstieg: eigener Avatar (vorhanden: zur Ansicht; sonst scannen). Ohne gewählte Hose die erste nehmen.
 $("avOption").addEventListener("click",()=>{
   if(!g.key){ const k=Object.keys(GARMENTS).find(k=>GARMENTS[k].m3&&!GARMENTS[k].bad); if(k) pickGarment(k,false); }
@@ -7321,7 +8148,7 @@ $("avOption").addEventListener("click",()=>{
   if(avatarAktiv()){ view3dKick(); $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"}); return; }
   avatarScanStart(); });
 loadOwn();
-buildPicker(); renderSeries(); loadSharedGarments().then(wolkeStart);
+buildPicker(); renderSeries(); loadSharedGarments().then(wolkeStart); otInit();
 avatarUI(); { const a=avatarGespeichert(); if(a) avatarAnzeigen(a).catch(e=>console.warn("Avatar",e)); }   // gespeicherter Avatar
 </script>
 </body>

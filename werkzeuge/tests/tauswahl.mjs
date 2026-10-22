@@ -65,7 +65,7 @@ await p.waitForFunction(()=>/Fertig/.test(document.getElementById('own-msg').tex
 await p.evaluate(()=>{ document.getElementById('own-msg').textContent=''; }); await p.fill('#own-waist','46'); await p.click('#own-go');
 await p.waitForFunction(()=>/Fertig/.test(document.getElementById('own-msg').textContent),null,{timeout:90000}); await p.waitForTimeout(300);
 const r4=await p.evaluate(()=>{ const el=document.getElementById('avHosen'), B=[...el.shadowRoot.querySelectorAll('button')], d=window.__dbg;
-  return {n:B.length,ids:B.map(x=>x.dataset.id),gew:el.gewaehlt,key:d.g.key,avOption:!!document.getElementById('avOption')&&!document.getElementById('avOption').hidden}; });
+  const gw=el.gewaehlt; return {n:B.length,ids:B.map(x=>x.dataset.id),gew:gw&&typeof gw==='object'?gw.unterteil:gw,key:d.g.key,avOption:!!document.getElementById('avOption')&&!document.getElementById('avOption').hidden}; });
 pruefe(r4.n>=1&&r4.gew===r4.key,`Anprobe-Seite: ${r4.n} Hose(n) in der Komponente, gewählt ist die angezogene`);
 pruefe(r4.avOption,'Knopf „Eigener Avatar“ sichtbar');
 pruefe(r4.n>=2,`zwei Hosen zur Auswahl (${r4.n})`);

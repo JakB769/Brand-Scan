@@ -17,7 +17,10 @@ import numpy as np
 DATA = sys.argv[1]
 ZIEL = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), '../../app/avatar/koerper.js')
 GELENKE = ['joint-l-upper-leg', 'joint-r-upper-leg', 'joint-l-knee', 'joint-r-knee', 'joint-l-ankle', 'joint-r-ankle',
-           'joint-pelvis', 'joint-spine-1', 'joint-spine-3', 'joint-neck', 'joint-l-shoulder', 'joint-r-shoulder']
+           'joint-pelvis', 'joint-spine-1', 'joint-spine-3', 'joint-neck', 'joint-l-shoulder', 'joint-r-shoulder',
+           # 22.10.: Arme und Kopf für Oberteile (Ärmel entlang Schulter → Ellbogen → Handgelenk) und die Posen-Steuerung
+           'joint-l-elbow', 'joint-r-elbow', 'joint-l-hand', 'joint-r-hand', 'joint-l-clavicle', 'joint-r-clavicle',
+           'joint-head', 'joint-head-2']
 
 # --- Basis-Mesh ---
 V, gruppen, gruppe, flaechen = [], {}, None, []
@@ -59,6 +62,34 @@ def teil(k):
     return 0
 teile = np.array([teil(best.get(int(o), ('root', 0))[0]) for o in orig], dtype=np.uint8)
 
+# --- Skelett-Gewichte, zusammengefasst auf 16 Knochengruppen (22.10.) ---
+# Je Vertex die vier stärksten Gruppen (Uint8 Gruppe, Uint8 Gewicht 0–255, Summe 255). Damit lassen sich Körper und
+# Kleidungs-Vorlagen (Oberteile) in jede Haltung bringen (Linear Blend Skinning im Browser).
+GRUPPEN = ['becken', 'bauch', 'brust', 'kopf', 'oberarm.L', 'oberarm.R', 'unterarm.L', 'unterarm.R', 'hand.L', 'hand.R',
+           'oberschenkel.L', 'oberschenkel.R', 'unterschenkel.L', 'unterschenkel.R', 'fuss.L', 'fuss.R']
+def gruppe_von(k):
+    s = '.' + k.split('.')[-1] if k.endswith(('.L', '.R')) else ''
+    if k.startswith(('root', 'pelvis', 'spine05')): return 'becken'
+    if k.startswith(('spine04', 'spine03')): return 'bauch'
+    if k.startswith(('spine02', 'spine01', 'breast', 'clavicle')): return 'brust'
+    if k.startswith(('shoulder01', 'upperarm')): return 'oberarm' + s
+    if k.startswith('lowerarm'): return 'unterarm' + s
+    if k.startswith(('wrist', 'metacarpal', 'finger')): return 'hand' + s
+    if k.startswith('upperleg'): return 'oberschenkel' + s
+    if k.startswith('lowerleg'): return 'unterschenkel' + s
+    if k.startswith(('foot', 'toe')): return 'fuss' + s
+    return 'kopf'
+gw = np.zeros((len(V), len(GRUPPEN)))
+for knochen, liste in W.items():
+    gi = GRUPPEN.index(gruppe_von(knochen))
+    for vi, w in liste: gw[vi, gi] += w
+gw = gw[orig]
+gw[gw.sum(1) == 0, GRUPPEN.index('becken')] = 1           # Gelenk-Würfel ohne Gewichte
+top = np.argsort(-gw, 1)[:, :4]
+tw = np.take_along_axis(gw, top, 1); tw = tw / tw.sum(1, keepdims=True)
+qw = np.floor(tw * 255).astype(int); qw[:, 0] += 255 - qw.sum(1)
+gew_i, gew_w = top.astype(np.uint8), qw.astype(np.uint8)
+
 # --- Targets ---
 def target(pfad):
     d = np.zeros((len(V), 3))
@@ -79,7 +110,9 @@ for g, gn in [('m', 'male'), ('f', 'female')]:
            ('muskel-', g, f'macrodetails/universal-{gn}-young-minmuscle-averageweight.target')]
 # Körpergröße: gleichmäßig skaliert (im Browser), Proportionen über die Beinlängen-Targets; die dichten Größen-Targets
 # (alle Vertices, je 108 KB) lohnen sich dafür nicht
-for m in ['waist-circ', 'hips-circ', 'thigh-circ', 'knee-circ', 'calf-circ', 'upperleg-height', 'lowerleg-height', 'waisttohip-dist']:
+for m in ['waist-circ', 'hips-circ', 'thigh-circ', 'knee-circ', 'calf-circ', 'upperleg-height', 'lowerleg-height', 'waisttohip-dist',
+          # 22.10.: Oberkörper und Arme (Schulterbreite, Armlängen, Brust, Oberarm, Nacken bis Taille) für den Scan und Oberteile
+          'shoulder-dist', 'upperarm-length', 'lowerarm-length', 'bust-circ', 'upperarm-circ', 'napetowaist-dist']:
     TS += [(m + '+', None, f'measure/measure-{m}-incr.target'), (m + '-', None, f'measure/measure-{m}-decr.target')]
 TS += [('gesaess+', None, 'buttocks/buttocks-volume-incr.target'), ('gesaess-', None, 'buttocks/buttocks-volume-decr.target')]
 
@@ -94,9 +127,9 @@ def blob(arr):
     global off
     b = arr.tobytes(); pad = (-len(b)) % 4
     blobs.append(b + b'\0' * pad); o = off; off += len(b) + pad; return o
-meta = {'version': 1, 'quelle': 'MakeHuman hm08 (CC0 1.0)', 'einheit': 'cm, Y oben, Z vorn', 'nV': nV, 'nK': len(kv), 'nT': len(idx) // 3,
+meta = {'version': 2, 'quelle': 'MakeHuman hm08 (CC0 1.0)', 'einheit': 'cm, Y oben, Z vorn', 'nV': nV, 'nK': len(kv), 'nT': len(idx) // 3,
         'idx': blob(idx), 'teil': blob(teile), 'mitte': {g: blob(q16(mitte[g]).ravel()) for g in mitte}, 'targets': [],
-        'gelenke': {}}
+        'gelenke': {}, 'gruppen': GRUPPEN, 'gew': {'i': blob(gew_i.ravel()), 'w': blob(gew_w.ravel())}}
 p = len(kv)
 for g in GELENKE:
     meta['gelenke'][g.replace('joint-', '')] = [p, len(gv[g])]; p += len(gv[g])
