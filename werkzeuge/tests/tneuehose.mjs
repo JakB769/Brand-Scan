@@ -11,6 +11,7 @@ import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { starte } from '../server.mjs';
 const hier=fileURLToPath(new URL('.',import.meta.url)), R=path.resolve(hier,'../..')+'/', NM=R+'node_modules/', A=hier+'ausgabe/', OUT=process.env.NEUEHOSE_BILDER||R+'docs/test-neue-hose/';   // Commit-Haken: nach ausgabe/, sonst ändert jeder Commit die Bilder
 const argF=process.argv.indexOf('--fotos'), FOTOS=argF>0?process.argv[argF+1].split(','):['vorne.jpg','hinten.jpg'].map(n=>R+'assets/referenz/fotos/flach-vorne-hinten/'+n);
@@ -24,6 +25,9 @@ const ctx=await b.newContext({viewport:{width:430,height:932},permissions:['came
 // KI-Freistellung wie im Browser des Nutzers (MediaPipe aus node_modules, Modell aus werkzeuge/tests/ausgabe, falls vorhanden)
 await ctx.route('**/@mediapipe/tasks-vision@0.10.18/**',r=>{ const f=NM+'@mediapipe/tasks-vision/'+decodeURIComponent(r.request().url().split('@0.10.18/')[1].split('?')[0]);
   if(!fs.existsSync(f)) return r.abort(); r.fulfill({status:200,contentType:typ(f),headers:{'access-control-allow-origin':'*'},body:fs.readFileSync(f)}); });
+// KI-Modell (6 MB) einmal von Google holen und in ausgabe/ zwischenspeichern (frischer Klon: sonst nur Ersatz-Freistellung)
+fs.mkdirSync(A,{recursive:true});
+try{ if(!fs.existsSync(A+'magic_touch.tflite')) execSync(`curl -sSLf -m 120 -o "${A}magic_touch.tflite" https://storage.googleapis.com/mediapipe-models/interactive_segmenter/magic_touch/float32/1/magic_touch.tflite`,{stdio:'ignore'}); }catch(_){}
 const KI=fs.existsSync(A+'magic_touch.tflite');
 await ctx.route('**/magic_touch.tflite',r=>KI?r.fulfill({status:200,body:fs.readFileSync(A+'magic_touch.tflite'),headers:{'access-control-allow-origin':'*'}}):r.abort());
 await ctx.route('**/heic-to@1.6.5/**',r=>r.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:fs.readFileSync(NM+'heic-to/dist/heic-to.min.js')}));
