@@ -4,7 +4,7 @@ Stand: 22.10.2026, Commit `8454855` + Übergabe. Antworten an den Nutzer auf Deu
 
 ## Repo und Branches
 - Repo: https://github.com/JakB769/Brand-Scan
-- **Aktuell: `claude/new-session-fbr0jp`** (Netlify deployt diesen Branch). `3d-modell-verbesserung` ist identisch (Arbeitsbranch, Fast-Forward auf beide pushen).
+- **Aktuell: `claude/new-session-fbr0jp`** (Netlify deployt diesen Branch; hier weiterarbeiten). `3d-modell-verbesserung` ist identisch.
 - `main` ist älter (10.10.) und in beiden enthalten. `claude/claude-md-schlank` = alter Nebenzweig (13.10.), ignorieren.
 - Nie auf `main` force-pushen.
 
@@ -30,6 +30,16 @@ Schlüssel nur als Umgebungsvariable (Netlify-Konto bzw. App-Server), nie im Rep
 | Shopify App-Proxy | Anprobe unter `/apps/passform/…`, Signaturprüfung, Pflicht-Webhooks | `SHOPIFY_API_SECRET`, `PASSFORM_DATEN`, `PORT`; `client_id` in `shopify/shopify.app.toml` (Platzhalter) |
 
 Rate Limits: Netlify `rateLimit` in `config` beider Funktionen (Gratis-Plan max. 2 Regeln, beide belegt); Shopify je Shop in `shopify/server/grenze.mjs`.
+
+Variablen (Namen in `.env.example`, Werte nur im Netlify-Konto bzw. auf dem App-Server):
+- `SHOPIFY_API_SECRET`: Secret der Shopify-App (Proxy-Signatur, Webhooks prüfen). Pflicht für den Shop-Server.
+- `PASSFORM_DATEN`: Ordner für Hosen je Shop/Produkt (Standard `shopify/server/daten/`). `PORT`: Port des Shop-Servers (Standard 8081).
+- `PASSFORM_TEAMCODE`: optionaler Code zum Schreiben/Löschen in `/api/hosen`.
+- `HOSEN_DIR`: lokaler Ordner statt Netlify Blobs (setzt `werkzeuge/server.mjs` auf `.hosen-lokal/`).
+- `HOLEN_LOKAL=1`: `/api/holen` darf lokale Adressen holen (nur Tests). `NODE_USE_ENV_PROXY=1` + `HTTPS_PROXY`: hinter einem Proxy.
+- Nur Tests/Werkzeuge: `NEUEHOSE_BILDER` (Bildordner tneuehose), `DREH_LOG`, `STOFF_LOG`, `VERGLEICH_LOG` (mehr Ausgabe).
+
+Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `werkzeuge/tests/ausgabe/` (KI-Modelle werden von Google nachgeladen), `.hosen-lokal/` (nur von Tests erzeugte „Hose N“), `assets/pants/*/entpackt/` (Inhalt der ZIPs im Repo), Original-Kartenfotos `IMG_7267/7268.HEIC` (Kartennummer lesbar; im Repo nur unkenntlich gemacht als `material/testbilder/echt/karte_*.jpg`).
 
 ## Architektur (alles in `app/index.html`, Funktionsnamen; Details `doku/code-karte.md`)
 - **Kamera/Scan**: `startCamera`, `openStream`; `analyse(res)` je Bild (Glätten, Maßstab, Messwerte, Coaching). Start-Anweisung + `ganzGrund` („Weiter zurück · Füße nicht sichtbar“), Scan nach 0,5 s Ruhe (`HOLD_MS`, `scanMedian`). Vor Scan-Ende nichts zeichnen (`zeigen`, Klasse `vorscan`).
