@@ -72,6 +72,13 @@ await p.click('#ot-art [data-art="top"]'); await p.waitForTimeout(300);
 // 4. Hose im Oberteil-Feld → Hinweis
 r=await lade('../../produktfotos/front.jpg',null);
 pruefe(/Hose/.test(r.msg),`Hose im Oberteil-Feld erkannt: ${r.msg}`);
+// 4b. T-Shirt im Hosen-Bereich: wird als Oberteil erkannt und dort angelegt (nicht als Hose)
+const nOt=await p.evaluate(()=>Object.keys(window.__dbg.OT.liste).length);
+await p.evaluate(()=>{ document.getElementById('ot-msg').textContent=''; });
+await p.setInputFiles('#drop-in',[ob+'tshirt_vorne.jpg',ob+'tshirt_hinten.jpg']);
+await p.waitForFunction(()=>/Fertig|nicht/.test(document.getElementById('ot-msg').textContent),null,{timeout:120000}).catch(()=>{});
+const hb=await p.evaluate(n=>({n:Object.keys(window.__dbg.OT.liste).length-n,liste:document.getElementById('drop-list').innerText.replace(/\n/g,' / ').slice(0,160),art:window.__dbg.otAktiv().artAuto}),nOt);
+pruefe(hb.n===1&&hb.art==='tshirt'&&/Oberteil/.test(hb.liste),`T-Shirt im Hosen-Bereich → als Oberteil angelegt (${hb.liste})`);
 // 5. Live-Anprobe mit der Attrappe: T-Shirt wählen, Kamera starten, Oberteil liegt auf dem Rumpf, folgt Drehung und Armen
 await p.evaluate(()=>{ const d=window.__dbg, k=Object.values(d.OT.liste).find(o=>o.artAuto==='tshirt').key; d.OT.aktiv=k; });
 await p.click('#quick'); await p.waitForTimeout(5000); await p.click('#clean').catch(()=>{}); await p.waitForTimeout(1500);

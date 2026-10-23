@@ -1,0 +1,122 @@
+{
+ "clip": "assets/referenz/videos/clips/v2-02_drehung-360.mp4",
+ "scan": "assets/referenz/videos/clips/v2-01_stehen-neutral-vorne.mp4",
+ "k": 0.82,
+ "H": 179,
+ "frontalScan": {
+  "waist": 36.3,
+  "hip": 39.3,
+  "thighL": 21.3,
+  "thighR": 22.8,
+  "kneeL": 15.6,
+  "kneeR": 20.4,
+  "leg": 99.2,
+  "inseam": null,
+  "torso": 47.7,
+  "shoulder": 33,
+  "armU": 23.5,
+  "armL": null,
+  "foreW": 7.3,
+  "upperW": 6.5,
+  "chest": 49.3
+ },
+ "avatar": {
+  "v": 1,
+  "g": "m",
+  "H": 179,
+  "p": {
+   "gewicht": -0.109,
+   "muskel": -0.001,
+   "waist-circ": 0,
+   "hips-circ": 0,
+   "gesaess": 0,
+   "waisttohip-dist": 0.273,
+   "thigh-circ": 0,
+   "knee-circ": 0,
+   "calf-circ": 0,
+   "upperleg-height": 0.31,
+   "lowerleg-height": 0.243,
+   "shoulder-dist": -0.265,
+   "napetowaist-dist": 0.272,
+   "upperarm-length": -0.319,
+   "lowerarm-length": -0.016,
+   "upperarm-circ": -0.35,
+   "bust-circ": -0.067
+  },
+  "m": {
+   "H": 179,
+   "leg": 95.3,
+   "torso": 49.3,
+   "inseam": 86.7,
+   "waistW": 26.8,
+   "waistD": 18.5,
+   "waist": 73.9,
+   "hipW": 31.4,
+   "hipD": 22,
+   "hip": 89.6,
+   "thighW": 16.1,
+   "thigh": 50.9,
+   "kneeW": 10.5,
+   "knee": 34.3,
+   "shoulder": 35.9,
+   "armU": 23.2,
+   "armL": 26.2,
+   "foreW": 7.1,
+   "upperW": 7.9,
+   "chest": 92.5,
+   "chestW": 32.3,
+   "chestD": 22
+  },
+  "z": {
+   "H": 179,
+   "waistW": 37.3,
+   "waistD": 26.5,
+   "hipW": 42,
+   "hipD": 27.3,
+   "thighW": 22.1,
+   "kneeW": 18,
+   "leg": 99.2,
+   "chestW": 53.2,
+   "chestD": 21.8,
+   "shoulder": 33,
+   "torso": 47.7,
+   "armU": 23.5,
+   "foreW": 7.3,
+   "upperW": 6.5
+  },
+  "lose": true,
+  "kamera": false,
+  "ohneTiefe": false,
+  "farben": {
+   "haut": [
+    0.882,
+    0.733,
+    0.608
+   ],
+   "haare": [
+    0.459,
+    0.365,
+    0.286
+   ],
+   "oberteil": [
+    0.671,
+    0.651,
+    0.667
+   ],
+   "fuss": [
+    0.561,
+    0.467,
+    0.38
+   ]
+  },
+  "rest": 0.3,
+  "at": 1792713548979
+ },
+ "proben": {
+  "vorn": 4,
+  "hinten": 9,
+  "seiteL": 22,
+  "seiteR": 0
+ },
+ "fertigNachBildern": 122
+}

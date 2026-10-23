@@ -3129,8 +3129,12 @@ function avatarPose(G,W,H,yw,sync,A){
   const bone=[[gl.hl,gl.kl,gl.al],[gl.hr,gl.kr,gl.ar]].map(b=>b.map(S)), beltH=m.leg+.15*m.torso;
   const foc=6*Math.max(W,H), pc=[W/2,H/2];
   mesh3d(g.key,G.m3); const drape=drapeFor(G,Hc,sync?undefined:12);
+  // Oberteil gleich nach dem Körper, vor Verdecker und Hose: der unsichtbare Rumpf über dem Bund (Verdecker der Hose) ragte bei
+  // schlanken Körpern aus dem Shirt und stanzte ein Loch hinein; unter dem Bund liegt es per Tiefenversatz über der Hose
   const O=otAktiv(), V=O&&AV.kd?otFuer(O,A):null, oo={cx,floor,ppc,yw,band:avatarBand(floor,ppc),oben:otBand(V)};
-  const vorher=(gl2,vw,vh,P)=>avatarZeichnen(gl2,vw,vh,P,A,oo), nachher=V?(gl2,vw,vh,P)=>otZeichnen(gl2,vw,vh,P,V,V.P,V.N,oo):null;
+  const bundOben=beltH+PASSFORM.sitzCm+(G.m3.rock?PASSFORM.rockSitzCm:0)+2;
+  const vorher=(gl2,vw,vh,P)=>{ avatarZeichnen(gl2,vw,vh,P,A,oo);
+    if(V) otZeichnen(gl2,vw,vh,P,V,otUeberHose(V,bundOben,{cx,floor,ppc,yw}),V.N,{...oo,zv:[bundOben+3,2.5]}); }, nachher=null;
   const info=draw3d(G.m3,{fab,foldCm:fab.fold,foldK:fab.foldK,bump:fab.bump,heightCm:Hc,rot:G.rot||null,ql:G.ql||null,offK:G.offK??null,drape,drapeW:sync?1:drapeW(drape),ppc,cmH:D.cmW,cmL:D.len,
     kHem:D.hem/(G.m3.hw[G.m3.nr-1]*D.cmW),h:[c,0,s],belt:S([(gl.hl[0]+gl.hr[0])/2,beltH,(gl.hl[2]+gl.hr[2])/2]),yCrotch:floor-m.inseam*ppc,bone,foc,pc,arms:[],
     inner:innerColor(G),vorher,nachher,tiefe:{hip:m.hipD,waist:m.waistD},hwK:m.hipW/2/Math.max(1,Math.abs(gl.hl[0]-gl.hr[0]))},W,H,G.farbe||[1,1,1]);
@@ -3730,8 +3734,10 @@ function otFotoProfil(S){
     const oben=Math.hypot(TC[0]-sp[0],TC[1]-sp[1]);
     sleeves.push({sd,root,cuff,ax,nv,len,oben,quer:Q}); }
   const torsoH=hemRow-shRow, sl=sleeves.length?sleeves.reduce((a,q)=>a+q.oben,0)/sleeves.length:0;
+  // Rumpf zwischen den Ärmeln durchgehend Stoff (bei einer Hose auf dem Kopf liegt dort der Spalt zwischen den Beinen)
+  let mv=0,mn=0; for(let y=Math.round(shRow+.05*HH);y<ap;y+=2){ mn++; if(um(y)) mv++; } const mitteVoll=mn>3&&mv/mn>.85;
   const art=!sleeves.length?"top":sl<.55*torsoH?"tshirt":"langarm";      // Ärmel (oben gemessen) zu Rumpflänge: T-Shirt 0,3, Langarm 0,9
-  return {cx,wT,hemRow,ap,shRow,neckRow,oben:Y0,xlC,xrC,xl,xr,sleeves,art,hose,armel,torsoH,ratio:torsoH/wT,box:[X0,Y0,X1,Y1]};
+  return {cx,wT,hemRow,ap,shRow,neckRow,oben:Y0,xlC,xrC,xl,xr,sleeves,art,hose,armel,mitteVoll,torsoH,ratio:torsoH/wT,box:[X0,Y0,X1,Y1]};
 }
 const otLinie=c=>y=>c[0]+c[1]*clamp(y,c[2],c[3]);
 /* Profil zum Speichern (ohne Funktionen) und zurück */
@@ -7479,6 +7485,8 @@ async function upAdd(files,texts=[],opt={}){
   if(fix) fresh[0].fix=fix;
   UP.items.push(...fresh); $("drop-row").hidden=false; upRender();
   await Promise.all(fresh.map(it=>upAnalyse(it).catch(e=>{ it.kind="none"; it.note=e&&e.message?e.message:"nicht lesbar"; })));
+  // Oberteile: an den Oberteil-Bereich (erstes Foto vorne, zweites hinten), nicht Teil dieser Hose
+  { const ob=fresh.filter(i=>i.kind==="oberteil"); if(ob.length){ OT.vorne=ob[0].file; OT.hinten=ob[1]?ob[1].file:null; otSlots(); otAnlegen(); } }
   // Neue flache Fotos zu einer fertigen Hose: Gab es bisher nur die Vorderseite, ist ein einzelnes neues Foto ihre Rückseite
   // (vorher begann hier eine neue Hose und die Vorderseite fiel weg: Modell nur aus einem Foto). Eine andere Hose beginnt erst,
   // wenn schon Vorder- und Rückseite da waren oder zwei neue Fotos kommen (oder mit „Neue Hose“).
@@ -7560,6 +7568,9 @@ async function classifyFlat(it,noPose=false){
     // nicht still verwerfen: Liste und Meldung bieten „als Rückseite verwenden“ (↪) an
     if(n&&k/n>.12&&big/n>.06){ it.kind="worn"; it.person={L:null,side:"vorne",legs:false,crop:true}; return; } }
   if(S.y0<=1){ it.kind="none"; it.note="oben abgeschnitten: die Hose muss ganz im Bild sein"; return; }
+  // Oberteil mit zwei Ärmeln im Hosen-Bereich (22.10.): erkannt und an „Oberteil hochladen“ weitergereicht (upAdd). Vor dem Drehen
+  // prüfen: die Ärmel oben hielt garmentTurn für Beine (Foto auf dem Kopf), gedreht galt das T-Shirt dann als flache Hose
+  try{ const F=otFotoProfil(otLoecherZu(S)); if(F&&!F.hose&&F.armel&&F.mitteVoll&&F.sleeves.length===2){ it.kind="oberteil"; it.note=OT_ARTEN[F.art].name+" erkannt: als Oberteil angelegt"; return; } }catch(_){}
   for(let k=0;k<2;k++){ const t=garmentTurn(S); if(!t) break; it.cv=rotateCanvas(it.cv,t); S=segGarment(it.cv); }
   const sh=pantsShape(S);
   if(sh.legs>=2||(sh.fill>.45&&sh.fill<.92&&sh.aspect>.7&&sh.aspect<3.6)){ it.kind="flat"; it.S=S; it.score=flatSideScore(it); }
@@ -7579,6 +7590,7 @@ function upAssign(){
 }
 function upKindText(i){
   if(i.kind==="wait") return i.note||"wird geprüft …";
+  if(i.kind==="oberteil") return i.note;
   if(i.kind==="flat") return i.extra?"flach, nicht gebraucht (schon zwei Seiten)":`${i.side==="vorne"?"Vorderseite":"Rückseite"}, flach`+(i.ref?` · ${REFS[i.ref].name} als Maßstab`:"");
   if(i.kind==="worn") return i.person.crop?"Foto mit Person, angeschnitten (nicht gebraucht; doch eine flache Rückseite? ↪ tippen)":`Foto mit Person, von ${i.side}`+(!i.person.legs?" (Beine nicht ganz im Bild, nicht gebraucht)":i.side==="hinten"?"":" (nicht gebraucht)");
   if(i.kind==="table"){ const R=i.tab.rows, k=Object.keys(R), body=k.length&&k.every(x=>R[x].sect==="body"||x==="waistB"||x==="hip");
@@ -7914,12 +7926,15 @@ function otFuer(O,A){
   OT.cache=V; OT.ckey=key; if(OT.gl) OT.gl.vkey=null;
   return V;
 }
-const VSO=`attribute vec3 p;attribute vec3 n;attribute vec2 uv;uniform vec2 vp;uniform vec2 pc;uniform float foc;uniform vec4 ab;uniform float zb;
+// zv: unterhalb der Höhe zv.x (Bund der Hose) liegt das Oberteil zv.y cm näher an der Kamera (nur im Tiefenpuffer): es liegt über
+// dem Bund, auch wo die Hose (weit geschätzt, Stoff-Fall) etwas weiter ist als der Saum des Oberteils
+const VSO=`attribute vec3 p;attribute vec3 n;attribute vec2 uv;uniform vec2 vp;uniform vec2 pc;uniform float foc;uniform vec4 ab;uniform float zb;uniform vec2 zv;
 varying vec3 vn;varying vec3 vv;varying vec2 vu;
 void main(){float c=cos(ab.w),s=sin(ab.w);vec3 q=vec3(ab.x+(p.x*c+p.z*s)*ab.z,ab.y-p.y*ab.z,(p.x*s-p.z*c)*ab.z+zb);
+float zq=q.z-zv.y*ab.z*(1.-smoothstep(zv.x-2.,zv.x+2.,p.y));
 vn=vec3(n.x*c+n.z*s,-n.y,n.x*s-n.z*c);vu=uv;
 vec2 r=pc+(q.xy-pc)*foc/(foc+q.z);vv=vec3((r-pc)/foc,1.);
-float d=q.z/vp.x,a=abs(d);d=a<.8?d:sign(d)*(.8+.15*(1.-exp(-(a-.8)/.15)));
+float d=zq/vp.x,a=abs(d);d=a<.8?d:sign(d)*(.8+.15*(1.-exp(-(a-.8)/.15)));
 gl_Position=vec4(r.x/vp.x*2.-1.,1.-r.y/vp.y*2.,d,1.);}`;
 // Foto ist schon beleuchtet: die Ansicht gibt nur Form (Licht halb dazu), Relief aus dem Helligkeitsgefälle des Fotos, Innenseite
 // in der Stofffarbe abgedunkelt
@@ -7942,7 +7957,7 @@ function otGL(gl){
   const pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,VSO)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FSO)); gl.linkProgram(pr);
   if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
   const L=n=>gl.getUniformLocation(pr,n);
-  OT.gl={gl,pr,loc:{p:gl.getAttribLocation(pr,"p"),n:gl.getAttribLocation(pr,"n"),uv:gl.getAttribLocation(pr,"uv"),vp:L("vp"),pc:L("pc"),foc:L("foc"),ab:L("ab"),zb:L("zb"),t:L("t"),tint:L("tint"),innen:L("innen"),ts:L("ts")},vkey:null,tkey:null,tex:null,texOk:false};
+  OT.gl={gl,pr,loc:{p:gl.getAttribLocation(pr,"p"),n:gl.getAttribLocation(pr,"n"),uv:gl.getAttribLocation(pr,"uv"),vp:L("vp"),pc:L("pc"),foc:L("foc"),ab:L("ab"),zb:L("zb"),zv:L("zv"),t:L("t"),tint:L("tint"),innen:L("innen"),ts:L("ts")},vkey:null,tkey:null,tex:null,texOk:false};
   return OT.gl;
 }
 /* Oberteil V zeichnen: Punkte P (Ruhehaltung oder in Haltung), Lage wie der Avatar (o: cx, floor, ppc, yw) */
@@ -7957,20 +7972,40 @@ function otZeichnen(gl,vw,vh,P,V,Pp,Nn,o,tint=[1,1,1]){
     im.src=O.atlas; }
   if(!G.texOk) return false;
   const buf=(b,t,d,dyn)=>{ if(!b) b=gl.createBuffer(); gl.bindBuffer(t,b); gl.bufferData(t,d,dyn?gl.DYNAMIC_DRAW:gl.STATIC_DRAW); return b; };
-  if(G.vkey!==V){ G.ub=buf(G.ub,gl.ARRAY_BUFFER,V.uv); G.ib=buf(G.ib,gl.ELEMENT_ARRAY_BUFFER,V.idx); G.ni=V.idx.length; G.vkey=V; G.pkey=null; }
-  if(G.pkey!==Pp||Pp===V.P&&G.prest!==V){ G.vb=buf(G.vb,gl.ARRAY_BUFFER,Pp,true); G.nb=buf(G.nb,gl.ARRAY_BUFFER,Nn,true); G.pkey=Pp; G.prest=V; }
+  if(G.vkey!==V){ G.ub=buf(G.ub,gl.ARRAY_BUFFER,V.uv); G.ib=buf(G.ib,gl.ELEMENT_ARRAY_BUFFER,V.idx); G.ni=V.idx.length; G.vkey=V; G.prest=null; }
+  // Ruhehaltung nur einmal hochladen; posierte bzw. über der Hose geweitete Punkte (dieselbe Liste, jedes Bild neu befüllt) immer
+  if(Pp!==V.P||G.prest!==V){ G.vb=buf(G.vb,gl.ARRAY_BUFFER,Pp,true); G.nb=buf(G.nb,gl.ARRAY_BUFFER,Nn,true); G.prest=Pp===V.P?V:null; }
   for(let l=0;l<8;l++) gl.disableVertexAttribArray(l);
   gl.useProgram(G.pr);
   const at=(b,loc,n)=>{ if(loc<0) return; gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,n,gl.FLOAT,false,0,0); };
   at(G.vb,G.loc.p,3); at(G.nb,G.loc.n,3); at(G.ub,G.loc.uv,2);
   gl.uniform2f(G.loc.vp,vw,vh); gl.uniform2f(G.loc.pc,P.pc[0],P.pc[1]); gl.uniform1f(G.loc.foc,P.foc);
-  gl.uniform4f(G.loc.ab,o.cx,o.floor,o.ppc,o.yw); gl.uniform1f(G.loc.zb,o.zb||0);
+  gl.uniform4f(G.loc.ab,o.cx,o.floor,o.ppc,o.yw); gl.uniform1f(G.loc.zb,o.zb||0); gl.uniform2f(G.loc.zv,o.zv?o.zv[0]:-1e4,o.zv?o.zv[1]:0);
   const fc=O.farbe||[.5,.5,.5]; gl.uniform3f(G.loc.innen,fc[0]*.8,fc[1]*.8,fc[2]*.8); gl.uniform3f(G.loc.tint,tint[0],tint[1],tint[2]);
   gl.uniform2f(G.loc.ts,1.5/OT_ATLAS,1.5/OT_ATLAS);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,G.tex); gl.uniform1i(G.loc.t,0);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,G.ib); gl.drawElements(gl.TRIANGLES,G.ni,V.idx instanceof Uint32Array?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT,0);
   for(let l=0;l<8;l++) gl.disableVertexAttribArray(l);
   return true;
+}
+/* Oberteil über der Hose: Ringe des Oberteils unterhalb des Bunds (bis 3 cm darüber) mindestens 0,8 cm weiter als die Hose in
+   dieser Richtung (Punkte der Hose aus dem letzten Bild, g3.pos, zurück in cm des Körpers). Sonst stand eine weit geschätzte Hose
+   oder ein Rockbund seitlich und hinten durch das Shirt. Ergebnis: eigene Punkte (V.P bleibt unverändert). */
+function otUeberHose(V,bund,o){
+  if(!g3.pos||!g3.nr) return V.P;
+  const c=Math.cos(o.yw), s=Math.sin(o.yw), K=V.K, C=K+1, cz=V.cz, pos=g3.pos, n=pos.length/3, yHi=bund+3;
+  const rows=[]; for(let i=0;i<V.nr;i++){ const y=V.P[(i*C)*3+1]; if(y<yHi) rows.push(i); }
+  if(!rows.length) return V.P;
+  const yLo=V.P[(rows[rows.length-1]*C)*3+1]-3, R=new Map();
+  for(let k=0;k<n;k++){ const Y=(o.floor-pos[k*3+1])/o.ppc; if(Y<yLo||Y>yHi+2) continue;
+    const u=(pos[k*3]-o.cx)/o.ppc, w=pos[k*3+2]/o.ppc, X=u*c+w*s, Z=u*s-w*c, d=Math.hypot(X,Z-cz), b=((Math.round(Math.atan2(X,Z-cz)/(2*Math.PI)*K)%K)+K)%K;
+    const yb=Math.round(Y/2); let a=R.get(yb); if(!a) R.set(yb,a=new Float32Array(K)); if(d>a[b]) a[b]=d; }
+  if(!R.size) return V.P;
+  const P=V.Pu&&V.Pu.length===V.P.length?V.Pu:(V.Pu=new Float32Array(V.P.length)); P.set(V.P);
+  for(const i of rows) for(let k=0;k<=K;k++){ const q=(i*C+k)*3, x=P[q], y=P[q+1], z=P[q+2]-cz, d=Math.hypot(x,z)||1, b=k%K;
+    let rp=0; for(const yb of [Math.round(y/2)-1,Math.round(y/2),Math.round(y/2)+1]){ const a=R.get(yb); if(a) rp=Math.max(rp,a[b],a[(b+1)%K],a[(b+K-1)%K]); }
+    if(rp+.8>d){ const f=(rp+.8)/d; P[q]=x*f; P[q+2]=cz+z*f; } }
+  return P;
 }
 /* Wo der Körper unter dem Oberteil nicht gezeichnet wird (Avatar-Shader): Rumpf zwischen Saum und Ausschnitt, Arme im Ärmel */
 function otBand(V){

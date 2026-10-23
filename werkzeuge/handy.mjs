@@ -4,7 +4,9 @@
    Erkennung, Rechenzeit je Bild (PERF.ms, mit Tempo-Anpassung wie am Handy), leichtes Modell an/aus, 3D-Auflösung, Nachlauf der
    Hose gegenüber der rohen Erkennung (Kreuzkorrelation Knie-Höhe roh ↔ Knochen der Hose). Video der Bühne nach <aus>.
      node werkzeuge/handy.mjs [--geraet "iPhone 13"|"Pixel 7"] [--cpu 4] [--clip assets/referenz/videos/clips/v1-02_knie-heben-vorne.mp4]
-                              [--sek 12] [--aus docs/nachher/handy]
+                              [--sek 12] [--aus docs/nachher/handy] [--oberteil]
+   --oberteil (22.10.): dazu ein T-Shirt (material/testbilder/oberteile) anziehen; vorher die 3D-Ansicht (Avatar-Körper, Hose,
+   T-Shirt) gedrosselt messen (Bilder/s, Rechenzeit je Bild) und je ein Bild der 3D-Ansicht und der Anprobe sichern.
    Seite: werkzeuge/tests/vergleichsseite.html (node werkzeuge/tests/baue-testseite.mjs --echt). */
 import { chromium, devices } from "playwright";
 import { execFileSync } from "node:child_process";
@@ -62,6 +64,29 @@ for (let t = 0; t < 300; t++) { await p.waitForTimeout(500);
   if (/Fertig/.test(await p.evaluate(() => document.getElementById("drop-msg").innerText)) && await p.evaluate(() => window.__dbg.UP.items.every(i => i.kind !== "wait"))) break; }
 // Drosselung erst für die Anprobe (Bau der Hose und Scan sind einmalig und hier nicht gemessen)
 const cdp = await ctx.newCDPSession(p);
+const OBERTEIL = process.argv.includes("--oberteil"); let ansicht3d = null;
+if (OBERTEIL) {
+  const ob = R + "material/testbilder/oberteile/";
+  await p.setInputFiles("#ot-hinten input", ob + "tshirt_hinten.jpg"); await p.setInputFiles("#ot-vorne input", ob + "tshirt_vorne.jpg");
+  await p.waitForFunction(() => /Fertig|nicht/.test(document.getElementById("ot-msg").textContent), null, { timeout: 120000 }).catch(() => console.log("Oberteil nicht fertig"));
+  await (await p.$("#g3dview")).scrollIntoViewIfNeeded(); await p.waitForTimeout(2500);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU }); await p.waitForTimeout(1500);
+  ansicht3d = await p.evaluate(async () => { const t = []; let l = performance.now(); const t0 = l;
+    await new Promise(res => { const f = n => { t.push(n - l); l = n; if (n - t0 < 4000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+    const s = t.slice(5).sort((a, b) => a - b); return { fps: +(1000 / s[s.length >> 1]).toFixed(1), bild_ms_p90: +s[Math.floor(s.length * .9)].toFixed(1), rechenzeit_ms: +(window.__dbg.v3d.teuer || 0).toFixed(1) }; });
+  // nur JavaScript je Bild (ohne Grafik, die hier in Software rechnet): Haltung von Körper und Oberteil wie live, Oberteil über
+  // der Hose, dazu einmal die Vorlage bauen
+  ansicht3d.js = await p.evaluate(() => { const d = window.__dbg, A = d.otKoerper(), O = d.otAktiv(), V = d.otFuer(O, A), kd = d.AV.kd, med = a => a.sort((x, y) => x - y)[a.length >> 1];
+    const z = { oaL: [.3, -.9, .3], uaL: [.1, -.5, .9], oaR: [-.2, -1, 0], uaR: [-.1, -1, .2], rumpf: [.05, 1, .02] }, th = [], tk = [], tu = [];
+    for (let i = 0; i < 25; i++) { let t = performance.now(); const K = d.avatarKnochen(A.gel, z); d.avatarHaltung(V.gew, V.P, V.N, K, V.n); th.push(performance.now() - t);
+      t = performance.now(); d.avatarHaltung(kd.gew, A.P, null, K, kd.nV); tk.push(performance.now() - t);
+      t = performance.now(); d.otUeberHose(V, 102, { cx: 360, floor: 900, ppc: 4, yw: .4 }); tu.push(performance.now() - t); }
+    let t = performance.now(); d.otVorlage(kd, A, "tshirt", {}); const bau = performance.now() - t;
+    return { oberteil_haltung_ms: +med(th).toFixed(1), koerper_haltung_ms: +med(tk).toFixed(1), ueber_hose_ms: +med(tu).toFixed(1), vorlage_bauen_ms: Math.round(bau) }; });
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+  await (await p.$("#g3dview")).screenshot({ path: OUT + name + "_3d.png" });
+  console.log("3D-Ansicht (Körper, Hose, T-Shirt):", JSON.stringify(ansicht3d));
+}
 await p.evaluate(src => window.__setClip(src), `http://localhost:${port}/clip/scan.webm`);
 await p.click("#start");
 await p.waitForFunction(() => document.getElementById("step-cal").classList.contains("done"), null, { timeout: 60000 }).catch(() => console.log("Scan nicht fertig nach 60 s"));
@@ -69,6 +94,7 @@ await p.click("#clean").catch(() => {});
 await p.evaluate(src => window.__setClip(src), `http://localhost:${port}/clip/bewegung.webm`);
 await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU }); await p.waitForTimeout(1500);
 await (await p.$("#stage")).scrollIntoViewIfNeeded();
+if (OBERTEIL) setTimeout(() => p.$("#stage").then(e => e && e.screenshot({ path: OUT + name + "_anprobe.png" })).catch(() => {}), SEK * 500);
 // Messen: je Bild der Erkennung (Wechsel von __Lraw) Zeit, Knie roh, Knie der Hose (Knochen), PERF
 const { out: daten, t3d: formZeiten } = await p.evaluate(async ms => {
   const out = []; let last = null; const t0 = performance.now(), vh = () => window.__vw ? window.__vw[1] : 1280;
@@ -90,7 +116,7 @@ const lag = s => { const ts = daten.map(d => d.t), r = daten.map(d => d.roh[s]),
   return { ms: best, korr: +bv.toFixed(3), ausschlagRoh: Math.round(amp(r)), ausschlagHose: Math.round(amp(h)) }; };
 const med = a => { const s2 = [...a].sort((x, y) => x - y); return s2[s2.length >> 1]; };
 const eig = daten.map(d => d.eigen).filter(v => v != null), form = formZeiten || [];
-const erg = { geraet: GERAET, cpu: CPU, clip: path.basename(CLIP), bilder: n, fps: +fps.toFixed(1), rechenzeit_ms: n ? Math.round(med(daten.map(d => d.ms))) : null,
+const erg = { geraet: GERAET, cpu: CPU, clip: path.basename(CLIP), oberteil: OBERTEIL, ansicht3d, bilder: n, fps: +fps.toFixed(1), rechenzeit_ms: n ? Math.round(med(daten.map(d => d.ms))) : null,
   eigener_code_ms: eig.length ? { median: +med(eig).toFixed(1), p90: +[...eig].sort((x, y) => x - y)[Math.floor(eig.length * .9)].toFixed(1) } : null,
   form_js_ms: form.length ? { median: +med(form).toFixed(1), p90: +[...form].sort((x, y) => x - y)[Math.floor(form.length * .9)].toFixed(1) } : null,
   aufloesung3d: n ? daten[n - 1].rs : null, leichtesModell: n ? daten[n - 1].lite : null, ausgeblendet: daten.filter(d => d.trk < .5).length,
