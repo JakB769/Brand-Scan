@@ -1453,12 +1453,19 @@ function analyse0(res){
   const nowT=performance.now();
   if(held){ setStatus("Messwert eingefroren","ok"); lvl=null; }
   else if(phase==="cal"){
+    // Avatar-Scan (30.10.): Beine dürfen leicht gebeugt sein (weite Hose verdeckt die Knie, der Winkel springt) und der Körper
+    // etwas schwanken (bis 7 cm): gemessen wird ohnehin der Median vieler Bilder, die Form kommt vor allem aus der Drehung.
+    // Wer 8 s ganz im Bild steht, wird mit dem Median dieser Bilder gescannt. Vorher wurde der Scan in Echtzeit mit dem
+    // Referenzclip (weite Hose, leichtes Schwanken) teils nie fertig: „Bein angewinkelt“ / „In Bewegung“ im Wechsel.
+    const avS=AVS.on&&AVS.stufe==="start";
+    if(avS&&full&&!isSide&&live&&live.hip!=null&&live.shoulder!=null){ AVS.voll.push({...live}); if(AVS.voll.length>120) AVS.voll.shift(); if(!AVS.tVoll) AVS.tVoll=nowT; }
+    if(avS&&AVS.tVoll&&nowT-AVS.tVoll>8000&&AVS.voll.length>=6&&calH){ scanProben.length=0; scanProben.push(...AVS.voll); live=AVS.voll[AVS.voll.length-1]; captureCal(); return; }
     if(!full){ const w=ganzGrund(topN,botN,L,V,nowT);
       setStatus(w||"Für die Maße einmal ganz ins Bild","warn"); big="Weiter zurück"; small=w||"Ganz ins Bild, von Kopf bis Fuß"; voice=w?big+", "+w:big; }
-    else if(!legsOk){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
+    else if(!legsOk&&!avS){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
     else if(!upright){ setStatus("Beine nicht senkrecht","warn"); big="Stell dich gerade hin"; voice=big; }
     else if(vis<.5){ setStatus("Hüfte schlecht sichtbar","warn"); big="Bleib kurz so"; }
-    else if(drift==null||drift>STABLE_CM){ setStatus(drift==null?"Messe …":`In Bewegung, ${drift.toFixed(1)} cm`,"warn"); }
+    else if(drift==null||drift>(avS?7:STABLE_CM)){ setStatus(drift==null?"Messe …":`In Bewegung, ${drift.toFixed(1)} cm`,"warn"); }
     else ok=true;
   }
   else if(!caps.side&&full&&isSide&&tr>.85&&(legs[0].straight||legs[1].straight)&&drift!=null&&drift<=STABLE_CM){
@@ -3202,8 +3209,7 @@ function view3dKick(){ if(!v3d.raf) v3d.raf=requestAnimationFrame(view3dFrame); 
 /* Untertitel der 3D-Ansicht: auch direkt beim Löschen/Laden des Avatars, nicht nur beim nächsten gezeichneten Bild (außerhalb des
    Sichtbereichs zeichnet die Ansicht nicht und der Text blieb stehen) */
 function view3dSub(G=g.key&&GARMENTS[g.key]){
-  if(!G&&!otAktiv()) return;
-  if(!G){ const t=(avatarAktiv()?`Dein Avatar (${Math.round(AV.form.H)} cm)`:"Standardkörper in deiner Größe")+" · ziehen zum Drehen"+(otAktiv().backEst?" · Rückseite geschätzt (aus dem Stoff der Vorderseite)":"");
+  if(!G){ const O=otAktiv(), t=(avatarAktiv()?`Dein Avatar (${Math.round(AV.form.H)} cm)`:"Standardkörper in deiner Größe")+" · ziehen zum Drehen"+(O&&O.backEst?" · Rückseite geschätzt (aus dem Stoff der Vorderseite)":"");
     if($("g3dSub").textContent!==t) $("g3dSub").textContent=t; return; }
   const sub=(avatarAktiv()?`Dein Avatar (${Math.round(AV.form.H)} cm) · ziehen zum Drehen, zwei Finger, + und − oder Strg + Mausrad zum Zoomen`:"3D-Modell an einer Puppe in deiner Größe · ziehen zum Drehen")+(G.backEst?" · Rückseite geschätzt (kein Foto von hinten)":"");
   if($("g3dSub").textContent!==sub) $("g3dSub").textContent=sub;
@@ -3325,7 +3331,7 @@ function view3dFrame0(now){
   if((v3d.teuer||0)>12&&!v3d.drag&&!v3d.pinch&&v3d.ziel==null&&!v3d.ausgelassen){ v3d.ausgelassen=true; view3dKick(); return; }
   v3d.ausgelassen=false; const tF=performance.now(), teuer=()=>{ v3d.teuer=.8*(v3d.teuer||0)+.2*(performance.now()-tF); };
   const box=$("g3dbox"), cvs=$("g3dview"), G=g.key&&GARMENTS[g.key], O=otAktiv(), hose=!!(G&&G.m3&&!G.bad);
-  const show=!!((hose||O)&&!running&&init3d());
+  const show=!!((hose||O||AV.form||AV.rechnet||AV.fehler)&&!running&&init3d());
   box.hidden=!show; $("g3dcard").hidden=!show; if(!show||!v3d.vis) return;
   view3dSub(hose?G:null);
   const dt=clamp((now-(v3d.last||now))/1000,0,.1); v3d.last=now;
@@ -3416,8 +3422,11 @@ function avatarDaten(){
         gew:M.gew?{i:new Uint8Array(bin,M.gew.i,M.nV*4),w:new Uint8Array(bin,M.gew.w,M.nV*4),gruppen:M.gruppen}:null};
       delete window.PASSFORM_KOERPER; ok(AV.kd); }catch(e){ AV.laed=null; no(e); } };
     if(window.PASSFORM_KOERPER) return fertig();
-    const sc=document.createElement("script"); sc.src=window.PASSFORM_AVATAR_URL||"avatar/koerper.js"; sc.async=true;
-    sc.onload=fertig; sc.onerror=()=>{ AV.laed=null; no(new Error("Körpermodell nicht geladen")); }; document.head.appendChild(sc); });
+    // erst avatar/koerper.js, sonst koerper.js direkt neben der Seite (Dateien flach hochgeladen, z. B. Netlify Drop ohne Unterordner)
+    const wege=window.PASSFORM_AVATAR_URL?[window.PASSFORM_AVATAR_URL]:["avatar/koerper.js","koerper.js"];
+    const lade=i=>{ const sc=document.createElement("script"); sc.src=wege[i]; sc.async=true; sc.onload=fertig;
+      sc.onerror=()=>{ sc.remove(); if(i+1<wege.length) lade(i+1); else { AV.laed=null; no(new Error("Körpermodell nicht geladen (avatar/koerper.js fehlt)")); } }; document.head.appendChild(sc); };
+    lade(0); });
 }
 /* Form aus Geschlecht g ("m"/"f") und Reglern p (je −1…1), cm, Y oben, Z vorn, Füße auf 0, noch nicht auf die Größe skaliert */
 function avatarRoh(kd,g,p,P){
@@ -4061,7 +4070,7 @@ function avatarScanLos(){
   $("avDlg").hidden=true;
   // Größe wie von Hand eingetragen: gespeichert, Testpersonen-Markierung, Größenauswahl
   if($("height").value.trim()!==String(H)){ $("height").value=String(H); for(const t of ["input","change"]) $("height").dispatchEvent(new Event(t)); }
-  Object.assign(AVS,{on:true,stufe:"start",H,proben:{vorn:[],hinten:[],seiteL:[],seiteR:[]},bins:new Set(),ly:null,lt:0,w:0,t0:0,farben:{haut:[],haare:[],oberteil:[],fuss:[]}});
+  Object.assign(AVS,{on:true,stufe:"start",H,proben:{vorn:[],hinten:[],seiteL:[],seiteR:[]},bins:new Set(),ly:null,lt:0,w:0,t0:0,voll:[],tVoll:0,farben:{haut:[],haare:[],oberteil:[],fuss:[]}});
   AV.fehler=""; avatarUI();
   // Körpermodell schon laden, während man sich hinstellt; fehlt es (z. B. nur index.html hochgeladen), gleich abbrechen statt
   // nach der ganzen Drehung
@@ -4163,13 +4172,22 @@ function avatarLaengen(z){
    80 cm, Empfehlung W38 statt W32). Er gilt dann nur als Obergrenze: Kleidung macht breiter, nie schmaler; darunter der
    Durchschnittskörper derselben Größe. */
 const avatarLose=z=>z.kneeW>0&&z.thighW>0&&(z.kneeW/z.thighW>.8||z.kneeW>.08*z.H);
+/* Zweites Merkmal (30.10.), unabhängig von den Knien (bei leicht gebeugten Beinen fehlen Knie und Oberschenkel): Umriss an Taille
+   und Hüfte deutlich breiter als beim Durchschnittskörper derselben Größe (über 25 % bzw. 20 %, geeicht wie der Scan), der nackte
+   Unterarm aber nicht dicker (höchstens 10 %). Ein schwerer Körper hat auch dickere Unterarme, weite Kleidung nicht. Ohne dieses
+   Merkmal galt die Silhouette einer Baggy-Jeans als Körper (Echtzeit-Lauf mit dem Referenzclip: Taille 110 statt etwa 74 cm). */
+function avatarLoseArme(z,kd,g){
+  if(!(z.foreW>0)) return false; const m0=avatarBauen(kd,g,{},z.H).m, E=AV_EICH;
+  const breit=z.waistW>1.25*E.waistW[0]*m0.waistW&&z.hipW>1.2*E.hipW[0]*m0.hipW;   // beides: weite Kleidung macht Taille und Hüfte breiter
+  return breit&&z.foreW<=1.1*E.foreW[0]*m0.foreW;
+}
 async function avatarScanFertig(){
   AVS.stufe="rechnen"; const z=avatarScanZiele(), g=AVS.g, H=AVS.H, farben=avatarFarbenFertig(AVS.farben); AVS.farben=null;   // vor dem Warten festhalten (neuer Scan könnte beginnen)
   AVS.on=false; endTryon();                            // Kamera aus (auch Shop-Vollbild): Bilder sind verworfen, nur die Zahlen bleiben
   AVS.stufe=""; AV.fehler=""; AV.rechnet=true; avatarUI(); $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"});
   await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,30)));   // „wird berechnet“ erst zeigen, dann rechnen
   try{
-    const kd=await avatarDaten(), lose=avatarLose(z), zf={...z}, kamera=avatarLaengen(zf);
+    const kd=await avatarDaten(), lose=avatarLose(z)||avatarLoseArme(z,kd,g), zf={...z}, kamera=avatarLaengen(zf);
     // weite Kleidung: Umriss nur als Obergrenze (avatarAnpassen); vorher wurde jede Zone durch den Durchschnittskörper ersetzt
     const f=avatarAnpassen(kd,g,zf,lose), A=avatarBauen(kd,g,f.p,H);
     const r1=x=>Math.round(x*10)/10, m=Object.fromEntries(Object.entries(A.m).map(([k,v])=>[k,r1(v)]));
@@ -4205,10 +4223,20 @@ function avatarUI(){
   for(const e of document.querySelectorAll(".avansicht")) e.hidden=!ak;
   const t=AV.rechnet?"Dein Avatar wird berechnet …":AV.fehler?AV.fehler:[
     da&&!ak&&!v3d.ohneAvatar?`Dein Avatar ist für ${Math.round(AV.form.H)} cm, eingetragen sind ${$("height").value.trim()} cm: hier die Puppe. Größe auf ${Math.round(AV.form.H)} cm stellen oder neu scannen.`:"",
-    D.lose?"Weite Kleidung beim Scan erkannt: Hüfte, Oberschenkel und Knie sind geschätzt, nicht gemessen. Für genaue Maße in enger Kleidung (Leggings, enges Shirt) neu scannen.":"",
+    da&&ak&&!AV.rechnet?avatarUnterschied():"",
+    D.lose?"Weite Kleidung beim Scan erkannt: Brust, Taille, Hüfte und Beine sind nur nach oben begrenzt; die Form kommt aus Schultern, Längen und Armen. Für genaue Umfänge in enger Kleidung (Leggings, enges Shirt) neu scannen.":"",
     D.kamera?"Die Beine wirkten unnatürlich lang oder kurz, die Kamera stand wohl zu tief oder schräg: Längen auf übliche Werte begrenzt. Für genaue Längen das Handy auf Hüfthöhe stellen und neu scannen.":"",
     D.ohneTiefe?"Keine Seitenansicht beim Scan: die Tiefe von Taille und Hüfte ist geschätzt. Für genaue Maße beim Drehen ganz zur Seite drehen.":""].filter(Boolean).join(" ");
   $("avMsg").hidden=!t; $("avMsg").textContent=t;
+}
+/* Was der Scan am Körper verändert hat (30.10.): Maße des Avatars gegen den Durchschnittskörper derselben Größe und desselben
+   Geschlechts. Ohne diese Zeile sah der Avatar für den Nutzer wie „ein Standard-Modell“ aus (gleiches Gesicht, gleiche Haltung). */
+function avatarUnterschied(){
+  if(!AV.form||!AV.kd) return "";
+  const A=AV.form, k=A.g+A.H; if(!(AV.stdM&&AV.stdM.k===k)) AV.stdM={k,m:avatarBauen(AV.kd,A.g,{},A.H).m};
+  const S=AV.stdM.m, M=A.m, r=x=>Math.round(x), z=[["Schultern","shoulder"],["Brust","chest"],["Taille","waist"],["Hüfte","hip"],["Beinlänge","leg"]]
+    .filter(([,q])=>M[q]>0&&S[q]>0).map(([n,q])=>`${n} ${r(M[q])} (${r(S[q])})`);
+  return `Aus deinem Scan, in Klammern der Durchschnitt bei ${r(A.H)} cm: ${z.join(" · ")} cm.`;
 }
 /* ---------- Blickrichtung: wohin zeigt die Vorderseite der Person? ---------- */
 /* Betrag der Drehung aus der sichtbaren Schulter- und Hüftbreite, die Richtung aus Füßen, Nase und Tiefe.
@@ -8299,8 +8327,9 @@ $("avHosen").addEventListener("produkt-gewaehlt",e=>{ const d=e.detail||{}; if(d
 // zweiter Einstieg: eigener Avatar (vorhanden: zur Ansicht; sonst scannen). Ohne gewählte Hose die erste nehmen.
 $("avOption").addEventListener("click",()=>{
   if(!g.key){ const k=Object.keys(GARMENTS).find(k=>GARMENTS[k].m3&&!GARMENTS[k].bad); if(k) pickGarment(k,false); }
-  if(!g.key){ showError("Für den Avatar zuerst unten eine Hose anlegen (Fotos hineinziehen oder Link einfügen)."); return; }
-  if(avatarAktiv()){ view3dKick(); $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"}); return; }
+  // ohne Hose geht es auch (30.10.): der Avatar steht dann allein oder mit Oberteil in der 3D-Ansicht. Vorher hieß es hier
+  // „zuerst eine Hose anlegen“ und der Scan begann gar nicht.
+  if(avatarAktiv()){ view3dKick(); $("g3dcard").hidden=false; $("g3dbox").hidden=false; $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"}); return; }
   avatarScanStart(); });
 loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,parseSizeText:typeof parseSizeText!=="undefined"?parseSizeText:null,sizeSeries:typeof sizeSeries!=="undefined"?sizeSeries:null,tableDims:typeof tableDims!=="undefined"?tableDims:null,PERF:typeof PERF!=="undefined"?PERF:null,HIPF:typeof HIPF!=="undefined"?HIPF:null,segGarment:typeof segGarment!=="undefined"?segGarment:null,findReference:typeof findReference!=="undefined"?findReference:null,refFarbe:typeof refFarbe!=="undefined"?refFarbe:null,orderQuad:typeof orderQuad!=="undefined"?orderQuad:null,scaleCanvas:typeof scaleCanvas!=="undefined"?scaleCanvas:null,readPhotoMeta:typeof readPhotoMeta!=="undefined"?readPhotoMeta:null,levelBySensor:typeof levelBySensor!=="undefined"?levelBySensor:null,isSkin:typeof isSkin!=="undefined"?isSkin:null,kmeans:typeof kmeans!=="undefined"?kmeans:null,fileToCanvas:typeof fileToCanvas!=="undefined"?fileToCanvas:null,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null,wornMask:typeof wornMask!=="undefined"?wornMask:null,wornSeeds:typeof wornSeeds!=="undefined"?wornSeeds:null,loadAiSeg:typeof loadAiSeg!=="undefined"?loadAiSeg:null,cropGarment:typeof cropGarment!=="undefined"?cropGarment:null,findGaps:typeof findGaps!=="undefined"?findGaps:null,flatSideScore:typeof flatSideScore!=="undefined"?flatSideScore:null,GEN:typeof GEN!=="undefined"?GEN:null,legCm:typeof legCm!=="undefined"?legCm:null,clearSm:typeof clearSm!=="undefined"?clearSm:null,trk:typeof trk!=="undefined"?trk:null,sizeAll:typeof sizeAll!=="undefined"?sizeAll:null,sizeVerdict:typeof sizeVerdict!=="undefined"?sizeVerdict:null,sizeReason:typeof sizeReason!=="undefined"?sizeReason:null,bodyMeas:typeof bodyMeas!=="undefined"?bodyMeas:null,sizeGarment:typeof sizeGarment!=="undefined"?sizeGarment:null,cutOf:typeof cutOf!=="undefined"?cutOf:null,AUS:typeof AUS!=="undefined"?AUS:null,AV:typeof AV!=="undefined"?AV:null,AVS:typeof AVS!=="undefined"?AVS:null,avatarAnpassen:typeof avatarAnpassen!=="undefined"?avatarAnpassen:null,avatarBauen:typeof avatarBauen!=="undefined"?avatarBauen:null,avatarDaten:typeof avatarDaten!=="undefined"?avatarDaten:null,avatarAnzeigen:typeof avatarAnzeigen!=="undefined"?avatarAnzeigen:null,avMasse:typeof avMasse!=="undefined"?avMasse:null,avatarScanZiele:typeof avatarScanZiele!=="undefined"?avatarScanZiele:null,OT:typeof OT!=="undefined"?OT:null,segGarment0:typeof segGarment0!=="undefined"?segGarment0:null,otLoecherZu:typeof otLoecherZu!=="undefined"?otLoecherZu:null,otFotoProfil:typeof otFotoProfil!=="undefined"?otFotoProfil:null,otTabelle:typeof otTabelle!=="undefined"?otTabelle:null,otUrteil:typeof otUrteil!=="undefined"?otUrteil:null,otKoerper:typeof otKoerper!=="undefined"?otKoerper:null,otFuer:typeof otFuer!=="undefined"?otFuer:null,otAktiv:typeof otAktiv!=="undefined"?otAktiv:null,avatarKnochen:typeof avatarKnochen!=="undefined"?avatarKnochen:null,avatarHaltung:typeof avatarHaltung!=="undefined"?avatarHaltung:null,otUeberHose:typeof otUeberHose!=="undefined"?otUeberHose:null,otVorlage:typeof otVorlage!=="undefined"?otVorlage:null,v3d:typeof v3d!=="undefined"?v3d:null,caps:typeof caps!=="undefined"?caps:null,garmentDims:typeof garmentDims!=="undefined"?garmentDims:null}; buildPicker(); renderSeries(); loadSharedGarments().then(wolkeStart); otInit();
 avatarUI(); { const a=avatarGespeichert(); if(a) avatarAnzeigen(a).catch(e=>console.warn("Avatar",e)); }   // gespeicherter Avatar

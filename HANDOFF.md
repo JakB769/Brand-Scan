@@ -1,6 +1,6 @@
 # HANDOFF – Passform (Live-Anprobe für Hosen, Shopify-App)
 
-Stand: 22.10.2026 abends (Oberteile, Avatar aus dem Scan, Sitz-Metadaten). Antworten an den Nutzer auf Deutsch.
+Stand: 30.10.2026 (Avatar-Selbst-Scan in Echtzeit repariert; davor 22.10.: Oberteile, Avatar aus dem Scan, Sitz-Metadaten). Antworten auf Deutsch.
 
 ## Repo und Branches
 - Repo: https://github.com/JakB769/Brand-Scan
@@ -86,6 +86,13 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
 - Testreihe: 43 von 45 grün (Gesamtlauf 19.10.).
 
 ## Kaputt / offen
+- **Avatar-Selbst-Scan in Echtzeit (30.10., `werkzeuge/avatar-echtzeit.mjs`)**: Mit Referenzclip als Kamera in Echtzeit wurde der
+  Frontal-Scan teils nie fertig (weite Hose: „Bein angewinkelt“, Schwanken > 3,2 cm). Jetzt im Avatar-Modus: leicht gebeugte Beine
+  erlaubt, Schwanken bis 7 cm, nach 8 s ganz im Bild Scan mit dem Median dieser Bilder (`AVS.voll`). Weite Kleidung auch ohne Knie
+  erkannt (`avatarLoseArme`: Taille und Hüfte viel breiter als der Durchschnitt, Unterarm nicht). Avatar geht auch ohne Hose
+  (vorher „zuerst eine Hose anlegen“). Unter der Ansicht steht, was der Scan verändert hat (`avatarUnterschied`). Körpermodell wird
+  auch als `koerper.js` direkt neben der Seite gefunden (flach hochgeladen). Netlify zeigt diese Stände erst, wenn sie auf dem
+  dort verbundenen Branch liegen.
 - **Avatar-Scan**: in weiter Kleidung bestimmen Längen, Schultern und Arme die Form, Umfänge sind dann nur nach oben begrenzt (nicht gemessen).
   Eichung an gerenderten Körpern, nicht an echten Personen; Brust von vorn unzuverlässig (Arme liegen an). Kamera am Boden streckt die
   Beine (begrenzt); Fußfarbe oft nicht bestimmbar. Mit echten Personen gegen Maßband prüfen.
