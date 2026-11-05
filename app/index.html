@@ -2047,6 +2047,24 @@ function reliefMap(c){
 }
 /* Vorder- und Rückfoto sind zwei Aufnahmen mit eigener Belichtung: Rückseite (rechte Atlashälfte) in Helligkeit und
    Kontrast an die Vorderseite angleichen, aber nicht ganz, damit echte Unterschiede (andere Taschen) bleiben */
+/* Normal-Map aus dem Stoffbild (05.11.): Höhe = Helligkeit minus ihr Mittel in der Umgebung, in zwei Größen (Gewebe 1–3 Punkte,
+   kleine Falten bis etwa 12 Punkte); dunkel = tiefer. Stärke nach Stoff (Relief bump der Stoffart: Cord, Denim kräftiger,
+   Anzugstoff und fließende Stoffe feiner). Kodiert wie in glTF üblich (Tangentenraum, +Y nach oben im Bild). */
+function normalAtlas(cv,fab){
+  const W=cv.width,H=cv.height, d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,W,H).data, L=new Float32Array(W*H);
+  for(let i=0;i<W*H;i++) L[i]=(.2126*d[i*4]+.7152*d[i*4+1]+.0722*d[i*4+2])/255;
+  const blur=(A,r)=>{ const T=new Float32Array(W*H), O=new Float32Array(W*H);
+    for(let y=0;y<H;y++){ let s=0; for(let x=-r;x<=r;x++) s+=A[y*W+clamp(x,0,W-1)]; for(let x=0;x<W;x++){ T[y*W+x]=s/(2*r+1); s+=A[y*W+clamp(x+r+1,0,W-1)]-A[y*W+clamp(x-r,0,W-1)]; } }
+    for(let x=0;x<W;x++){ let s=0; for(let y=-r;y<=r;y++) s+=T[clamp(y,0,H-1)*W+x]; for(let y=0;y<H;y++){ O[y*W+x]=s/(2*r+1); s+=T[clamp(y+r+1,0,H-1)*W+x]-T[clamp(y-r,0,H-1)*W+x]; } }
+    return O; };
+  // Rauschen des Fotos (JPEG, Sensor) erst glätten (1 Punkt), sonst wird es zu Pickeln („Orangenhaut“)
+  const L1=blur(L,1), b3=blur(L1,3), b14=blur(L1,14), hgt=new Float32Array(W*H), k=clamp((fab&&fab.bump||3)/3,.5,1.6);
+  for(let i=0;i<W*H;i++){ const m=b14[i]||1e-3; hgt[i]=((L1[i]-b3[i])*.45+(b3[i]-b14[i])*.9)/Math.max(.1,m); }   // relativ zur Helligkeit: dunkle Stoffe gleich stark
+  const c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d"), D=x.createImageData(W,H), o=D.data, s=.9*k;
+  for(let y=0;y<H;y++) for(let xx=0;xx<W;xx++){ const i=y*W+xx, gx=(hgt[y*W+Math.min(W-1,xx+1)]-hgt[y*W+Math.max(0,xx-1)])*s, gy=(hgt[Math.max(0,y-1)*W+xx]-hgt[Math.min(H-1,y+1)*W+xx])*s;
+    const l=Math.hypot(gx,gy,1); o[i*4]=Math.round((-gx/l*.5+.5)*255); o[i*4+1]=Math.round((-gy/l*.5+.5)*255); o[i*4+2]=Math.round((1/l*.5+.5)*255); o[i*4+3]=255; }
+  x.putImageData(D,0,0); return c;
+}
 function matchHalves(im){
   const c=document.createElement("canvas"); c.width=im.width; c.height=im.height;
   const x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(im,0,0);
@@ -2090,9 +2108,16 @@ function mesh3d(key,M){
     const L=(s===0)!==!!M.mir;                       // mir: Modell aus einem Foto auf dem Kopf, links/rechts getauscht
     const fr=L?[F[2],F[3]]:[F[1],F[0]], bk=L?[B[1],B[0]]:[B[2],B[3]];
     const below=i>=ic, dcm=below?(M.v[i]-M.vc):0;
+    // Schrittbogen (05.11.): in der Mitte (Schlitz, hintere Naht) läuft der unterste Teil der flachen Leibhöhe gestaucht zwischen die
+    // Beine (pose3d: einrollen, bogenSenkrecht); die Textur wurde mit gestaucht und lag vorn am Schritt als Querstreifen. Jetzt folgt
+    // sie innen der Höhe am Körper (gleichmäßig über die sichtbare Leibhöhe), außen (Seitennaht, kein Bogen) wie bisher.
+    const vIn=M.rock||M.v[i]>=M.vc?M.v[i]:(()=>{ const v0=M.vc*(1-PASSFORM.einrollen), bg=PASSFORM.bogenSenkrecht, den=v0+(M.vc-v0)*bg, v=M.v[i];
+      return M.vc*(v<=v0?v:v0+(v-v0)*bg)/den; })();
+    const tvAt=(A,v)=>{ let a=0; while(a<NR-2&&M.v[a+1]<v) a++; const w=clamp((v-M.v[a])/((M.v[a+1]-M.v[a])||1),0,1); return A[a]+(A[a+1]-A[a])*w; };
+    const tvF=[tvAt(M.tv,vIn),tvAt(M.tvb||M.tv,vIn)];
     for(let f=0;f<2;f++) for(let j=0;j<C;j++){
-      const t=j/K3, e=f?bk:fr, k=id(s,i,f,j);
-      uv[k*2]=e[0]+(e[1]-e[0])*t; uv[k*2+1]=(f&&M.tvb?M.tvb:M.tv)[i]; duj[k]=(e[1]-e[0])/K3;
+      const t=j/K3, e=f?bk:fr, k=id(s,i,f,j), wO=sstep(.15,1,t), tvR=(f&&M.tvb?M.tvb:M.tv)[i];
+      uv[k*2]=e[0]+(e[1]-e[0])*t; uv[k*2+1]=tvF[f&&M.tvb?1:0]*(1-wO)+tvR*wO; duj[k]=(e[1]-e[0])/K3;
       // dieselbe Stelle auf der anderen Seite der Hose: an der Naht (t=1) treffen sich beide, dort halb und halb
       const o=f?fr:bk; uv2[k*2]=o[0]+(o[1]-o[0])*t; uv2[k*2+1]=(!f&&M.tvb?M.tvb:M.tv)[i]; sd[k]=.5*sstep(.72,1,t);
       // innen am Oberschenkel etwas dunkler, am Bund ein Hauch Schatten
@@ -3166,7 +3191,9 @@ async function exportGLB(){
     let nx=g3.nor[i*3], ny=-g3.nor[i*3+1], nz=-g3.nor[i*3+2]; const l=Math.hypot(nx,ny,nz);
     if(l>1e-6){ nx/=l; ny/=l; nz/=l; } else { nx=0; ny=1; nz=0; }
     Nn.set([nx,ny,nz],i*3); UV[i*2]=g3.uvs[i*2]; UV[i*2+1]=g3.uvs[i*2+1];
-    const a=clamp(Math.abs(g3.aoArr[i*2])*(g3.aoArr[i*2]<0?.8:1),0,1); CO.set([a,a,a],i*3);
+    // außen nur halb so viel eingebackener Schatten: Betrachter (Shop, Blender) schattieren selbst, doppelt lag ein dunkles Band
+    // quer über dem Schritt (05.11.). Innenseiten bleiben dunkel.
+    const o=g3.aoArr[i*2], a=o<0?clamp(-o*.8,0,1):1-(1-clamp(o,0,1))*.5; CO.set([a,a,a],i*3);
   }
   // Normalen der Hosenwand nach außen (weg von der Mitte ihres Rings), Dreiecke im Gegenuhrzeigersinn dazu. In der Seite ist das
   // egal (die Darstellung dreht abgewandte Flächen selbst um), Blender und andere Programme zeigten das gespiegelte Bein schwarz.
@@ -3180,15 +3207,18 @@ async function exportGLB(){
       const fx=uy*vz-uz*vy, fy=uz*vx-ux*vz, fz=ux*vy-uy*vx, nx=Nn[a]+Nn[b]+Nn[c], ny=Nn[a+1]+Nn[b+1]+Nn[c+1], nz=Nn[a+2]+Nn[b+2]+Nn[c+2];
       if(fx*nx+fy*ny+fz*nz<0){ const h=idx[t+1]; idx[t+1]=idx[t+2]; idx[t+2]=h; } } }
   const im=await new Promise((res,rej)=>{ const m=new Image(); m.onload=()=>res(m); m.onerror=rej; m.src=G.m3.atlas; });
-  const jpg=new Uint8Array(await (await new Promise(r=>matchHalves(im).toBlob(r,"image/jpeg",.9))).arrayBuffer());
-  const parts=[Pp,Nn,UV,CO,idx,jpg], views=[]; let off=0;
+  const farbe=matchHalves(im), jpg=new Uint8Array(await (await new Promise(r=>farbe.toBlob(r,"image/jpeg",.9))).arrayBuffer());
+  // Stoffstruktur (05.11.): Normal-Map aus dem Foto (Webstruktur, Köper, kleine Falten), damit das Licht in jedem Betrachter
+  // (Shopify, Blender, three.js) die Oberfläche zeigt statt einer glatten Fläche mit aufgemaltem Foto
+  const nrm=new Uint8Array(await (await new Promise(r=>normalAtlas(farbe,V.fab).toBlob(r,"image/jpeg",.92))).arrayBuffer());
+  const parts=[Pp,Nn,UV,CO,idx,jpg,nrm], views=[]; let off=0;
   for(const a of parts){ views.push({buffer:0,byteOffset:off,byteLength:a.byteLength}); off+=Math.ceil(a.byteLength/4)*4; }
   views[0].target=views[1].target=views[2].target=views[3].target=34962; views[4].target=34963;
   const fab=V.fab, json={asset:{version:"2.0",generator:"Passform Live-Anprobe"},scene:0,scenes:[{nodes:[0]}],
     nodes:[{mesh:0,name:G.label}],
     meshes:[{name:G.label,primitives:[{attributes:{POSITION:0,NORMAL:1,TEXCOORD_0:2,COLOR_0:3},indices:4,material:0}]}],
-    materials:[{name:fab.name,doubleSided:true,pbrMetallicRoughness:{baseColorTexture:{index:0},metallicFactor:0,roughnessFactor:clamp(.95-fab.gloss*1.5,.4,.95)}}],
-    textures:[{sampler:0,source:0}],samplers:[{magFilter:9729,minFilter:9987,wrapS:33071,wrapT:33071}],images:[{bufferView:5,mimeType:"image/jpeg"}],
+    materials:[{name:fab.name,doubleSided:true,normalTexture:{index:1,scale:1},pbrMetallicRoughness:{baseColorTexture:{index:0},metallicFactor:0,roughnessFactor:clamp(.95-fab.gloss*1.5,.4,.95)}}],
+    textures:[{sampler:0,source:0},{sampler:0,source:1}],samplers:[{magFilter:9729,minFilter:9987,wrapS:33071,wrapT:33071}],images:[{bufferView:5,mimeType:"image/jpeg"},{bufferView:6,mimeType:"image/jpeg"}],
     accessors:[{bufferView:0,componentType:5126,count:n,type:"VEC3",min:lo,max:hi},{bufferView:1,componentType:5126,count:n,type:"VEC3"},
       {bufferView:2,componentType:5126,count:n,type:"VEC2"},{bufferView:3,componentType:5126,count:n,type:"VEC3"},
       {bufferView:4,componentType:5123,count:idx.length,type:"SCALAR"}],
@@ -4513,8 +4543,30 @@ function finishMask(m,w,h){
 /* Kleidungsstück vom Hintergrund trennen */
 /* Hose vom Untergrund trennen: Farb-Freistellung, und wenn die KI geladen ist, zusätzlich die KI. Sind beide sich
    einig, gilt die Farbkante (pixelgenau); sind sie uneinig, die KI (sie scheitert nicht an Mustern und ähnlichen Farben). */
+/* Maskenränder säubern (05.11.): Shop-Fotos (H&M-Jeans, Anzughose) haben neben der Hose einen weichen grauen Schatten, den die
+   Freistellung als Stoff mitnimmt. Er lag dann als heller Streifen auf der Seitennaht (die äußersten Spalten des Fotos werden dort
+   breit gezogen) und machte die Hose etwas breiter. Je Zeile und Teilstück: Randpunkte, die nicht klar Stoff sind (Abstand zum
+   Stoff der Zeile über 35 % des Abstands Stoff ↔ Hintergrund; Hintergrund = Median außerhalb der Maske), fallen weg, höchstens
+   8 % der Breite je Seite. Nur bei deutlichem Kontrast (Abstand über 60). */
+function maskeSaeubern(cv,S){
+  if(window.__ohneSaeubern||!S||!S.m||S.w!==cv.width||S.h!==cv.height) return S;
+  const {w,h}=S, m=S.m.slice(), d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data, bg=[0,0,0];
+  { const q=[[],[],[]]; for(let i=0;i<w*h;i+=11) if(!m[i]) for(let c=0;c<3;c++) q[c].push(d[i*4+c]); for(let c=0;c<3;c++){ q[c].sort((a,b)=>a-b); bg[c]=q[c].length?q[c][q[c].length>>1]:255; } }
+  // nur auf ruhigem, hellem Studiohintergrund (Shopfoto); auf Boden/Teppich mit Karte (Maßfotos) wirkte es auf die Messung
+  { let sa=0,n=0; for(let i=0;i<w*h;i+=11) if(!m[i]){ sa+=Math.abs(d[i*4]-bg[0])+Math.abs(d[i*4+1]-bg[1])+Math.abs(d[i*4+2]-bg[2]); n++; }
+    if((bg[0]+bg[1]+bg[2])/3<170||sa/Math.max(1,n)>30) return S; }
+  const dist=(i,c)=>Math.hypot(d[i*4]-c[0],d[i*4+1]-c[1],d[i*4+2]-c[2]); let weg=0;
+  for(let y=S.y0;y<S.y1;y++){ const o=y*w; let x0=-1;
+    for(let x=S.x0;x<=S.x1;x++){ const on=x<S.x1&&m[o+x]; if(on&&x0<0) x0=x; if(!on&&x0>=0){ const x1=x-1, n=x1-x0+1;
+        if(n>10){ const fab=[0,0,0]; let fn=0; for(let k=x0+Math.floor(n*.3);k<=x1-Math.floor(n*.3);k++){ for(let c=0;c<3;c++) fab[c]+=d[(o+k)*4+c]; fn++; }
+          for(let c=0;c<3;c++) fab[c]/=Math.max(1,fn);
+          const dBF=Math.hypot(bg[0]-fab[0],bg[1]-fab[1],bg[2]-fab[2]), lim=Math.round(n*.08), stoff=i=>dist(i,fab)<=.35*dBF;
+          if(dBF>60){ for(let k=0;k<lim&&!stoff(o+x0+k);k++){ m[o+x0+k]=0; weg++; } for(let k=0;k<lim&&!stoff(o+x1-k);k++){ m[o+x1-k]=0; weg++; } } }
+        x0=-1; } } }
+  return weg?{...S,m,gesaeubert:weg}:S;
+}
 function segGarment(cv){
-  const S=segGarment0(cv);
+  const S=maskeSaeubern(cv,segGarment0(cv));
   if(S&&!S.pre) try{ const B=bodenImSpalt(cv,S); if(B!==S){ for(const k of ["ki","iou","fused"]) if(S[k]!==undefined) B[k]=S[k]; B.boden=true; return B; } }catch(e){ console.warn("Spalt",e); }
   return S;
 }

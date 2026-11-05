@@ -86,6 +86,14 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
 - Testreihe: 43 von 45 grün (Gesamtlauf 19.10.).
 
 ## Kaputt / offen
+- **Fotorealistische Hose (05.11., `werkzeuge/hose-render.mjs`)**: Ziel 1:1 wie das Foto, Maßstab KI-Referenz (Image-to-3D).
+  KI-Referenz fehlt: Hugging-Face-Spaces TRELLIS und Hunyuan3D-2 anonym ohne GPU-Kontingent; braucht `HF_TOKEN` als
+  Umgebungsvariable (neue Sitzung). Erledigt: heller Streifen an der Seitennaht (Schatten neben der Hose aus der Freistellung,
+  `maskeSaeubern`, nur auf hellem Studiohintergrund), Streifen im Schritt (Textur folgt dem Schrittbogen, `mesh3d`), Stoffstruktur
+  als Normal-Map in der .glb (`normalAtlas`), eingebackener Schatten in der .glb halbiert. Offen: dunkles Querband im Schritt
+  (aus der Textur, nicht Licht), Saum ohne Schuh in der .glb ein Wulst, keine geometrischen Falten/Bügelfalte, Anzughose
+  schmaler als im Foto, Bundfalten fehlen. Testhosen: Anzughose (Fotos vorne/hinten) und H&M-Jeans (nur Vorderseite) liegen nicht
+  im Repo (fremde Fotos). `tfreistellung` war schon vorher rot (Test lädt nur einen Teil der Funktionen, fehlt `aiSeg`).
 - **Avatar-Selbst-Scan in Echtzeit (30.10., `werkzeuge/avatar-echtzeit.mjs`)**: Mit Referenzclip als Kamera in Echtzeit wurde der
   Frontal-Scan teils nie fertig (weite Hose: „Bein angewinkelt“, Schwanken > 3,2 cm). Jetzt im Avatar-Modus: leicht gebeugte Beine
   erlaubt, Schwanken bis 7 cm, nach 8 s ganz im Bild Scan mit dem Median dieser Bilder (`AVS.voll`). Weite Kleidung auch ohne Knie
