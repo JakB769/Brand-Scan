@@ -51,7 +51,12 @@ const piv=new T.Group(); m.position.sub(c); m.position.y+=sz.y/2; const sk=1/sz.
 let tri=0; m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; tri+=(o.geometry.index?o.geometry.index.count:o.geometry.attributes.position.count)/3;
   const mm=Array.isArray(o.material)?o.material:[o.material]; for(const q of mm){ q.side=T.DoubleSide;
     // Fehlersuche: --ohne schatten,farbe,normal,textur
-    if(OH.includes("farbe")) q.vertexColors=false; if(OH.includes("normal")) q.normalMap=null; if(OH.includes("textur")) q.map=null; q.needsUpdate=true; }
+    if(OH.includes("farbe")) q.vertexColors=false; if(OH.includes("normal")) q.normalMap=null; if(OH.includes("textur")) q.map=null; if(OH.includes("grau")){ q.map=null; q.color=new T.Color(.25,.3,.45); }
+    if(OH.includes("uv")&&q.map){ const c=document.createElement("canvas"); c.width=c.height=1024; const x=c.getContext("2d"); x.font="bold 22px sans-serif";
+      for(let i=0;i<16;i++) for(let j=0;j<16;j++){ x.fillStyle=\`hsl(\${i*22},80%,\${35+(j%2)*25}%)\`; x.fillRect(j*64,i*64,64,64); x.fillStyle="#fff"; x.fillText(i.toString(16)+j.toString(16),j*64+14,i*64+40); }
+      const t=new T.CanvasTexture(c); t.flipY=false; t.colorSpace=T.SRGBColorSpace; q.map=t; q.normalMap=null; q.vertexColors=false; }
+    q.needsUpdate=true; }
+  if(OH.includes("nneu")) o.geometry.computeVertexNormals();
   if(OH.includes("schatten")){ o.castShadow=false; o.receiveShadow=false; } } });
 const cam=new T.PerspectiveCamera(24,600/800,.1,50); g.position.y=0;
 window.__info={hoehe:+sz.y.toFixed(3),breite:+sz.x.toFixed(3),tiefe:+sz.z.toFixed(3),dreiecke:Math.round(tri)};
@@ -88,7 +93,9 @@ for (const [n, y] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Math.PI]])
   await p.evaluate(y => { const v = window.__dbg.v3d; v.ziel = null; v.yaw = y; v.idle = performance.now() + 1e7; }, y); await p.waitForTimeout(1300);
   await box.screenshot({ path: OUT + `${name}_app_${n}.png` }); }
 const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.click("#g-glb")]);
-await dl.saveAs(OUT + name + ".glb"); console.log("GLB:", OUT + name + ".glb", errs.length ? errs.slice(0, 3) : "");
+await dl.saveAs(OUT + name + ".glb");
+if (process.argv.includes("--dump")) fs.writeFileSync(OUT + name + "_netz.json", JSON.stringify(await p.evaluate(() => { const d = window.__dbg, G = d.GARMENTS[d.g.key], M = G.m3, g3 = d.g3;
+  return { nr: g3.nr, nv: g3.nv, v: Array.from(M.v), vc: M.vc, pos: Array.from(g3.pos.slice(0, g3.nv * 3)) }; }))); console.log("GLB:", OUT + name + ".glb", errs.length ? errs.slice(0, 3) : "");
 await ctx.close();
 await studio(OUT + name + ".glb", name);
 await b.close();

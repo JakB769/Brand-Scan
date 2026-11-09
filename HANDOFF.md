@@ -86,14 +86,16 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
 - Testreihe: 43 von 45 grün (Gesamtlauf 19.10.).
 
 ## Kaputt / offen
-- **Fotorealistische Hose (05.11., `werkzeuge/hose-render.mjs`)**: Ziel 1:1 wie das Foto, Maßstab KI-Referenz (Image-to-3D).
-  KI-Referenz fehlt: Hugging-Face-Spaces TRELLIS und Hunyuan3D-2 anonym ohne GPU-Kontingent; braucht `HF_TOKEN` als
-  Umgebungsvariable (neue Sitzung). Erledigt: heller Streifen an der Seitennaht (Schatten neben der Hose aus der Freistellung,
-  `maskeSaeubern`, nur auf hellem Studiohintergrund), Streifen im Schritt (Textur folgt dem Schrittbogen, `mesh3d`), Stoffstruktur
-  als Normal-Map in der .glb (`normalAtlas`), eingebackener Schatten in der .glb halbiert. Offen: dunkles Querband im Schritt
-  (aus der Textur, nicht Licht), Saum ohne Schuh in der .glb ein Wulst, keine geometrischen Falten/Bügelfalte, Anzughose
-  schmaler als im Foto, Bundfalten fehlen. Testhosen: Anzughose (Fotos vorne/hinten) und H&M-Jeans (nur Vorderseite) liegen nicht
-  im Repo (fremde Fotos). `tfreistellung` war schon vorher rot (Test lädt nur einen Teil der Funktionen, fehlt `aiSeg`).
+- **Fotorealistische Hose (05.–09.11., `werkzeuge/hose-render.mjs`)**: Ziel: Form wie die KI-Referenz (TRELLIS), Stoff wie im Foto.
+  KI-Referenzen (Anzughose, Zara-Jeans) hat der Nutzer über Claude-Chat erzeugt, liegen nicht im Repo (fremde Fotos); Vergleich mit
+  `hose-render.mjs glb <datei>` (gleiche Studio-Kamera). Erledigt: Seitenstreifen (`maskeSaeubern`, nur heller Studiohintergrund),
+  Schritttextur (`mesh3d`), Normal-Map + Tangenten in der .glb (ohne Tangenten wertete three.js die Map falsch herum aus: dunkles
+  Band über dem Schritt), Saum gerade (Puppe für die .glb so groß, dass die Hose bis zum Knöchel reicht, statt Stapel am fehlenden
+  Schuh). Geprüft und verworfen (kein Effekt): `einrollen` .25, schmalere Einrollung, Gefällebegrenzung vorn/hinten.
+  Offen: Hüfte/Oberschenkel runder als bei der KI (Beule außen am Oberschenkel), Anzughose seitlich heller Streifen (Vorder- und
+  Rückenfoto verschieden hell), keine Bundfalten/Bügelfalte, keine geometrischen Falten. KI-Formen sind zu dick (Bein-Umfang ≈ 74
+  statt 46 cm), Texturen fast schwarz: nur Optik der Form übernehmen, nicht die Maße. `tfreistellung` war schon vorher rot.
+
 - **Avatar-Selbst-Scan in Echtzeit (30.10., `werkzeuge/avatar-echtzeit.mjs`)**: Mit Referenzclip als Kamera in Echtzeit wurde der
   Frontal-Scan teils nie fertig (weite Hose: „Bein angewinkelt“, Schwanken > 3,2 cm). Jetzt im Avatar-Modus: leicht gebeugte Beine
   erlaubt, Schwanken bis 7 cm, nach 8 s ganz im Bild Scan mit dem Median dieser Bilder (`AVS.voll`). Weite Kleidung auch ohne Knie

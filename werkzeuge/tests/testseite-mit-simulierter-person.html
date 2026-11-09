@@ -3301,7 +3301,11 @@ async function exportGLB(){
   if(!g3.texReady||!g3.idxArr){ $("g-msg").textContent="Das Stoffbild lädt noch. Bitte gleich noch einmal tippen."; return; }
   const W=$("g3dview").width, H=$("g3dview").height;
   // Physik neu ansetzen: ruhige Form; immer an der Puppe (Datei für den Shop, nicht an den Avatar dieses Geräts angepasst)
-  g3.cOk=false; const oa=v3d.ohneAvatar; v3d.ohneAvatar=true; let V; try{ V=view3dPose(G,W,H,0,true); }finally{ v3d.ohneAvatar=oa; }
+  // Puppe so groß, dass die Hose bis knapp über den Knöchel reicht (wie ein Produktmodell): sonst staucht sich die Überlänge am
+  // Schuh, und ohne Schuh in der Datei stand der Saum als Wulst da (09.11., Vergleich mit KI-Referenz). Nie kleiner als eingetragen.
+  const hEl=$("height"), hAlt=hEl.value, hNeu=Math.round(clamp(garmentDims(G).len/.52,num(hAlt)||175,220));
+  g3.cOk=false; const oa=v3d.ohneAvatar; v3d.ohneAvatar=true; let V;
+  try{ hEl.value=hNeu; mesh3d(g.key,G.m3); V=view3dPose(G,W,H,0,true); }finally{ v3d.ohneAvatar=oa; hEl.value=hAlt; }
   const idx=g3.idxArr.slice(), n=g3.nv, k=1/(V.ppc*100), Pp=new Float32Array(n*3), Nn=new Float32Array(n*3), UV=new Float32Array(n*2), CO=new Float32Array(n*3);
   const lo=[1e9,1e9,1e9], hi=[-1e9,-1e9,-1e9];
   for(let i=0;i<n;i++){
@@ -3330,17 +3334,29 @@ async function exportGLB(){
   // Stoffstruktur (05.11.): Normal-Map aus dem Foto (Webstruktur, Köper, kleine Falten), damit das Licht in jedem Betrachter
   // (Shopify, Blender, three.js) die Oberfläche zeigt statt einer glatten Fläche mit aufgemaltem Foto
   const nrm=new Uint8Array(await (await new Promise(r=>normalAtlas(farbe,V.fab).toBlob(r,"image/jpeg",.92))).arrayBuffer());
-  const parts=[Pp,Nn,UV,CO,idx,jpg,nrm], views=[]; let off=0;
+  // Tangenten zur Normal-Map (09.11.): ohne sie rechnet jeder Betrachter eigene (glTF-Prüfer warnte: nicht portabel)
+  const Tg=new Float32Array(n*4), t1=new Float32Array(n*3), t2=new Float32Array(n*3);
+  for(let t=0;t<idx.length;t+=3){ const A3=[idx[t],idx[t+1],idx[t+2]], [a,b,c]=A3;
+    const e1=[Pp[b*3]-Pp[a*3],Pp[b*3+1]-Pp[a*3+1],Pp[b*3+2]-Pp[a*3+2]], e2=[Pp[c*3]-Pp[a*3],Pp[c*3+1]-Pp[a*3+1],Pp[c*3+2]-Pp[a*3+2]];
+    const du1=UV[b*2]-UV[a*2], dv1=UV[b*2+1]-UV[a*2+1], du2=UV[c*2]-UV[a*2], dv2=UV[c*2+1]-UV[a*2+1], det=du1*dv2-du2*dv1;
+    if(Math.abs(det)<1e-12) continue; const r=1/det;
+    for(const q of A3) for(let k=0;k<3;k++){ t1[q*3+k]+=(e1[k]*dv2-e2[k]*dv1)*r; t2[q*3+k]+=(e2[k]*du1-e1[k]*du2)*r; } }
+  for(let i=0;i<n;i++){ const N=[Nn[i*3],Nn[i*3+1],Nn[i*3+2]]; let T=[t1[i*3],t1[i*3+1],t1[i*3+2]];
+    const d=T[0]*N[0]+T[1]*N[1]+T[2]*N[2]; T=[T[0]-N[0]*d,T[1]-N[1]*d,T[2]-N[2]*d]; let l=Math.hypot(T[0],T[1],T[2]);
+    if(l<1e-9){ T=Math.abs(N[0])<.9?[1-N[0]*N[0],-N[0]*N[1],-N[0]*N[2]]:[-N[1]*N[0],1-N[1]*N[1],-N[1]*N[2]]; l=Math.hypot(T[0],T[1],T[2]); }
+    const B=[N[1]*T[2]-N[2]*T[1],N[2]*T[0]-N[0]*T[2],N[0]*T[1]-N[1]*T[0]], w=B[0]*t2[i*3]+B[1]*t2[i*3+1]+B[2]*t2[i*3+2]<0?-1:1;
+    Tg.set([T[0]/l,T[1]/l,T[2]/l,w],i*4); }
+  const parts=[Pp,Nn,UV,CO,idx,jpg,nrm,Tg], views=[]; let off=0;
   for(const a of parts){ views.push({buffer:0,byteOffset:off,byteLength:a.byteLength}); off+=Math.ceil(a.byteLength/4)*4; }
-  views[0].target=views[1].target=views[2].target=views[3].target=34962; views[4].target=34963;
+  views[0].target=views[1].target=views[2].target=views[3].target=views[7].target=34962; views[4].target=34963;
   const fab=V.fab, json={asset:{version:"2.0",generator:"Passform Live-Anprobe"},scene:0,scenes:[{nodes:[0]}],
     nodes:[{mesh:0,name:G.label}],
-    meshes:[{name:G.label,primitives:[{attributes:{POSITION:0,NORMAL:1,TEXCOORD_0:2,COLOR_0:3},indices:4,material:0}]}],
+    meshes:[{name:G.label,primitives:[{attributes:{POSITION:0,NORMAL:1,TEXCOORD_0:2,COLOR_0:3,TANGENT:5},indices:4,material:0}]}],
     materials:[{name:fab.name,doubleSided:true,normalTexture:{index:1,scale:1},pbrMetallicRoughness:{baseColorTexture:{index:0},metallicFactor:0,roughnessFactor:clamp(.95-fab.gloss*1.5,.4,.95)}}],
     textures:[{sampler:0,source:0},{sampler:0,source:1}],samplers:[{magFilter:9729,minFilter:9987,wrapS:33071,wrapT:33071}],images:[{bufferView:5,mimeType:"image/jpeg"},{bufferView:6,mimeType:"image/jpeg"}],
     accessors:[{bufferView:0,componentType:5126,count:n,type:"VEC3",min:lo,max:hi},{bufferView:1,componentType:5126,count:n,type:"VEC3"},
       {bufferView:2,componentType:5126,count:n,type:"VEC2"},{bufferView:3,componentType:5126,count:n,type:"VEC3"},
-      {bufferView:4,componentType:5123,count:idx.length,type:"SCALAR"}],
+      {bufferView:4,componentType:5123,count:idx.length,type:"SCALAR"},{bufferView:7,componentType:5126,count:n,type:"VEC4"}],
     bufferViews:views,buffers:[{byteLength:off}]};
   let js=new TextEncoder().encode(JSON.stringify(json)); const jl=Math.ceil(js.length/4)*4;
   const out=new Uint8Array(12+8+jl+8+off), dv=new DataView(out.buffer);
