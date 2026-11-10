@@ -89,16 +89,20 @@ const ansicht=async(yaw,datei)=>{ await p.evaluate(y=>{ const v=window.__dbg.v3d
     return {w:x1-x0+1,h:y1-y0+1,fill:n/Math.max(1,(x1-x0+1)*(y1-y0+1)),zeilen}; }); };
 const vorn=await ansicht(0,'vorn.png'), seite=await ansicht(Math.PI/2,'seite.png'), hinten=await ansicht(Math.PI,'hinten.png');
 pruefe(vorn.zeilen.filter(z=>z>=2).length>=3,`von vorn zwei getrennte Beine (Teile je Zeile unten: ${vorn.zeilen.join(', ')})`);
-pruefe(vorn.fill<.82,`kein Quader: Umriss füllt ${(100*vorn.fill).toFixed(0)} % seines Rahmens`);
+// Produktansicht (seit 10.11. Standard, Beine gerade wie ein Produktmodell) füllt ihren Rahmen mehr als die Anprobe: 0,88
+pruefe(vorn.fill<.88,`kein Quader: Umriss füllt ${(100*vorn.fill).toFixed(0)} % seines Rahmens`);
 pruefe(vorn.h/vorn.w>1.6&&vorn.h/vorn.w<3.6,`Seitenverhältnis von vorn ${(vorn.h/vorn.w).toFixed(2)} (Höhe/Breite)`);
 pruefe(seite.w/vorn.w>.35&&seite.w/vorn.w<1.0,`Tiefe von der Seite ${(100*seite.w/vorn.w).toFixed(0)} % der Breite (räumlich, keine Scheibe)`);
 const nv=await p.evaluate(()=>window.__dbg.g3.nv||0);          // erst nach dem Zeichnen gesetzt
 pruefe(nv>=1500,`genug Punkte im Netz: ${nv}`);
 // Rückseite: Gesäßtaschen deutlich sichtbarer als bei geschätzter Rückseite (gleiche Vorderseite allein gebaut)
-const kMit=await taschen();
+// Seit 10.11. bekommt auch die geschätzte Rückseite Taschen und Nähte (rueckseiteHoch): zusätzlich muss sie als geschätzt
+// gekennzeichnet sein und die mit Foto nicht
+const geschaetzt=()=>p.evaluate(()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key]; return !!G.backEst; });
+const kMit=await taschen(), gMit=await geschaetzt();
 await p.evaluate(()=>document.getElementById('drop-new').click()); await ziehen([FOTOS[0]]); await fertig();
-const kOhne=await taschen();
-pruefe(kMit>1.3*kOhne,`Rückseite zeigt das Rückseiten-Foto: Taschenkanten ${kMit.toFixed(1)} gegen ${kOhne.toFixed(1)} geschätzt`);
+const kOhne=await taschen(), gOhne=await geschaetzt();
+pruefe(!gMit&&gOhne&&kMit>1.05*kOhne,`Rückseite zeigt das Rückseiten-Foto: Taschenkanten ${kMit.toFixed(1)} gegen ${kOhne.toFixed(1)} geschätzt (geschätzt markiert: mit Foto ${gMit}, ohne ${gOhne})`);
 // die geschätzte Hose wieder weg, die echte gewählt
 await p.evaluate(k=>{ const d=window.__dbg; for(const q of Object.keys(d.GARMENTS)) if(q!==k) delete d.GARMENTS[q]; },G0.key);
 await p.evaluate(k=>{ const b=document.querySelector(`#gwrap .gbtn[data-g="${k}"]`); if(b) b.click(); },G0.key);

@@ -86,15 +86,17 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
 - Testreihe: 43 von 45 grün (Gesamtlauf 19.10.).
 
 ## Kaputt / offen
-- **Fotorealistische Hose / Produktform (05.–10.11., `werkzeuge/hose-render.mjs`)**: Ziel: 3D-Datei sieht aus wie die KI-Referenz
-  (TRELLIS, vom Nutzer über Claude-Chat erzeugt, nicht im Repo), Stoff wie im Foto. Die .glb nutzt jetzt `produktForm`: von vorn
-  genau der flache Umriss des Fotos (in cm über Bund/Länge), Tiefe je Beinbreite (`PASSFORM.produkt`), leicht kantiger
-  Querschnitt, schmales V im Schritt, Saum und Bund gerade, Nähte weich, Textur ohne Schrittstauchung, Seitennaht farblich
-  angeglichen (`seamAngleich`), Tangenten für die Normal-Map. Anprobe am Körper (pose3d, 3D-Ansicht der Seite) unverändert.
-  Innenbund-Erkennung strenger (`innenKante` 58, `innenAnders` 62): die H&M-Jeans verlor sonst ihren vorderen Bund.
-  Offen: Bundfalten/Bügelfalte und Falten nur aus der Textur (keine Geometrie); Proportionen folgen den eingetragenen Maßen,
-  nicht dem Seitenverhältnis des Fotos (bei Bund 43/Länge 110 der H&M-Jeans etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich
-  der Jeans fehlt. KI-Formen selbst sind zu dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
+- **Fotorealistische Hose / Produktform (05.–10.11., `werkzeuge/hose-render.mjs`)**: Ziel: aussehen wie die KI-Referenz (TRELLIS,
+  vom Nutzer über Claude-Chat erzeugt, nicht im Repo), Stoff wie im Foto. `produktForm`: von vorn der flache Fotoumriss in cm
+  (Bund/Länge), Beine höchstens 3° gespreizt, Tiefe je Beinbreite (`PASSFORM.produkt`), leicht kantiger Querschnitt, schmales V im
+  Schritt, Saum/Bund gerade, Nähte weich, Bügelfalte bei Anzughosen (Geometrie + Normal-Map `buegelNormal`), weiche Längsfalten,
+  Seitennaht angeglichen (`seamAngleich`), Tangenten. Gilt für die .glb UND die 3D-Ansicht der Seite (Puppe ohne Avatar, Knopf
+  „Produkt/Anprobe“ `#avForm`, `v3d.produkt=false` = Anprobe; Tests, die die Anprobe-Form messen, schalten so um). Mit Avatar,
+  Oberteil oder Kamera immer Anprobe (pose3d). Geschätzte Rückseite in voller Auflösung mit Bund, Schlaufen, Mittelnaht, bei
+  farbiger Ziernaht (Jeans) Passe und aufgesetzten Taschen, sonst Paspeltaschen (`rueckseiteHoch`). Innenbund-Erkennung strenger
+  (`innenKante` 58, `innenAnders` 62). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
+  (H&M-Jeans mit Bund 43/Länge 110 etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich der Jeans fehlt; KI-Formen selbst sind zu
+  dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
 
 - **Avatar-Selbst-Scan in Echtzeit (30.10., `werkzeuge/avatar-echtzeit.mjs`)**: Mit Referenzclip als Kamera in Echtzeit wurde der
   Frontal-Scan teils nie fertig (weite Hose: „Bein angewinkelt“, Schwanken > 3,2 cm). Jetzt im Avatar-Modus: leicht gebeugte Beine

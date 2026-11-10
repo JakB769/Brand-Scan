@@ -41,7 +41,8 @@ const atlas=()=>p.evaluate(async()=>{
   return {hell,fremd:fremd/Math.max(1,n),vc:M.vc,innen:!!M.innen};
 });
 // 3D-Ansicht (Puppe in 179 cm): Kennwerte aus pose3d und die Lage der Punkte
-const form=async()=>{ await (await p.$('#g3dview')).scrollIntoViewIfNeeded(); await p.waitForTimeout(1500);
+// gemessen wird die Anprobe-Form (pose3d), nicht die Produktansicht (seit 10.11. Standard der 3D-Ansicht)
+const form=async()=>{ await p.evaluate(()=>{ window.__dbg.v3d.produkt=false; window.__dbg.g3.cOk=false; }); await (await p.$('#g3dview')).scrollIntoViewIfNeeded(); await p.waitForTimeout(1500);
   return p.evaluate(()=>{ const {g3,GARMENTS,g}=window.__dbg, M=(g3.M||GARMENTS[g.key].m3), NR=M.nr, C=13, ic=g3.ic, pos=g3.pos, F=g3.frame, ppc=g3.lastPpc;
     const P=k=>[pos[k*3]-F.top[0],pos[k*3+1]-F.top[1],pos[k*3+2]-F.top[2]], dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
     const id=(s,i,f,j)=>((s*NR+i)*2+f)*C+j;

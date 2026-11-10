@@ -96,7 +96,7 @@ for (const [n, y] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Math.PI]])
 const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.click("#g-glb")]);
 await dl.saveAs(OUT + name + ".glb"); console.log("Innenbund:", JSON.stringify(await p.evaluate(() => window.__innen || null)), "Produktform:", await p.evaluate(() => window.__dbg.g3.produkt));
 if (process.argv.includes("--dump")) fs.writeFileSync(OUT + name + "_netz.json", JSON.stringify(await p.evaluate(() => { const d = window.__dbg, G = d.GARMENTS[d.g.key], M = G.m3, g3 = d.g3;
-  return { nr: g3.nr, nv: g3.nv, v: Array.from(M.v), vc: M.vc, pos: Array.from(g3.pos.slice(0, g3.nv * 3)) }; }))); console.log("GLB:", OUT + name + ".glb", errs.length ? errs.slice(0, 3) : "");
+  return { nr: g3.nr, nv: g3.nv, v: Array.from(M.v), vc: M.vc, f: M.f, b: M.b, tv: M.tv, tvb: M.tvb, mat: G.material || G.mat || null, pos: Array.from(g3.pos.slice(0, g3.nv * 3)) }; }))); console.log("GLB:", OUT + name + ".glb", errs.length ? errs.slice(0, 3) : "");
 await ctx.close();
 await studio(OUT + name + ".glb", name);
 await b.close();
