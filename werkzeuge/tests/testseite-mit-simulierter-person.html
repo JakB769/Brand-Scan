@@ -2048,10 +2048,15 @@ const PASSFORM={
                          // der Saum liegt auf dem Fuß und spreizt sich). Mehr Tiefe machte die Hose von vorn/hinten zu schmal; das
                          // Seitenvolumen kommt bei weiten Hosen vor allem aus der geraden Rückenlinie (Gesäßfall, pose3d)
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
+  // Produktform der 3D-Datei (produktForm): Tiefe je flacher Breite (Becken am Bund rB, am Gesäß rS; Bein am Schritt rL, Saum rH),
+  // Anteil vorne, Querschnitt-Exponent p (2 = Ellipse, größer = kantiger), Übergang ins V am Schritt (cm), Spaltendichte am Rand
+  produkt:{an:true,kB:.85,kS:1.1,vorn:.44,rL:.8,rH:.75,p:2.5,schrittCm:7,rand:.35,saumCm:4,bundCm:3},
   gesaessFallCm:18,      // so weit unter dem Schritt läuft die Tiefe vom Becken auf die Beintiefe aus (enge Hosen 80 % davon)
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
-  innenKante:40,         // so deutlich muss der Farbwechsel sein (sonst ist es der normale Bund, nicht die Innenseite)
+  innenKante:58,         // so deutlich muss der Farbwechsel sein (sonst ist es der normale Bund, nicht die Innenseite)
+  innenAnders:62,        // … und so anders als der Außenstoff muss es darüber sein. Bis 10.11. 40/28: die H&M-Jeans (49/55, Taschenkante
+                         // mit heller Ziernaht) galt als Innenbund, ihr vorderer Bund wurde übermalt; echter Innenbund 73/83
   innenZug:.25,
   guertelFarbe:55,       // so weit (RGB-Abstand) muss ein Gürtel farblich vom Stoff weg sein, um als Gürtel zu gelten          // der vordere Bund wird nach oben gezogen; die Dehnung verteilt sich auf diesen Anteil der Länge
                          // (kürzer: Bund und Gürtelschlaufen wirken in der Mitte gestreckt)
@@ -2182,6 +2187,35 @@ function normalAtlas(cv,fab){
   const c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d"), D=x.createImageData(W,H), o=D.data, s=.9*k;
   for(let y=0;y<H;y++) for(let xx=0;xx<W;xx++){ const i=y*W+xx, gx=(hgt[y*W+Math.min(W-1,xx+1)]-hgt[y*W+Math.max(0,xx-1)])*s, gy=(hgt[Math.max(0,y-1)*W+xx]-hgt[Math.min(H-1,y+1)*W+xx])*s;
     const l=Math.hypot(gx,gy,1); o[i*4]=Math.round((-gx/l*.5+.5)*255); o[i*4+1]=Math.round((-gy/l*.5+.5)*255); o[i*4+2]=Math.round((1/l*.5+.5)*255); o[i*4+3]=255; }
+  x.putImageData(D,0,0); return c;
+}
+/* Seitennaht angleichen (10.11.): an der Außenkante sind Vorder- und Rückenfoto verschieden hell (Licht im Foto fällt zum Rand
+   anders ab). Je Zeile ein Streifen innen an der Kante (frac der halben Breite): Mittelwert vorn und hinten, beide zur Kante hin
+   auf den gemeinsamen Wert gezogen. Zeilen geglättet, damit keine Querstreifen entstehen. Vorher stand in der Seitenansicht
+   eine helle und eine dunkle Hälfte nebeneinander. */
+function seamAngleich(c,M,frac=.12){
+  const x=c.getContext("2d",{willReadFrequently:true}), W=c.width, H=c.height, D=x.getImageData(0,0,W,H), d=D.data, NR=M.nr;
+  if(!M.b||!M.f) return c;
+  const mittel=(y0,y1,u0,u1)=>{ const a=Math.round(Math.min(u0,u1)*W), b=Math.round(Math.max(u0,u1)*W), r=[0,0,0]; let n=0;
+    for(let y=y0;y<y1;y+=2) for(let xx=a;xx<=b;xx+=2){ const i=(y*W+xx)*4; r[0]+=d[i]; r[1]+=d[i+1]; r[2]+=d[i+2]; n++; } return n?r.map(v=>v/n):null; };
+  // je Zeile und Seite (Person links/rechts): Kante vorn, Kante hinten, Breite des Streifens; Verstärkung vorn/hinten je Kanal
+  const G=[];
+  for(let i=0;i<NR;i++){ const F=M.f[i], B=M.b[i], yF=Math.round(M.tv[i]*H), yB=Math.round((M.tvb||M.tv)[i]*H), g=[];
+    for(const [eF,iF,eB,iB] of [[F[3],F[2],B[0],B[1]],[F[0],F[1],B[3],B[2]]]){
+      const wF=(eF-iF)*frac, wB=(eB-iB)*frac, a=mittel(Math.max(0,yF-3),Math.min(H,yF+4),eF-wF,eF), b=mittel(Math.max(0,yB-3),Math.min(H,yB+4),eB-wB,eB);
+      if(!a||!b){ g.push(null); continue; } const z=a.map((v,k)=>(v+b[k])/2);
+      g.push({eF,wF,eB,wB,gF:a.map((v,k)=>clamp(z[k]/Math.max(4,v),.6,1.6)),gB:b.map((v,k)=>clamp(z[k]/Math.max(4,v),.6,1.6))}); }
+    G.push(g); }
+  // glätten über ±3 Zeilen
+  const Gs=G.map((g,i)=>g.map((q,k)=>{ if(!q) return null; const o={...q,gF:[0,0,0],gB:[0,0,0]}; let n=0;
+    for(let j=Math.max(0,i-3);j<=Math.min(NR-1,i+3);j++){ const r=G[j][k]; if(!r) continue; for(let c2=0;c2<3;c2++){ o.gF[c2]+=r.gF[c2]; o.gB[c2]+=r.gB[c2]; } n++; }
+    for(let c2=0;c2<3;c2++){ o.gF[c2]/=n; o.gB[c2]/=n; } return o; }));
+  const zeile=(t,tvA)=>{ let a=0; while(a<NR-2&&tvA[a+1]*H<t) a++; return a; };
+  for(let y=0;y<H;y++){ const iF=zeile(y,M.tv), iB=zeile(y,M.tvb||M.tv);
+    for(const [i,front] of [[iF,true],[iB,false]]) for(const q of Gs[i]){ if(!q) continue;
+      const e=front?q.eF:q.eB, w=front?q.wF:q.wB, gg=front?q.gF:q.gB, a=Math.round(Math.min(e-w,e)*W), b=Math.round(Math.max(e-w,e)*W);
+      for(let xx=Math.max(0,a);xx<=Math.min(W-1,b);xx++){ const k=1-Math.abs(xx/W-e)/Math.max(1e-4,Math.abs(w)), wt=k*k*(3-2*k), i4=(y*W+xx)*4;
+        for(let c2=0;c2<3;c2++) d[i4+c2]=clamp(d[i4+c2]*(1+(gg[c2]-1)*wt),0,255); } } }
   x.putImageData(D,0,0); return c;
 }
 function matchHalves(im){
@@ -3293,6 +3327,59 @@ function avatarPose(G,W,H,yw,sync,A){
 /* 3D-Datei (glTF 2.0 binär, .glb) der gewählten Hose, frontal an der Puppe, ohne Nachschwingen: für Shopify (3D-Modell am
    Produkt; Shopify erzeugt daraus selbst die Datei für AR auf dem iPhone), Blender oder jeden 3D-Betrachter.
    Meter, Y nach oben, Vorderseite zeigt nach +Z, Boden bei Y = 0. Stoff als Textur, Innenseiten dunkler (Vertex-Farben). */
+/* Produktform für die 3D-Datei (10.11.): wie ein Image-to-3D-Modell aus dem Produktfoto (Referenz TRELLIS). Von vorn genau der
+   Umriss des flachen Fotos in cm (auch die Stellung der Beine), dazu eine gleichmäßige Tiefe mit leicht kantigem Querschnitt
+   (Superellipse) und im Schritt ein schmales V. Die Anprobe am Körper bleibt bei pose3d; das hier ist nur die Datei für Shop
+   und Betrachter. Schreibt g3.pos (Bildschirmkoordinaten wie pose3d), Bund/Saum und Normalen neu. */
+function produktForm(G,V){
+  const M=g3.M||G.m3, NR=M.nr, C=K3+1, ic=icOf(M), pos=g3.pos, D=garmentDims(G), cm=D.cmW, PF=PASSFORM.produkt, ppc=V.ppc;   // g3.M: verfeinert (mesh3d)
+  g3.produkt="aus"; if(M.rock||g3.nr!==NR){ g3.produkt="rock/nr "+g3.nr+"/"+NR; return false; }
+  const med=a=>{ const b=a.filter(Number.isFinite).sort((x,y)=>x-y); return b.length?b[b.length>>1]:NaN; };
+  const kap=med(M.f.slice(0,ic).map((F,i)=>2*M.hw[i]/Math.max(1e-4,F[3]-F[0]))), uc=med(M.f.slice(0,ic).map(F=>(F[0]+F[3])/2));
+  if(!(kap>0)){ g3.produkt="kap "+kap; return false; } g3.produkt="an kap="+kap.toFixed(3)+" uc="+uc.toFixed(3)+" cm="+cm.toFixed(1);
+  const X=u=>(u-uc)*kap*cm, se=(x,p)=>Math.pow(Math.max(0,1-Math.pow(Math.min(1,Math.abs(x)),p)),1/p);
+  const xi=t=>(1-PF.rand)*(2*t-1)+PF.rand*Math.sin(Math.PI*(t-.5));        // Spalten zum Rand hin dichter (Seitenwand)
+  const vSeat=.4*M.vc, hB=PF.schrittCm/D.len, id=(s,i,f,j)=>(((s*NR+i)*2+f)*C+j)*3;
+  const put=(k,x,y,z)=>{ pos[k]=V.cx+x*ppc; pos[k+1]=V.floor-y*ppc; pos[k+2]=-z*ppc; };
+  const iH=Math.max(ic+1,M.v.findIndex(v=>v>1-PF.saumCm/D.len)-1);
+  // über dem Gesäß nach oben nie breiter als darunter: Bundecken und Gürtelschlaufen standen im Foto als „Ohren“ seitlich ab
+  // oben ebenso gerade: die obersten bundCm sind im Foto an den Ecken abgerundet (der Bund war dort 7 cm schmaler als darunter)
+  const iT=Math.max(0,M.v.findIndex(v=>v>=PF.bundCm/D.len));
+  const iSe=Math.max(1,M.v.findIndex(v=>v>=vSeat)), oben=[0,1].map(s=>{ const w=M.f.slice(0,ic).map((F0,i)=>{ const F=M.f[Math.max(i,Math.min(iT,ic-1))]; const L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]]; return X(e[1])-X(e[0]); });
+    for(let i=Math.min(iSe,ic-1)-1;i>=0;i--) if(Math.abs(w[i])>Math.abs(w[i+1])) w[i]=w[i+1]; return w; });
+  const DlC=[0,1].map(s=>{ const F=M.f[Math.min(NR-1,ic)], L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]]; return Math.abs(X(e[1])-X(e[0]))*PF.rL; });
+  for(let s=0;s<2;s++) for(let i=0;i<NR;i++){
+    // unten gerade abgeschnitten: die Ecken am Saum sind im Foto abgerundet (Freistellung), die Hose ist es nicht
+    const F=M.f[Math.min(i,iH)], L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]], v=M.v[i], y=(1-v)*D.len, below=i>=ic;
+    const xIn=X(e[0]), xOut=below?X(e[1]):xIn+oben[s][i], a=(xOut-xIn)/2, xc=(xIn+xOut)/2;
+    // Tiefe: Becken vom Bund (rB) zum Gesäß (rS) der flachen Gesamtbreite, vorn kleiner als hinten; Bein rL am Schritt bis rH am Saum
+    // Tiefe: Bein rL der flachen Beinbreite am Schritt bis rH am Saum; Becken im Verhältnis zur Beintiefe am Schritt (Bund kB,
+    // Gesäß kS, am Schritt 1): so geht das Becken ohne Stufe in die Beine über (KI-Referenzen: Becken kaum tiefer als ein Bein)
+    const lp=clamp((v-M.vc)/Math.max(1e-3,1-M.vc),0,1), Dl=Math.abs(2*a)*(PF.rL+(PF.rH-PF.rL)*lp), w=below?1:sstep(M.vc-hB,M.vc,v);
+    const Dp=DlC[s]*(v<vSeat?PF.kB+(PF.kS-PF.kB)*sstep(0,vSeat,v):PF.kS+(1-PF.kS)*sstep(vSeat,M.vc,v));
+    for(let f=0;f<2;f++){ const sg=f?-1:1;
+      for(let j=0;j<C;j++){ const t=j/K3;
+        let x, z;
+        if(below){ const q=xi(t); x=xc+q*a; z=sg*Dl/2*se(q,PF.p); }
+        else{ // Becken: Viertel von der Mitte (t=0) zur Seite; zum Schritt hin in die Form eines Beins übergehen (schmales V)
+          const x0=xIn+(xOut-xIn)*(.5+.5*xi(t)), vo=PF.vorn+(.5-PF.vorn)*sstep(vSeat,M.vc,v), zP=sg*Dp*(f?1-vo:vo)*se(.5+.5*xi(t),PF.p);
+          // Bein-Querschnitt: zwischen Mitte und Beinmitte erst aufgefüllt (flach), im schmalen V am Schritt (w) bis zur Mitte
+          // abfallend; die Form selbst geht über die ganze Strecke Gesäß → Schritt (wS) über, sonst kam außen eine Kante nach vorn
+          const zLeg=sg*Dl/2*se(xi(t),PF.p), zL=t<.5?zLeg*w+sg*Dl/2*(1-w):zLeg, wS=sstep(vSeat,M.vc,v); x=x0; z=zP*(1-wS)+zL*wS; }
+        put(id(s,i,f,j),x,y,z); } } }
+  for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const w=(g3.nRing+(s*NR+i)*2+f)*3, src=id(s,i,f,0); pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2]; }
+  normals3d({h:[1,0,0]},null,null);
+  // Nähte weich: an Seitennaht, Innennaht und Mitte haben Vorder- und Rückteil (bzw. beide Hälften) eigene Punkte mit eigener
+  // Normale; gemittelt verschwindet die harte Lichtkante entlang der Naht (Seitenansicht)
+  const nor=g3.nor, mix=ks=>{ const n=[0,0,0]; for(const k of ks) for(let c=0;c<3;c++) n[c]+=nor[k+c]; const l=Math.hypot(n[0],n[1],n[2])||1; for(const k of ks) for(let c=0;c<3;c++) nor[k+c]=n[c]/l; };
+  for(let i=0;i<NR;i++){ for(let s=0;s<2;s++){ mix([id(s,i,0,K3),id(s,i,1,K3)]); if(i>=ic) mix([id(s,i,0,0),id(s,i,1,0)]); }
+    if(i<ic) for(let f=0;f<2;f++) mix([id(0,i,f,0),id(1,i,f,0)]); }
+  // Textur ohne die Stauchung am Schrittbogen (mesh3d, vIn): die Produktform hat keinen gestauchten Bogen; sonst lag unten aus der
+  // Leibhöhe ein dunkles Querband über dem Schritt
+  const uvs=g3.uvsProdukt=g3.uvs.slice();
+  for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++) for(let j=0;j<C;j++) uvs[(((s*NR+i)*2+f)*C+j)*2+1]=(f&&M.tvb?M.tvb:M.tv)[i];
+  rim3d(M,ppc); return true;
+}
 async function exportGLB(){
   const G=g.key&&GARMENTS[g.key]; if(!G||!G.m3) return;
   if(running||!init3d()){ $("g-msg").textContent="Die 3D-Datei geht nur bei ausgeschalteter Kamera und mit WebGL."; return; }
@@ -3305,15 +3392,15 @@ async function exportGLB(){
   // Schuh, und ohne Schuh in der Datei stand der Saum als Wulst da (09.11., Vergleich mit KI-Referenz). Nie kleiner als eingetragen.
   const hEl=$("height"), hAlt=hEl.value, hNeu=Math.round(clamp(garmentDims(G).len/.52,num(hAlt)||175,220));
   g3.cOk=false; const oa=v3d.ohneAvatar; v3d.ohneAvatar=true; let V;
-  try{ hEl.value=hNeu; mesh3d(g.key,G.m3); V=view3dPose(G,W,H,0,true); }finally{ v3d.ohneAvatar=oa; hEl.value=hAlt; }
+  try{ hEl.value=hNeu; mesh3d(g.key,G.m3); V=view3dPose(G,W,H,0,true); if(PASSFORM.produkt.an) produktForm(G,V); }finally{ v3d.ohneAvatar=oa; hEl.value=hAlt; }
   const idx=g3.idxArr.slice(), n=g3.nv, k=1/(V.ppc*100), Pp=new Float32Array(n*3), Nn=new Float32Array(n*3), UV=new Float32Array(n*2), CO=new Float32Array(n*3);
-  const lo=[1e9,1e9,1e9], hi=[-1e9,-1e9,-1e9];
+  const lo=[1e9,1e9,1e9], hi=[-1e9,-1e9,-1e9], uvQ=g3.uvsProdukt||g3.uvs; g3.uvsProdukt=null;
   for(let i=0;i<n;i++){
     const x=(g3.pos[i*3]-V.cx)*k, y=(V.floor-g3.pos[i*3+1])*k, z=-g3.pos[i*3+2]*k;
     Pp.set([x,y,z],i*3); [x,y,z].forEach((v,c)=>{ if(v<lo[c]) lo[c]=v; if(v>hi[c]) hi[c]=v; });
     let nx=g3.nor[i*3], ny=-g3.nor[i*3+1], nz=-g3.nor[i*3+2]; const l=Math.hypot(nx,ny,nz);
     if(l>1e-6){ nx/=l; ny/=l; nz/=l; } else { nx=0; ny=1; nz=0; }
-    Nn.set([nx,ny,nz],i*3); UV[i*2]=g3.uvs[i*2]; UV[i*2+1]=g3.uvs[i*2+1];
+    Nn.set([nx,ny,nz],i*3); UV[i*2]=uvQ[i*2]; UV[i*2+1]=uvQ[i*2+1];
     // außen nur halb so viel eingebackener Schatten: Betrachter (Shop, Blender) schattieren selbst, doppelt lag ein dunkles Band
     // quer über dem Schritt (05.11.). Innenseiten bleiben dunkel.
     const o=g3.aoArr[i*2], a=o<0?clamp(-o*.8,0,1):1-(1-clamp(o,0,1))*.5; CO.set([a,a,a],i*3);
@@ -3330,7 +3417,7 @@ async function exportGLB(){
       const fx=uy*vz-uz*vy, fy=uz*vx-ux*vz, fz=ux*vy-uy*vx, nx=Nn[a]+Nn[b]+Nn[c], ny=Nn[a+1]+Nn[b+1]+Nn[c+1], nz=Nn[a+2]+Nn[b+2]+Nn[c+2];
       if(fx*nx+fy*ny+fz*nz<0){ const h=idx[t+1]; idx[t+1]=idx[t+2]; idx[t+2]=h; } } }
   const im=await new Promise((res,rej)=>{ const m=new Image(); m.onload=()=>res(m); m.onerror=rej; m.src=G.m3.atlas; });
-  const farbe=matchHalves(im), jpg=new Uint8Array(await (await new Promise(r=>farbe.toBlob(r,"image/jpeg",.9))).arrayBuffer());
+  const farbe=seamAngleich(matchHalves(im),g3.M||G.m3), jpg=new Uint8Array(await (await new Promise(r=>farbe.toBlob(r,"image/jpeg",.9))).arrayBuffer());
   // Stoffstruktur (05.11.): Normal-Map aus dem Foto (Webstruktur, Köper, kleine Falten), damit das Licht in jedem Betrachter
   // (Shopify, Blender, three.js) die Oberfläche zeigt statt einer glatten Fläche mit aufgemaltem Foto
   const nrm=new Uint8Array(await (await new Promise(r=>normalAtlas(farbe,V.fab).toBlob(r,"image/jpeg",.92))).arrayBuffer());
@@ -4980,7 +5067,7 @@ function innerTopCut(d,mm,CW,CH,top,bot){
   const eMean=eSum/Math.max(1,eN), aMean=aN?above/aN:0;
   // Schwellen an Fotos geprüft: echter Innenbund eMean 73, aMean 83; normaler Bund auf Teppich, Fliesen, Parkett, Bettdecke,
   // dunklem Boden und weißem Grund eMean 16–26 (der Bund ist nur etwas anders gefärbt als die Hose darunter)
-  if(dip<.012*Hg||dip>PASSFORM.innenMax*Hg||eMean<PASSFORM.innenKante||aMean<28) return {ok:false,dip:dip/Hg,eMean,aMean};
+  if(dip<.012*Hg||dip>PASSFORM.innenMax*Hg||eMean<PASSFORM.innenKante||aMean<PASSFORM.innenAnders) return {ok:false,dip:dip/Hg,eMean,aMean};
   return {ok:true,xl,xr,path,line,yb:Math.min(CH-1,top+Math.max(band,Math.round(PASSFORM.innenZug*Hg))),dip:dip/Hg,eMean,aMean};
 }
 /* Gürtel, der nicht zum Teil gehört: ein Band ganz oben über die Breite in deutlich anderer Farbe als der Stoff. Damit es
@@ -5106,7 +5193,7 @@ function cropGarment(cv,S,flip,innen=false){
   for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<t0)t0=y; if(y>b0)b0=y; }
   // Gürtel, der nicht zum Teil gehört, zuerst (er liegt oben auf dem Bund)
   if(t0<b0){ try{ belt=beltCut(d,mm,CW,CH,t0,b0); }catch(e){ console.warn(e); } }
-  if(innen&&t0<b0){ inner=innerTopCut(d,mm,CW,CH,t0,b0); if(inner&&inner.ok) applyInnerCut(d,mm,CW,inner); }
+  if(innen&&t0<b0){ inner=innerTopCut(d,mm,CW,CH,t0,b0); if(inner&&inner.ok) applyInnerCut(d,mm,CW,inner); if(window.__kiTest) window.__innen=inner&&{ok:inner.ok,dip:inner.dip,eMean:inner.eMean,aMean:inner.aMean}; }
   x.putImageData(id,0,0);
   // Zeilenprofil
   let top=CH,bot=0; for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<top)top=y; if(y>bot)bot=y; }

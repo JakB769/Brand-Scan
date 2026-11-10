@@ -75,6 +75,7 @@ await ctx.route("**/@mediapipe/tasks-vision@0.10.18/**", r => { const f = NM + "
 await ctx.route("**/magic_touch.tflite", r => r.fulfill({ status: 200, body: fs.readFileSync(A + "magic_touch.tflite"), headers: { "access-control-allow-origin": "*" } }));
 await ctx.route("**/fonts.g*/**", r => r.abort());
 await ctx.addInitScript(() => { window.__kiTest = true; });
+if (process.argv.includes("--ohneSaeubern")) await ctx.addInitScript(() => { window.__ohneSaeubern = true; });
 const p = await ctx.newPage(); const errs = []; p.on("pageerror", e => errs.push(e.message));
 await p.goto("file://" + R + "werkzeuge/tests/testseite-mit-simulierter-person.html"); await p.waitForTimeout(500);
 await p.fill("#height", arg("groesse", "179")); await p.dispatchEvent("#height", "change");
@@ -87,13 +88,13 @@ for (let t = 0; t < 240; t++) { await p.waitForTimeout(500);
   const o = await p.evaluate(() => ["refDlg", "segDlg"].filter(i => { const d = document.getElementById(i); return d && !d.hidden; }).join(","));
   if (/segDlg/.test(o)) await p.click("#segOk").catch(() => {}); if (/refDlg/.test(o)) await p.click("#refOk").catch(() => {});
   if (/Fertig|nicht|kein/i.test(await p.evaluate(() => document.getElementById("own-msg").textContent))) break; }
-console.log("Seite:", (await p.evaluate(() => document.getElementById("own-msg").textContent)).slice(0, 220));
+console.log("Seite:", (await p.evaluate(() => document.getElementById("own-msg").textContent)).slice(0, +arg("msglen", 220)));
 const box = await p.$("#g3dview"); await box.scrollIntoViewIfNeeded(); await p.waitForTimeout(1500);
 for (const [n, y] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Math.PI]]) {
   await p.evaluate(y => { const v = window.__dbg.v3d; v.ziel = null; v.yaw = y; v.idle = performance.now() + 1e7; }, y); await p.waitForTimeout(1300);
   await box.screenshot({ path: OUT + `${name}_app_${n}.png` }); }
 const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.click("#g-glb")]);
-await dl.saveAs(OUT + name + ".glb");
+await dl.saveAs(OUT + name + ".glb"); console.log("Innenbund:", JSON.stringify(await p.evaluate(() => window.__innen || null)), "Produktform:", await p.evaluate(() => window.__dbg.g3.produkt));
 if (process.argv.includes("--dump")) fs.writeFileSync(OUT + name + "_netz.json", JSON.stringify(await p.evaluate(() => { const d = window.__dbg, G = d.GARMENTS[d.g.key], M = G.m3, g3 = d.g3;
   return { nr: g3.nr, nv: g3.nv, v: Array.from(M.v), vc: M.vc, pos: Array.from(g3.pos.slice(0, g3.nv * 3)) }; }))); console.log("GLB:", OUT + name + ".glb", errs.length ? errs.slice(0, 3) : "");
 await ctx.close();
