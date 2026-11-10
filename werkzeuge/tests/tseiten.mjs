@@ -61,13 +61,17 @@ await neu(); await feld('vorne',fotos+'front.jpg'); m=await fertig(); s=await sl
 const G=await p.evaluate(()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key]; return {est:G.backEst,key:d.g.key,sub:document.getElementById('g3dSub').textContent,msg:document.getElementById('g-msg').textContent}; });
 pruefe(/Rückseite: geschätzt/.test(m)&&s[1].est&&/geschätzt/.test(s[1].txt)&&G.est===true,'nur Vorderseite: Rückseite „geschätzt“ (Meldung, Feld, Hose)');
 pruefe(/Rückseite geschätzt/.test(G.sub)&&/Rückseite geschätzt/.test(G.msg),'Kennzeichnung an der 3D-Ansicht und in der Hosenkarte');
-// Atlas: über dem Schritt hat die geschätzte Rückseite kaum noch starke Kanten (Schlitz, Knopf, Taschen weg)
+// Atlas: über dem Schritt ist die geschätzte Rückseite keine Kopie der Vorderseite (Schlitz, Knopf, Vordertaschen weg). Seit 10.11.
+// hat sie eigene Details und volle Körnung (rueckseiteHoch), Kanten allein sagen darum nichts mehr: Ähnlichkeit (Korrelation der
+// Helligkeit) mit der gespiegelten Vorderseite muss gering sein, und Struktur muss da sein (nicht verwaschen)
 const k=await p.evaluate(async()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key], im=new Image(); im.src=G.m3.atlas; await im.decode();
   const c=document.createElement('canvas'); c.width=im.width; c.height=im.height; const x=c.getContext('2d'); x.drawImage(im,0,0);
   const W=im.width/2, H=im.height, D=x.getImageData(0,0,im.width,H).data, Y=(xx,yy)=>{ const i=(yy*im.width+xx)*4; return .3*D[i]+.59*D[i+1]+.11*D[i+2]; };
   const kant=(x0)=>{ let s=0,n=0; for(let yy=Math.round(.05*H);yy<Math.round(.3*H);yy++) for(let xx=x0+Math.round(.2*W);xx<x0+Math.round(.8*W);xx++){ s+=Math.abs(Y(xx+1,yy)-Y(xx-1,yy))+Math.abs(Y(xx,yy+1)-Y(xx,yy-1)); n++; } return s/n; };
-  return {vorne:kant(0),hinten:kant(W)}; });
-pruefe(k.hinten<.55*k.vorne,`geschätzte Rückseite über dem Schritt glatt: Kanten ${k.hinten.toFixed(1)} gegen ${k.vorne.toFixed(1)} vorne`);
+  const a=[],b=[]; for(let yy=Math.round(.05*H);yy<Math.round(.3*H);yy+=2) for(let xx=Math.round(.2*W);xx<Math.round(.8*W);xx+=2){ a.push(Y(W-2-xx,yy)-Y(W-xx,yy)); b.push(Y(W+xx+1,yy)-Y(W+xx-1,yy)); }   // Ableitung: nur Einzelheiten, nicht der große Verlauf (Waschung bleibt gespiegelt)
+  const m=v=>v.reduce((p,q)=>p+q,0)/v.length, ma=m(a), mb=m(b); let sab=0,saa=0,sbb=0; for(let i=0;i<a.length;i++){ sab+=(a[i]-ma)*(b[i]-mb); saa+=(a[i]-ma)**2; sbb+=(b[i]-mb)**2; }
+  return {vorne:kant(0),hinten:kant(W),korr:sab/Math.sqrt(saa*sbb||1)}; });
+pruefe(k.korr<.5&&k.hinten>.3*k.vorne,`geschätzte Rückseite über dem Schritt eigene Details, keine Kopie der Vorderseite: Ähnlichkeit ${k.korr.toFixed(2)}, Kanten ${k.hinten.toFixed(1)} gegen ${k.vorne.toFixed(1)} vorne`);
 await p.reload(); await p.waitForTimeout(600);
 const nach=await p.evaluate(k=>{ const G=window.__dbg.GARMENTS[k]; return G&&G.backEst; },G.key);
 pruefe(nach===true,'Kennzeichnung bleibt nach dem Neuladen');
@@ -90,7 +94,8 @@ await neu(); await feld('vorne',echt+'karte_vorne_IMG_7267.jpg'); await fertig()
 await neu(); await p.setInputFiles('#drop-in',echt+'karte_vorne_IMG_7267.jpg'); await fertig(); const k7=await p.evaluate(()=>window.__dbg.g.key);
 await p.setInputFiles('#drop-in',echt+'karte_hinten_IMG_7268.jpg'); m=await fertig(); l=await liste(); let mit=await taschen();
 pruefe(/Rückseite: flach/.test(m)&&!mit.est&&l.length===2&&await p.evaluate(()=>window.__dbg.g.key)===k7,'nacheinander hochgeladen: dieselbe Hose, beide Fotos benutzt ('+l.join(' | ')+')');
-pruefe(mit.k>1.3*ohne.k,`Rückseite des Modells zeigt das Rückenfoto: Taschenkanten ${mit.k.toFixed(1)} gegen ${ohne.k.toFixed(1)} bei geschätzter Rückseite`);
+// seit 10.11. bekommt auch die geschätzte Rückseite Taschen (rueckseiteHoch): dazu muss sie als geschätzt gekennzeichnet sein
+pruefe(!mit.est&&ohne.est&&mit.k>1.1*ohne.k,`Rückseite des Modells zeigt das Rückenfoto: Taschenkanten ${mit.k.toFixed(1)} gegen ${ohne.k.toFixed(1)} bei geschätzter Rückseite (gekennzeichnet: ${mit.est}/${ohne.est})`);
 // weichgezeichnetes Rückenfoto (sieht für die Hautregel glatt aus): wird nicht still verworfen, ↪ macht es zur Rückseite
 await neu();
 await p.evaluate(async(u)=>{ const im=new Image(); im.src=u; await im.decode(); const c=document.createElement('canvas'); c.width=im.width; c.height=im.height;

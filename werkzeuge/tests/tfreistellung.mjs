@@ -8,7 +8,7 @@ const dir=hier+'../../material/testbilder/freistellung/';
 const app=fs.readFileSync(hier+'../../app/index.html','utf8');
 const fn=n=>{ const a=app.indexOf('function '+n+'('); let d=0,i=app.indexOf('{',a); for(;;i++){ if(app[i]==='{')d++; if(app[i]==='}'&&--d===0) return app.slice(a,i+1); } };
 const helfer=app.match(/^const clamp=.*$/m)[0];
-const code=[helfer,...['morph','kmeans','boxBlur','segBright','segColor','finishMask','maskeSaeubern','segGarment0','segGarment'].map(fn)].join('\n');
+const code=[helfer,...['morph','kmeans','boxBlur','segBright','segColor','finishMask','segGarment0','segGarment'].map(fn)].join('\n');
 fs.mkdirSync(hier+'ausgabe',{recursive:true});
 const b=await chromium.launch(); const p=await b.newPage(); p.on('console',m=>console.log('  ',m.text()));
 await p.setContent('<html><body></body></html>');

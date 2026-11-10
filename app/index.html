@@ -4691,30 +4691,8 @@ function finishMask(m,w,h){
 /* Kleidungsstück vom Hintergrund trennen */
 /* Hose vom Untergrund trennen: Farb-Freistellung, und wenn die KI geladen ist, zusätzlich die KI. Sind beide sich
    einig, gilt die Farbkante (pixelgenau); sind sie uneinig, die KI (sie scheitert nicht an Mustern und ähnlichen Farben). */
-/* Maskenränder säubern (05.11.): Shop-Fotos (H&M-Jeans, Anzughose) haben neben der Hose einen weichen grauen Schatten, den die
-   Freistellung als Stoff mitnimmt. Er lag dann als heller Streifen auf der Seitennaht (die äußersten Spalten des Fotos werden dort
-   breit gezogen) und machte die Hose etwas breiter. Je Zeile und Teilstück: Randpunkte, die nicht klar Stoff sind (Abstand zum
-   Stoff der Zeile über 35 % des Abstands Stoff ↔ Hintergrund; Hintergrund = Median außerhalb der Maske), fallen weg, höchstens
-   8 % der Breite je Seite. Nur bei deutlichem Kontrast (Abstand über 60). */
-function maskeSaeubern(cv,S){
-  if(window.__ohneSaeubern||!S||!S.m||S.w!==cv.width||S.h!==cv.height) return S;
-  const {w,h}=S, m=S.m.slice(), d=cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data, bg=[0,0,0];
-  { const q=[[],[],[]]; for(let i=0;i<w*h;i+=11) if(!m[i]) for(let c=0;c<3;c++) q[c].push(d[i*4+c]); for(let c=0;c<3;c++){ q[c].sort((a,b)=>a-b); bg[c]=q[c].length?q[c][q[c].length>>1]:255; } }
-  // nur auf ruhigem, hellem Studiohintergrund (Shopfoto); auf Boden/Teppich mit Karte (Maßfotos) wirkte es auf die Messung
-  { let sa=0,n=0; for(let i=0;i<w*h;i+=11) if(!m[i]){ sa+=Math.abs(d[i*4]-bg[0])+Math.abs(d[i*4+1]-bg[1])+Math.abs(d[i*4+2]-bg[2]); n++; }
-    if((bg[0]+bg[1]+bg[2])/3<170||sa/Math.max(1,n)>30) return S; }
-  const dist=(i,c)=>Math.hypot(d[i*4]-c[0],d[i*4+1]-c[1],d[i*4+2]-c[2]); let weg=0;
-  for(let y=S.y0;y<S.y1;y++){ const o=y*w; let x0=-1;
-    for(let x=S.x0;x<=S.x1;x++){ const on=x<S.x1&&m[o+x]; if(on&&x0<0) x0=x; if(!on&&x0>=0){ const x1=x-1, n=x1-x0+1;
-        if(n>10){ const fab=[0,0,0]; let fn=0; for(let k=x0+Math.floor(n*.3);k<=x1-Math.floor(n*.3);k++){ for(let c=0;c<3;c++) fab[c]+=d[(o+k)*4+c]; fn++; }
-          for(let c=0;c<3;c++) fab[c]/=Math.max(1,fn);
-          const dBF=Math.hypot(bg[0]-fab[0],bg[1]-fab[1],bg[2]-fab[2]), lim=Math.round(n*.08), stoff=i=>dist(i,fab)<=.35*dBF;
-          if(dBF>60){ for(let k=0;k<lim&&!stoff(o+x0+k);k++){ m[o+x0+k]=0; weg++; } for(let k=0;k<lim&&!stoff(o+x1-k);k++){ m[o+x1-k]=0; weg++; } } }
-        x0=-1; } } }
-  return weg?{...S,m,gesaeubert:weg}:S;
-}
 function segGarment(cv){
-  const S=maskeSaeubern(cv,segGarment0(cv));
+  const S=segGarment0(cv);
   if(S&&!S.pre) try{ const B=bodenImSpalt(cv,S); if(B!==S){ for(const k of ["ki","iou","fused"]) if(S[k]!==undefined) B[k]=S[k]; B.boden=true; return B; } }catch(e){ console.warn("Spalt",e); }
   return S;
 }
@@ -5118,7 +5096,7 @@ function cropGarment(cv,S,flip,innen=false){
   for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<t0)t0=y; if(y>b0)b0=y; }
   // Gürtel, der nicht zum Teil gehört, zuerst (er liegt oben auf dem Bund)
   if(t0<b0){ try{ belt=beltCut(d,mm,CW,CH,t0,b0); }catch(e){ console.warn(e); } }
-  if(innen&&t0<b0){ inner=innerTopCut(d,mm,CW,CH,t0,b0); if(inner&&inner.ok) applyInnerCut(d,mm,CW,inner); if(window.__kiTest) window.__innen=inner&&{ok:inner.ok,dip:inner.dip,eMean:inner.eMean,aMean:inner.aMean}; }
+  if(innen&&t0<b0){ inner=innerTopCut(d,mm,CW,CH,t0,b0); if(inner&&inner.ok) applyInnerCut(d,mm,CW,inner); if(window.__kiTest||window.__innenLog) window.__innen=inner&&{ok:inner.ok,dip:inner.dip,eMean:inner.eMean,aMean:inner.aMean}; }
   x.putImageData(id,0,0);
   // Zeilenprofil
   let top=CH,bot=0; for(let y=0;y<CH;y++) for(let xx=0;xx<CW;xx++) if(mm[y*CW+xx]){ if(y<top)top=y; if(y>bot)bot=y; }
@@ -5883,6 +5861,33 @@ function garmentProf(M,aspect){
    Körnung aus der gespiegelten großen Vorderseite (über dem Schritt aus dem Bein derselben Spalte, dort wären sonst Schlitz und
    Taschen), dazu die Details einer Rückseite: Bund, Gürtelschlaufen, Mittelnaht; mit farbiger Ziernaht (Jeans) Passe und
    aufgesetzte Gesäßtaschen, sonst Paspeltaschen und Abnäher. Maße im Verhältnis zur flachen Bundweite (W32 ≈ 42 cm). */
+/* Schattenrand in der Textur (10.11., ersetzt die Maskensäuberung vom 05.11., die die gemessene Breite änderte): Shopfotos haben
+   neben der Hose einen weichen grauen Schatten, den die Freistellung zum Teil mitnimmt; in 3D lag er als heller Streifen auf der
+   Seitennaht. Je Atlaszeile an jeder Kante (außen, im Bein auch innen) höchstens 8 % der Breite: Punkte, die auf dem Weg vom Stoff
+   zum Hintergrund liegen (mindestens 30 % des Wegs, wenig daneben), werden durch den Stoff gleich weiter innen ersetzt
+   (gespiegelt an der ersten Stoffstelle, die Körnung bleibt). Maße und Umriss bleiben unverändert. */
+function randTextur(ax,P,x0,VC,bg){
+  const W=ATLAS.W/2, H=ATLAS.H, I=ax.getImageData(x0,0,W,H), d=I.data, NR=P.uv.length, off=x0/ATLAS.W, ic=Math.max(1,P.vv.findIndex(v=>v>=VC));
+  const R=[];                                          // je Zeile: Kanten [Start, Richtung, Breite des Schattens]
+  for(let y=0;y<H;y++){ R.push([]); let i=0; while(i<NR-1&&P.tv[i+1]*H<=y) i++; if(y<P.tv[0]*H||y>P.tv[NR-1]*H) continue;
+    const e=P.uv[i].map(u=>(u-off)*ATLAS.W), runs=i>=ic?[[e[0],e[1]],[e[2],e[3]]]:[[e[0],e[3]]];
+    for(const [a,b] of runs){ const n=b-a; if(n<12) continue; const fab=[0,0,0]; let fn=0;
+      for(let x=Math.round(a+.3*n);x<=b-.3*n;x++){ const k=(y*W+x)*4; fab[0]+=d[k]; fab[1]+=d[k+1]; fab[2]+=d[k+2]; fn++; }
+      for(let c=0;c<3;c++) fab[c]/=Math.max(1,fn);
+      const v=[bg[0]-fab[0],bg[1]-fab[1],bg[2]-fab[2]], vv=v[0]*v[0]+v[1]*v[1]+v[2]*v[2]; if(vv<60*60) continue;
+      const schatten=k=>{ const p=[d[k]-fab[0],d[k+1]-fab[1],d[k+2]-fab[2]], t=(p[0]*v[0]+p[1]*v[1]+p[2]*v[2])/vv;
+        const q=Math.hypot(p[0]-t*v[0],p[1]-t*v[1],p[2]-t*v[2])/Math.sqrt(vv); return t>.2&&q<.25; };
+      const lim=Math.round(.15*n);
+      for(const [st,dir] of [[Math.round(a),1],[Math.round(b),-1]]){
+        // bis zur letzten Schattenstelle in den ersten lim Punkten (einzelne Stoffpunkte im Verlauf brechen nicht ab)
+        let k0=0; for(let k=0;k<lim;k++) if(schatten((y*W+clamp(st+dir*k,0,W-1))*4)) k0=k+1; else if(k-k0>3) break;
+        R[y].push([st,dir,k0]); } } }
+  // Breite über ±4 Zeilen glätten (Median), sonst gezackte Kante
+  for(let y=0;y<H;y++) R[y].forEach((r,j)=>{ const a=[]; for(let yy=Math.max(0,y-4);yy<=Math.min(H-1,y+4);yy++){ const q=R[yy][j]; if(q&&q[1]===r[1]) a.push(q[2]); }
+    a.sort((m,n)=>m-n); const k0=a.length?a[a.length>>1]:r[2], st=r[0], dir=r[1], s0=st+dir*k0;
+    for(let k=-6;k<k0;k++){ const xd=st+dir*k, xs=clamp(s0+(s0-xd),0,W-1); if(xd<0||xd>=W) continue;   /* auch knapp außerhalb: der Texturfilter liest dort mit */ const kd=(y*W+xd)*4, ks=(y*W+xs)*4; d[kd]=d[ks]; d[kd+1]=d[ks+1]; d[kd+2]=d[ks+2]; } });
+  ax.putImageData(I,x0,0);
+}
 function rueckseiteHoch(ax,pf,pb,VC){
   const W=ATLAS.W, H=ATLAS.H, w=W/2, NR=pb.uv.length, N=w*H;
   const Fd=ax.getImageData(0,0,w,H).data, Bi=ax.getImageData(w,0,w,H), Bd=Bi.data;
@@ -5909,8 +5914,10 @@ function rueckseiteHoch(ax,pf,pb,VC){
       let j=i;
       if(oben>0){ const u=(x-e[0])/Math.max(1,e[3]-e[0]), L=u<.5?[el[0],el[1]]:[el[2],el[3]], uu=u<.5?u*2:(u-.5)*2;
         const sx=clamp(Math.round(L[0]+uu*(L[1]-L[0])),0,w-1); j=(ly*w+sx)*3; }
+      // Grundton mindestens 10 % der Breite vom Rand (plainBack verschmiert den Schatten am Rand nach innen: grauer Fleck)
+      const run=rowOf[y]>=ic?(x<=e[1]?[e[0],e[1]]:[e[2],e[3]]):[e[0],e[3]], mr=.1*(run[1]-run[0]), ib=(y*w+clamp(Math.round(x),Math.ceil(run[0]+mr),Math.floor(run[1]-mr)))*3;
       for(let c=0;c<3;c++){ const g=FM[j+c]-FL[j+c], g0=FM[i+c]-FL[i+c], gr=oben>0?g*oben+g0*(1-oben):g0;
-        Bd[(y*w+x)*4+c]=clamp(Math.round(BL[i+c]+.9*gr),0,255); } } }
+        Bd[(y*w+x)*4+c]=clamp(Math.round(BL[ib+c]+.9*gr),0,255); } } }
   // Garnfarbe: farbige Ziernaht vorne (warm und deutlich heller als der Stoff), sonst Ton in Ton
   const fab=[0,0,0], th=[]; let nf=0;
   for(let y=topY;y<crY;y+=2){ const e=pf.uv[rowOf[y]].map(u=>u*W); for(let x=Math.ceil(e[0]);x<e[3];x+=2){ const k=(y*w+x)*4; fab[0]+=Fd[k]; fab[1]+=Fd[k+1]; fab[2]+=Fd[k+2]; nf++; } }
@@ -6065,6 +6072,10 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   // Rückseite ohne Rückenfoto (geschätzt oder aus dem Foto mit Person): keine Einzelheiten aus dem großen Foto, das wären die
   // der Vorderseite (Taschen, Schlitz, Gürtelschlaufen); geglättet wird dort im Groben, das ließ sie durch die Prüfung
   const ax=at.getContext("2d",{willReadFrequently:true}); ax.drawImage(hiHalf(F.c,fp,false),0,0); ax.drawImage(hiHalf(B.c,bp,false),ATLAS.W/2,0);
+  { const c=fp.cv, cx2=c.getContext("2d",{willReadFrequently:true}), q=[[],[],[]];       // Hintergrund: Median am Bildrand
+    for(const [x,y,w,h] of [[0,0,c.width,4],[0,c.height-4,c.width,4],[0,0,4,c.height],[c.width-4,0,4,c.height]]){ const dd=cx2.getImageData(x,y,w,h).data; for(let i=0;i<dd.length;i+=16) for(let k=0;k<3;k++) q[k].push(dd[i+k]); }
+    const bg=q.map(a=>{ a.sort((m,n)=>m-n); return a[a.length>>1]; });
+    try{ randTextur(ax,pf,0,VC,bg); randTextur(ax,pb,ATLAS.W/2,VC,bg); }catch(e){ console.warn("Rand",e); } }
   if(backEst&&!rock&&PASSFORM.rueckseiteHoch){ try{ rueckseiteHoch(ax,pf,pb,VC); }catch(e){ console.warn("Rückseite hoch",e); } }
   const r4=a=>a.map(x=>+x.toFixed(4));
   const raw={nr:NR,vc:rock?1:+VC.toFixed(3),rock,wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),

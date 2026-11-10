@@ -88,7 +88,8 @@ pruefe(kurzR.filter((r,i)=>i>0).every(r=>r.petite===-1),'Petite-Jeans 86 cm (ohn
 pruefe(kurzR.every(r=>r.cut==='rock'&&r.rockBund&&r.rockHuefte),'Rock: Bund gegen die Taille; ein weiterer Bund (rutscht auf die Hüfte) nicht „zu weit“');
 // im 3D sichtbar: größere Größe breiter, kürzere endet höher über dem Boden (Puppe 215 cm, damit der Saum nicht auf dem Schuh aufliegt)
 await groesse(215); await p.evaluate(()=>document.getElementById('g3dbox').scrollIntoView());
-const form=async i=>{ await p.click(`#g-szrow .szchip:nth-child(${i+1})`); await p.evaluate(()=>{ const v=window.__dbg.v3d; v.yaw=0; v.idle=performance.now()+1e9; }); await p.waitForTimeout(2500);
+// gemessen wird die Anprobe-Form (Saum tiefer bei größerer Länge), nicht die Produktansicht (seit 10.11. Standard)
+const form=async i=>{ await p.click(`#g-szrow .szchip:nth-child(${i+1})`); await p.evaluate(()=>{ const v=window.__dbg.v3d; v.produkt=false; v.yaw=0; v.idle=performance.now()+1e9; }); await p.waitForTimeout(2500);
   return p.evaluate(()=>{ const d=window.__dbg, P=d.g3.pos, b=d.v3d.boden; let x0=1e9,x1=-1e9,y1=-1e9;
     for(let i=0;i<P.length;i+=3){ x0=Math.min(x0,P[i]); x1=Math.max(x1,P[i]); y1=Math.max(y1,P[i+1]); } return {w:(x1-x0)/b.ppc,gap:(b.floor-y1)/b.ppc}; }); };
 const fS=await form(0), fL=await form(2);

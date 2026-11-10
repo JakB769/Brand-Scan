@@ -74,8 +74,7 @@ await ctx.route("**/@mediapipe/tasks-vision@0.10.18/**", r => { const f = NM + "
   if (!fs.existsSync(f)) return r.abort(); r.fulfill({ status: 200, contentType: typ(f), headers: { "access-control-allow-origin": "*" }, body: fs.readFileSync(f) }); });
 await ctx.route("**/magic_touch.tflite", r => r.fulfill({ status: 200, body: fs.readFileSync(A + "magic_touch.tflite"), headers: { "access-control-allow-origin": "*" } }));
 await ctx.route("**/fonts.g*/**", r => r.abort());
-await ctx.addInitScript(() => { window.__kiTest = true; });
-if (process.argv.includes("--ohneSaeubern")) await ctx.addInitScript(() => { window.__ohneSaeubern = true; });
+if (!process.argv.includes("--ohneKI")) await ctx.addInitScript(() => { window.__kiTest = true; }); else await ctx.addInitScript(() => { window.__innenLog = true; });
 const p = await ctx.newPage(); const errs = []; p.on("pageerror", e => errs.push(e.message));
 await p.goto("file://" + R + "werkzeuge/tests/testseite-mit-simulierter-person.html"); await p.waitForTimeout(500);
 await p.fill("#height", arg("groesse", "179")); await p.dispatchEvent("#height", "change");
