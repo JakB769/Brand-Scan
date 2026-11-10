@@ -2050,7 +2050,7 @@ const PASSFORM={
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
   // Produktform der 3D-Datei (produktForm): Tiefe je flacher Breite (Becken am Bund rB, am Gesäß rS; Bein am Schritt rL, Saum rH),
   // Anteil vorne, Querschnitt-Exponent p (2 = Ellipse, größer = kantiger), Übergang ins V am Schritt (cm), Spaltendichte am Rand
-  produkt:{an:true,kB:.85,kS:1.1,vorn:.44,rL:.88,rH:.8,p:2.5,schrittCm:7,rand:.35,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:.35},
+  produkt:{an:true,kB:.85,kS:1.1,vorn:.44,rL:.88,rH:.8,p:2.5,schrittCm:2.5,rand:.35,innenRand:.08,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:.35},
   gesaessFallCm:18,      // so weit unter dem Schritt läuft die Tiefe vom Becken auf die Beintiefe aus (enge Hosen 80 % davon)
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
@@ -3369,7 +3369,8 @@ function produktForm(G,V){
   const fabK=stoffVon(G), buegel=fabK===STOFFE.anzug, weich=fabK&&fabK.fold?clamp(fabK.fold/2,.3,1.4):.6;
   const falte=(s,f,q,v)=>{ let z=0;
     if(buegel){ const h=f?PF.buegelHinten*sstep(vSeat,M.vc,v):PF.buegelVorn*sstep(0,.06,v); z+=h*Math.max(0,1-Math.abs(q)/.18); }
-    const lp=clamp((v-M.vc*.6)/Math.max(.1,1-M.vc*.6),0,1), ph=s*1.7+f*.9;
+    // Längsfalten erst unter dem Schritt (darüber lagen sie im Übergang Becken → Bein als schräge Falten in der Mitte)
+    const lp=sstep(M.vc+.03,1,v), ph=s*1.7+f*.9;
     z+=PF.laengsCm*weich*lp*(.6+.4*Math.sin(v*7+ph))*Math.sin((q+1)*Math.PI*(buegel?1:1.5)+ph)*(1-Math.abs(q)**4);
     return z; };
   const iH=Math.max(ic+1,M.v.findIndex(v=>v>1-PF.saumCm/D.len)-1);
@@ -3420,7 +3421,9 @@ function produktForm(G,V){
   // den abgerundeten Ecken quer gedehnt und liegt als heller Streifen über dem Saum
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const L=(s===0)!==!!M.mir, iu=i>iH?iH:i<iT&&i<ic?Math.min(iT,ic-1):i, E=(f?M.b:M.f)[iu];
     const e=f?(L?[E[1],E[0]]:[E[2],E[3]]):(L?[E[2],E[3]]:[E[1],E[0]]);
-    for(let j=0;j<C;j++){ const q=(((s*NR+i)*2+f)*C+j)*2; uvs[q+1]=(f&&M.tvb?M.tvb:M.tv)[i]; if(iu!==i) uvs[q]=e[0]+(e[1]-e[0])*j/K3; } }
+    // Beine: innen (t = 0) liegt im Foto der dunkle Spalt zwischen den Beinen; die Innenseite nimmt den Stoff ab innenRand der Breite
+    const m=i>=ic?PF.innenRand:0;
+    for(let j=0;j<C;j++){ const q=(((s*NR+i)*2+f)*C+j)*2; uvs[q+1]=(f&&M.tvb?M.tvb:M.tv)[i]; if(iu!==i||m) uvs[q]=e[0]+(e[1]-e[0])*(m+(1-m)*j/K3); } }
   rim3d(M,ppc); return true;
 }
 async function exportGLB(){
@@ -5986,7 +5989,7 @@ function garmentProf(M,aspect){
    Seitennaht. Je Atlaszeile an jeder Kante (außen, im Bein auch innen) höchstens 8 % der Breite: Punkte, die auf dem Weg vom Stoff
    zum Hintergrund liegen (mindestens 30 % des Wegs, wenig daneben), werden durch den Stoff gleich weiter innen ersetzt
    (gespiegelt an der ersten Stoffstelle, die Körnung bleibt). Maße und Umriss bleiben unverändert. */
-function randTextur(ax,P,x0,VC,bg){
+function randTextur(ax,P,x0,VC,bg,fest=0){
   const W=ATLAS.W/2, H=ATLAS.H, I=ax.getImageData(x0,0,W,H), d=I.data, NR=P.uv.length, off=x0/ATLAS.W, ic=Math.max(1,P.vv.findIndex(v=>v>=VC));
   const R=[];                                          // je Zeile: Kanten [Start, Richtung, Breite des Schattens]
   for(let y=0;y<H;y++){ R.push([]); let i=0; while(i<NR-1&&P.tv[i+1]*H<=y) i++; if(y<P.tv[0]*H||y>P.tv[NR-1]*H) continue;
@@ -5994,18 +5997,26 @@ function randTextur(ax,P,x0,VC,bg){
     for(const [a,b] of runs){ const n=b-a; if(n<12) continue; const fab=[0,0,0]; let fn=0;
       for(let x=Math.round(a+.3*n);x<=b-.3*n;x++){ const k=(y*W+x)*4; fab[0]+=d[k]; fab[1]+=d[k+1]; fab[2]+=d[k+2]; fn++; }
       for(let c=0;c<3;c++) fab[c]/=Math.max(1,fn);
-      const v=[bg[0]-fab[0],bg[1]-fab[1],bg[2]-fab[2]], vv=v[0]*v[0]+v[1]*v[1]+v[2]*v[2]; if(vv<60*60) continue;
+      const v=[bg[0]-fab[0],bg[1]-fab[1],bg[2]-fab[2]], vv=v[0]*v[0]+v[1]*v[1]+v[2]*v[2]; if(vv<60*60&&!fest) continue;
       const schatten=k=>{ const p=[d[k]-fab[0],d[k+1]-fab[1],d[k+2]-fab[2]], t=(p[0]*v[0]+p[1]*v[1]+p[2]*v[2])/vv;
         const q=Math.hypot(p[0]-t*v[0],p[1]-t*v[1],p[2]-t*v[2])/Math.sqrt(vv); return t>.2&&q<.25; };
       const lim=Math.round(.15*n);
       for(const [st,dir] of [[Math.round(a),1],[Math.round(b),-1]]){
         // bis zur letzten Schattenstelle in den ersten lim Punkten (einzelne Stoffpunkte im Verlauf brechen nicht ab)
-        let k0=0; for(let k=0;k<lim;k++) if(schatten((y*W+clamp(st+dir*k,0,W-1))*4)) k0=k+1; else if(k-k0>3) break;
+        let k0=0; if(fest) k0=Math.round(fest*n); else for(let k=0;k<lim;k++) if(schatten((y*W+clamp(st+dir*k,0,W-1))*4)) k0=k+1; else if(k-k0>3) break;
         R[y].push([st,dir,k0]); } } }
-  // Breite über ±4 Zeilen glätten (Median), sonst gezackte Kante
-  for(let y=0;y<H;y++) R[y].forEach((r,j)=>{ const a=[]; for(let yy=Math.max(0,y-4);yy<=Math.min(H-1,y+4);yy++){ const q=R[yy][j]; if(q&&q[1]===r[1]) a.push(q[2]); }
-    a.sort((m,n)=>m-n); const k0=a.length?a[a.length>>1]:r[2], st=r[0], dir=r[1], s0=st+dir*k0;
-    for(let k=-6;k<k0;k++){ const xd=st+dir*k, xs=clamp(s0+(s0-xd),0,W-1); if(xd<0||xd>=W) continue;   /* auch knapp außerhalb: der Texturfilter liest dort mit */ const kd=(y*W+xd)*4, ks=(y*W+xs)*4; d[kd]=d[ks]; d[kd+1]=d[ks+1]; d[kd+2]=d[ks+2]; } });
+  // Breite über ±4 Zeilen glätten (Median), sonst gezackte Kante; Farbton am Rand je Kante über ±6 Zeilen mitteln, sonst Querstreifen
+  const K=R.map((row,y)=>row.map((r,j)=>{ const a=[]; for(let yy=Math.max(0,y-4);yy<=Math.min(H-1,y+4);yy++){ const q=R[yy][j]; if(q&&q[1]===r[1]) a.push(q[2]); }
+    a.sort((m,n)=>m-n); const k0=a.length?a[a.length>>1]:r[2], s0=r[0]+r[1]*k0, ton=[0,0,0];
+    for(let k=0;k<6;k++){ const kk=(y*W+clamp(s0+r[1]*k,0,W-1))*4; for(let c=0;c<3;c++) ton[c]+=d[kk+c]/6; } return {k0,s0,ton}; }));
+  const D0=d.slice(), o=W*4;
+  for(let y=0;y<H;y++) R[y].forEach((r,j)=>{ const {k0,s0}=K[y][j], st=r[0], dir=r[1], ton=[0,0,0]; let n=0;
+    for(let yy=Math.max(0,y-6);yy<=Math.min(H-1,y+6);yy++){ const q=K[yy][j]; if(q&&R[yy][j][1]===dir){ for(let c=0;c<3;c++) ton[c]+=q.ton[c]; n++; } }
+    for(let c=0;c<3;c++) ton[c]/=Math.max(1,n);
+    // Farbton vom Rand, nur die Körnung gespiegelt von innen: gespiegelt kam sonst die hellere Waschung der Beinmitte an den Rand
+    for(let k=-6;k<k0;k++){ const xd=st+dir*k, xs=clamp(s0+(s0-xd),1,W-2); if(xd<0||xd>=W) continue;   /* auch knapp außerhalb: der Texturfilter liest dort mit */
+      const kd=(y*W+xd)*4, ks=(y*W+xs)*4, ko=y>0&&y<H-1?[-o-4,-o,-o+4,-4,0,4,o-4,o,o+4]:[-4,0,4];
+      for(let c=0;c<3;c++){ let m=0; for(const q of ko) m+=D0[ks+q+c]; const kor=D0[ks+c]-m/ko.length; d[kd+c]=clamp(Math.round(ton[c]+kor),0,255); } } });
   ax.putImageData(I,x0,0);
 }
 function rueckseiteHoch(ax,pf,pb,VC){
@@ -6035,7 +6046,7 @@ function rueckseiteHoch(ax,pf,pb,VC){
       if(oben>0){ const u=(x-e[0])/Math.max(1,e[3]-e[0]), L=u<.5?[el[0],el[1]]:[el[2],el[3]], uu=u<.5?u*2:(u-.5)*2;
         const sx=clamp(Math.round(L[0]+uu*(L[1]-L[0])),0,w-1); j=(ly*w+sx)*3; }
       // Grundton mindestens 10 % der Breite vom Rand (plainBack verschmiert den Schatten am Rand nach innen: grauer Fleck)
-      const run=rowOf[y]>=ic?(x<=e[1]?[e[0],e[1]]:[e[2],e[3]]):[e[0],e[3]], mr=.1*(run[1]-run[0]), ib=(y*w+clamp(Math.round(x),Math.ceil(run[0]+mr),Math.floor(run[1]-mr)))*3;
+      const run=rowOf[y]>=ic?(x<=e[1]?[e[0],e[1]]:[e[2],e[3]]):[e[0],e[3]], mr=(oben>0?.22:.1)*(run[1]-run[0]), ib=(y*w+clamp(Math.round(x),Math.ceil(run[0]+mr),Math.floor(run[1]-mr)))*3;
       for(let c=0;c<3;c++){ const g=FM[j+c]-FL[j+c], g0=FM[i+c]-FL[i+c], gr=oben>0?g*oben+g0*(1-oben):g0;
         Bd[(y*w+x)*4+c]=clamp(Math.round(BL[ib+c]+.9*gr),0,255); } } }
   // Garnfarbe: farbige Ziernaht vorne (warm und deutlich heller als der Stoff), sonst Ton in Ton
@@ -6196,7 +6207,10 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
     for(const [x,y,w,h] of [[0,0,c.width,4],[0,c.height-4,c.width,4],[0,0,4,c.height],[c.width-4,0,4,c.height]]){ const dd=cx2.getImageData(x,y,w,h).data; for(let i=0;i<dd.length;i+=16) for(let k=0;k<3;k++) q[k].push(dd[i+k]); }
     const bg=q.map(a=>{ a.sort((m,n)=>m-n); return a[a.length>>1]; });
     try{ randTextur(ax,pf,0,VC,bg); randTextur(ax,pb,ATLAS.W/2,VC,bg); }catch(e){ console.warn("Rand",e); } }
-  if(backEst&&!rock&&PASSFORM.rueckseiteHoch){ try{ rueckseiteHoch(ax,pf,pb,VC); }catch(e){ console.warn("Rückseite hoch",e); } }
+  if(backEst&&!rock&&PASSFORM.rueckseiteHoch){ try{ rueckseiteHoch(ax,pf,pb,VC);
+    // Rand der geschätzten Rückseite: die äußersten 4 % aus dem Stoff daneben (gespiegelt); dort lag sonst grauer Hintergrund
+    // aus dem gespiegelten Foto (Seitenansicht: heller Fleck auf Schritthöhe)
+    randTextur(ax,pb,ATLAS.W/2,VC,[255,255,255],.04); }catch(e){ console.warn("Rückseite hoch",e); } }
   const r4=a=>a.map(x=>+x.toFixed(4));
   const raw={nr:NR,vc:rock?1:+VC.toFixed(3),rock,wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),
             f:pf.uv,b:pb.uv,atlas:at.toDataURL("image/jpeg",ATLAS.q)};
