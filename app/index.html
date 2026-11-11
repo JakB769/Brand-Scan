@@ -1931,7 +1931,7 @@ const PASSFORM={
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
   // Produktform der 3D-Datei (produktForm): Tiefe je flacher Breite (Becken am Bund rB, am Gesäß rS; Bein am Schritt rL, Saum rH),
   // Anteil vorne, Querschnitt-Exponent p (2 = Ellipse, größer = kantiger), Übergang ins V am Schritt (cm), Spaltendichte am Rand
-  produkt:{an:true,kB:.85,kS:1.1,vorn:.44,rL:.88,rH:.8,p:2.5,schrittCm:2.5,rand:.35,innenRand:.08,schrittGlattCm:8,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:.35},
+  produkt:{an:true,kB:1,kS:1.15,vorn:.44,rL:.85,rH:.8,pB:2,pL:1.8,art:{jeans:{rL:.77,rH:.72,pL:1.6},anzug:{rL:.95,rH:.92,pL:1.6}},schrittCm:2.5,rand:.35,innenRand:.08,schrittGlattCm:8,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:.35},
   gesaessFallCm:18,      // so weit unter dem Schritt läuft die Tiefe vom Becken auf die Beintiefe aus (enge Hosen 80 % davon)
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
@@ -3237,7 +3237,10 @@ function avatarPose(G,W,H,yw,sync,A){
    (Superellipse) und im Schritt ein schmales V. Die Anprobe am Körper bleibt bei pose3d; das hier ist nur die Datei für Shop
    und Betrachter. Schreibt g3.pos (Bildschirmkoordinaten wie pose3d), Bund/Saum und Normalen neu. */
 function produktForm(G,V){
-  const M=g3.M||G.m3, NR=M.nr, C=K3+1, ic=icOf(M), pos=g3.pos, D=garmentDims(G), cm=D.cmW, PF=PASSFORM.produkt, ppc=V.ppc;   // g3.M: verfeinert (mesh3d)
+  // Werte je Stoffart (11.11., aus Querschnitten der KI-Referenzen: Zara-Jeans Bein Tiefe/Breite 0,77 → 0,72, Querschnitt
+  // linsenförmig (Füllgrad 0,70); Anzughose 0,95, ebenso linsenförmig; Becken bei beiden Bund ≈ 1,0, Gesäß ≈ 1,15 × Beintiefe)
+  const PF0=PASSFORM.produkt, fk0=stoffVon(G), PF={...PF0,...((fk0===STOFFE.anzug?PF0.art.anzug:fk0===STOFFE.jeans||fk0===STOFFE.stretch?PF0.art.jeans:null)||{})};
+  const M=g3.M||G.m3, NR=M.nr, C=K3+1, ic=icOf(M), pos=g3.pos, D=garmentDims(G), cm=D.cmW, ppc=V.ppc;   // g3.M: verfeinert (mesh3d)
   g3.produkt="aus"; if(M.rock||g3.nr!==NR){ g3.produkt="rock/nr "+g3.nr+"/"+NR; return false; }
   const med=a=>{ const b=a.filter(Number.isFinite).sort((x,y)=>x-y); return b.length?b[b.length>>1]:NaN; };
   const kap=med(M.f.slice(0,ic).map((F,i)=>2*M.hw[i]/Math.max(1e-4,F[3]-F[0]))), uc=med(M.f.slice(0,ic).map(F=>(F[0]+F[3])/2));
@@ -3296,12 +3299,12 @@ function produktForm(G,V){
     for(let f=0;f<2;f++){ const sg=f?-1:1;
       for(let j=0;j<C;j++){ const t=j/K3;
         let x, z;
-        if(below){ const q=xi(t); x=xc+q*a; z=sg*Dl/2*se(q,PF.p)+sg*falte(s,f,q,v); }
+        if(below){ const q=xi(t); x=xc+q*a; z=sg*Dl/2*se(q,PF.pL)+sg*falte(s,f,q,v); }
         else{ // Becken: Viertel von der Mitte (t=0) zur Seite; zum Schritt hin in die Form eines Beins übergehen (schmales V)
-          const x0=xIn+(xOut-xIn)*(.5+.5*xi(t)), vo=PF.vorn+(.5-PF.vorn)*sstep(vSeat,M.vc,v), zP=sg*Dp*(f?1-vo:vo)*se(.5+.5*xi(t),PF.p);
+          const x0=xIn+(xOut-xIn)*(.5+.5*xi(t)), vo=PF.vorn+(.5-PF.vorn)*sstep(vSeat,M.vc,v), zP=sg*Dp*(f?1-vo:vo)*se(.5+.5*xi(t),PF.pB);
           // Bein-Querschnitt: zwischen Mitte und Beinmitte erst aufgefüllt (flach), im schmalen V am Schritt (w) bis zur Mitte
           // abfallend; die Form selbst geht über die ganze Strecke Gesäß → Schritt (wS) über, sonst kam außen eine Kante nach vorn
-          const zLeg=sg*Dl/2*se(xi(t),PF.p), zL=t<.5?zLeg*w+sg*Dl/2*(1-w):zLeg, wS=sstep(vSeat,M.vc,v); x=x0; z=zP*(1-wS)+zL*wS+sg*falte(s,f,xi(t),v); }
+          const zLeg=sg*Dl/2*se(xi(t),PF.pL), zL=t<.5?zLeg*w+sg*Dl/2*(1-w):zLeg, wS=sstep(vSeat,M.vc,v); x=x0; z=zP*(1-wS)+zL*wS+sg*falte(s,f,xi(t),v); }
         put(id(s,i,f,j),x,y,z); } } }
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const w=(g3.nRing+(s*NR+i)*2+f)*3, src=id(s,i,f,0); pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2]; }
   normals3d({h:hh},null,null);

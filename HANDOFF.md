@@ -97,7 +97,9 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
   (`innenKante` 58, `innenAnders` 62). Schattenrand aus Shopfotos nur in der Textur ersetzt (`randTextur`: Farbton vom Rand,
   Körnung von innen), nicht in der Maske (die Maskensäuberung vom 05.11. änderte die Maße, `tgenerator`). Schritt-V nur 2,5 cm
   hoch, Längsfalten erst unter dem Schritt, Innenseite der Beine ohne Spaltschatten (`innenRand`). Beinkanten der Produktform als Ausgleichskurve (Zacken im Foto-Spalt
-  standen sonst als Falten am Schritt), Normal-Map ohne mittlere Größen (Waschung/Whiskers sind Farbe, kein Relief). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
+  standen sonst als Falten am Schritt), Normal-Map ohne mittlere Größen (Waschung/Whiskers sind Farbe, kein Relief). Querschnitte je Stoffart an den
+  KI-Referenzen geeicht (`PASSFORM.produkt.art`, Messung `werkzeuge/python/hose_querschnitt.py`): Jeans Bein T/B 0,77→0,72, Anzug 0,95,
+  linsenförmig (pL 1,6), Becken Bund 1,0 / Gesäß 1,15 × Beintiefe. Weitere KI-Modelle (Foto + .glb) als Eichbeispiele geplant. Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
   (H&M-Jeans mit Bund 43/Länge 110 etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich der Jeans fehlt; KI-Formen selbst sind zu
   dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
 
