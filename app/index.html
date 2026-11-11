@@ -1931,7 +1931,7 @@ const PASSFORM={
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
   // Produktform der 3D-Datei (produktForm): Tiefe je flacher Breite (Becken am Bund rB, am Gesäß rS; Bein am Schritt rL, Saum rH),
   // Anteil vorne, Querschnitt-Exponent p (2 = Ellipse, größer = kantiger), Übergang ins V am Schritt (cm), Spaltendichte am Rand
-  produkt:{an:true,kB:.85,kS:1.1,vorn:.44,rL:.88,rH:.8,p:2.5,schrittCm:2.5,rand:.35,innenRand:.08,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:.35},
+  produkt:{an:true,kB:.85,kS:1.1,vorn:.44,rL:.88,rH:.8,p:2.5,schrittCm:2.5,rand:.35,innenRand:.08,schrittGlattCm:8,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:.35},
   gesaessFallCm:18,      // so weit unter dem Schritt läuft die Tiefe vom Becken auf die Beintiefe aus (enge Hosen 80 % davon)
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
@@ -2080,7 +2080,9 @@ function normalAtlas(cv,fab){
     return O; };
   // Rauschen des Fotos (JPEG, Sensor) erst glätten (1 Punkt), sonst wird es zu Pickeln („Orangenhaut“)
   const L1=blur(L,1), b3=blur(L1,3), b14=blur(L1,14), hgt=new Float32Array(W*H), k=clamp((fab&&fab.bump||3)/3,.5,1.6);
-  for(let i=0;i<W*H;i++){ const m=b14[i]||1e-3; hgt[i]=((L1[i]-b3[i])*.45+(b3[i]-b14[i])*.9)/Math.max(.1,m); }   // relativ zur Helligkeit: dunkle Stoffe gleich stark
+  for(let i=0;i<W*H;i++){ const m=b14[i]||1e-3; hgt[i]=((L1[i]-b3[i])*.45+(b3[i]-b14[i])*.2)/Math.max(.1,m); }   // relativ zur Helligkeit: dunkle Stoffe gleich stark
+  // mittlere Größen nur schwach (11.11., vorher 0,9): Waschung und aufgedruckte Falten (Whiskers) der Jeans sind Farbe, kein Relief;
+  // als Beulen gerechnet lagen sie als „komische Falten“ am Schritt
   const c=document.createElement("canvas"); c.width=W; c.height=H; const x=c.getContext("2d"), D=x.createImageData(W,H), o=D.data, s=.9*k;
   for(let y=0;y<H;y++) for(let xx=0;xx<W;xx++){ const i=y*W+xx, gx=(hgt[y*W+Math.min(W-1,xx+1)]-hgt[y*W+Math.max(0,xx-1)])*s, gy=(hgt[Math.max(0,y-1)*W+xx]-hgt[Math.min(H-1,y+1)*W+xx])*s;
     const l=Math.hypot(gx,gy,1); o[i*4]=Math.round((-gx/l*.5+.5)*255); o[i*4+1]=Math.round((-gy/l*.5+.5)*255); o[i*4+2]=Math.round((1/l*.5+.5)*255); o[i*4+3]=255; }
@@ -3265,13 +3267,27 @@ function produktForm(G,V){
   const iT=Math.max(0,M.v.findIndex(v=>v>=PF.bundCm/D.len));
   const iSe=Math.max(1,M.v.findIndex(v=>v>=vSeat)), oben=[0,1].map(s=>{ const w=M.f.slice(0,ic).map((F0,i)=>{ const F=M.f[Math.max(i,Math.min(iT,ic-1))]; const L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]]; return X(e[1])-X(e[0]); });
     for(let i=Math.min(iSe,ic-1)-1;i>=0;i--) if(Math.abs(w[i])>Math.abs(w[i+1])) w[i]=w[i+1]; return w; });
-  const DlC=[0,1].map(s=>{ const F=M.f[Math.min(NR-1,ic)], L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]]; return Math.abs(X(e[1])-X(e[0]))*PF.rL; });
+  // Beinkanten glätten (11.11.): das Foto hat am Spalt zwischen den Beinen Zacken und Beulen (Falten, Schatten, verdrehte Naht);
+  // 1:1 übernommen standen sie als „komische Falten“ am Schritt und als Knick in der Seitenansicht (die Tiefe folgt der Breite).
+  // Außenkante: Ausgleichskurve 2. Grades über das Bein; Innenkante ab schrittGlattCm unter dem Schritt ebenso, darüber öffnet
+  // sich der Spalt aus dem Schrittpunkt rasch (wie ein umgekehrtes V). Gemessen wird weiter am Foto (nur die Produktform).
+  const fit2=(pts)=>{ const n=pts.length; if(n<3) return v=>pts.length?pts[0][1]:0; const m=pts.reduce((q,p)=>q+p[0],0)/n;
+    const S=[0,0,0,0,0], T=[0,0,0]; for(const [v0,x] of pts){ const v=v0-m; let p=1; for(let e=0;e<5;e++){ S[e]+=p; if(e<3) T[e]+=x*p; p*=v; } }
+    const A=[[S[0],S[1],S[2]],[S[1],S[2],S[3]],[S[2],S[3],S[4]]], det=M3=>M3[0][0]*(M3[1][1]*M3[2][2]-M3[1][2]*M3[2][1])-M3[0][1]*(M3[1][0]*M3[2][2]-M3[1][2]*M3[2][0])+M3[0][2]*(M3[1][0]*M3[2][1]-M3[1][1]*M3[2][0]);
+    const d0=det(A); if(Math.abs(d0)<1e-12){ const b=pts.reduce((q,p)=>q+p[1],0)/n; return ()=>b; }
+    const c=[0,1,2].map(k=>det(A.map((r,i)=>r.map((x,j)=>j===k?T[i]:x)))/d0); return v=>c[0]+c[1]*(v-m)+c[2]*(v-m)**2; };
+  const iB=Math.max(1,M.v.findIndex(v=>v>=M.vc-PF.schrittGlattCm/D.len)), iG=Math.min(iH-3,Math.max(ic+1,M.v.findIndex(v=>v>=M.vc+PF.schrittGlattCm/D.len)));
+  const glatt=[0,1].map(s=>{ const L=(s===0)!==!!M.mir, rohe=k=>{ const r=[]; for(let i=ic;i<=iH;i++){ const F=M.f[i], e=L?[F[2],F[3]]:[F[1],F[0]]; r.push([M.v[i],X(e[k])+spreiz[s](i,M.v[i])]); } return r; };
+    const ra=rohe(1), ri=rohe(0), aus=fit2(ra), innF=fit2(ri.filter(p=>p[0]>=M.v[iG])), c0=ri[0][1], vG=M.v[iG];
+    return {aus, inn:(i,v)=>{ if(v>=vG) return innF(v); const t=clamp((v-M.vc)/Math.max(1e-4,vG-M.vc),0,1); return c0+(innF(v)-c0)*(1-(1-t)**2); }}; });
+  const DlC=[0,1].map(s=>Math.abs(glatt[s].aus(M.vc)-glatt[s].inn(ic,M.vc))*PF.rL);
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++){
     // unten gerade abgeschnitten: die Ecken am Saum sind im Foto abgerundet (Freistellung), die Hose ist es nicht
     const F=M.f[Math.min(i,iH)], L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]], v=M.v[i], y=(1-v)*D.len, below=i>=ic;
     // unter iH die Kanten gerade weiterführen (Schräge der Beine aus den 6 Zeilen darüber), nicht senkrecht: sonst Knick über dem Saum
     const ex=k=>{ if(i<=iH) return X(e[k]); const F6=M.f[iH-6], e6=L?[F6[2],F6[3]]:[F6[1],F6[0]], dv=Math.max(1e-4,M.v[iH]-M.v[iH-6]); return X(e[k])+(X(e[k])-X(e6[k]))*(v-M.v[iH])/dv; };
-    const sp=below?spreiz[s](i,v):0, xIn=ex(0)+sp, xOut=below?ex(1)+sp:xIn+oben[s][i], a=(xOut-xIn)/2, xc=(xIn+xOut)/2;
+    const sp=below?spreiz[s](i,v):0, xIn0=ex(0)+sp, xOut0=below?ex(1)+sp:xIn0+oben[s][i];
+    const xIn=below?glatt[s].inn(i,v):xIn0, xOut=below?glatt[s].aus(v):i>=iB?xOut0+(glatt[s].aus(v)-xOut0)*sstep(M.v[iB],M.vc,v):xOut0, a=(xOut-xIn)/2, xc=(xIn+xOut)/2;
     // Tiefe: Becken vom Bund (rB) zum Gesäß (rS) der flachen Gesamtbreite, vorn kleiner als hinten; Bein rL am Schritt bis rH am Saum
     // Tiefe: Bein rL der flachen Beinbreite am Schritt bis rH am Saum; Becken im Verhältnis zur Beintiefe am Schritt (Bund kB,
     // Gesäß kS, am Schritt 1): so geht das Becken ohne Stufe in die Beine über (KI-Referenzen: Becken kaum tiefer als ein Bein)

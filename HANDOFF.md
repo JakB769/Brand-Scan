@@ -96,7 +96,8 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
   farbiger Ziernaht (Jeans) Passe und aufgesetzten Taschen, sonst Paspeltaschen (`rueckseiteHoch`). Innenbund-Erkennung strenger
   (`innenKante` 58, `innenAnders` 62). Schattenrand aus Shopfotos nur in der Textur ersetzt (`randTextur`: Farbton vom Rand,
   Körnung von innen), nicht in der Maske (die Maskensäuberung vom 05.11. änderte die Maße, `tgenerator`). Schritt-V nur 2,5 cm
-  hoch, Längsfalten erst unter dem Schritt, Innenseite der Beine ohne Spaltschatten (`innenRand`). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
+  hoch, Längsfalten erst unter dem Schritt, Innenseite der Beine ohne Spaltschatten (`innenRand`). Beinkanten der Produktform als Ausgleichskurve (Zacken im Foto-Spalt
+  standen sonst als Falten am Schritt), Normal-Map ohne mittlere Größen (Waschung/Whiskers sind Farbe, kein Relief). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
   (H&M-Jeans mit Bund 43/Länge 110 etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich der Jeans fehlt; KI-Formen selbst sind zu
   dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
 
