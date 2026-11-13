@@ -2,6 +2,7 @@
    Bund, Länge), KI-Freistellung wie im Browser, 3D-Datei (.glb) aus der Seite; dazu jede .glb (eigene oder KI-Referenz) in einer
    neutralen Studio-Szene (three.js, gleiches Licht und gleiche Kamera, auf Höhe normiert) von vorn, seitlich, hinten.
      node werkzeuge/hose-render.mjs bauen <name> <vorne.jpg> [hinten.jpg] --bund 40 --laenge 105 [--stoff anzug] --aus <Ordner>
+     (bauen mit --json [--label "Name"]: die Hose zusätzlich wie im Gerät gespeichert als <name>.json)
      node werkzeuge/hose-render.mjs glb <datei.glb> --aus <Ordner> [--name x] [--drehen 0] [--three <node_modules mit three>] [--ohne schatten,farbe,normal,textur]
    Ergebnis: <Ordner>/<name>.glb, <name>_vorn.png, _seite.png, _hinten.png (Studio) und <name>_app_*.png (3D-Ansicht der Seite). */
 import { chromium } from "playwright";
@@ -94,6 +95,9 @@ for (const [n, y] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Math.PI]])
   await box.screenshot({ path: OUT + `${name}_app_${n}.png` }); }
 const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.click("#g-glb")]);
 await dl.saveAs(OUT + name + ".glb"); console.log("Innenbund:", JSON.stringify(await p.evaluate(() => window.__innen || null)), "Produktform:", await p.evaluate(() => window.__dbg.g3.produkt));
+// --json: die fertige Hose wie im Gerät gespeichert (für eine Seite mit vorab eingebauten Hosen)
+if (process.argv.includes("--json")) fs.writeFileSync(OUT + name + ".json", await p.evaluate(n => { const d = window.__dbg, G = { ...d.GARMENTS[d.g.key] };
+  for (const k of ["unsaved", "shared", "prof", "bad"]) delete G[k]; G.label = n; return JSON.stringify({ key: "vorab_" + n.replace(/[^a-z0-9]/gi, "").toLowerCase(), G }); }, arg("label", name)));
 if (process.argv.includes("--dump")) fs.writeFileSync(OUT + name + "_netz.json", JSON.stringify(await p.evaluate(() => { const d = window.__dbg, G = d.GARMENTS[d.g.key], M = G.m3, g3 = d.g3;
   return { nr: g3.nr, nv: g3.nv, v: Array.from(M.v), vc: M.vc, f: M.f, b: M.b, tv: M.tv, tvb: M.tvb, mat: G.material || G.mat || null, pos: Array.from(g3.pos.slice(0, g3.nv * 3)) }; }))); console.log("GLB:", OUT + name + ".glb", errs.length ? errs.slice(0, 3) : "");
 await ctx.close();
