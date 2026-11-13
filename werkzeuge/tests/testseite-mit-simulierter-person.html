@@ -2050,7 +2050,7 @@ const PASSFORM={
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
   // Produktform der 3D-Datei (produktForm): Tiefe je flacher Breite (Becken am Bund rB, am Gesäß rS; Bein am Schritt rL, Saum rH),
   // Anteil vorne, Querschnitt-Exponent p (2 = Ellipse, größer = kantiger), Übergang ins V am Schritt (cm), Spaltendichte am Rand
-  produkt:{an:true,kB:1,kS:1.15,vorn:.44,rL:.85,rH:.8,pB:2,pL:1.8,art:{jeans:{rL:.77,rH:.72,pL:1.6},anzug:{rL:.95,rH:.92,pL:1.6}},schrittCm:2.5,rand:.35,innenRand:.08,schrittGlattCm:8,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:.35},
+  produkt:{an:true,kB:1,kS:1.15,vorn:.44,rL:.85,rH:.8,pB:2,pL:1.8,art:{jeans:{rL:.77,rH:.72,pL:1.6},anzug:{rL:.95,rH:.92,pL:1.6}},schrittCm:2.5,rand:.35,innenRand:.08,schrittGlattCm:8,faltenFotoCm:.9,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:1.1},
   gesaessFallCm:18,      // so weit unter dem Schritt läuft die Tiefe vom Becken auf die Beintiefe aus (enge Hosen 80 % davon)
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
@@ -2338,6 +2338,15 @@ function mesh3d(key,M){
     // (ältere Hosen mit 640 × 640 werden umgerechnet)
     const S=TEX_PX(), c=document.createElement("canvas"); c.width=c.height=S;
     const cx=c.getContext("2d",{willReadFrequently:true}); cx.imageSmoothingQuality="high"; cx.drawImage(matchHalves(im),0,0,S,S);
+    // Faltenkarte für die Produktform (13.11.): Helligkeit 128 × 128 (≈ 1 cm je Punkt), Band 1–6 cm (Falten im Foto)
+    try{ const N=128, k=document.createElement("canvas"); k.width=k.height=N; const kx=k.getContext("2d",{willReadFrequently:true}); kx.drawImage(c,0,0,N,N);
+      const dd=kx.getImageData(0,0,N,N).data, L=new Float32Array(N*N); for(let i=0;i<N*N;i++) L[i]=(.2126*dd[i*4]+.7152*dd[i*4+1]+.0722*dd[i*4+2])/255;
+      const bl=(A,r)=>{ const T=new Float32Array(N*N), O=new Float32Array(N*N), hx=(N>>1);
+        for(let y=0;y<N;y++) for(let x=0;x<N;x++){ let s2=0,n=0; for(let q=-r;q<=r;q++){ const xx=x+q; if(xx<0||xx>=N||(xx<hx)!==(x<hx)) continue; s2+=A[y*N+xx]; n++; } T[y*N+x]=s2/n; }
+        for(let y=0;y<N;y++) for(let x=0;x<N;x++){ let s2=0,n=0; for(let q=-r;q<=r;q++){ const yy=y+q; if(yy<0||yy>=N) continue; s2+=T[yy*N+x]; n++; } O[y*N+x]=s2/n; }
+        return O; };
+      const a=bl(L,1), b=bl(L,6), F=new Float32Array(N*N); for(let i=0;i<N*N;i++) F[i]=clamp((a[i]-b[i])/Math.max(.06,b[i]),-1,1);
+      g3.faltenKarte={N,F,fuer:g3.uvs}; g3.uvsProduktFuer=null; }catch(_){ g3.faltenKarte=null; }
     const up=src=>{ const tx=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tx);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,src);
@@ -3375,7 +3384,8 @@ function produktForm(G,V){
   const falte=(s,f,q,v)=>{ let z=0;
     if(buegel){ const h=f?PF.buegelHinten*sstep(vSeat,M.vc,v):PF.buegelVorn*sstep(0,.06,v); z+=h*Math.max(0,1-Math.abs(q)/.18); }
     // Längsfalten erst unter dem Schritt (darüber lagen sie im Übergang Becken → Bein als schräge Falten in der Mitte)
-    const lp=sstep(M.vc+.03,1,v), ph=s*1.7+f*.9;
+    // wie bei der KI-Referenz: lange Hängefalten, ab dem Oberschenkel voll (nicht erst zum Saum hin)
+    const lp=sstep(M.vc+.02,M.vc+.25,v), ph=s*1.7+f*.9;
     z+=PF.laengsCm*weich*lp*(.6+.4*Math.sin(v*7+ph))*Math.sin((q+1)*Math.PI*(buegel?1:1.5)+ph)*(1-Math.abs(q)**4);
     return z; };
   const iH=Math.max(ic+1,M.v.findIndex(v=>v>1-PF.saumCm/D.len)-1);
@@ -3425,6 +3435,17 @@ function produktForm(G,V){
           // abfallend; die Form selbst geht über die ganze Strecke Gesäß → Schritt (wS) über, sonst kam außen eine Kante nach vorn
           const zLeg=sg*Dl/2*se(xi(t),PF.pL), zL=t<.5?zLeg*w+sg*Dl/2*(1-w):zLeg, wS=sstep(vSeat,M.vc,v); x=x0; z=zP*(1-wS)+zL*wS+sg*falte(s,f,xi(t),v); }
         put(id(s,i,f,j),x,y,z); } } }
+  // Falten wie im Foto (13.11.): wo das Foto helle Grate und dunkle Täler zeigt (Band 1–6 cm), wölbt sich die Form leicht
+  // (wie TRELLIS aus dem Bild). Entlang der Richtung von der Ringmitte nach außen, waagrecht; nicht am Bund und am Saum.
+  const FK=g3.faltenKarte;
+  if(FK&&PF.faltenFotoCm>0){ const uvR=g3.uvsProdukt&&g3.uvsProduktFuer===g3.uvs?g3.uvsProdukt:g3.uvs, N=FK.N;
+    for(let s=0;s<2;s++) for(let i=2;i<NR-2;i++){ let mx=0,mz=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=id(s,i,f,j); mx+=pos[k]; mz+=pos[k+2]; } mx/=2*C; mz/=2*C;
+      const v=M.v[i], hu=sstep(.03,.08,v)*(1-sstep(.97,1,v));
+      for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=id(s,i,f,j), q=(((s*NR+i)*2+f)*C+j)*2, u=uvR[q], vv=uvR[q+1];
+        // nicht an den Nähten (Rand des Fotos: Kante gegen den Hintergrund wäre ein falscher Grat)
+        const tj=j/K3, wN=sstep(0,.2,tj)*sstep(0,.2,1-tj);
+        const a=FK.F[clamp(Math.round(vv*N),0,N-1)*N+clamp(Math.round(u*N),0,N-1)], dx=pos[k]-mx, dz=pos[k+2]-mz, l=Math.hypot(dx,dz)||1, e=a*PF.faltenFotoCm*hu*wN*ppc;
+        pos[k]+=dx/l*e; pos[k+2]+=dz/l*e; } } }
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const w=(g3.nRing+(s*NR+i)*2+f)*3, src=id(s,i,f,0); pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2]; }
   normals3d({h:hh},null,null);
   // Nähte weich: an Seitennaht, Innennaht und Mitte haben Vorder- und Rückteil (bzw. beide Hälften) eigene Punkte mit eigener
@@ -6038,6 +6059,17 @@ function randTextur(ax,P,x0,VC,bg,fest=0){
       for(let c=0;c<3;c++){ let m=0; for(const q of ko) m+=D0[ks+q+c]; const kor=D0[ks+c]-m/ko.length; d[kd+c]=clamp(Math.round(ton[c]+kor),0,255); } } });
   ax.putImageData(I,x0,0);
 }
+/* Farbe der Rückseiten-Vorlage an die Vorderseite angleichen (13.11.): Mittel und Streuung je Kanal über den Stoff (innerhalb der
+   Kanten, ohne Spalt), die Vorlage wird linear darauf abgebildet. Waschung, Falten und Nähte der Vorlage bleiben (relativ). */
+function farbeAngleichen(ax,pf,pt,VC){
+  const W=ATLAS.W/2, H=ATLAS.H, stat=(P,x0)=>{ const d=ax.getImageData(x0,0,W,H).data, NR=P.uv.length, ic=Math.max(1,P.vv.findIndex(v=>v>=VC)), s=[0,0,0], q=[0,0,0]; let n=0;
+    for(let i=0;i<NR;i+=1){ const y=Math.round(P.tv[i]*H); if(y<0||y>=H) continue; const e=P.uv[i].map(u=>u*ATLAS.W-x0), runs=i>=ic?[[e[0],e[1]],[e[2],e[3]]]:[[e[0],e[3]]];
+      for(const [a,b] of runs){ const m=.08*(b-a); for(let x=Math.ceil(a+m);x<b-m;x+=2){ const k=(y*W+x)*4; for(let c=0;c<3;c++){ s[c]+=d[k+c]; q[c]+=d[k+c]*d[k+c]; } n++; } } }
+    const mu=s.map(v=>v/Math.max(1,n)); return {mu,sd:q.map((v,c)=>Math.sqrt(Math.max(1,v/Math.max(1,n)-mu[c]*mu[c])))}; };
+  const A=stat(pf,0), B=stat(pt,W), I=ax.getImageData(W,0,W,H), d=I.data;
+  for(let i=0;i<d.length;i+=4) for(let c=0;c<3;c++) d[i+c]=clamp(Math.round((d[i+c]-B.mu[c])/B.sd[c]*A.sd[c]+A.mu[c]),0,255);
+  ax.putImageData(I,W,0);
+}
 function rueckseiteHoch(ax,pf,pb,VC){
   const W=ATLAS.W, H=ATLAS.H, w=W/2, NR=pb.uv.length, N=w*H;
   const Fd=ax.getImageData(0,0,w,H).data, Bi=ax.getImageData(w,0,w,H), Bd=Bi.data;
@@ -6170,6 +6202,11 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   if(!(frontFile&&frontFile.loaded)&&!(backFile&&backFile.loaded)){ KARTE_FARBE.card=KARTE_FARBE.a4=null; if(opts.farbe) Object.assign(KARTE_FARBE,opts.farbe); }
   let fp=await load(frontFile,"front","Vorderseite"), bp=null;
   if(backFile) bp=await load(backFile,"back","Rückseite");
+  // Vorlage für die Rückseite (13.11.): ohne eigenes Rückenfoto das Foto einer ähnlichen Hose von hinten (opts.vorlageHinten).
+  // Form, Maße und Schritt kommen weiter nur aus der Vorderseite; von der Vorlage nur der Stoff (Taschen, Passe, Nähte, Waschung,
+  // Falten), auf den Umriss der eigenen Rückseite gelegt und in der Farbe an die Vorderseite angeglichen.
+  let tp=null; const vorlage=!backFile&&(opts.vorlageHinten||window.__rueckVorlage||null);
+  if(vorlage){ try{ tp=await loadGarmentPhoto(vorlage,say,"","Vorlage Rückseite"); }catch(e){ console.warn("Vorlage",e); tp=null; } }
   const loaded={fp,bp};
   // Schritt: wo sich die Beine trennen. Berühren sich auf einem Foto die Säume, ist die Lücke zwischen den Beinen
   // dort nicht sicher zu sehen; dann gilt der Schritt des anderen Fotos.
@@ -6222,17 +6259,23 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   // Rückseite ohne Rückenfoto (geschätzt oder aus dem Foto mit Person): keine Einzelheiten aus dem großen Foto, das wären die
   // der Vorderseite (Taschen, Schlitz, Gürtelschlaufen); geglättet wird dort im Groben, das ließ sie durch die Prüfung
   const ax=at.getContext("2d",{willReadFrequently:true}); ax.drawImage(hiHalf(F.c,fp,false),0,0); ax.drawImage(hiHalf(B.c,bp,false),ATLAS.W/2,0);
-  { const c=fp.cv, cx2=c.getContext("2d",{willReadFrequently:true}), q=[[],[],[]];       // Hintergrund: Median am Bildrand
+  const randGrund=c=>{ const cx2=c.getContext("2d",{willReadFrequently:true}), q=[[],[],[]];       // Hintergrund: Median am Bildrand
     for(const [x,y,w,h] of [[0,0,c.width,4],[0,c.height-4,c.width,4],[0,0,4,c.height],[c.width-4,0,4,c.height]]){ const dd=cx2.getImageData(x,y,w,h).data; for(let i=0;i<dd.length;i+=16) for(let k=0;k<3;k++) q[k].push(dd[i+k]); }
-    const bg=q.map(a=>{ a.sort((m,n)=>m-n); return a[a.length>>1]; });
-    try{ randTextur(ax,pf,0,VC,bg); randTextur(ax,pb,ATLAS.W/2,VC,bg); }catch(e){ console.warn("Rand",e); } }
-  if(backEst&&!rock&&PASSFORM.rueckseiteHoch){ try{ rueckseiteHoch(ax,pf,pb,VC);
+    return q.map(a=>{ a.sort((m,n)=>m-n); return a[a.length>>1]; }); };
+  { const bg=randGrund(fp.cv); try{ randTextur(ax,pf,0,VC,bg); randTextur(ax,pb,ATLAS.W/2,VC,bg); }catch(e){ console.warn("Rand",e); } }
+  let pt=null;
+  if(tp&&!rock){ try{ const T=cropGarment(tp.cv,tp.S,false), vcT=findGaps(T)??VC;
+      try{ fillLegGap(T,garmentProfile(T,vcT,CW),vcT); }catch(_){}
+      pt=alignRows(garmentProfile(T,vcT,CW),vcT,VC);
+      ax.drawImage(hiHalf(T.c,tp,false),ATLAS.W/2,0); randTextur(ax,pt,ATLAS.W/2,VC,randGrund(tp.cv)); farbeAngleichen(ax,pf,pt,VC); backEst=true;
+    }catch(e){ console.warn("Vorlage Rückseite",e); pt=null; } }
+  if(backEst&&!pt&&!rock&&PASSFORM.rueckseiteHoch){ try{ rueckseiteHoch(ax,pf,pb,VC);
     // Rand der geschätzten Rückseite: die äußersten 4 % aus dem Stoff daneben (gespiegelt); dort lag sonst grauer Hintergrund
     // aus dem gespiegelten Foto (Seitenansicht: heller Fleck auf Schritthöhe)
     randTextur(ax,pb,ATLAS.W/2,VC,[255,255,255],.04); }catch(e){ console.warn("Rückseite hoch",e); } }
   const r4=a=>a.map(x=>+x.toFixed(4));
-  const raw={nr:NR,vc:rock?1:+VC.toFixed(3),rock,wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4(pb.tv),
-            f:pf.uv,b:pb.uv,atlas:at.toDataURL("image/jpeg",ATLAS.q)};
+  const raw={nr:NR,vc:rock?1:+VC.toFixed(3),rock,wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4((pt||pb).tv),
+            f:pf.uv,b:(pt||pb).uv,atlas:at.toDataURL("image/jpeg",ATLAS.q)};
   // lo: Außenlänge geteilt durch senkrechte Länge (Einheit aller Werte im Modell)
   raw.lo=+((bp?(pf.Hout/pf.H+pb.Hout/pb.H)/2:pf.Hout/pf.H)).toFixed(4);
   raw.innen=!!(F.inner&&F.inner.ok);
@@ -6253,8 +6296,8 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
   // Füllgrad des Umrisses (Hose: etwa 0,5–0,85; ein Rechteck nahe 1)
   let fillN=0; const S0=fp.S; for(let y=S0.y0;y<S0.y1;y++) for(let x=S0.x0;x<S0.x1;x++) fillN+=S0.m[y*S0.w+x];
   return {G:{label:"Eigene Hose",size:"–",kind:"pants",aspect,prof:garmentProf(m3,aspect),
-             elastic:false,estFlat:40,waist:null,len:null,hem:null,meas,base,src:th.toDataURL("image/jpeg",.8),m3,own:true,bad:nz.bad,backEst:backEst||undefined},
-          info:{split,hasBack:!!backFile,backEst,trimmed:nz.changed||fp.cut||!!(bp&&bp.cut),turned:fp.turned||(bp&&bp.turned)||0,
+             elastic:false,estFlat:40,waist:null,len:null,hem:null,meas,base,src:th.toDataURL("image/jpeg",.8),m3,own:true,bad:nz.bad,backEst:backEst||undefined,vorlage:pt?true:undefined},
+          info:{split,hasBack:!!backFile,backEst,vorlage:!!pt,trimmed:nz.changed||fp.cut||!!(bp&&bp.cut),turned:fp.turned||(bp&&bp.turned)||0,
                 both,innen:!!(F.inner&&F.inner.ok),vcSpreiz:!rock&&VC!==(vcF??vcB),wornBack,rock,rockWhy:rs[0].why,belt:[F.belt||null,B.belt||null],fill:fillN/((S0.x1-S0.x0)*(S0.y1-S0.y0)),tilt:[fp.tilt,bp?bp.tilt:null],ref:[fp.ref,bp?bp.ref:null],refKind:typeof refKind==="object"?refName:refKind,loaded,warn:[...fp.warn,...(bp?bp.warn:[])],ki:[fp.ki,bp?bp.ki:false],hand:[fp.hand,bp?bp.hand:false]}};
 }
 /* Eigene Hosen: Liste im Gerät merken */
@@ -6297,7 +6340,7 @@ function checkGarment(G){
     G.sizesAuto=G.sizes&&(G.sizesAuto==="mass"||G.sizesAuto==="normbund")?G.sizesAuto:undefined;
     if(!G.sizes&&G.m3&&Array.isArray(G.m3.hw)) autoSizes(G);                 // ältere Hosen ohne Größenliste
     G.waistFoto=G.waistFoto===true; if(typeof G.link!=="string"||!/^https?:\/\//.test(G.link)) delete G.link;
-    if(G.backEst!==true) delete G.backEst;
+    if(G.backEst!==true) delete G.backEst; if(G.vorlage!==true||!G.backEst) delete G.vorlage;
     if(!STOFFE[G.fabric]) G.fabric=null; G.material=typeof G.material==="string"?G.material:"";
     G.label=String(G.label||"Hose"); G.src=safeImg(G.src)?G.src:"";
     if(!safeImg(G.m3.atlas)) throw new Error("Atlas"); G.estFlat=G.estFlat>0?G.estFlat:40;
@@ -6597,7 +6640,7 @@ function pickGarment(k,scroll=true){
   syncG(G);
   $("g-msg").textContent=(G.repaired?"Diese Hose wurde automatisch repariert (oben ragte etwas aus dem Foto). Bitte Länge und Bund mit dem Maßband prüfen und hier eintragen."
     :g.est?"Länge und Bund sind nur grob geschätzt. Am besten die Länge mit dem Maßband messen und eintragen.":"")
-    +(G.backEst?(G.repaired||g.est?" ":"")+"Rückseite geschätzt (kein Foto von hinten): Bund, Nähte und Taschen nachgebildet, nicht fotografiert.":"");
+    +(G.backEst?(G.repaired||g.est?" ":"")+(G.vorlage?"Rückseite geschätzt (kein Foto von hinten): Stoff vom Rückenfoto einer ähnlichen Hose, Farbe angeglichen.":"Rückseite geschätzt (kein Foto von hinten): Bund, Nähte und Taschen nachgebildet, nicht fotografiert."):"");
   fillDims(); markGarment(); $("fitRead").hidden=false; updateFit(); showFab(); view3dKick();
   if(scroll) stage.scrollIntoView({behavior:"smooth",block:"center"});
   cue("Hose liegt auf.",true);
@@ -7144,7 +7187,7 @@ $("own-go").addEventListener("click",async()=>{
     info.tilt.forEach((t,i)=>{ if(t!=null&&t>=1.5) notes.push(`${i?"Rückseite":"Vorderseite"} war ${t.toFixed(0)}° schräg fotografiert und wurde gerade gerechnet`); });
     if(info.refKind) info.ref.forEach((r,i)=>{ if(i&&!info.hasBack) return; notes.push(r?`${REFS[info.refKind].name} auf der ${i?"Rückseite":"Vorderseite"} vermessen`:`${REFS[info.refKind].name} auf der ${i?"Rückseite":"Vorderseite"} nicht markiert`); });
     if(info.turned) notes.push("Foto lag "+(info.turned%180?"quer":"auf dem Kopf")+" und wurde gedreht");
-    if(!info.hasBack) notes.push("Ohne Rückenfoto ist die Rückseite geschätzt (gespiegelte Vorderseite ohne Schlitz, Knopf und Vordertaschen)");
+    if(!info.hasBack) notes.push(info.vorlage?"Ohne Rückenfoto ist die Rückseite geschätzt (Stoff vom Rückenfoto einer ähnlichen Hose, Farbe angeglichen)":"Ohne Rückenfoto ist die Rückseite geschätzt (gespiegelte Vorderseite ohne Schlitz, Knopf und Vordertaschen)");
     else if(info.both) notes.push("Umriss aus Vorder- und Rückseite gemittelt");
     if(!info.split) notes.push("Schritt nicht erkannt (berühren sich die Säume?), Standardwert benutzt. Prüfe beim Anprobieren, ob der Bund oben ist; sonst „Umdrehen“ drücken oder mit einer Handbreit Abstand zwischen den Säumen neu fotografieren");
     if(info.hand.some(Boolean)) notes.push("Umriss von Hand geprüft");

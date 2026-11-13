@@ -99,7 +99,11 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
   hoch, Längsfalten erst unter dem Schritt, Innenseite der Beine ohne Spaltschatten (`innenRand`). Beinkanten der Produktform als Ausgleichskurve (Zacken im Foto-Spalt
   standen sonst als Falten am Schritt), Normal-Map ohne mittlere Größen (Waschung/Whiskers sind Farbe, kein Relief). Querschnitte je Stoffart an den
   KI-Referenzen geeicht (`PASSFORM.produkt.art`, Messung `werkzeuge/python/hose_querschnitt.py`): Jeans Bein T/B 0,77→0,72, Anzug 0,95,
-  linsenförmig (pL 1,6), Becken Bund 1,0 / Gesäß 1,15 × Beintiefe. Weitere KI-Modelle (Foto + .glb) als Eichbeispiele geplant. Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
+  linsenförmig (pL 1,6), Becken Bund 1,0 / Gesäß 1,15 × Beintiefe. Weitere KI-Modelle (Foto + .glb) als Eichbeispiele geplant. Rückseite nach Vorlage (13.11.): ohne
+  eigenes Rückenfoto kann das Rückenfoto einer ähnlichen Hose dienen (`opts.vorlageHinten`, Werkzeug `--vorlage`): Stoff, Taschen,
+  Falten aus dem Foto auf den eigenen Umriss, Farbe an die Vorderseite angeglichen (`farbeAngleichen`), Form/Maße nur von vorn.
+  In der Seite noch kein Feld dafür. Falten in der Form: Längsfalten 1,1 cm ab dem Oberschenkel, dazu Wölbung aus den Falten im
+  Foto (`g3.faltenKarte`, Band 1–6 cm, 0,9 cm, nicht an den Nähten). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
   (H&M-Jeans mit Bund 43/Länge 110 etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich der Jeans fehlt; KI-Formen selbst sind zu
   dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
 

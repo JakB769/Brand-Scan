@@ -83,6 +83,8 @@ await p.evaluate(() => { for (const d of document.querySelectorAll("details")) d
 await p.setInputFiles("#own-front", path.resolve(vorne)); if (hinten) await p.setInputFiles("#own-back", path.resolve(hinten));
 await p.fill("#own-name", name); if (arg("bund")) await p.fill("#own-waist", arg("bund")); if (arg("laenge")) await p.fill("#own-len", arg("laenge"));
 if (arg("material")) await p.fill("#own-mat", arg("material"));
+if (arg("vorlage")) await p.evaluate(async ([b64, typ]) => { const r = await fetch(`data:${typ};base64,${b64}`); window.__rueckVorlage = new File([await r.blob()], "vorlage", { type: typ }); },
+  [fs.readFileSync(arg("vorlage")).toString("base64"), arg("vorlage").endsWith(".png") ? "image/png" : "image/jpeg"]);
 await p.click("#own-go");
 for (let t = 0; t < 240; t++) { await p.waitForTimeout(500);
   const o = await p.evaluate(() => ["refDlg", "segDlg"].filter(i => { const d = document.getElementById(i); return d && !d.hidden; }).join(","));
