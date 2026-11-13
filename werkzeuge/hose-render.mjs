@@ -30,7 +30,7 @@ async function studio(glb, name, drehen = 0) {
     await p.evaluate(([y, d]) => window.__zeige(y + d), [y, drehen]); await p.waitForTimeout(300);
     await p.screenshot({ path: OUT + `${name}_${n}.png` }); }
   // Nahaufnahmen: Schritt von vorn, Gesäß und Schritt schräg hinten, Saum von vorn
-  for (const [n, y, z] of [["nah_schritt", 0, [0, .62, .62, 1.0]], ["nah_gesaess", 2.6, [0, .72, .7, 1.1]], ["nah_saum", 0, [0, .12, .1, 1.0]]]) {
+  for (const [n, y, z] of [["nah_schritt", 0, [0, .62, .62, 1.0]], ["nah_gesaess", 2.6, [0, .72, .7, 1.1]], ["nah_saum", 0, [0, .12, .1, 1.0]], ["nah_bund", 0, [0, .9, .88, 1.0]], ["nah_bund_hinten", Math.PI, [0, .9, .88, 1.0]]]) {
     await p.evaluate(([y, d, z]) => window.__zeige(y + d, z), [y, drehen, z]); await p.waitForTimeout(300); await p.screenshot({ path: OUT + `${name}_${n}.png` }); }
   console.log("Studio:", name, await p.evaluate(() => window.__info), errs.length ? errs.slice(0, 2) : "");
   await ctx.close();
@@ -96,7 +96,7 @@ for (const [n, y] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Math.PI]])
   await p.evaluate(y => { const v = window.__dbg.v3d; v.ziel = null; v.yaw = y; v.idle = performance.now() + 1e7; }, y); await p.waitForTimeout(1300);
   await box.screenshot({ path: OUT + `${name}_app_${n}.png` }); }
 const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.click("#g-glb")]);
-await dl.saveAs(OUT + name + ".glb"); console.log("Innenbund:", JSON.stringify(await p.evaluate(() => window.__innen || null)), "Produktform:", await p.evaluate(() => window.__dbg.g3.produkt));
+await dl.saveAs(OUT + name + ".glb"); console.log("Normalen gedreht:", await p.evaluate(() => window.__dbg.g3.produktNormalenGedreht), "Innenbund:", JSON.stringify(await p.evaluate(() => window.__innen || null)), "Produktform:", await p.evaluate(() => window.__dbg.g3.produkt));
 // --json: die fertige Hose wie im Gerät gespeichert (für eine Seite mit vorab eingebauten Hosen)
 if (process.argv.includes("--json")) fs.writeFileSync(OUT + name + ".json", await p.evaluate(n => { const d = window.__dbg, G = { ...d.GARMENTS[d.g.key] };
   for (const k of ["unsaved", "shared", "prof", "bad"]) delete G[k]; G.label = n; return JSON.stringify({ key: "vorab_" + n.replace(/[^a-z0-9]/gi, "").toLowerCase(), G }); }, arg("label", name)));

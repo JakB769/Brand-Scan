@@ -103,7 +103,9 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
   eigenes Rückenfoto kann das Rückenfoto einer ähnlichen Hose dienen (`opts.vorlageHinten`, Werkzeug `--vorlage`): Stoff, Taschen,
   Falten aus dem Foto auf den eigenen Umriss, Farbe an die Vorderseite angeglichen (`farbeAngleichen`), Form/Maße nur von vorn.
   In der Seite noch kein Feld dafür. Falten in der Form: Längsfalten 1,1 cm ab dem Oberschenkel, dazu Wölbung aus den Falten im
-  Foto (`g3.faltenKarte`, Band 1–6 cm, 0,9 cm, nicht an den Nähten). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
+  Foto (`g3.faltenKarte`, Band 1–6 cm, 0,9 cm, nicht an den Nähten). Texturkoordinaten der Produktform folgen der Lage in der
+  Breite (Foto = gerade Ansicht; vorher je Spalte gleichmäßig → Bund quer verzogen), Mischzone an der Seitennaht nur 10 %,
+  Produktansicht ohne Puppe, Seitennaht auch in der Ansicht angeglichen. Seitenwand zeigt dadurch den Fotorand gestreckt. Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
   (H&M-Jeans mit Bund 43/Länge 110 etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich der Jeans fehlt; KI-Formen selbst sind zu
   dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
 

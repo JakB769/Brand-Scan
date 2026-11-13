@@ -2324,7 +2324,7 @@ function mesh3d(key,M){
   g3.pos=new Float32Array(nv*3); g3.nor=new Float32Array(nv*3); g3.tu=new Float32Array(nv*3); g3.tw=new Float32Array(nv*3);
   const buf=(data,loc,size)=>{ const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
     gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW); return b; };
-  g3.ub=buf(uv); g3.ubProdukt=false; g3.ab=buf(ao); g3.u2b=buf(uv2); g3.sdb=buf(sd);
+  g3.ub=buf(uv); g3.ubProdukt=false; g3.ab=buf(ao); g3.u2b=buf(uv2); g3.sdb=buf(sd); g3.uv2s=uv2; g3.sds=sd;
   g3.vb=gl.createBuffer(); g3.nb=gl.createBuffer(); g3.tub=gl.createBuffer(); g3.twb=gl.createBuffer();
   g3.ib=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,g3.ib);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
@@ -2337,7 +2337,7 @@ function mesh3d(key,M){
     // Auflösung je Gerät (TEX_PX, RELIEF_PX); immer eine Zweierpotenz, damit es auch in WebGL 1 Mipmaps gibt
     // (ältere Hosen mit 640 × 640 werden umgerechnet)
     const S=TEX_PX(), c=document.createElement("canvas"); c.width=c.height=S;
-    const cx=c.getContext("2d",{willReadFrequently:true}); cx.imageSmoothingQuality="high"; cx.drawImage(matchHalves(im),0,0,S,S);
+    const cx=c.getContext("2d",{willReadFrequently:true}); cx.imageSmoothingQuality="high"; cx.drawImage(seamAngleich(matchHalves(im),M),0,0,S,S);   // Seitennaht wie in der 3D-Datei angleichen (13.11.)
     // Faltenkarte für die Produktform (13.11.): Helligkeit 128 × 128 (≈ 1 cm je Punkt), Band 1–6 cm (Falten im Foto)
     try{ const N=128, k=document.createElement("canvas"); k.width=k.height=N; const kx=k.getContext("2d",{willReadFrequently:true}); kx.drawImage(c,0,0,N,N);
       const dd=kx.getImageData(0,0,N,N).data, L=new Float32Array(N*N); for(let i=0;i<N*N;i++) L[i]=(.2126*dd[i*4]+.7152*dd[i*4+1]+.0722*dd[i*4+2])/255;
@@ -2346,7 +2346,7 @@ function mesh3d(key,M){
         for(let y=0;y<N;y++) for(let x=0;x<N;x++){ let s2=0,n=0; for(let q=-r;q<=r;q++){ const yy=y+q; if(yy<0||yy>=N) continue; s2+=T[yy*N+x]; n++; } O[y*N+x]=s2/n; }
         return O; };
       const a=bl(L,1), b=bl(L,6), F=new Float32Array(N*N); for(let i=0;i<N*N;i++) F[i]=clamp((a[i]-b[i])/Math.max(.06,b[i]),-1,1);
-      g3.faltenKarte={N,F,fuer:g3.uvs}; g3.uvsProduktFuer=null; }catch(_){ g3.faltenKarte=null; }
+      g3.faltenKarte={N,F}; }catch(_){ g3.faltenKarte=null; }
     const up=src=>{ const tx=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tx);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,src);
@@ -3191,7 +3191,8 @@ function draw3d(M,P,vw,vh,tint){
   const _t0=performance.now(); const info=pose3d(M,P); if(window.__t3d) window.__t3d.push(performance.now()-_t0);
   // Produktansicht: Form und Texturkoordinaten der 3D-Datei; beim Umschalten die Texturkoordinaten auf der Grafikkarte tauschen
   const prod=!!(P.produkt&&produktForm(P.produkt.G,P.produkt));
-  if(prod!==!!g3.ubProdukt){ gl.bindBuffer(gl.ARRAY_BUFFER,g3.ub); gl.bufferData(gl.ARRAY_BUFFER,prod?g3.uvsProdukt:g3.uvs,gl.STATIC_DRAW); g3.ubProdukt=prod; }
+  if(prod!==!!g3.ubProdukt){ for(const [b,a] of [[g3.ub,prod?g3.uvsProdukt:g3.uvs],[g3.u2b,prod?g3.uv2Produkt:g3.uv2s],[g3.sdb,prod?g3.sdProdukt:g3.sds]]) if(b&&a){ gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,a,gl.STATIC_DRAW); }
+    g3.ubProdukt=prod; }
   { const b=$("avForm"); if(b){ const t=P.produkt||prod?(prod?"Produkt":"Anprobe"):null; if(t&&b.textContent!==t){ b.textContent=t; b.setAttribute("aria-pressed",String(prod)); } } }
   // Liegt der Saum gestaucht auf Schuh und Boden (Fall aus drape3d), ist das Hosenbein unten kaum offen: Innenseiten dort
   // im Schatten (sonst leuchten umgeschlagene Stellen hell wie ein Laken)
@@ -3435,6 +3436,18 @@ function produktForm(G,V){
           // abfallend; die Form selbst geht über die ganze Strecke Gesäß → Schritt (wS) über, sonst kam außen eine Kante nach vorn
           const zLeg=sg*Dl/2*se(xi(t),PF.pL), zL=t<.5?zLeg*w+sg*Dl/2*(1-w):zLeg, wS=sstep(vSeat,M.vc,v); x=x0; z=zP*(1-wS)+zL*wS+sg*falte(s,f,xi(t),v); }
         put(id(s,i,f,j),x,y,z); } } }
+  // Texturkoordinaten der Produktform (einmal je Netz). Das Foto ist eine gerade Ansicht von vorn bzw. hinten: u folgt genau der
+  // Lage des Punkts in der Breite (13.11.; vorher gleichmäßig je Spalte, die Spalten liegen zum Rand hin aber dichter: Bund, Taschen
+  // und Nähte waren quer verzogen). v ohne die Stauchung am Schrittbogen (mesh3d, vIn). Saum (unter iH) und Bund (über iT) sind
+  // in der Form gerade gezogen: dort u aus der Zeile iH bzw. iT. Beine innen: erst ab innenRand (im Foto liegt dort der dunkle Spalt).
+  // An der Seitennaht mischen sich Vorder- und Rückseite nur ganz außen (10 % der Spalten statt 28 %): bei einer Rückseite mit
+  // anderem Detail am Rand (Lederpatch) färbte sie sonst auf die Vorderseite ab.
+  if(g3.uvsProduktFuer!==g3.uvs){ const uvs=g3.uvsProdukt=g3.uvs.slice(), uv2=g3.uv2Produkt=g3.uv2s?g3.uv2s.slice():null, sdP=g3.sdProdukt=g3.sds?g3.sds.slice():null; g3.uvsProduktFuer=g3.uvs;
+    for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const L=(s===0)!==!!M.mir, iu=i>iH?iH:i<iT&&i<ic?Math.min(iT,ic-1):i, F=M.f[iu], B=M.b[iu];
+      const eF=L?[F[2],F[3]]:[F[1],F[0]], eB=L?[B[1],B[0]]:[B[2],B[3]], e=f?eB:eF, o=f?eF:eB, m=i>=ic?PF.innenRand:0;
+      for(let j=0;j<C;j++){ const k=((s*NR+i)*2+f)*C+j, fr=m+(1-m)*(.5+.5*xi(j/K3));
+        uvs[k*2]=e[0]+(e[1]-e[0])*fr; uvs[k*2+1]=(f&&M.tvb?M.tvb:M.tv)[i];
+        if(uv2){ uv2[k*2]=o[0]+(o[1]-o[0])*fr; uv2[k*2+1]=(!f&&M.tvb?M.tvb:M.tv)[i]; } if(sdP) sdP[k]=.5*sstep(.9,1,j/K3); } } }
   // Falten wie im Foto (13.11.): wo das Foto helle Grate und dunkle Täler zeigt (Band 1–6 cm), wölbt sich die Form leicht
   // (wie TRELLIS aus dem Bild). Entlang der Richtung von der Ringmitte nach außen, waagrecht; nicht am Bund und am Saum.
   const FK=g3.faltenKarte;
@@ -3448,22 +3461,17 @@ function produktForm(G,V){
         pos[k]+=dx/l*e; pos[k+2]+=dz/l*e; } } }
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const w=(g3.nRing+(s*NR+i)*2+f)*3, src=id(s,i,f,0); pos[w]=pos[src]; pos[w+1]=pos[src+1]; pos[w+2]=pos[src+2]; }
   normals3d({h:hh},null,null);
+  // Normalen nach außen (13.11.): normals3d nimmt die Reihenfolge der Punkte aus pose3d an; in der Produktform zeigten sie je nach
+  // Hälfte nach innen. Dann legte rim3d den inneren Bundbeleg (4 cm) außen über den Bund: Bund verzogen, Knopf an der Oberkante.
+  { const nor0=g3.nor; let innen=0;
+    for(let s=0;s<2;s++) for(let i=0;i<NR;i++){ let mx=0,mz=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=id(s,i,f,j); mx+=pos[k]; mz+=pos[k+2]; } mx/=2*C; mz/=2*C;
+      for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=id(s,i,f,j); if((pos[k]-mx)*nor0[k]+(pos[k+2]-mz)*nor0[k+2]<0){ nor0[k]=-nor0[k]; nor0[k+1]=-nor0[k+1]; nor0[k+2]=-nor0[k+2]; innen++; } } }
+    g3.produktNormalenGedreht=innen; }
   // Nähte weich: an Seitennaht, Innennaht und Mitte haben Vorder- und Rückteil (bzw. beide Hälften) eigene Punkte mit eigener
   // Normale; gemittelt verschwindet die harte Lichtkante entlang der Naht (Seitenansicht)
   const nor=g3.nor, mix=ks=>{ const n=[0,0,0]; for(const k of ks) for(let c=0;c<3;c++) n[c]+=nor[k+c]; const l=Math.hypot(n[0],n[1],n[2])||1; for(const k of ks) for(let c=0;c<3;c++) nor[k+c]=n[c]/l; };
   for(let i=0;i<NR;i++){ for(let s=0;s<2;s++){ mix([id(s,i,0,K3),id(s,i,1,K3)]); if(i>=ic) mix([id(s,i,0,0),id(s,i,1,0)]); }
     if(i<ic) for(let f=0;f<2;f++) mix([id(0,i,f,0),id(1,i,f,0)]); }
-  // Textur ohne die Stauchung am Schrittbogen (mesh3d, vIn): die Produktform hat keinen gestauchten Bogen; sonst lag unten aus der
-  // Leibhöhe ein dunkles Querband über dem Schritt
-  if(g3.uvsProduktFuer===g3.uvs){ rim3d(M,ppc); return true; }         // Texturkoordinaten hängen nur am Netz: einmal je Netz
-  const uvs=g3.uvsProdukt=g3.uvs.slice(); g3.uvsProduktFuer=g3.uvs;
-  // Saum (unter iH) und Bund (über iT) sind in der Form gerade gezogen: dort auch u aus der Zeile iH bzw. iT, sonst wird das Foto in
-  // den abgerundeten Ecken quer gedehnt und liegt als heller Streifen über dem Saum
-  for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const L=(s===0)!==!!M.mir, iu=i>iH?iH:i<iT&&i<ic?Math.min(iT,ic-1):i, E=(f?M.b:M.f)[iu];
-    const e=f?(L?[E[1],E[0]]:[E[2],E[3]]):(L?[E[2],E[3]]:[E[1],E[0]]);
-    // Beine: innen (t = 0) liegt im Foto der dunkle Spalt zwischen den Beinen; die Innenseite nimmt den Stoff ab innenRand der Breite
-    const m=i>=ic?PF.innenRand:0;
-    for(let j=0;j<C;j++){ const q=(((s*NR+i)*2+f)*C+j)*2; uvs[q+1]=(f&&M.tvb?M.tvb:M.tv)[i]; if(iu!==i||m) uvs[q]=e[0]+(e[1]-e[0])*(m+(1-m)*j/K3); } }
   rim3d(M,ppc); return true;
 }
 async function exportGLB(){
@@ -3574,6 +3582,8 @@ function view3dFrame0(now){
     x.drawImage(g3.c,0,0); v3d.info=info; v3d.boden={floor,ppc}; teuer(); view3dKick(); return; }
   // Boden-Schatten, Füße und Oberkörper der Puppe (schlicht, damit die Hose nicht in der Luft hängt)
   x.fillStyle="rgba(0,0,0,.35)"; x.beginPath(); x.ellipse(cx,floor+2,.17*Hc*ppc,.03*Hc*ppc,0,0,7); x.fill();
+  // Produktansicht: ohne Füße und Oberkörper (die Form hängt nicht an der Puppe; von der Seite ragte der Rumpf hinter dem Bund heraus)
+  if(g3.ubProdukt){ x.drawImage(g3.c,0,0); v3d.info=info; v3d.boden={floor,ppc}; teuer(); view3dKick(); return; }
   x.fillStyle="#6d6458";
   for(const b of bone){ const a=b[2]; x.beginPath(); x.ellipse(a[0]+Math.sin(yw)*4*ppc,floor-2.5*ppc,(4+7*Math.abs(Math.sin(yw)))*ppc,3*ppc,0,0,7); x.fill(); }
   const tw=(32-10*Math.abs(Math.sin(yw)))*ppc*Hc/175, top=Y(beltH)+.5*ppc, gr=x.createLinearGradient(cx-tw*.55,0,cx+tw*.55,0);
