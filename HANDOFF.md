@@ -110,7 +110,8 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
   lag sonst neben der Mitte). Seitenwand: Atlas bekommt außen ein Polster aus fortgesetztem Stoff (`randPolster`, `m3.pad`),
   die Texturkoordinaten laufen dort in natürlicher Größe weiter statt den Fotorand zu dehnen. Schritt: zwei Bein-Linsen
   verschmelzen nach oben (schmale Kerbe statt Querstufe), Vorderseite vom Gesäß bis in die Beine gerade, Innenflanke kantiger
-  (`pInnen`). `matchHalves(im,M)` rechnet nur über den Stoff (Rückseite Anzughose war halb so hell). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
+  (`pInnen`). `matchHalves(im,M)` rechnet nur über den Stoff (Rückseite Anzughose war halb so hell). 16.11.: Gesäß gewölbt (`gesaess` .3, je Backe),
+  vorn am Schritt flach bis zur Innenkante (`pInnenVorn` 8, keine Falte), hinten Kerbe 11 cm. Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
   (H&M-Jeans mit Bund 43/Länge 110 etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich der Jeans fehlt; KI-Formen selbst sind zu
   dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
 
