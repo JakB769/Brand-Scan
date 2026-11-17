@@ -15,7 +15,13 @@ Stand: 30.10.2026 (Avatar-Selbst-Scan in Echtzeit repariert; davor 22.10.: Obert
 - Lokal: `node werkzeuge/server.mjs` (Seite + `/api/holen` + `/api/hosen`, Sammlung in `.hosen-lokal/`). Kamera braucht https oder localhost.
 - Tests: `npm install && npx playwright install chromium && npm test` (pretest baut `werkzeuge/tests/testseite-mit-simulierter-person.html` aus `app/index.html`; nie von Hand ändern).
 - Einzeltest: `node werkzeuge/tests/baue-testseite.mjs && node werkzeuge/tests/<t…>.mjs`.
-- `werkzeuge/hose-render.mjs` lädt ebenfalls die Testseite: nach Änderungen an `app/index.html` erst `baue-testseite.mjs`.
+- Qualitätsgedächtnis Hosen (17.11.): `werkzeuge/qualitaet.json` (Regeln, guter Stand je Hose, Urteile des Nutzers inkl. offener
+  Mängel), Code `werkzeuge/qualitaet.mjs`. `hose-render.mjs bauen` misst immer den Umriss: Originalfoto gegen 3D-Hose von vorn
+  (fast parallele Kamera, ohne Schatten, auf die Länge skaliert): Becken außen, Beinbreite, Schritt (Spitze des Spalts), krumm
+  (Form krummer als das Foto); Bild `<name>_umriss.png`, Prüfung gegen Regeln und guten Stand. Urteil: `--gut/--schlecht "Notiz"`
+  oder `hose-render.mjs urteil <name> gut|schlecht "Notiz" --aus <Ordner>`. Die App misst `g3.umriss` (Fotokanten der Freistellung
+  gegen die Form, `regelnApp`, geprüft in tneuehose); Schritthöhe nur im Bild (Freistellung hat am Schritt oft eine Schulter).
+  hose-render erzeugt die Testseite selbst neu, wenn `app/index.html` neuer ist. Fehlersuche: `--ohneSpalt`, `--ohneLuecke`.
 - Commit-Haken `.githooks/pre-commit` (aktiv nach `npm install`): ändert ein Commit die Modellerzeugung, läuft `tneuehose.mjs`.
 - Deploy: Netlify mit GitHub verbunden, `netlify.toml` (publish `app/`, Funktionen `netlify/functions/`). Push auf `claude/new-session-fbr0jp` → nach ca. 1 min online.
 - Live-URL: feste `*.netlify.app`-Adresse im Netlify-Konto des Nutzers (nicht im Repo notiert). Alternative: Ordner `app/` auf app.netlify.com/drop ziehen (jedes Mal neue Adresse, ohne Server-Funktionen).
@@ -115,7 +121,7 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
   am Schritt vorn und hinten flach bis zur Innenkante (`pInnenVorn` 8), Querschnitt über dem Schritt ohne Formwechsel
   (17.11.), `innenRand` setzt weich ein (Sprung versetzte das Foto an der Schrittlinie: Knick). Tiefe: Jeans rL .92/rH .86,
   Anzug .86/.84 (Nutzer: Jeans seitlich zu schmal, Anzug etwas zu breit). Schrittpunkt: beide Beine öffnen aus der Beckenmitte, fast gerade
-  Kanten (18.11.: Innenkante eine Gerade ab vO, wo der Spalt im Foto offen ist, Neigung als Ausgleichsgerade; per Umrissvergleich
+  Kanten (17.11.: Innenkante eine Gerade ab vO, wo der Spalt im Foto offen ist, Neigung als Ausgleichsgerade; per Umrissvergleich
   Foto/3D geprüft); über dem Schritt beide Hälften auf dieselbe Mitte (vorher Schlitz = Haken). Innenkante bleibt auf
   ihrer Seite der Mitte (Ausgleichslinie lief über die Mitte: Beine durchdrangen sich). Textur am Schritt: `spaltSchatten`
   (Schatten/Spaltfüllung zwischen den Beinen durch Stoff ersetzt, über dem Schritt nur fast Schwarzes, hinten erst ab Schritt),

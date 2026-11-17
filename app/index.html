@@ -3312,13 +3312,14 @@ function produktForm(G,V){
     // jedes Bein bleibt auf seiner Seite der Mitte (17.11.): die Ausgleichslinie der Innenkante lief nach oben über die Mitte
     // hinaus, unter dem Schritt durchdrangen sich die Beine (dunkler Haken). Innenkante nie näher an der Mitte als am Schritt.
     const sd=Math.sign(aus(M.vc)-c0)||1, seite=x=>sd>0?Math.max(c0,x):Math.min(c0,x);
-    // Innenkante gerade wie im Foto (18.11., Umrissvergleich Foto/3D): der Spalt öffnet sich erst dort, wo er im Foto offen ist (vO,
+    // Innenkante gerade wie im Foto (17.11., Umrissvergleich Foto/3D): der Spalt öffnet sich erst dort, wo er im Foto offen ist (vO,
     // vorher schon am Schrittpunkt vc, 6 cm zu hoch), dann eine gerade Linie aus der Mitte, Neigung als Ausgleichsgerade durch die
     // Innenkante des Fotos (vorher Kurve 2. Grades mit Bogen am Schritt: Knick, unten zu weit offen). Bis vO liegen die Beine aneinander.
     let iO=ic; while(iO<iH-4&&Math.abs(X(M.f[iO][2])-X(M.f[iO][1]))<1.2) iO++;
     const vO=M.v[iO], pts=ri.filter(p=>p[0]>=vO+3/D.len); let sxy=0, sxx=0; for(const [v,x] of pts){ sxy+=(v-vO)*(x-c0); sxx+=(v-vO)*(v-vO); }
     const kI=sxx>0?sxy/sxx:0, gerade=v=>v<=vO?c0:c0+kI*(v-vO);
-    return {aus, inn:(i,v)=>seite(gerade(v))}; });   // fast gerade Kanten aus dem Schrittpunkt (umgekehrtes V wie die KI); stark gewölbt lag oben eine Schulter
+    return {aus, iO, inn:(i,v)=>seite(gerade(v))}; });   // fast gerade Kanten aus dem Schrittpunkt (umgekehrtes V wie die KI); stark gewölbt lag oben eine Schulter
+  const soll=[[],[]];                                  // Fotoumriss je Bein und Zeile [innen, außen] (Umrissvergleich)
   const DlC=[0,1].map(s=>Math.abs(glatt[s].aus(M.vc)-glatt[s].inn(ic,M.vc))*PF.rL);
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++){
     // unten gerade abgeschnitten: die Ecken am Saum sind im Foto abgerundet (Freistellung), die Hose ist es nicht
@@ -3327,7 +3328,7 @@ function produktForm(G,V){
     const F0=M.f[Math.min(i,iH)], F=i<ic?[F0[0],(F0[1]+F0[2])/2,(F0[1]+F0[2])/2,F0[3]]:F0, L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]], v=M.v[i], y=(1-v)*D.len, below=i>=ic;
     // unter iH die Kanten gerade weiterführen (Schräge der Beine aus den 6 Zeilen darüber), nicht senkrecht: sonst Knick über dem Saum
     const ex=k=>{ if(i<=iH) return X(e[k]); const F6=M.f[iH-6], e6=L?[F6[2],F6[3]]:[F6[1],F6[0]], dv=Math.max(1e-4,M.v[iH]-M.v[iH-6]); return X(e[k])+(X(e[k])-X(e6[k]))*(v-M.v[iH])/dv; };
-    const sp=below?spreiz[s](i,v):0, xIn0=ex(0)+sp, xOut0=below?ex(1)+sp:xIn0+oben[s][i];
+    const sp=below?spreiz[s](i,v):0, xIn0=ex(0)+sp, xOut0=below?ex(1)+sp:xIn0+oben[s][i]; soll[s][i]=[below?xIn0:NaN,below?xOut0:X(e[1])];
     const xIn=below?glatt[s].inn(i,v):xIn0, xOut=below?glatt[s].aus(v):i>=iB?xOut0+(glatt[s].aus(v)-xOut0)*sstep(M.v[iB],M.vc,v):xOut0, a=(xOut-xIn)/2, xc=(xIn+xOut)/2;
     // Tiefe: Becken vom Bund (rB) zum Gesäß (rS) der flachen Gesamtbreite, vorn kleiner als hinten; Bein rL am Schritt bis rH am Saum
     // Tiefe: Bein rL der flachen Beinbreite am Schritt bis rH am Saum; Becken im Verhältnis zur Beintiefe am Schritt (Bund kB,
@@ -3409,6 +3410,22 @@ function produktForm(G,V){
   const nor=g3.nor, mix=ks=>{ const n=[0,0,0]; for(const k of ks) for(let c=0;c<3;c++) n[c]+=nor[k+c]; const l=Math.hypot(n[0],n[1],n[2])||1; for(const k of ks) for(let c=0;c<3;c++) nor[k+c]=n[c]/l; };
   for(let i=0;i<NR;i++){ for(let s=0;s<2;s++){ mix([id(s,i,0,K3),id(s,i,1,K3)]); if(i>=ic) mix([id(s,i,0,0),id(s,i,1,0)]); }
     if(i<ic) for(let f=0;f<2;f++) mix([id(0,i,f,0),id(1,i,f,0)]); }
+  // Umrissvergleich (17.11., Nutzer: Umriss vom Foto und vom 3D-Modell aneinander anpassen; wo das Foto gerade ist, bleibt die
+  // Form gerade). Umriss der fertigen Form von vorn (Ist, mit Falten aus dem Foto) gegen den Fotoumriss (Soll, Beine wie in der
+  // Form höchstens spreizGrad gestellt), vom Bund (iT) bis zum Saum (iH), in cm. Grenzen: werkzeuge/qualitaet.json (regelnApp,
+  // tneuehose.mjs). Die Höhe des Spalts misst hose-render.mjs am Bild: die Freistellung hat am Schritt oft eine Schulter.
+  { const XL=k=>(hh[0]*(pos[k]-V.cx)+hh[2]*pos[k+2])/ppc, ist=[[],[]], r1=x=>x==null||!isFinite(x)?null:Math.round(x*10)/10;
+    for(let s=0;s<2;s++) for(let i=0;i<NR;i++){ let mn=1e9, mx=-1e9; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const x=XL(id(s,i,f,j)); if(x<mn) mn=x; if(x>mx) mx=x; } ist[s][i]=[mn,mx]; }
+    const sg=[0,1].map(s=>Math.sign(soll[s][ic][1]-soll[s][ic][0])||1), aus=(s,i)=>sg[s]>0?ist[s][i][1]:ist[s][i][0], inn=(s,i)=>sg[s]>0?ist[s][i][0]:ist[s][i][1];
+    const iO=glatt[0].iO, re=sg[0]>0?0:1, li=1-re, dA=[], dI=[]; let iL=iO;
+    while(iL<iH&&M.v[iL]<M.v[iO]+3/D.len) iL++;
+    for(let s=0;s<2;s++) for(let i=iT;i<=iH;i++){ dA.push(Math.abs(aus(s,i)-soll[s][i][1])); if(i>=ic) dI.push(Math.abs(inn(s,i)-soll[s][i][0])); }
+    const mittel=a=>a.reduce((p,q)=>p+q,0)/Math.max(1,a.length), p90=a=>{ const b=a.slice().sort((p,q)=>p-q); return b[Math.floor(.9*(b.length-1))]||0; };
+    // Geradheit: größte Abweichung von der Ausgleichsgeraden; krumm = Form minus Foto (positiv: die Form ist krummer als das Foto)
+    const rest=(a,b,f)=>{ let n=0,sv=0,sx=0; for(let i=a;i<=b;i++){ sv+=M.v[i]; sx+=f(i); n++; } if(n<4) return 0; const mv=sv/n, mx=sx/n; let sxy=0,sxx=0;
+      for(let i=a;i<=b;i++){ sxy+=(M.v[i]-mv)*(f(i)-mx); sxx+=(M.v[i]-mv)**2; } const k=sxx?sxy/sxx:0; let m=0; for(let i=a;i<=b;i++) m=Math.max(m,Math.abs(f(i)-mx-k*(M.v[i]-mv))); return m; };
+    let krumm=-1e9; for(let s=0;s<2;s++) krumm=Math.max(krumm,rest(iL,iH,i=>inn(s,i))-rest(iL,iH,i=>soll[s][i][0]),rest(ic,iH,i=>aus(s,i))-rest(ic,iH,i=>soll[s][i][1]));
+    g3.umriss={aussenCm:r1(mittel(dA)),aussenMaxCm:r1(p90(dA)),innenCm:r1(mittel(dI)),innenMaxCm:r1(p90(dI)),krummCm:r1(krumm)}; }
   rim3d(M,ppc); return true;
 }
 async function exportGLB(){
@@ -6299,7 +6316,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
       const leg=pf.vv[i]>=VC, useF=!leg||vcF!=null, useB=!leg||vcB!=null;
       pf.hw[i]=useF&&useB?(pf.hw[i]+pb.hw[i])/2:useB?pb.hw[i]:pf.hw[i]; }
     both=true; }
-  if(!rock){ try{ fillLegGap(F,garmentProfile(F,VC,0),VC); fillLegGap(B,garmentProfile(B,vcBack,CW),vcBack); }catch(e){ console.warn("Spalt",e); } }   // auch die geschätzte Rückseite (gespiegelte Vorderseite)
+  if(!rock){ try{ if(!window.__ohneLuecke) fillLegGap(F,garmentProfile(F,VC,0),VC); fillLegGap(B,garmentProfile(B,vcBack,CW),vcBack); }catch(e){ console.warn("Spalt",e); } }   // auch die geschätzte Rückseite (gespiegelte Vorderseite)
   const at=document.createElement("canvas"); at.width=ATLAS.W; at.height=ATLAS.H;
   // Rückseite ohne Rückenfoto (geschätzt oder aus dem Foto mit Person): keine Einzelheiten aus dem großen Foto, das wären die
   // der Vorderseite (Taschen, Schlitz, Gürtelschlaufen); geglättet wird dort im Groben, das ließ sie durch die Prüfung
@@ -6318,7 +6335,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
     // Rand der geschätzten Rückseite: die äußersten 4 % aus dem Stoff daneben (gespiegelt); dort lag sonst grauer Hintergrund
     // aus dem gespiegelten Foto (Seitenansicht: heller Fleck auf Schritthöhe)
     randTextur(ax,pb,ATLAS.W/2,VC,[255,255,255],.04); }catch(e){ console.warn("Rückseite hoch",e); } }
-  if(!rock){ try{ spaltSchatten(ax,pf,0,VC,false); spaltSchatten(ax,pt||pb,ATLAS.W/2,VC,true); }catch(e){ console.warn("Spaltschatten",e); } }
+  if(!rock&&!window.__ohneSpalt){ try{ spaltSchatten(ax,pf,0,VC,false); spaltSchatten(ax,pt||pb,ATLAS.W/2,VC,true); }catch(e){ console.warn("Spaltschatten",e); } }
   const PAD=rock?0:56; if(PAD){ try{ randPolster(ax,pf,0,PAD); randPolster(ax,pt||pb,ATLAS.W/2,PAD); }catch(e){ console.warn("Polster",e); } }
   const r4=a=>a.map(x=>+x.toFixed(4));
   const raw={pad:+(PAD/ATLAS.W).toFixed(4),nr:NR,vc:rock?1:+VC.toFixed(3),rock,wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4((pt||pb).tv),

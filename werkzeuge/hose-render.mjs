@@ -4,11 +4,16 @@
      node werkzeuge/hose-render.mjs bauen <name> <vorne.jpg> [hinten.jpg] --bund 40 --laenge 105 [--stoff anzug] --aus <Ordner>
      (bauen mit --json [--label "Name"]: die Hose zusätzlich wie im Gerät gespeichert als <name>.json)
      node werkzeuge/hose-render.mjs glb <datei.glb> --aus <Ordner> [--name x] [--drehen 0] [--three <node_modules mit three>] [--ohne schatten,farbe,normal,textur]
-   Ergebnis: <Ordner>/<name>.glb, <name>_vorn.png, _seite.png, _hinten.png (Studio) und <name>_app_*.png (3D-Ansicht der Seite). */
+     node werkzeuge/hose-render.mjs urteil <name> gut|schlecht "Notiz" --aus <Ordner>   (Urteil des Nutzers zur gebauten Hose)
+   Ergebnis: <Ordner>/<name>.glb, <name>_vorn.png, _seite.png, _hinten.png (Studio) und <name>_app_*.png (3D-Ansicht der Seite).
+   bauen misst immer den Umriss (Foto gegen 3D-Form): <name>_umriss.png/.json und Prüfung gegen werkzeuge/qualitaet.json
+   (Regeln, guter Stand der Hose, offene Mängel); mit --gut "Notiz" bzw. --schlecht "Notiz" wird das Urteil gleich gespeichert. */
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+import { laden, bewerten, urteilSpeichern, umrissBild, bildKanten, vergleichBilder } from "./qualitaet.mjs";
 const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + "/", NM = R + "node_modules/", A = R + "werkzeuge/tests/ausgabe/";
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i < 0 ? d : process.argv[i + 1]; };
 const pos = process.argv.slice(2).filter((x, i, a) => !x.startsWith("--") && !(a[i - 1] || "").startsWith("--"));
@@ -16,7 +21,7 @@ const [modus, ...rest] = pos, OUT = path.resolve(arg("aus", A + "hose-render")) 
 const typ = f => f.endsWith(".wasm") ? "application/wasm" : /\.m?js$/.test(f) ? "application/javascript" : f.endsWith(".glb") ? "model/gltf-binary" : "application/octet-stream";
 const b = await chromium.launch({ args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
 
-async function studio(glb, name, drehen = 0) {
+async function studio(glb, name, drehen = 0, foto = null) {   // foto: nur Umrissvergleich (vorn ohne Schatten gegen das Foto)
   const THREE = path.resolve(arg("three", "/tmp/claude-0/-home-user-Brand-Scan/fa1818b3-dd01-5cb2-834e-a2d44f4c409d/scratchpad/npm/node_modules")) + "/three/";
   const ctx = await b.newContext({ viewport: { width: 600, height: 800 } }); const p = await ctx.newPage(); const errs = [];
   p.on("pageerror", e => errs.push(e.message));
@@ -24,8 +29,15 @@ async function studio(glb, name, drehen = 0) {
     const f = u === "/modell.glb" ? glb : u.startsWith("/three/") ? THREE + u.slice(7) : null;
     if (u === "/") return r.fulfill({ status: 200, contentType: "text/html", body: SEITE });
     return f && fs.existsSync(f) ? r.fulfill({ status: 200, contentType: typ(f), body: fs.readFileSync(f) }) : r.abort(); });
-  await p.goto("http://studio/?ohne=" + arg("ohne", "")); await p.waitForFunction(() => window.__bereit || window.__fehler, null, { timeout: 120000 });
+  await p.goto("http://studio/?ohne=" + (foto ? "schatten" : arg("ohne", ""))); await p.waitForFunction(() => window.__bereit || window.__fehler, null, { timeout: 120000 });
   const fe = await p.evaluate(() => window.__fehler); if (fe) { console.log("Studio-Fehler:", fe); await ctx.close(); return; }
+  if (foto) { await p.evaluate(() => window.__zeige(0, [0, .55, .55, 30], 2.4)); await p.waitForTimeout(300);   // fast parallel wie das flache Foto
+    const url = b => "data:image/" + (/\.png$/i.test(b) ? "png" : "jpeg") + ";base64," + fs.readFileSync(b).toString("base64");
+    const sb = OUT + name + "_messen.png"; await p.screenshot({ path: sb });
+    const U = vergleichBilder(await p.evaluate(bildKanten, url(foto)), await p.evaluate(bildKanten, url(sb)), +arg("laenge", 100));
+    fs.writeFileSync(OUT + name + "_umriss.json", JSON.stringify(U)); fs.unlinkSync(sb);
+    fs.writeFileSync(OUT + name + "_umriss.png", Buffer.from((await p.evaluate(umrissBild, U)).split(",")[1], "base64"));
+    await ctx.close(); return U; }
   for (const [n, y] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Math.PI]]) {
     await p.evaluate(([y, d]) => window.__zeige(y + d), [y, drehen]); await p.waitForTimeout(300);
     await p.screenshot({ path: OUT + `${name}_${n}.png` }); }
@@ -64,12 +76,20 @@ let tri=0; m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true
   if(OH.includes("schatten")){ o.castShadow=false; o.receiveShadow=false; } } });
 const cam=new T.PerspectiveCamera(24,600/800,.1,50); g.position.y=0;
 window.__info={hoehe:+sz.y.toFixed(3),breite:+sz.x.toFixed(3),tiefe:+sz.z.toFixed(3),dreiecke:Math.round(tri)};
-window.__zeige=(y,z)=>{ piv.rotation.y=y; const Z=z||[0,.55,.5,2.9]; cam.position.set(Z[0],Z[1],Z[3]); cam.lookAt(Z[0],Z[2],0); r.render(s,cam); };
+window.__zeige=(y,z,fv)=>{ cam.fov=fv||24; cam.updateProjectionMatrix(); piv.rotation.y=y; const Z=z||[0,.55,.5,2.9]; cam.position.set(Z[0],Z[1],Z[3]); cam.lookAt(Z[0],Z[2],0); r.render(s,cam); };
 window.__zeige(0); window.__bereit=true;
 }catch(e){ window.__fehler=String(e&&e.stack||e); }
 </script></body></html>`;
 
 if (modus === "glb") { await studio(path.resolve(rest[0]), arg("name", path.basename(rest[0], ".glb")), +arg("drehen", 0)); await b.close(); process.exit(0); }
+
+// urteil: Urteil des Nutzers zur zuletzt gebauten Hose festhalten (Werte aus <Ordner>/<name>_umriss.json)
+if (modus === "urteil") { const [n, u, ...t] = rest, f = OUT + n + "_umriss.json"; if (!/^(gut|schlecht)$/.test(u || "")) { console.log("Urteil: gut oder schlecht"); process.exit(1); }
+  urteilSpeichern(n, u, t.join(" "), fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : null); console.log("Urteil gespeichert:", n, u); await b.close(); process.exit(0); }
+
+// Testseite veraltet (app/index.html oder Attrappe geändert)? Dann zuerst neu erzeugen, sonst prüft man alten Code (17.11. passiert)
+{ const T = R + "werkzeuge/tests/testseite-mit-simulierter-person.html", Q = [R + "app/index.html", R + "werkzeuge/tests/attrappe.js"];
+  if (!fs.existsSync(T) || Q.some(f => fs.statSync(f).mtimeMs > fs.statSync(T).mtimeMs)) execFileSync(process.execPath, [R + "werkzeuge/tests/baue-testseite.mjs"], { stdio: "inherit" }); }
 
 // bauen: Hose in der Testseite anlegen (KI-Freistellung aktiv), 3D-Ansicht der Seite und .glb sichern, dann Studio
 const [name, vorne, hinten] = rest;
@@ -79,6 +99,8 @@ await ctx.route("**/@mediapipe/tasks-vision@0.10.18/**", r => { const f = NM + "
 await ctx.route("**/magic_touch.tflite", r => r.fulfill({ status: 200, body: fs.readFileSync(A + "magic_touch.tflite"), headers: { "access-control-allow-origin": "*" } }));
 await ctx.route("**/fonts.g*/**", r => r.abort());
 if (!process.argv.includes("--ohneKI")) await ctx.addInitScript(() => { window.__kiTest = true; }); else await ctx.addInitScript(() => { window.__innenLog = true; });
+if (process.argv.includes("--ohneSpalt")) await ctx.addInitScript(() => { window.__ohneSpalt = true; });   // Fehlersuche: ohne Ersatz der Spaltschatten in der Textur
+if (process.argv.includes("--ohneLuecke")) await ctx.addInitScript(() => { window.__ohneLuecke = true; });   // Fehlersuche: ohne Füllung des Beinspalts im Foto
 if (process.argv.includes("--ohneSaeubern")) await ctx.addInitScript(() => { window.__ohneSaeubern = true; });
 const p = await ctx.newPage(); const errs = []; p.on("pageerror", e => errs.push(e.message));
 await p.goto("file://" + R + "werkzeuge/tests/testseite-mit-simulierter-person.html"); await p.waitForTimeout(500);
@@ -101,6 +123,9 @@ for (const [n, y] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Math.PI]])
   await box.screenshot({ path: OUT + `${name}_app_${n}.png` }); }
 const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.click("#g-glb")]);
 await dl.saveAs(OUT + name + ".glb"); console.log("Schatten:", JSON.stringify(await p.evaluate(() => window.__schattenStat || null)), "Innenbund:", JSON.stringify(await p.evaluate(() => window.__innen || null)), "Produktform:", await p.evaluate(() => window.__dbg.g3.produkt));
+// Messung in der App (g3.umriss: Fotokanten der Freistellung gegen die Form), Grenzen regelnApp; nur Fehler ausgeben
+{ const UA = await p.evaluate(() => window.__dbg.g3.umriss || null);
+  if (UA) { const E = bewerten(UA, laden(), null, "regelnApp"); if (!E.ok) console.log("Umriss App: " + E.zeilen.filter(z => z.startsWith("FEHLER")).join(" | ")); } }
 // --json: die fertige Hose wie im Gerät gespeichert (für eine Seite mit vorab eingebauten Hosen)
 if (process.argv.includes("--json")) fs.writeFileSync(OUT + name + ".json", await p.evaluate(n => { const d = window.__dbg, G = { ...d.GARMENTS[d.g.key] };
   for (const k of ["unsaved", "shared", "prof", "bad"]) delete G[k]; G.label = n; return JSON.stringify({ key: "vorab_" + n.replace(/[^a-z0-9]/gi, "").toLowerCase(), G }); }, arg("label", name)));
@@ -108,4 +133,11 @@ if (process.argv.includes("--dump")) fs.writeFileSync(OUT + name + "_netz.json",
   return { nr: g3.nr, nv: g3.nv, v: Array.from(M.v), vc: M.vc, f: M.f, b: M.b, tv: M.tv, tvb: M.tvb, mat: G.material || G.mat || null, pos: Array.from(g3.pos.slice(0, g3.nv * 3)) }; }))); console.log("GLB:", OUT + name + ".glb", errs.length ? errs.slice(0, 3) : "");
 await ctx.close();
 await studio(OUT + name + ".glb", name);
+// Umrissvergleich (17.11., Nutzer: Umriss vom Foto und vom 3D-Modell aneinander anpassen): Bild <name>_umriss.png, Werte
+// gegen Regeln, guten Stand und offene Mängel aus werkzeuge/qualitaet.json; --gut/--schlecht "Notiz" speichert das Urteil
+{ const U = await studio(OUT + name + ".glb", name, 0, vorne);
+  if (!U) console.log("Umriss: nicht gemessen");
+  else { const E = bewerten(U, laden(), name);
+    console.log(`Umriss ${name} (${E.ok ? "in Ordnung" : "NICHT in Ordnung"}):\n  ` + E.zeilen.join("\n  ") + (E.offen.length ? "\n  Offen (Nutzer): " + E.offen.map(u => u.notiz).join(" | ") : ""));
+    for (const u of ["gut", "schlecht"]) if (process.argv.includes("--" + u)) { urteilSpeichern(name, u, arg(u, ""), U); console.log("Urteil gespeichert:", u); } } }
 await b.close();

@@ -1,0 +1,174 @@
+{
+  "info": "Qualitätsgedächtnis der Hosen: regeln (Bildvergleich Originalfoto gegen 3D-Hose von vorn, hose-render.mjs), regelnApp (Messung in der App, tneuehose.mjs), guter Stand je Hose, Urteile des Nutzers. Lesen/Schreiben: werkzeuge/qualitaet.mjs",
+  "toleranzCm": 0.3,
+  "regeln": {
+    "aussenCm": {
+      "max": 2,
+      "text": "Becken: Außenkante liegt im Mittel auf dem Umriss im Foto"
+    },
+    "aussenMaxCm": {
+      "max": 3.5,
+      "text": "Becken: Außenkante nirgends weit weg vom Foto-Umriss (90 %)"
+    },
+    "beinCm": {
+      "max": 3,
+      "text": "Beine: Breite im Mittel wie im Foto"
+    },
+    "beinMaxCm": {
+      "max": 4.5,
+      "text": "Beine: Breite nirgends weit weg vom Foto (90 %)"
+    },
+    "schrittCm": {
+      "max": 2,
+      "betrag": true,
+      "text": "Spalt zwischen den Beinen beginnt auf der Höhe wie im Foto"
+    },
+    "krummCm": {
+      "max": 0.3,
+      "text": "Wo das Foto gerade ist, ist die Form nicht krummer (kein Knick)"
+    }
+  },
+  "hosen": {
+    "jeans": {
+      "gut": {
+        "datum": "2026-11-17",
+        "notiz": "Nutzer 17.11.: perfekt. Innenkanten gerade wie im Foto, Schritt auf Fotohöhe",
+        "werte": {
+          "aussenCm": 0.6,
+          "aussenMaxCm": 1,
+          "beinCm": 1.8,
+          "beinMaxCm": 3.4,
+          "schrittCm": 0.5,
+          "krummCm": 0
+        }
+      }
+    },
+    "anzug": {
+      "gut": {
+        "datum": "2026-11-17",
+        "notiz": "Nutzer 17.11.: perfekt. Innenkanten gerade wie im Foto, Schritt auf Fotohöhe",
+        "werte": {
+          "aussenCm": 1.6,
+          "aussenMaxCm": 2.8,
+          "beinCm": 2.4,
+          "beinMaxCm": 2.8,
+          "schrittCm": -0.4,
+          "krummCm": 0.1
+        }
+      }
+    }
+  },
+  "urteile": [
+    {
+      "datum": "2026-11-13",
+      "hose": "jeans",
+      "urteil": "gut",
+      "notiz": "Rückseite aus dem echten Rückenfoto einer ähnlichen Hose (Vorlage), mit Falten wie im Foto"
+    },
+    {
+      "datum": "2026-11-15",
+      "hose": "alle",
+      "urteil": "schlecht",
+      "status": "behoben",
+      "notiz": "Bund schief und verzogen. Behoben: Schlagschatten aus der Maske, Textur exakt projiziert, Seitenwand-Polster"
+    },
+    {
+      "datum": "2026-11-16",
+      "hose": "alle",
+      "urteil": "schlecht",
+      "status": "behoben",
+      "notiz": "Gesäß flach, alles zu gerade. Behoben: Gesäß gewölbt (gesaess)"
+    },
+    {
+      "datum": "2026-11-17",
+      "hose": "alle",
+      "urteil": "schlecht",
+      "status": "behoben",
+      "notiz": "Seitentiefe: Jeans zu schmal, Anzughose minimal zu breit. Behoben: rL Jeans .92, Anzug .86"
+    },
+    {
+      "datum": "2026-11-17",
+      "hose": "alle",
+      "urteil": "schlecht",
+      "status": "behoben",
+      "notiz": "Knick und komische Falte, wo sich die Beine trennen; Schritt 6 cm zu hoch. Behoben: Innenkanten gerade ab der Spaltöffnung im Foto (Umrissvergleich)"
+    },
+    {
+      "datum": "2026-11-17",
+      "hose": "jeans",
+      "urteil": "schlecht",
+      "status": "behoben",
+      "notiz": "Getragen-Look von Hand (schmalere runde Beine, Falten an Saum, Knie, Gesäß) sieht schlecht aus. Nicht wieder von Hand machen: Falten später mit Stoffphysik"
+    },
+    {
+      "datum": "2026-11-17",
+      "hose": "alle",
+      "urteil": "gut",
+      "notiz": "Innenkanten gerade wie im Foto, Schritt auf Fotohöhe (Nutzer: perfekt). Immer per Umrissvergleich prüfen"
+    },
+    {
+      "datum": "2026-11-17",
+      "hose": "alle",
+      "urteil": "schlecht",
+      "status": "offen",
+      "notiz": "Eckige flache Flecken in der Textur unter dem Schlitz und am Innenbein. Ursache: spaltSchatten ersetzt dunkle Stellen mit festem Zeilenton plus Körnung, Breiten als Maximum über ±5 Zeilen (Rechtecke). Gespiegelter Stoff half bei der Jeans, gab bei der Anzughose Streifen; fester Versatz gab helle Flecken. Nächster Ansatz: Grundton vom Rand der Stelle je Zeile, Körnung von daneben"
+    },
+    {
+      "datum": "2026-11-17",
+      "hose": "alle",
+      "urteil": "schlecht",
+      "status": "offen",
+      "notiz": "Bildvergleich: Beinbreite im Mittel 2 cm anders als im Foto (Jeans: Spalt im 3D weiter links als im Foto). Noch prüfen, ob echt oder Schatten im Foto"
+    },
+    {
+      "datum": "2026-11-17",
+      "hose": "jeans",
+      "urteil": "gut",
+      "notiz": "Nutzer 17.11.: perfekt. Innenkanten gerade wie im Foto, Schritt auf Fotohöhe",
+      "werte": {
+        "aussenCm": 0.6,
+        "aussenMaxCm": 1,
+        "beinCm": 1.8,
+        "beinMaxCm": 3.4,
+        "schrittCm": 0.5,
+        "krummCm": 0
+      }
+    },
+    {
+      "datum": "2026-11-17",
+      "hose": "anzug",
+      "urteil": "gut",
+      "notiz": "Nutzer 17.11.: perfekt. Innenkanten gerade wie im Foto, Schritt auf Fotohöhe",
+      "werte": {
+        "aussenCm": 1.6,
+        "aussenMaxCm": 2.8,
+        "beinCm": 2.4,
+        "beinMaxCm": 2.8,
+        "schrittCm": -0.4,
+        "krummCm": 0.1
+      }
+    }
+  ],
+  "regelnApp": {
+    "aussenCm": {
+      "max": 1,
+      "text": "Außenkante liegt im Mittel auf dem Foto-Umriss"
+    },
+    "aussenMaxCm": {
+      "max": 2,
+      "text": "Außenkante nirgends weit weg vom Foto-Umriss (90 %)"
+    },
+    "innenCm": {
+      "max": 1.5,
+      "text": "Innenkante liegt im Mittel auf dem Foto-Umriss"
+    },
+    "innenMaxCm": {
+      "max": 2.5,
+      "text": "Innenkante nirgends weit weg vom Foto-Umriss (90 %)"
+    },
+    "krummCm": {
+      "max": 0.3,
+      "text": "Wo das Foto gerade ist, ist die Form nicht krummer (kein Knick)"
+    }
+  }
+}

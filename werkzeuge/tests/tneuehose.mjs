@@ -95,6 +95,9 @@ pruefe(vorn.h/vorn.w>1.6&&vorn.h/vorn.w<3.6,`Seitenverhältnis von vorn ${(vorn.
 pruefe(seite.w/vorn.w>.35&&seite.w/vorn.w<1.0,`Tiefe von der Seite ${(100*seite.w/vorn.w).toFixed(0)} % der Breite (räumlich, keine Scheibe)`);
 const nv=await p.evaluate(()=>window.__dbg.g3.nv||0);          // erst nach dem Zeichnen gesetzt
 pruefe(nv>=1500,`genug Punkte im Netz: ${nv}`);
+// Umriss wie im Foto (17.11.): Messung der App (Fotokanten gegen die Form von vorn) gegen werkzeuge/qualitaet.json (regelnApp)
+{ const {laden,bewerten}=await import('../qualitaet.mjs'), U=await p.evaluate(()=>window.__dbg.g3.umriss||null), E=U&&bewerten(U,laden(),null,'regelnApp');
+  pruefe(!!E&&E.ok,'Umriss wie im Foto: '+(E?E.zeilen.map(z=>z.slice(7)).join('; '):'nicht gemessen')); }
 // Rückseite: Gesäßtaschen deutlich sichtbarer als bei geschätzter Rückseite (gleiche Vorderseite allein gebaut)
 // Seit 10.11. bekommt auch die geschätzte Rückseite Taschen und Nähte (rueckseiteHoch): zusätzlich muss sie als geschätzt
 // gekennzeichnet sein und die mit Foto nicht
