@@ -1931,7 +1931,7 @@ const PASSFORM={
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
   // Produktform der 3D-Datei (produktForm): Tiefe je flacher Breite (Becken am Bund rB, am Gesäß rS; Bein am Schritt rL, Saum rH),
   // Anteil vorne, Querschnitt-Exponent p (2 = Ellipse, größer = kantiger), Übergang ins V am Schritt (cm), Spaltendichte am Rand
-  produkt:{an:true,kB:1,kS:1.15,vorn:.56,rL:.85,rH:.8,pB:2,pL:1.8,art:{jeans:{rL:.77,rH:.72,pL:1.6},anzug:{rL:.95,rH:.92,pL:1.6}},schrittCm:5,schrittHintenCm:11,gesaess:.3,schrittPot:1,pInnen:2.4,pInnenVorn:8,wandAb:.7,wandVoll:.95,rand:.35,innenRand:.08,schrittGlattCm:8,faltenFotoCm:.9,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:1.1},
+  produkt:{an:true,kB:1,kS:1.15,vorn:.56,rL:.85,rH:.8,pB:2,pL:1.8,art:{jeans:{rL:.92,rH:.86,pL:1.8},anzug:{rL:.86,rH:.84,pL:1.8}},schrittCm:4,schrittHintenCm:5,gesaess:.3,schrittPot:1,pInnen:2.4,pInnenVorn:8,wandAb:.7,wandVoll:.95,rand:.35,innenRand:.08,schrittGlattCm:8,faltenFotoCm:.9,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:1.1},
   gesaessFallCm:18,      // so weit unter dem Schritt läuft die Tiefe vom Becken auf die Beintiefe aus (enge Hosen 80 % davon)
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
@@ -3326,7 +3326,7 @@ function produktForm(G,V){
         let x, z;
         // Innenflanke am Schritt kantiger (pInnen), nach unten auslaufend: die Vorderseite bleibt bis nah an die Innenkante flach und
         // fällt dann steil ab (schmaler Schlitz zwischen den Beinen wie bei der KI-Referenz statt breiter dunkler Mulde)
-        if(below){ const q=xi(t); x=xc+q*a; z=sg*Dl/2*se(q,q<0?PF.pL+((f?PF.pInnen:PF.pInnenVorn)-PF.pL)*(1-sstep(0,.35,lp)):PF.pL)*(f?1+ges(v,q):1)+sg*falte(s,f,q,v); }
+        if(below){ const q=xi(t); x=xc+q*a; z=sg*Dl/2*(q<0?1+(se(q,PF.pInnenVorn)-1)*(1-sstep(0,.5,lp))+(se(q,PF.pL)-1)*sstep(0,.5,lp):se(q,PF.pL))*(f?1+ges(v,q):1)+sg*falte(s,f,q,v); }
         else{ // Becken (15.11.): je Hälfte eine „Bein-Linse“; über dem Schritt rücken beide Linsen ineinander und verschmelzen nach
           // oben zu einer Ellipse (wie zwei Rohre, die in ein Becken übergehen). Am Schritt entsteht so eine schmale, nach oben
           // auslaufende Kerbe in der Mitte (KI-Referenz) statt einer waagrechten Stufe quer über beide Oberschenkel, die als
@@ -3335,9 +3335,13 @@ function produktForm(G,V){
           // wölbte sich die Vorderseite zum Schritt hin 2–3 cm vor und lag als heller Querstreifen über dem Schritt im Licht
           // (KI-Referenzen: vorn von der Hüfte bis zum Oberschenkel senkrecht). Über dem Gesäß zum Bund hin flacher (kB/kS),
           // am Bund vorne etwas tiefer als hinten (vorn), ab dem Gesäß gleich.
-          const fx=.5+.5*xi(t), hK=(M.vc-v)*D.len, hV=f?PF.schrittHintenCm:PF.schrittCm, rho=hK<hV?Math.pow(1-hK/hV,PF.schrittPot):0, pv=PF.pB+(PF.pL-PF.pB)*rho;
-          const g=v<vSeat?(PF.kB/PF.kS+(1-PF.kB/PF.kS)*sstep(0,vSeat,v))/se(.5,PF.pB):1/se(.5-.5*rho,pv), vo=PF.vorn+(.5-PF.vorn)*sstep(0,vSeat,v), A=Dl/2*g*2*(f?1-vo:vo);
-          const arg=fx*(1+rho)-rho; x=xIn+(xOut-xIn)*fx; z=sg*A*se(arg,arg<0?PF.pB+((f?PF.pInnen:PF.pInnenVorn)-PF.pB)*rho:pv)*(f?1+ges(v,2*fx-1):1)+sg*falte(s,f,xi(t),v); }
+          // 17.11.: Querschnitt über dem Schritt ohne Formwechsel in der Höhe (der gab vorn und hinten ein dunkles Querband bzw. einen
+          // Knick): innere Hälfte (Mitte bis Beinmitte) durchgehend flach auf Beintiefe, erst auf den letzten schrittCm fällt die
+          // Mitte steil zum Schrittpunkt ab; äußere Hälfte geht vom Gesäß bis zum Schritt gleichmäßig in die Rundung des Beins über.
+          const fx=.5+.5*xi(t), hK=(M.vc-v)*D.len, hV=f?PF.schrittHintenCm:PF.schrittCm, rho=hK<hV?Math.pow(1-hK/hV,PF.schrittPot):0, wS=sstep(vSeat,M.vc,v);
+          const vo=PF.vorn+(.5-PF.vorn)*sstep(0,vSeat,v), A=Dl/2*(v<vSeat?PF.kB/PF.kS+(1-PF.kB/PF.kS)*sstep(0,vSeat,v):1)*2*(f?1-vo:vo), arg=fx*(1+rho)-rho, o=Math.max(0,2*fx-1);
+          const prof=fx<=.5?(arg<0?se(arg,PF.pInnenVorn):1):se(fx,4)/se(.5,4)*(1-wS)+se(o,PF.pL)*wS;
+          x=xIn+(xOut-xIn)*fx; z=sg*A*prof*(f?1+ges(v,2*fx-1):1)+sg*falte(s,f,xi(t),v); }
         put(id(s,i,f,j),x,y,z); } } }
   // Texturkoordinaten der Produktform (einmal je Netz). Das Foto ist eine gerade Ansicht von vorn bzw. hinten: u folgt genau der
   // Lage des Punkts in der Breite (13.11.; vorher gleichmäßig je Spalte, die Spalten liegen zum Rand hin aber dichter: Bund, Taschen
@@ -3351,7 +3355,7 @@ function produktForm(G,V){
     // die Außenkante des Fotos hinaus ins Polster (randPolster, M.pad). Reicht das Polster nicht, wird nur der Überstand gestaucht.
     const PAD=M.pad||0, XZ=k=>{ const dx=pos[k]-V.cx, dz=pos[k+2]; return [(hh[0]*dx+hh[2]*dz)/ppc,(hh[2]*dx-hh[0]*dz)/ppc]; };
     for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const L=(s===0)!==!!M.mir, iu=i>iH?iH:i<iT&&i<ic?Math.min(iT,ic-1):i, F=M.f[iu], B=M.b[iu];
-      const eF=L?[F[2],F[3]]:[F[1],F[0]], eB=L?[B[1],B[0]]:[B[2],B[3]], e=f?eB:eF, o=f?eF:eB, m=i>=ic?PF.innenRand:0;
+      const eF=L?[F[2],F[3]]:[F[1],F[0]], eB=L?[B[1],B[0]]:[B[2],B[3]], e=f?eB:eF, o=f?eF:eB, m=i>=ic?PF.innenRand*sstep(M.vc,M.vc+.12,M.v[i]):0;   // weich einsetzen: ein Sprung an der Schrittlinie versetzte das Foto dort um 1,5 cm (Knick)
       const ex=new Float32Array(C); let Xw=1;
       if(PAD>0){ let p0=XZ(id(s,i,f,0)); const pE=XZ(id(s,i,f,K3)); Xw=Math.max(1e-3,Math.abs(pE[0]-p0[0]));
         for(let j=1;j<C;j++){ const p1=XZ(id(s,i,f,j)), dx=Math.abs(p1[0]-p0[0]), ds=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]);

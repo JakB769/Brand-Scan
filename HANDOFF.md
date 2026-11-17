@@ -111,7 +111,9 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
   die Texturkoordinaten laufen dort in natürlicher Größe weiter statt den Fotorand zu dehnen. Schritt: zwei Bein-Linsen
   verschmelzen nach oben (schmale Kerbe statt Querstufe), Vorderseite vom Gesäß bis in die Beine gerade, Innenflanke kantiger
   (`pInnen`). `matchHalves(im,M)` rechnet nur über den Stoff (Rückseite Anzughose war halb so hell). 16.11.: Gesäß gewölbt (`gesaess` .3, je Backe),
-  vorn am Schritt flach bis zur Innenkante (`pInnenVorn` 8, keine Falte), hinten Kerbe 11 cm. Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
+  am Schritt vorn und hinten flach bis zur Innenkante (`pInnenVorn` 8), Querschnitt über dem Schritt ohne Formwechsel
+  (17.11.), `innenRand` setzt weich ein (Sprung versetzte das Foto an der Schrittlinie: Knick). Tiefe: Jeans rL .92/rH .86,
+  Anzug .86/.84 (Nutzer: Jeans seitlich zu schmal, Anzug etwas zu breit). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
   (H&M-Jeans mit Bund 43/Länge 110 etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich der Jeans fehlt; KI-Formen selbst sind zu
   dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
 
