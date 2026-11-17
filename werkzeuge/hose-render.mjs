@@ -32,6 +32,9 @@ async function studio(glb, name, drehen = 0) {
   // Nahaufnahmen: Schritt von vorn, Gesäß und Schritt schräg hinten, Saum von vorn
   for (const [n, y, z] of [["nah_schritt", 0, [0, .62, .62, 1.0]], ["nah_gesaess", 2.6, [0, .72, .7, 1.1]], ["nah_saum", 0, [0, .12, .1, 1.0]], ["nah_bund", 0, [0, .9, .88, 1.0]], ["nah_bund_hinten", Math.PI, [0, .9, .88, 1.0]], ["nah_bund_seite", Math.PI / 2, [0, .9, .88, 1.0]], ["nah_bund_schraeg", Math.PI / 4, [0, .9, .88, 1.0]], ["nah_bund_seite2", -Math.PI / 2, [0, .9, .88, 1.0]]]) {
     await p.evaluate(([y, d, z]) => window.__zeige(y + d, z), [y, drehen, z]); await p.waitForTimeout(300); await p.screenshot({ path: OUT + `${name}_${n}.png` }); }
+  // --ansicht "name:yaw:kameraY:zielY:abstand,…" zusätzliche Nahansichten (Höhen auf 1 normiert)
+  for (const a of (arg("ansicht", "") || "").split(",").filter(Boolean)) { const [n, y, cy, ly, di] = a.split(":");
+    await p.evaluate(([y, z]) => window.__zeige(y, z), [+y, [0, +cy, +ly, +di]]); await p.waitForTimeout(300); await p.screenshot({ path: OUT + `${name}_${n}.png` }); }
   console.log("Studio:", name, await p.evaluate(() => window.__info), errs.length ? errs.slice(0, 2) : "");
   await ctx.close();
 }

@@ -3425,12 +3425,16 @@ function produktForm(G,V){
     const c=[0,1,2].map(k=>det(A.map((r,i)=>r.map((x,j)=>j===k?T[i]:x)))/d0); return v=>c[0]+c[1]*(v-m)+c[2]*(v-m)**2; };
   const iB=Math.max(1,M.v.findIndex(v=>v>=M.vc-PF.schrittGlattCm/D.len)), iG=Math.min(iH-3,Math.max(ic+1,M.v.findIndex(v=>v>=M.vc+PF.schrittGlattCm/D.len)));
   const glatt=[0,1].map(s=>{ const L=(s===0)!==!!M.mir, rohe=k=>{ const r=[]; for(let i=ic;i<=iH;i++){ const F=M.f[i], e=L?[F[2],F[3]]:[F[1],F[0]]; r.push([M.v[i],X(e[k])+spreiz[s](i,M.v[i])]); } return r; };
-    const ra=rohe(1), ri=rohe(0), aus=fit2(ra), innF=fit2(ri.filter(p=>p[0]>=M.v[iG])), c0=ri[0][1], vG=M.v[iG];
-    return {aus, inn:(i,v)=>{ if(v>=vG) return innF(v); const t=clamp((v-M.vc)/Math.max(1e-4,vG-M.vc),0,1); return c0+(innF(v)-c0)*(1-(1-t)**2); }}; });
+    // Schrittpunkt (17.11.): beide Beine öffnen aus derselben Stelle, der Mitte des Beckens direkt darüber. Vorher begann jede
+    // Innenkante dort, wo der Spalt im Foto schon offen war: die Kante sprang zwischen Becken und Bein seitlich (Haken am Schritt)
+    const Fc=M.f[Math.max(0,ic-1)], ra=rohe(1), ri=rohe(0), aus=fit2(ra), innF=fit2(ri.filter(p=>p[0]>=M.v[iG])), c0=X((Fc[1]+Fc[2])/2), vG=M.v[iG];
+    return {aus, inn:(i,v)=>{ if(v>=vG) return innF(v); const t=clamp((v-M.vc)/Math.max(1e-4,vG-M.vc),0,1); return c0+(innF(v)-c0)*(t*(2-t)*.35+t*.65); }}; });   // fast gerade Kanten aus dem Schrittpunkt (umgekehrtes V wie die KI); stark gewölbt lag oben eine Schulter
   const DlC=[0,1].map(s=>Math.abs(glatt[s].aus(M.vc)-glatt[s].inn(ic,M.vc))*PF.rL);
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++){
     // unten gerade abgeschnitten: die Ecken am Saum sind im Foto abgerundet (Freistellung), die Hose ist es nicht
-    const F=M.f[Math.min(i,iH)], L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]], v=M.v[i], y=(1-v)*D.len, below=i>=ic;
+    // über dem Schritt beide Hälften auf dieselbe Mitte (17.11.): in den letzten Zeilen davor zeigt das Foto schon den beginnenden
+    // Spalt (F[1] < F[2]); jede Hälfte begann an ihrer Kante, dazwischen blieb ein Schlitz, durch den man sah (Haken am Schritt)
+    const F0=M.f[Math.min(i,iH)], F=i<ic?[F0[0],(F0[1]+F0[2])/2,(F0[1]+F0[2])/2,F0[3]]:F0, L=(s===0)!==!!M.mir, e=L?[F[2],F[3]]:[F[1],F[0]], v=M.v[i], y=(1-v)*D.len, below=i>=ic;
     // unter iH die Kanten gerade weiterführen (Schräge der Beine aus den 6 Zeilen darüber), nicht senkrecht: sonst Knick über dem Saum
     const ex=k=>{ if(i<=iH) return X(e[k]); const F6=M.f[iH-6], e6=L?[F6[2],F6[3]]:[F6[1],F6[0]], dv=Math.max(1e-4,M.v[iH]-M.v[iH-6]); return X(e[k])+(X(e[k])-X(e6[k]))*(v-M.v[iH])/dv; };
     const sp=below?spreiz[s](i,v):0, xIn0=ex(0)+sp, xOut0=below?ex(1)+sp:xIn0+oben[s][i];
@@ -3473,7 +3477,7 @@ function produktForm(G,V){
     // als Projektion weiter (dort würde der Fotorand in die Breite gezogen), sondern in natürlicher Größe entlang der Fläche, über
     // die Außenkante des Fotos hinaus ins Polster (randPolster, M.pad). Reicht das Polster nicht, wird nur der Überstand gestaucht.
     const PAD=M.pad||0, XZ=k=>{ const dx=pos[k]-V.cx, dz=pos[k+2]; return [(hh[0]*dx+hh[2]*dz)/ppc,(hh[2]*dx-hh[0]*dz)/ppc]; };
-    for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const L=(s===0)!==!!M.mir, iu=i>iH?iH:i<iT&&i<ic?Math.min(iT,ic-1):i, F=M.f[iu], B=M.b[iu];
+    for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const L=(s===0)!==!!M.mir, iu=i>iH?iH:i<iT&&i<ic?Math.min(iT,ic-1):i, mi=E=>i<ic?[E[0],(E[1]+E[2])/2,(E[1]+E[2])/2,E[3]]:E, F=mi(M.f[iu]), B=mi(M.b[iu]);
       const eF=L?[F[2],F[3]]:[F[1],F[0]], eB=L?[B[1],B[0]]:[B[2],B[3]], e=f?eB:eF, o=f?eF:eB, m=i>=ic?PF.innenRand*sstep(M.vc,M.vc+.12,M.v[i]):0;   // weich einsetzen: ein Sprung an der Schrittlinie versetzte das Foto dort um 1,5 cm (Knick)
       const ex=new Float32Array(C); let Xw=1;
       if(PAD>0){ let p0=XZ(id(s,i,f,0)); const pE=XZ(id(s,i,f,K3)); Xw=Math.max(1e-3,Math.abs(pE[0]-p0[0]));
