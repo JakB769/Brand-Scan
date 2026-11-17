@@ -114,7 +114,10 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
   am Schritt vorn und hinten flach bis zur Innenkante (`pInnenVorn` 8), Querschnitt über dem Schritt ohne Formwechsel
   (17.11.), `innenRand` setzt weich ein (Sprung versetzte das Foto an der Schrittlinie: Knick). Tiefe: Jeans rL .92/rH .86,
   Anzug .86/.84 (Nutzer: Jeans seitlich zu schmal, Anzug etwas zu breit). Schrittpunkt: beide Beine öffnen aus der Beckenmitte, fast gerade
-  Kanten; über dem Schritt beide Hälften auf dieselbe Mitte (vorher Schlitz = Haken). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
+  Kanten; über dem Schritt beide Hälften auf dieselbe Mitte (vorher Schlitz = Haken). Innenkante bleibt auf
+  ihrer Seite der Mitte (Ausgleichslinie lief über die Mitte: Beine durchdrangen sich). Textur am Schritt: `spaltSchatten`
+  (Schatten/Spaltfüllung zwischen den Beinen durch Stoff ersetzt, über dem Schritt nur fast Schwarzes, hinten erst ab Schritt),
+  `randTextur` Innenkanten auch hell/grau. Innenflanke am Schritt nach vorn schattiert (`flankeLicht`). Offen: Proportionen folgen den eingetragenen Maßen, nicht dem Seitenverhältnis des Fotos
   (H&M-Jeans mit Bund 43/Länge 110 etwa 10 % Unterschied); Zara-Foto für 1:1-Vergleich der Jeans fehlt; KI-Formen selbst sind zu
   dick (Bein-Umfang ≈ 74 statt 46 cm). `tfreistellung` war schon vorher rot.
 

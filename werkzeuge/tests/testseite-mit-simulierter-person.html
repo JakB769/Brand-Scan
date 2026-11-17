@@ -2050,7 +2050,7 @@ const PASSFORM={
   gesaessCm:10,          // stärkste Gesäßwölbung so weit unter der Bundoberkante (am Körper, senkrecht)
   // Produktform der 3D-Datei (produktForm): Tiefe je flacher Breite (Becken am Bund rB, am Gesäß rS; Bein am Schritt rL, Saum rH),
   // Anteil vorne, Querschnitt-Exponent p (2 = Ellipse, größer = kantiger), Übergang ins V am Schritt (cm), Spaltendichte am Rand
-  produkt:{an:true,kB:1,kS:1.15,vorn:.56,rL:.85,rH:.8,pB:2,pL:1.8,art:{jeans:{rL:.92,rH:.86,pL:1.8},anzug:{rL:.86,rH:.84,pL:1.8}},schrittCm:4,schrittHintenCm:5,gesaess:.3,schrittPot:1,pInnen:2.4,pInnenVorn:8,wandAb:.7,wandVoll:.95,rand:.35,innenRand:.08,schrittGlattCm:8,faltenFotoCm:.9,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:1.1},
+  produkt:{an:true,kB:1,kS:1.15,vorn:.56,rL:.85,rH:.8,pB:2,pL:1.8,art:{jeans:{rL:.92,rH:.86,pL:1.8},anzug:{rL:.86,rH:.84,pL:1.8}},schrittCm:4,schrittHintenCm:5,flankeLicht:.85,pMitteVorn:8,gesaess:.3,schrittPot:1,pInnen:2.4,pInnenVorn:8,wandAb:.7,wandVoll:.95,rand:.35,innenRand:.08,schrittGlattCm:8,faltenFotoCm:.9,saumCm:4,bundCm:3,spreizGrad:3,buegelVorn:.5,buegelHinten:.35,laengsCm:1.1},
   gesaessFallCm:18,      // so weit unter dem Schritt läuft die Tiefe vom Becken auf die Beintiefe aus (enge Hosen 80 % davon)
   innenSuche:.13,        // Innenseite oben im Vorderseitenfoto (hinterer Bund mit Etikett) wird in diesem Anteil der Länge gesucht
   innenMax:.11,          // so tief darf der vordere Bund in der Mitte höchstens unter den Ecken liegen
@@ -3428,7 +3428,10 @@ function produktForm(G,V){
     // Schrittpunkt (17.11.): beide Beine öffnen aus derselben Stelle, der Mitte des Beckens direkt darüber. Vorher begann jede
     // Innenkante dort, wo der Spalt im Foto schon offen war: die Kante sprang zwischen Becken und Bein seitlich (Haken am Schritt)
     const Fc=M.f[Math.max(0,ic-1)], ra=rohe(1), ri=rohe(0), aus=fit2(ra), innF=fit2(ri.filter(p=>p[0]>=M.v[iG])), c0=X((Fc[1]+Fc[2])/2), vG=M.v[iG];
-    return {aus, inn:(i,v)=>{ if(v>=vG) return innF(v); const t=clamp((v-M.vc)/Math.max(1e-4,vG-M.vc),0,1); return c0+(innF(v)-c0)*(t*(2-t)*.35+t*.65); }}; });   // fast gerade Kanten aus dem Schrittpunkt (umgekehrtes V wie die KI); stark gewölbt lag oben eine Schulter
+    // jedes Bein bleibt auf seiner Seite der Mitte (17.11.): die Ausgleichslinie der Innenkante lief nach oben über die Mitte
+    // hinaus, unter dem Schritt durchdrangen sich die Beine (dunkler Haken). Innenkante nie näher an der Mitte als am Schritt.
+    const sd=Math.sign(aus(M.vc)-c0)||1, seite=x=>sd>0?Math.max(c0,x):Math.min(c0,x);
+    return {aus, inn:(i,v)=>{ if(v>=vG) return seite(innF(v)); const t=clamp((v-M.vc)/Math.max(1e-4,vG-M.vc),0,1); return seite(c0+(seite(innF(v))-c0)*(t*(2-t)*.35+t*.65)); }}; });   // fast gerade Kanten aus dem Schrittpunkt (umgekehrtes V wie die KI); stark gewölbt lag oben eine Schulter
   const DlC=[0,1].map(s=>Math.abs(glatt[s].aus(M.vc)-glatt[s].inn(ic,M.vc))*PF.rL);
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++){
     // unten gerade abgeschnitten: die Ecken am Saum sind im Foto abgerundet (Freistellung), die Hose ist es nicht
@@ -3463,7 +3466,7 @@ function produktForm(G,V){
           // Mitte steil zum Schrittpunkt ab; äußere Hälfte geht vom Gesäß bis zum Schritt gleichmäßig in die Rundung des Beins über.
           const fx=.5+.5*xi(t), hK=(M.vc-v)*D.len, hV=f?PF.schrittHintenCm:PF.schrittCm, rho=hK<hV?Math.pow(1-hK/hV,PF.schrittPot):0, wS=sstep(vSeat,M.vc,v);
           const vo=PF.vorn+(.5-PF.vorn)*sstep(0,vSeat,v), A=Dl/2*(v<vSeat?PF.kB/PF.kS+(1-PF.kB/PF.kS)*sstep(0,vSeat,v):1)*2*(f?1-vo:vo), arg=fx*(1+rho)-rho, o=Math.max(0,2*fx-1);
-          const prof=fx<=.5?(arg<0?se(arg,PF.pInnenVorn):1):se(fx,4)/se(.5,4)*(1-wS)+se(o,PF.pL)*wS;
+          const prof=fx<=.5?(arg<0?se(arg,f?PF.pInnen:PF.pMitteVorn):1):se(fx,4)/se(.5,4)*(1-wS)+se(o,PF.pL)*wS;
           x=xIn+(xOut-xIn)*fx; z=sg*A*prof*(f?1+ges(v,2*fx-1):1)+sg*falte(s,f,xi(t),v); }
         put(id(s,i,f,j),x,y,z); } } }
   // Texturkoordinaten der Produktform (einmal je Netz). Das Foto ist eine gerade Ansicht von vorn bzw. hinten: u folgt genau der
@@ -3477,8 +3480,8 @@ function produktForm(G,V){
     // als Projektion weiter (dort würde der Fotorand in die Breite gezogen), sondern in natürlicher Größe entlang der Fläche, über
     // die Außenkante des Fotos hinaus ins Polster (randPolster, M.pad). Reicht das Polster nicht, wird nur der Überstand gestaucht.
     const PAD=M.pad||0, XZ=k=>{ const dx=pos[k]-V.cx, dz=pos[k+2]; return [(hh[0]*dx+hh[2]*dz)/ppc,(hh[2]*dx-hh[0]*dz)/ppc]; };
-    for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const L=(s===0)!==!!M.mir, iu=i>iH?iH:i<iT&&i<ic?Math.min(iT,ic-1):i, mi=E=>i<ic?[E[0],(E[1]+E[2])/2,(E[1]+E[2])/2,E[3]]:E, F=mi(M.f[iu]), B=mi(M.b[iu]);
-      const eF=L?[F[2],F[3]]:[F[1],F[0]], eB=L?[B[1],B[0]]:[B[2],B[3]], e=f?eB:eF, o=f?eF:eB, m=i>=ic?PF.innenRand*sstep(M.vc,M.vc+.12,M.v[i]):0;   // weich einsetzen: ein Sprung an der Schrittlinie versetzte das Foto dort um 1,5 cm (Knick)
+    for(let s=0;s<2;s++) for(let i=0;i<NR;i++) for(let f=0;f<2;f++){ const L=(s===0)!==!!M.mir, iu=i>iH?iH:i<iT&&i<ic?Math.min(iT,ic-1):i, F=M.f[iu], B=M.b[iu];   // Textur: jede Hälfte ab ihrer Spaltkante (im Foto ist über dem Schritt oft schon der dunkle Spalt)
+      const eF=L?[F[2],F[3]]:[F[1],F[0]], eB=L?[B[1],B[0]]:[B[2],B[3]], e=f?eB:eF, o=f?eF:eB, m=i>=ic?PF.innenRand*(f?1:sstep(M.vc,M.vc+.12,M.v[i])):0;   // weich einsetzen: ein Sprung an der Schrittlinie versetzte das Foto dort um 1,5 cm (Knick)
       const ex=new Float32Array(C); let Xw=1;
       if(PAD>0){ let p0=XZ(id(s,i,f,0)); const pE=XZ(id(s,i,f,K3)); Xw=Math.max(1e-3,Math.abs(pE[0]-p0[0]));
         for(let j=1;j<C;j++){ const p1=XZ(id(s,i,f,j)), dx=Math.abs(p1[0]-p0[0]), ds=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]);
@@ -3507,7 +3510,13 @@ function produktForm(G,V){
   { const nor0=g3.nor; let innen=0;
     for(let s=0;s<2;s++) for(let i=0;i<NR;i++){ let mx=0,mz=0; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=id(s,i,f,j); mx+=pos[k]; mz+=pos[k+2]; } mx/=2*C; mz/=2*C;
       for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const k=id(s,i,f,j); if((pos[k]-mx)*nor0[k]+(pos[k+2]-mz)*nor0[k+2]<0){ nor0[k]=-nor0[k]; nor0[k+1]=-nor0[k+1]; nor0[k+2]=-nor0[k+2]; innen++; } } }
-    g3.produktNormalenGedreht=innen; }
+    g3.produktNormalenGedreht=innen;
+    // Innenflanke am Schritt wie die Vorder- bzw. Rückseite schattieren (17.11.): im flachen Foto liegt der Stoff bis an die Kante
+    // des Spalts flach; die steile Flanke der Beine zeigte zur Seite und lag als dunkler Haken neben dem Schrittpunkt im Schatten.
+    // Nur die Normalen (Licht), die Form bleibt; zur Beinmitte und nach unten (lp) läuft es aus.
+    const fw=[-hh[2],0,hh[0]]; for(let s=0;s<2;s++) for(let i=Math.max(0,ic-3);i<NR;i++){ const lp=clamp((M.v[i]-M.vc)/Math.max(1e-3,1-M.vc),0,1), wl=1-sstep(.05,.45,lp); if(wl<=0) continue;
+      for(let f=0;f<2;f++){ const sgf=f?1:-1; for(let j=0;j<C;j++){ const q=xi(j/K3), wq=i>=ic?sstep(-.35,-1,q):sstep(.25,0,j/K3), w=PF.flankeLicht*wl*wq; if(w<=0) continue;
+        const k=id(s,i,f,j), n=[nor0[k]*(1-w)+fw[0]*sgf*w,nor0[k+1]*(1-w),nor0[k+2]*(1-w)+fw[2]*sgf*w], l=Math.hypot(n[0],n[1],n[2])||1; nor0[k]=n[0]/l; nor0[k+1]=n[1]/l; nor0[k+2]=n[2]/l; } } } }
   // Nähte weich: an Seitennaht, Innennaht und Mitte haben Vorder- und Rückteil (bzw. beide Hälften) eigene Punkte mit eigener
   // Normale; gemittelt verschwindet die harte Lichtkante entlang der Naht (Seitenansicht)
   const nor=g3.nor, mix=ks=>{ const n=[0,0,0]; for(const k of ks) for(let c=0;c<3;c++) n[c]+=nor[k+c]; const l=Math.hypot(n[0],n[1],n[2])||1; for(const k of ks) for(let c=0;c<3;c++) nor[k+c]=n[c]/l; };
@@ -6135,10 +6144,12 @@ function randTextur(ax,P,x0,VC,bg,fest=0){
       const v=[bg[0]-fab[0],bg[1]-fab[1],bg[2]-fab[2]], vv=v[0]*v[0]+v[1]*v[1]+v[2]*v[2]; if(vv<60*60&&!fest) continue;
       const schatten=k=>{ const p=[d[k]-fab[0],d[k+1]-fab[1],d[k+2]-fab[2]], t=(p[0]*v[0]+p[1]*v[1]+p[2]*v[2])/vv;
         const q=Math.hypot(p[0]-t*v[0],p[1]-t*v[1],p[2]-t*v[2])/Math.sqrt(vv); return t>.2&&q<.25; };
-      const lim=Math.round(.15*n);
+      const lim=Math.round(.18*n), lF=.3*fab[0]+.59*fab[1]+.11*fab[2];
+      // Innenkanten im Bein (17.11.): dort liegt im Foto der dunkle Schatten zwischen den Beinen; in 3D lag er auf der Innenflanke
+      const innen=runs.length>1?(st=>st===Math.round(runs[0][1])||st===Math.round(runs[1][0])):()=>false, dunkel=k=>{ const l=.3*d[k]+.59*d[k+1]+.11*d[k+2], bF=fab[2]-fab[0]; return l<.72*lF||l>1.3*lF+5||(bF>15&&d[k+2]-d[k]<.35*bF); };   // dunkel, hell oder ohne die Stofffarbe (graue Spaltfüllung)
       for(const [st,dir] of [[Math.round(a),1],[Math.round(b),-1]]){
         // bis zur letzten Schattenstelle in den ersten lim Punkten (einzelne Stoffpunkte im Verlauf brechen nicht ab)
-        let k0=0; if(fest) k0=Math.round(fest*n); else for(let k=0;k<lim;k++) if(schatten((y*W+clamp(st+dir*k,0,W-1))*4)) k0=k+1; else if(k-k0>3) break;
+        let k0=0; if(fest) k0=Math.round(fest*n); else for(let k=0;k<lim;k++){ const q=(y*W+clamp(st+dir*k,0,W-1))*4; if(schatten(q)||(innen(st)&&dunkel(q))) k0=k+1; else if(k-k0>3) break; }
         R[y].push([st,dir,k0]); } } }
   // Breite über ±4 Zeilen glätten (Median), sonst gezackte Kante; Farbton am Rand je Kante über ±6 Zeilen mitteln, sonst Querstreifen
   const K=R.map((row,y)=>row.map((r,j)=>{ const a=[]; for(let yy=Math.max(0,y-4);yy<=Math.min(H-1,y+4);yy++){ const q=R[yy][j]; if(q&&q[1]===r[1]) a.push(q[2]); }
@@ -6171,6 +6182,35 @@ function farbeAngleichen(ax,pf,pt,VC){
    Außenkanten ein Polster: der Farbton der Zeile direkt an der Kante (waagrechte Nähte wie Bund und Saum laufen so um die Seite
    weiter) plus die feine Körnung des Stoffs daneben (gespiegelt, begrenzt: Nieten, Taschenkanten, Etiketten wiederholen sich
    nicht). Die Texturkoordinaten der Produktform laufen an der Seitenwand in natürlicher Größe in dieses Polster (produktForm). */
+/* Schatten zwischen den Beinen in der Textur (17.11.): flach fotografiert liegen die Beine am Schritt leicht übereinander, darüber
+   zeigt das Foto in der Mitte einen dunklen Streifen, darunter Spaltfüllung. In 3D lag beides auf der Vorderseite (schwarzer Block
+   über dem Schritt, grauer Fleck daneben). Je Zeile von etwa 30 % der Leibhöhe über dem Schritt bis 12 % der Beinlänge darunter:
+   von der Mitte aus nach links und rechts alle Punkte, die deutlich dunkler oder heller als der Stoff der Zeile sind (zusammenhängend,
+   höchstens 9 % der Breite je Seite), durch den Farbton daneben plus Körnung von weiter außen ersetzen (gespiegelt). */
+function spaltSchatten(ax,P,x0,VC,hinten){
+  const W=ATLAS.W/2, H=ATLAS.H, I=ax.getImageData(x0,0,W,H), d=I.data, D0=d.slice(), NR=P.uv.length, off=x0/ATLAS.W, ic=Math.max(1,P.vv.findIndex(v=>v>=VC));
+  const L=k=>.3*D0[k]+.59*D0[k+1]+.11*D0[k+2], vA=hinten?VC:VC*.7,   // hinten erst ab dem Schritt (Mittelnaht bleibt), vorn nur das unterste Stück der Leibhöhe (Schlitz bleibt)
+   _=0, vB=VC+(1-VC)*.12, R=[];
+  for(let y=0;y<H;y++){ let i=0; while(i<NR-2&&P.tv[i+1]*H<=y) i++; const v=P.vv[i]; if(v<vA||v>vB){ R.push(null); continue; }
+    const e=P.uv[i].map(u=>(u-off)*ATLAS.W), cx=Math.round((e[1]+e[2])/2), Wr=e[3]-e[0], lim=Math.round(.14*Wr); if(Wr<20){ R.push(null); continue; }
+    const a=[], br=[]; for(const [p0,p1] of [[e[0]+.12*Wr,e[0]+.32*Wr],[e[3]-.32*Wr,e[3]-.12*Wr]]) for(let x=Math.round(p0);x<p1;x+=2){ const k=(y*W+x)*4; a.push(L(k)); br.push(D0[k+2]-D0[k]); }
+    a.sort((m,n)=>m-n); br.sort((m,n)=>m-n); const lF=a[a.length>>1]||1, bF=br[br.length>>1]||0;
+    // auffällig: deutlich dunkler oder heller als der Stoff, oder (bei farbigem Stoff wie Denim) ohne dessen Farbe (graue Spaltfüllung)
+    const ob=v<VC, auf=k=>{ const l=L(k); return ob?l<.5*lF:(l<.75*lF||l>1.3*lF+5||(bF>15&&D0[k+2]-D0[k]<.35*bF)); }, /* über dem Schritt nur fast schwarz (Schatten), Schlitz und Falten bleiben */ grenze=(dir)=>{ let last=0, ok=0; for(let k=0;k<=lim;k++){ const x=cx+dir*k; if(x<0||x>=W) break; if(auf((y*W+x)*4)){ last=k+1; ok=0; } else if(++ok>=3) break; } return last; };
+    // Farbton der Zeile: Mittel der Stoffproben auf der jeweiligen Seite (nicht der Punkt am Rand der Auffälligkeit, der lag oft im Schatten)
+    const tonS=(p0,p1)=>{ const t=[0,0,0]; let n=0; for(let x=Math.round(p0);x<p1;x+=2){ const k=(y*W+x)*4; if(auf(k)) continue; for(let c=0;c<3;c++) t[c]+=D0[k+c]; n++; } return n?t.map(v=>v/n):null; };
+    R.push({cx,l:grenze(-1),r:grenze(1),tl:tonS(Math.max(e[0],cx-.2*Wr),cx-.05*Wr),tr:tonS(cx+.05*Wr,Math.min(e[3],cx+.2*Wr))}); }
+  // Breiten über ±5 Zeilen glätten (Maximum), damit keine Zacken bleiben
+  for(let y=0;y<H;y++){ const r=R[y]; if(!r) continue; let l=0,rr=0; for(let yy=Math.max(0,y-5);yy<=Math.min(H-1,y+5);yy++){ const q=R[yy]; if(q){ l=Math.max(l,q.l); rr=Math.max(rr,q.r); } }
+    if(!l&&!rr) continue; const o=W*4;
+    for(const [dir,n] of [[-1,l],[1,rr]]){ if(!n) continue; const s0=r.cx+dir*(n+1), ton=[0,0,0]; let tn=0;
+      for(let yy=Math.max(0,y-5);yy<=Math.min(H-1,y+5);yy++){ const q=R[yy], t=q&&(dir<0?q.tl:q.tr); if(t){ for(let c=0;c<3;c++) ton[c]+=t[c]; tn++; } }
+      if(!tn) continue; for(let c=0;c<3;c++) ton[c]/=tn;
+      for(let k=0;k<=n;k++){ const xd=r.cx+dir*k, xs=clamp(s0+dir*(n-k+2),1,W-2); if(xd<0||xd>=W) continue; const kd=(y*W+xd)*4, ks=(y*W+xs)*4, nb=y>0&&y<H-1?[-o-4,-o,-o+4,-4,0,4,o-4,o,o+4]:[-4,0,4];
+        const wR=Math.min(1,(n-k+1)/3);     // zum Rand der Stelle hin weich überblenden
+        for(let c=0;c<3;c++){ let m=0; for(const q of nb) m+=D0[ks+q+c]; const neu=clamp(ton[c]+D0[ks+c]-m/nb.length,0,255); d[kd+c]=Math.round(D0[kd+c]+(neu-D0[kd+c])*wR); } } } }
+  ax.putImageData(I,x0,0);
+}
 function randPolster(ax,P,x0,padPx){
   const W=ATLAS.W/2, H=ATLAS.H, I=ax.getImageData(x0,0,W,H), d=I.data, D0=d.slice(), NR=P.uv.length, off=x0/ATLAS.W, E=new Array(H).fill(null);
   const y0=Math.round(P.tv[0]*H), y1=Math.round(P.tv[NR-1]*H);
@@ -6392,6 +6432,7 @@ async function buildGarment(frontFile,backFile,say=()=>{},refKind="",opts={}){
     // Rand der geschätzten Rückseite: die äußersten 4 % aus dem Stoff daneben (gespiegelt); dort lag sonst grauer Hintergrund
     // aus dem gespiegelten Foto (Seitenansicht: heller Fleck auf Schritthöhe)
     randTextur(ax,pb,ATLAS.W/2,VC,[255,255,255],.04); }catch(e){ console.warn("Rückseite hoch",e); } }
+  if(!rock){ try{ spaltSchatten(ax,pf,0,VC,false); spaltSchatten(ax,pt||pb,ATLAS.W/2,VC,true); }catch(e){ console.warn("Spaltschatten",e); } }
   const PAD=rock?0:56; if(PAD){ try{ randPolster(ax,pf,0,PAD); randPolster(ax,pt||pb,ATLAS.W/2,PAD); }catch(e){ console.warn("Polster",e); } }
   const r4=a=>a.map(x=>+x.toFixed(4));
   const raw={pad:+(PAD/ATLAS.W).toFixed(4),nr:NR,vc:rock?1:+VC.toFixed(3),rock,wf:+(2*pf.hw[1]).toFixed(4),hw:r4(pf.hw),v:r4(pf.vv),tv:r4(pf.tv),tvb:r4((pt||pb).tv),
