@@ -3431,7 +3431,13 @@ function produktForm(G,V){
     // jedes Bein bleibt auf seiner Seite der Mitte (17.11.): die Ausgleichslinie der Innenkante lief nach oben über die Mitte
     // hinaus, unter dem Schritt durchdrangen sich die Beine (dunkler Haken). Innenkante nie näher an der Mitte als am Schritt.
     const sd=Math.sign(aus(M.vc)-c0)||1, seite=x=>sd>0?Math.max(c0,x):Math.min(c0,x);
-    return {aus, inn:(i,v)=>{ if(v>=vG) return seite(innF(v)); const t=clamp((v-M.vc)/Math.max(1e-4,vG-M.vc),0,1); return seite(c0+(seite(innF(v))-c0)*(t*(2-t)*.35+t*.65)); }}; });   // fast gerade Kanten aus dem Schrittpunkt (umgekehrtes V wie die KI); stark gewölbt lag oben eine Schulter
+    // Innenkante gerade wie im Foto (18.11., Umrissvergleich Foto/3D): der Spalt öffnet sich erst dort, wo er im Foto offen ist (vO,
+    // vorher schon am Schrittpunkt vc, 6 cm zu hoch), dann eine gerade Linie aus der Mitte, Neigung als Ausgleichsgerade durch die
+    // Innenkante des Fotos (vorher Kurve 2. Grades mit Bogen am Schritt: Knick, unten zu weit offen). Bis vO liegen die Beine aneinander.
+    let iO=ic; while(iO<iH-4&&Math.abs(X(M.f[iO][2])-X(M.f[iO][1]))<1.2) iO++;
+    const vO=M.v[iO], pts=ri.filter(p=>p[0]>=vO+3/D.len); let sxy=0, sxx=0; for(const [v,x] of pts){ sxy+=(v-vO)*(x-c0); sxx+=(v-vO)*(v-vO); }
+    const kI=sxx>0?sxy/sxx:0, gerade=v=>v<=vO?c0:c0+kI*(v-vO);
+    return {aus, inn:(i,v)=>seite(gerade(v))}; });   // fast gerade Kanten aus dem Schrittpunkt (umgekehrtes V wie die KI); stark gewölbt lag oben eine Schulter
   const DlC=[0,1].map(s=>Math.abs(glatt[s].aus(M.vc)-glatt[s].inn(ic,M.vc))*PF.rL);
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++){
     // unten gerade abgeschnitten: die Ecken am Saum sind im Foto abgerundet (Freistellung), die Hose ist es nicht
