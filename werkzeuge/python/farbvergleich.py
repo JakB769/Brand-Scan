@@ -1,6 +1,6 @@
 """Farbe und Kontrast: echte Jeans gegen 3D-Hose an festen Stellen am Bein (Mitte Oberschenkel, Mitte Unterschenkel, je Bein).
 Liest ein Ausgabeverzeichnis von werkzeuge/vergleich.mjs (liste.json mit den Knochen in Bildpunkten, Triptychen *.jpg).
-Aufruf: python3 werkzeuge/python/farbvergleich.py docs/vergleich/<zeit>/ [--groesse 13]
+Aufruf: python3 werkzeuge/python/farbvergleich.py werkzeuge/tests/ausgabe/vergleich/<zeit>/ [--groesse 13]
 Je Bild: mittlere Farbe (RGB, Lab) echt/3D, ΔE, Helligkeitsstreuung (Struktur, Falten) im Feld echt/3D.
 """
 import json, sys, os

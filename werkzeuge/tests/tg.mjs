@@ -24,7 +24,7 @@ await p.reload(); await p.waitForTimeout(600);
 console.log('nach Neuladen:',await p.evaluate(()=>Object.values(window.__dbg.GARMENTS).map(G=>G.label+' '+G.waist)));
 await p.click('#gwrap .gdel >> nth=1'); await p.click('#gwrap .gdel >> nth=1'); await p.waitForTimeout(200);
 console.log('nach Löschen:',await p.evaluate(()=>Object.values(window.__dbg.GARMENTS).map(G=>G.label)));
-await (await p.$('section.card:has(#ownBox)')).screenshot({path:out+'g_ui.png'});
+await (await p.$('#hoseCard')).screenshot({path:out+'g_ui.png'});
 await p.fill('#height','180'); await p.click('#start'); await p.waitForTimeout(3000);
 await p.click('#gchips .chip >> nth=0'); await p.waitForTimeout(800);
 console.log('Passform:',await p.evaluate(()=>document.getElementById('fitRead').innerText.replace(/\n+/g,' / ')));

@@ -1,7 +1,7 @@
 /* „🧍 Eigener Avatar“ Ende zu Ende in Handy-Emulation (18.10.), mit der Attrappe als Person: Knopf oben → Einwilligung →
    Start („Geh ein paar Schritte zurück …“, zu nah: „Weiter zurück · Füße nicht sichtbar“) → Frontal-Scan → einmal drehen →
    Avatar mit Hose in der 3D-Ansicht → Hosen-Auswahl, Drehen (vorn/Seite/hinten), Zoom, Größe wechseln.
-   Bilder je Gerät nach docs/test-avatar/<gerät>_*.png, Zeiten in der Konsole.
+   Bilder je Gerät nach werkzeuge/tests/ausgabe/test-avatar/<gerät>_*.png, Zeiten in der Konsole.
      node werkzeuge/avatar-option-handy.mjs [--geraet "iPhone 13"|"Pixel 7"|alle] */
 import { chromium, devices } from "playwright";
 import fs from "node:fs";
@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { starte } from "./server.mjs";
 
-const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + "/", OUT = R + "docs/test-avatar/";
+const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + "/", OUT = R + "werkzeuge/tests/ausgabe/test-avatar/";
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i < 0 ? d : process.argv[i + 1]; };
 const GER = arg("geraet", "alle") === "alle" ? ["iPhone 13", "Pixel 7"] : [arg("geraet")];
 fs.mkdirSync(OUT, { recursive: true });

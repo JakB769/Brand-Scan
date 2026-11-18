@@ -314,6 +314,9 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
 .modusbtn{position:absolute;top:10px;right:10px;z-index:20;font-size:13px;padding:6px 10px;border-radius:999px}
 .kunde .modusbtn{font-size:15px;padding:4px 8px;opacity:.45;background:transparent;border-color:transparent}
 .kunde .nurdev{display:none!important}
+.subblock{margin-top:16px}
+.subblock h3{margin:0 0 8px;font-size:17px}
+.pruefcard:not(:has(> div:not([hidden]))){display:none}
 </style>
 <style>#video{filter:grayscale(1) contrast(.15) brightness(1.5)}</style></head>
 <body>
@@ -346,8 +349,8 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
       <button class="quickp" data-n="Philip" data-h="170" title="Testperson Philip, 170 cm, Kamera sofort starten"><b>Philip</b><span>1,70 m</span></button>
     </div>
     <p class="hint">Die Größe ist der Maßstab, <strong>ohne Schuhe</strong>.</p>
-    <details class="adv" open><summary>Ton und Stimme</summary><div class="advbody">
-      <div class="toggle"><input type="checkbox" id="voice"><span>Sprachansagen und Töne</span></div>
+    <details class="adv" open><summary>Stimme</summary><div class="advbody">
+      <div class="toggle" hidden><input type="checkbox" id="voice"><span>Sprachansagen und Töne</span></div>
       <label>Stimme
         <select id="voiceSel" style="width:100%"><option value="">Standard</option></select></label>
     </div></details>
@@ -593,6 +596,14 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
       <dt>Schrittlänge, Schritt bis Boden</dt><dd id="r-inseam">–</dd>
       <dt>Hüfte bis Boden</dt><dd id="r-leg">–</dd>
     </dl>
+    <div id="resultCard" class="subblock" hidden>
+      <h3>Umfänge</h3>
+      <dl class="readout">
+        <dt>Taille, Umfang geschätzt</dt><dd id="o-waist">–</dd>
+        <dt>Hüfte, Umfang geschätzt</dt><dd id="o-hip">–</dd>
+      </dl>
+      <p class="hint">Aus Breite (frontal) und Tiefe (seitlich) als Ellipse genähert. Schätzung, kein Maßband.</p>
+    </div>
     <div class="steps">
       <div class="step" id="step-cal"><span class="n">Scan</span><span class="t">Von vorn</span><span class="v" id="v-cal">offen</span></div>
       <div class="step" id="step-side"><span class="n">Nebenbei</span><span class="t">Von der Seite</span><span class="v" id="v-side">offen</span></div>
@@ -608,36 +619,30 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     </div></details>
   </section>
 
-  <section class="card" id="resultCard" hidden>
-    <h2>Umfänge</h2>
-    <dl class="readout">
-      <dt>Taille, Umfang geschätzt</dt><dd id="o-waist">–</dd>
-      <dt>Hüfte, Umfang geschätzt</dt><dd id="o-hip">–</dd>
-    </dl>
-    <p class="hint">Aus Breite (frontal) und Tiefe (seitlich) als Ellipse genähert. Schätzung, kein Maßband.</p>
-  </section>
-
-  <section class="card" id="compareCard" hidden>
-    <h2>Gegen das Maßband prüfen</h2>
-    <div class="row">
-      <label>Taille gemessen, cm<input type="text" autocomplete="off" id="t-waist" inputmode="decimal"></label>
-      <label>Hüfte gemessen, cm<input type="text" autocomplete="off" id="t-hip" inputmode="decimal"></label>
-      <label>Schrittlänge gemessen, cm<input type="text" autocomplete="off" id="t-inseam" inputmode="decimal"></label>
+  <section class="card pruefcard nurdev">
+    <div id="compareCard" hidden>
+      <h2>Gegen das Maßband prüfen</h2>
+      <div class="row">
+        <label>Taille gemessen, cm<input type="text" autocomplete="off" id="t-waist" inputmode="decimal"></label>
+        <label>Hüfte gemessen, cm<input type="text" autocomplete="off" id="t-hip" inputmode="decimal"></label>
+        <label>Schrittlänge gemessen, cm<input type="text" autocomplete="off" id="t-inseam" inputmode="decimal"></label>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>Maß</th><th>Scan</th><th>Band</th><th>Abweichung</th></tr></thead>
+        <tbody id="diffBody"></tbody></table></div>
+      <button id="save">Messung zur Testreihe hinzufügen</button>
     </div>
-    <div class="scroll"><table>
-      <thead><tr><th>Maß</th><th>Scan</th><th>Band</th><th>Abweichung</th></tr></thead>
-      <tbody id="diffBody"></tbody></table></div>
-    <button id="save">Messung zur Testreihe hinzufügen</button>
+    <div id="seriesCard" class="subblock" hidden>
+      <h3>Testreihe</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>Person</th><th>Größe</th><th>Taille S/B</th><th>Hüfte S/B</th><th>Schritt S/B</th></tr></thead>
+        <tbody id="seriesBody"></tbody></table></div>
+      <p class="hint" id="verdict"></p>
+      <div class="row"><button id="copy">Als CSV kopieren</button><button id="clear">Testreihe löschen</button></div>
+    </div>
   </section>
 
-  <section class="card" id="seriesCard" hidden>
-    <h2>Testreihe</h2>
-    <div class="scroll"><table>
-      <thead><tr><th>Person</th><th>Größe</th><th>Taille S/B</th><th>Hüfte S/B</th><th>Schritt S/B</th></tr></thead>
-      <tbody id="seriesBody"></tbody></table></div>
-    <p class="hint" id="verdict"></p>
-    <div class="row"><button id="copy">Als CSV kopieren</button><button id="clear">Testreihe löschen</button></div>
-  </section>
+  
 
   <footer>Alles läuft im Browser. Es wird kein Bild und kein Video gesendet. Fotos und 3D-Modelle bleiben auf diesem Gerät.</footer>
 </div>
@@ -8582,7 +8587,7 @@ async function linkImport(url){
     try{ const r=await fetch(LINK_API+"?url="+encodeURIComponent(url),{cache:"no-store"});
       if(!/json/.test(r.headers.get("content-type")||"")) throw new Error("kein Server-Teil"); j=await r.json(); }
     catch(_){ upMsg(`<div class="dbad">Link einfügen geht hier noch nicht: Die Seite läuft ohne ihren Server-Teil (Netlify Drop oder als Datei geöffnet). `
-      +`Einmal Netlify mit GitHub verbinden (Anleitung in doku/netlify-einrichten.md), dann geht es. Bis dahin: Bilder aus dem Shop speichern und hier hineinziehen.</div>`); return; }
+      +`Einmal Netlify mit GitHub verbinden (Anleitung in ARCHITECTURE.md im Repo), dann geht es. Bis dahin: Bilder aus dem Shop speichern und hier hineinziehen.</div>`); return; }
     if(gen!==UP.linkGen) return;
     if(!j.ok){ upMsg(`<div class="dbad">${escH(j.error||"Die Seite ließ sich nicht lesen.")}</div>`); return; }
     UP.link={url:j.url,name:j.name,model:j.model||{},geschlecht:j.geschlecht,material:typeof j.material==="string"?j.material.trim().slice(0,160):"",
@@ -8962,7 +8967,7 @@ function modusSetzen(k){
 }
 { const dev=[...["hoseCard","otCard","resultCard","compareCard","seriesCard","g-glb","hudRead"].map(i=>$(i)), $("person").closest("label"), $("m-cal").parentElement,
     document.querySelector(".quickrow"), [...document.querySelectorAll("section.card h2")].find(h=>h.textContent.trim()==="Deine Maße")?.closest("section"),
-    [...document.querySelectorAll("summary")].find(s=>s.textContent.trim()==="Ton und Stimme")?.closest("details")];
+    [...document.querySelectorAll("summary")].find(s=>s.textContent.trim()==="Stimme")?.closest("details")];
   for(const e of dev) if(e) e.classList.add("nurdev");
   let gespeichert=null; try{ gespeichert=localStorage.getItem("passformModus"); }catch(_){}
   modusSetzen(gespeichert==="kunde"); $("modusBtn").addEventListener("click",()=>modusSetzen(!MODUS.kunde)); }

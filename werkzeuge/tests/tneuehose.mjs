@@ -5,7 +5,7 @@
 // Geprüft: Hosenform (zwei getrennte Beine, Seitenverhältnis, genug Punkte, kein Quader), Rückseite aus dem Rückseiten-Foto
 // (Gesäßtaschen-Kanten deutlich stärker als bei geschätzter Rückseite), Maße gegen die Karte (Länge 105 ± 3,5 cm, Bund flach
 // 41,5 ± 2 cm, W32), Rig und Physik (Knie hoch verformt die Hose am Knie, der Stoff schwingt nach und kommt zur Ruhe).
-// Bilder von vorn, seitlich, hinten und mit gebeugtem Bein nach docs/test-neue-hose/ (zum Ansehen).
+// Bilder von vorn, seitlich, hinten und mit gebeugtem Bein nach werkzeuge/tests/ausgabe/test-neue-hose/ (zum Ansehen).
 //   node werkzeuge/tests/tneuehose.mjs [--fotos vorne.jpg,hinten.jpg]
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -13,7 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { starte } from '../server.mjs';
-const hier=fileURLToPath(new URL('.',import.meta.url)), R=path.resolve(hier,'../..')+'/', NM=R+'node_modules/', A=hier+'ausgabe/', OUT=process.env.NEUEHOSE_BILDER||R+'docs/test-neue-hose/';   // Commit-Haken: nach ausgabe/, sonst ändert jeder Commit die Bilder
+const hier=fileURLToPath(new URL('.',import.meta.url)), R=path.resolve(hier,'../..')+'/', NM=R+'node_modules/', A=hier+'ausgabe/', OUT=process.env.NEUEHOSE_BILDER||R+'werkzeuge/tests/ausgabe/test-neue-hose/';   // Commit-Haken: nach ausgabe/, sonst ändert jeder Commit die Bilder
 const argF=process.argv.indexOf('--fotos'), FOTOS=argF>0?process.argv[argF+1].split(','):['vorne.jpg','hinten.jpg'].map(n=>R+'assets/referenz/fotos/flach-vorne-hinten/'+n);
 const ECHT={len:105,waist:41.5};                 // Länge vom Nutzer mit dem Maßband gemessen; Bund: W32 flach (nicht gemessen)
 fs.mkdirSync(OUT,{recursive:true});

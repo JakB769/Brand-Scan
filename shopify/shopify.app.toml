@@ -1,4 +1,4 @@
-# Konfiguration der Shopify-App „Passform“. Werte in <…> beim Einrichten ersetzen (siehe doku/shopify-einrichten.md).
+# Konfiguration der Shopify-App „Passform“. Werte in <…> beim Einrichten ersetzen (siehe ARCHITECTURE.md, Starten und Deploy).
 # Mit Shopify CLI: „shopify app config link“ füllt client_id aus, „shopify app deploy“ überträgt diese Datei.
 # https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration
 
