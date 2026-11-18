@@ -1,0 +1,6 @@
+# Sagt Shopify CLI, wie der Server startet („shopify app dev“). PORT setzt die CLI selbst.
+roles = ["frontend", "backend"]
+webhooks_path = "/webhooks"
+
+[commands]
+dev = "node server/start.mjs"

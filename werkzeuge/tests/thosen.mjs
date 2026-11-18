@@ -14,7 +14,7 @@ for(const [n,w] of [['Erste','40'],['Zweite','44'],['Dritte','38']]){
 }
 await p.click('#quick'); await p.waitForTimeout(3000); await p.click('#clean'); await p.waitForTimeout(800);
 // Ausgewählt ist die zuletzt erstellte („Dritte“). Gezeichnete Länge und Saumbreite in Bildpunkten messen
-const form=()=>p.evaluate(()=>{ const {g3,g,GARMENTS}=window.__dbg, M=GARMENTS[g.key].m3, C=13, NR=M.nr, pos=g3.pos;
+const form=()=>p.evaluate(()=>{ const {g3,g,GARMENTS}=window.__dbg, M=(g3.M||GARMENTS[g.key].m3), C=13, NR=M.nr, pos=g3.pos;
   const pt=(s,i,f,j)=>{ const k=(((s*NR+i)*2+f)*C+j)*3; return [pos[k],pos[k+1]]; };
   let lo=1e9,hi=-1e9; for(let f=0;f<2;f++) for(let j=0;j<C;j++){ const x=pt(0,NR-1,f,j)[0]; lo=Math.min(lo,x); hi=Math.max(hi,x); }
   return {len:pt(0,NR-1,0,0)[1]-pt(0,0,0,6)[1], saum:hi-lo, bund:Math.abs(pt(0,0,0,C-1)[0]-pt(1,0,0,C-1)[0]), key:g.key};
@@ -24,7 +24,7 @@ const f0=await felder(); pruefe(f0.every(v=>+v>0),'Felder vorbelegt: Länge '+f0
 const a=await form();
 // Beide Längen enden über dem Boden (bodenlange Hosen stauchen sich absichtlich am Knöchel). Länge ändert nur die Beine:
 // erwartet ist also, dass die Strecke vom Schritt zum Saum im selben Verhältnis wächst wie Länge minus Leibhöhe.
-const beinS=()=>p.evaluate(()=>{ const {g3,g,GARMENTS}=window.__dbg, M=GARMENTS[g.key].m3, C=13, NR=M.nr, ic=g3.ic, k=i=>(((0*NR+i)*2+0)*C)*3+1; return g3.pos[k(NR-1)]-g3.pos[k(ic)]; });
+const beinS=()=>p.evaluate(()=>{ const {g3,g,GARMENTS}=window.__dbg, M=(g3.M||GARMENTS[g.key].m3), C=13, NR=M.nr, ic=g3.ic, k=i=>(((0*NR+i)*2+0)*C)*3+1; return g3.pos[k(NR-1)]-g3.pos[k(ic)]; });
 await p.fill('#g-len','80'); await p.waitForTimeout(600); const l80=await beinS();
 await p.fill('#g-len','70'); await p.waitForTimeout(600); const l70=await beinS(); const bL=await form();
 // Schritt sitzt am Körper (Leibhöhe wie gezeichnet, g3.form.leib), nicht bei der flachen Leibhöhe aus dem Foto
@@ -39,7 +39,7 @@ for(const [id,v] of [['#g-len',''],['#g-len','-5'],['#g-waist','500'],['#g-hemw'
   const bad=await p.evaluate(i=>document.querySelector(i).classList.contains('bad'),id);
   pruefe(Math.abs(c.len/bW.len-1)<.01&&Math.abs(c.saum/bW.saum-1)<.01&&Math.abs(c.bund/bW.bund-1)<.01&&bad,`ungültig ${id}="${v}": Hose unverändert, Feld rot markiert`);
 }
-await p.click('#g-clear'); await p.waitForTimeout(200);
+await p.evaluate(()=>{ const b=document.querySelector('#gwrap .gbtn[aria-pressed=true]'); if(b) b.click(); }); await p.waitForTimeout(200);   // Hose abwählen
 // andere Hose wählen: eigene Werte, keine von der vorigen
 await p.click('#gwrap .gbtn >> nth=0'); await p.waitForTimeout(300); const fE=await felder();
 pruefe(fE[1]==='40'&&fE[0]!=='70','Jede Hose hat eigene Werte: Erste hat Bund '+fE[1]+', Länge '+fE[0]);

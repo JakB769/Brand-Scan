@@ -11,23 +11,47 @@
 import dns from "node:dns/promises";
 import net from "node:net";
 
-export const config = { path: "/api/holen" };
+/* Rate Limiting (Netlify, je IP und Website): ein „Link einfügen“ braucht etwa 16 Abrufe (Seite, bis 12 Bilder, bis 3 Tabellen).
+   120 pro Minute reichen für mehrere Links hintereinander und bremsen Missbrauch als offener Abruf-Dienst. Darüber: 429. */
+export const config = { path: "/api/holen", rateLimit: { windowLimit: 120, windowSize: 60, aggregateBy: ["ip", "domain"] } };
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 const lokal = () => process.env.HOLEN_LOKAL === "1";
 const fehler = (text, code = 400, extra = {}) => Object.assign(new Error(text), { code, extra });
 
 /* ---------- Abruf mit Schutzregeln ---------- */
+/* IPv6-Adresse → 16 Bytes (auch mit eingebetteter IPv4 am Ende), sonst null */
+function v6Bytes(ip) {
+  let s = ip.toLowerCase().split("%")[0];
+  const m = /(\d+\.\d+\.\d+\.\d+)$/.exec(s);
+  if (m) { if (!net.isIPv4(m[1])) return null; const p = m[1].split(".").map(Number);
+    s = s.slice(0, -m[1].length) + ((p[0] << 8) | p[1]).toString(16) + ":" + ((p[2] << 8) | p[3]).toString(16); }
+  const halb = s.split("::"); if (halb.length > 2) return null;
+  const A = halb[0] ? halb[0].split(":") : [], B = halb.length === 2 && halb[1] ? halb[1].split(":") : [];
+  const leer = halb.length === 2 ? 8 - A.length - B.length : 0; if (leer < 0) return null;
+  const g = [...A, ...Array(leer).fill("0"), ...B]; if (g.length !== 8) return null;
+  const out = []; for (const h of g) { if (!/^[0-9a-f]{1,4}$/.test(h)) return null; const v = parseInt(h, 16); out.push(v >> 8, v & 255); }
+  return out;
+}
+/* Adresse im eigenen Netz (Rechner selbst, Heim-/Firmennetz, Cloud-Metadaten)? Auch IPv4 in IPv6 verpackt: die URL schreibt
+   [::ffff:127.0.0.1] als [::ffff:7f00:1], das muss genauso gesperrt sein (vorher ging es durch). */
 function privat(ip) {
   if (net.isIPv4(ip)) {
-    const [a, b] = ip.split(".").map(Number);
+    const [a, b, c] = ip.split(".").map(Number);
     return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b < 128) || (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19)) || a >= 224;
+      (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168) || (a === 192 && b === 0 && c === 0) ||
+      (a === 198 && (b === 18 || b === 19)) || a >= 224;
   }
-  const s = ip.toLowerCase();
-  if (s.startsWith("::ffff:")) return privat(s.slice(7));
-  return s === "::" || s === "::1" || s.startsWith("fc") || s.startsWith("fd") || s.startsWith("fe8") || s.startsWith("fe9") ||
-    s.startsWith("fea") || s.startsWith("feb") || s.startsWith("ff");
+  const x = v6Bytes(ip); if (!x) return true;                          // unlesbar: lieber sperren
+  const v4 = i => privat(x.slice(i, i + 4).join("."));
+  const null_ = (von, bis) => x.slice(von, bis).every(v => v === 0);
+  if (null_(0, 12)) return v4(12);                                     // ::, ::1, ::a.b.c.d
+  if (null_(0, 10) && x[10] === 255 && x[11] === 255) return v4(12);   // ::ffff:a.b.c.d
+  if (x[0] === 0 && x[1] === 0x64 && x[2] === 0xff && x[3] === 0x9b) return null_(4, 12) ? v4(12) : true;   // NAT64
+  if (x[0] === 0x20 && x[1] === 0x02) return v4(2);                    // 6to4
+  if (x[0] === 0x20 && x[1] === 0x01 && x[2] === 0 && x[3] === 0) return true;   // Teredo
+  if (x[0] === 1 && x[1] === 0 && null_(2, 8)) return true;            // 100::/64 (Verwerfen)
+  return (x[0] & 0xfe) === 0xfc || (x[0] === 0xfe && (x[1] & 0x80) === 0x80) || x[0] === 0xff;   // fc00::/7, fe80::/9 (auch fec0), ff00::/8
 }
 async function pruefeUrl(u) {
   let x; try { x = new URL(u); } catch { throw fehler("Das ist kein gültiger Link"); }
@@ -62,11 +86,13 @@ async function hole(u, { accept = "text/html,application/xhtml+xml,application/j
     const x = await pruefeUrl(url);
     const h = { "user-agent": UA, accept, "accept-language": "de-AT,de;q=0.9,en;q=0.7" };
     if (referer) h.referer = referer;
-    if (jar.size) h.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
+    const dose = jar.get(x.host);                                       // Cookies nur an den Shop, der sie gesetzt hat
+    if (dose && dose.size) h.cookie = [...dose].map(([k, v]) => `${k}=${v}`).join("; ");
     let r;
     try { r = await fetch(x, { redirect: "manual", headers: h, signal: AbortSignal.timeout(15000) }); }
     catch (e) { throw fehler(`Der Shop antwortet nicht (${e.name === "TimeoutError" ? "Zeitüberschreitung" : "keine Verbindung"})`, 504); }
-    for (const c of (r.headers.getSetCookie ? r.headers.getSetCookie() : [])) { const m = /^([^=;\s]+)=([^;]*)/.exec(c); if (m) jar.set(m[1], m[2]); }
+    for (const c of (r.headers.getSetCookie ? r.headers.getSetCookie() : [])) { const m = /^([^=;\s]+)=([^;]*)/.exec(c);
+      if (m) { if (!jar.has(x.host)) jar.set(x.host, new Map()); jar.get(x.host).set(m[1], m[2]); } }
     if ([301, 302, 303, 307, 308].includes(r.status)) {
       const loc = r.headers.get("location"); if (!loc) break;
       url = new URL(loc, x).href; continue;
@@ -179,7 +205,7 @@ async function seite(url) {
   if (r.status >= 400 && !(r.status >= 500 && html.length > 100000)) throw fehler(`Die Seite gibt es nicht (Fehler ${r.status})`, 502, { status: r.status });
   if (!/html|xml|json/.test(r.type) && r.type) throw fehler("Der Link führt nicht zu einer Seite, sondern zu einer Datei. Bilder bitte direkt hineinziehen.");
   const base = r.url, meta = metaTags(html), ld = jsonLd(html), notes = [];
-  let name = null, beschreibung = "", material = null, bilder = [], shop = null;
+  let name = null, beschreibung = "", material = null, bilder = [], shop = null, groessen = null;
 
   // Shopify (die Shops unserer Kunden): /products/<name>.js liefert alle Produktbilder und die Beschreibung
   const sp = /\/products\/([^/?#]+)/.exec(new URL(base).pathname);
@@ -189,13 +215,20 @@ async function seite(url) {
       const p = JSON.parse(j.body.toString("utf8"));
       name = p.title || null; beschreibung = p.description ? textOf(p.description) : "";
       bilder = (p.images || []).map(u => absolut(u, base)).filter(Boolean); shop = "shopify";
+      // Größen aus den Varianten (Maße zeigen viele Shops erst nach Auswahl einer Größe): Weite und Länge zusammen („30/32“)
+      const opts = (p.options || []).map((o, i) => typeof o === "string" ? { name: o, pos: i + 1 } : { name: String(o && o.name || ""), pos: o && o.position || i + 1 });
+      const istW = n => /size|gr(ö|oe)(ß|ss)e|taille|weite|waist|bund/i.test(n), istL = n => /l(ä|ae)nge|length|inseam|beinl/i.test(n);
+      const ow = opts.find(o => istW(o.name)) || (opts.length === 1 ? opts[0] : null), ol = opts.find(o => istL(o.name) && o !== ow);
+      const werte = [...new Set((p.variants || []).map(v => { const a = ow && v["option" + ow.pos], b = ol && v["option" + ol.pos]; return a && b ? `${a}/${b}` : a || null; })
+        .filter(x => x && String(x).length <= 12))];
+      if (werte.length >= 2) groessen = werte.slice(0, 40);
       if (beschreibung) notes.push("Shopify-Beschreibung gelesen");
     } catch {}
   }
   for (const p of ld) {
     if (!name && p.name) name = ent(p.name);
     if (!beschreibung && p.description) beschreibung = textOf(String(p.description));
-    if (!material && p.material) material = [].concat(p.material).join(", ");
+    if (!material && p.material) material = [].concat(p.material).map(m => ent(String(typeof m === "string" ? m : m && m.name || ""))).filter(Boolean).join(", ") || null;   // auch {"@type":"…","name":…}
     if (!shop && p.image) bilder.push(...bildUrls(p.image).map(u => absolut(u, base)).filter(Boolean));
     for (const v of [].concat(p.hasVariant || []).slice(0, 3)) if (!shop && v && v.image) bilder.push(...bildUrls(v.image).map(u => absolut(u, base)).filter(Boolean));
   }
@@ -250,7 +283,7 @@ async function seite(url) {
   }
   return {
     ok: true, url: base, shop, name: name ? String(name).trim().slice(0, 120) : null, beschreibung: beschreibung.slice(0, 4000), material,
-    bilder: liste.slice(0, 12), text, tabellen: tabellen.slice(0, 40000), tabellenLinks: gelesen, model,
+    bilder: liste.slice(0, 12), text, tabellen: tabellen.slice(0, 40000), tabellenLinks: gelesen, model, groessen,
     geschlecht: geschlecht(base, name, text.slice(0, 3000), [...links].join(" ")), notes
   };
 }

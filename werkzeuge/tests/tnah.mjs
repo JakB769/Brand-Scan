@@ -34,7 +34,7 @@ await p.evaluate(()=>Object.assign(window.__mode,{zoom:1.7,rand:'raten',knee:0,y
 const winkel=()=>p.evaluate(()=>window.__dbg.dbg.last.tiltPCA);
 await p.click('#g-rot button[data-r="z"]'); await p.waitForTimeout(800); const wz=await winkel();
 await p.click('#g-rot button[data-r="reset"]'); await p.click('#g-rot button[data-r="flip"]'); await p.waitForTimeout(800); const wf=await winkel();
-const tief=await p.evaluate(()=>{ const {g3}=window.__dbg, F=g3.frame, M=window.__dbg.GARMENTS[window.__dbg.g.key].m3, C=13, NR=M.nr; const y=i=>g3.pos[(((0*NR+i)*2)*C)*3+1]; return [y(0),y(NR-1)]; });
+const tief=await p.evaluate(()=>{ const {g3}=window.__dbg, F=g3.frame, M=(g3.M||window.__dbg.GARMENTS[window.__dbg.g.key].m3), C=13, NR=M.nr; const y=i=>g3.pos[(((0*NR+i)*2)*C)*3+1]; return [y(0),y(NR-1)]; });
 await (await p.$('#stage')).screenshot({path:hier+'ausgabe/nah_umgedreht.png'});
 await p.click('#g-rot button[data-r="reset"]'); await p.waitForTimeout(800); const wr=await winkel();
 pruefe(wz>70&&wf<20&&tief[0]>tief[1]&&wr<20,`Drehknöpfe: Z 90° → ${wz.toFixed(0)}° quer, Umdrehen → Bund unten (${tief[0]>tief[1]}), Zurücksetzen → ${wr.toFixed(0)}°`);

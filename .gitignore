@@ -1,3 +1,13 @@
 werkzeuge/tests/ausgabe/
 node_modules/
 .DS_Store
+.hosen-lokal/
+
+# Schlüssel nur als Umgebungsvariable, nie im Repo
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+werkzeuge/tests/vergleichsseite.html
+assets/pants/*/entpackt/

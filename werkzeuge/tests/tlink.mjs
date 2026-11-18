@@ -16,6 +16,9 @@ let fehler=0; const pruefe=(ok,text)=>{ console.log((ok?'ok    ':'FEHLER')+' '+t
 const frag=async(u,env)=>{ const alt=process.env.HOLEN_LOKAL; process.env.HOLEN_LOKAL=env; try{ const r=await holen(new Request('http://x/api/holen?url='+encodeURIComponent(u))); return {s:r.status,j:await r.json()}; } finally{ process.env.HOLEN_LOKAL=alt; } };
 let a=await frag('http://127.0.0.1:9/x','0'); pruefe(a.s===400&&/nicht erlaubt/.test(a.j.error),'Adresse im eigenen Netz gesperrt: '+a.j.error);
 a=await frag('http://169.254.169.254/latest/meta-data/','0'); pruefe(a.s===400&&/nicht erlaubt/.test(a.j.error),'Metadaten-Adresse gesperrt');
+// IPv4 in IPv6 verpackt (die URL schreibt [::ffff:127.0.0.1] als [::ffff:7f00:1]), NAT64, 6to4, Zahlen-Schreibweisen
+for(const u of ['http://[::ffff:127.0.0.1]/','http://[::ffff:169.254.169.254]/latest/meta-data/','http://[::127.0.0.1]/','http://[64:ff9b::a9fe:a9fe]/','http://[2002:7f00:1::]/','http://[fe80::1]/','http://0x7f000001/','http://127.1/'])
+  { a=await frag(u,'0'); pruefe(a.s===400&&/nicht erlaubt/.test(a.j.error),'gesperrt: '+u); }
 a=await frag('file:///etc/passwd','0'); pruefe(a.s===400&&/http/.test(a.j.error),'file:-Link abgelehnt: '+a.j.error);
 a=await frag('kein link','0'); pruefe(a.s===400,'Unsinn abgelehnt: '+a.j.error);
 
@@ -25,7 +28,8 @@ const srv=http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/api/holen'){ const r=await holen(new Request(u.href)); res.writeHead(r.status,Object.fromEntries(r.headers)); res.end(Buffer.from(await r.arrayBuffer())); return; }
   if(u.pathname==='/gesperrt'){ res.writeHead(403,{'content-type':'text/html'}); res.end('<html><body>Access denied</body></html>'); return; }
-  let f=u.pathname==='/products/test-jeans'?shop+'shopify.html':u.pathname==='/products/test-jeans.js'?shop+'shopify.json'
+  let f=/^\/products\/test-(jeans|varianten|nurvarianten)$/.test(u.pathname)?shop+'shopify.html':u.pathname==='/products/test-jeans.js'?shop+'shopify.json':u.pathname==='/products/test-varianten.js'?shop+'shopify-varianten.json'
+    :u.pathname==='/products/test-nurvarianten.js'?shop+'shopify-nur-varianten.json'
     :u.pathname.startsWith('/shop/')?shop+u.pathname.slice(6):R+decodeURIComponent(u.pathname.slice(1));
   f=path.resolve(f); if(!f.startsWith(R.slice(0,-1))||!fs.existsSync(f)||fs.statSync(f).isDirectory()){ res.writeHead(404); res.end(); return; }
   res.writeHead(200,{'content-type':TYP[path.extname(f)]||'application/octet-stream'}); fs.createReadStream(f).pipe(res);
@@ -49,9 +53,10 @@ const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.mess
 await p.goto(B+'/werkzeuge/tests/testseite-mit-simulierter-person.html'); await p.waitForTimeout(400);
 await p.fill('#height','179');
 const lage=()=>p.evaluate(()=>({m:document.getElementById('drop-msg').textContent,l:[...document.querySelectorAll('.ditem .dtxt b')].map(e=>e.textContent),
-  busy:document.getElementById('link-go').disabled,fit:!document.getElementById('drop-fit').hidden,seg:!document.getElementById('segDlg').hidden}));
+  busy:document.getElementById('link-go').disabled,fit:!document.getElementById('drop-fit').hidden,seg:!document.getElementById('segDlg').hidden,ref:!document.getElementById('refDlg').hidden}));
 const warte=async()=>{ let z; for(let t=0;t<240;t++){ await p.waitForTimeout(500); z=await lage();
     if(z.seg){ await p.click('#segOk'); continue; }
+    if(z.ref){ await p.click('#refOk'); continue; }
     if(!z.busy&&z.m&&!/wird|werden|geprüft|berechnet|gelesen …/.test(z.m)&&!z.l.some(x=>/geprüft|gelesen/.test(x))) return z; } return z; };
 const link=async u=>{ await p.fill('#link-in',u); await p.click('#link-go'); return warte(); };
 const hose=()=>p.evaluate(()=>{ const G=window.__dbg.GARMENTS[window.__dbg.g.key]; return G?{label:G.label,len:G.len,waist:G.waist,hem:G.hem,mat:G.material,meas:G.meas,link:G.link}:null; });
@@ -69,11 +74,28 @@ pruefe(G&&G.waist===43&&G.len===111,`Größe L gewählt: Bund ${G&&G.waist}, Lä
 // nur die US-Größe des Models (32 × 32)
 z=await link(B+'/shop/modell.html'); G=await hose();
 pruefe(G&&Math.abs(G.waist-41.9)<.2&&Math.abs(G.len-(32*2.54+.62*41.9))<.6,`aus „32 X 32“: Bund ${G&&G.waist}, Länge ${G&&G.len}`);
+pruefe(G&&/Elasthan/.test(G.mat||''),'Material der Seite ohne Prozent übernommen (für Stretch): '+(G&&G.mat));
 
 // Shopify: Bilder und Beschreibung aus /products/<name>.js
 z=await link(B+'/products/test-jeans'); G=await hose();
 pruefe(G&&G.label==='Shopify Testjeans'&&z.l.includes('Vorderseite, flach'),'Shopify-Seite: '+(G&&G.label)+' · '+z.l.join(', '));
 pruefe(G&&G.waist===41&&G.len===108,`Tabelle aus der Shopify-Beschreibung: Bund ${G&&G.waist}, Länge ${G&&G.len}`);
+// Shopify mit Varianten (Weite/Länge), Maße nur für 32/32: übrige Größen hochgerechnet und als geschätzt markiert
+z=await link(B+'/products/test-varianten'); G=await hose();
+const sz=await p.evaluate(()=>{ const G=window.__dbg.GARMENTS[window.__dbg.g.key]; return G&&G.sizes?G.sizes.map(z=>({n:z.n,w:z.waist,l:z.len,est:!!z.est})):[]; });
+console.log('Größen:',sz.map(z=>`${z.est?'≈':''}${z.n} ${z.w}/${z.l}`).join(' · '));
+const s32=sz.find(z=>z.n==='32/32'), s28=sz.find(z=>z.n==='28/30');
+pruefe(sz.length===8&&s32&&!s32.est&&s32.w===42&&s32.l===108,'Shopify-Varianten als Größen, 32/32 gemessen (Bund 42, Länge 108)');
+pruefe(s28&&s28.est&&Math.abs(s28.w-(42-5.08))<.1&&Math.abs(s28.l-(108-4*.79-5.08))<.2&&sz.filter(z=>z.est).length===7,`übrige hochgerechnet und geschätzt: 28/30 Bund ${s28&&s28.w}, Länge ${s28&&s28.l}`);
+pruefe(G&&G.waist===42&&G.len===108&&/hochgerechnet/.test(z.m),'vorgewählt die Größe mit Maßen (32/32), Hinweis „hochgerechnet“: '+(G&&G.waist)+' / '+(G&&G.len));
+// Shopify nur mit Varianten-Namen (keine Maße), Fotos mit Bankkarte: die gemessene Hose ist die vorgewählte (mittlere) Variante,
+// die übrigen Varianten über die Größensprünge (1 Zoll Umfang je W), mit den Namen des Shops
+z=await link(B+'/products/test-nurvarianten'); G=await hose();
+const nv=await p.evaluate(()=>{ const G=window.__dbg.GARMENTS[window.__dbg.g.key]; return G&&G.sizes?G.sizes.map(z=>({n:z.n,w:z.waist,est:!!z.est})):[]; });
+console.log('Größen (nur Varianten):',nv.map(z=>`${z.est?'≈':''}${z.n} ${z.w}`).join(' · '));
+const n32=nv.find(z=>z.n==='32'), n30=nv.find(z=>z.n==='30');
+pruefe(nv.map(z=>z.n).join(',')==='30,31,32,33,34'&&n32&&!n32.est&&nv.filter(z=>z.est).length===4&&n30&&Math.abs(n32.w-n30.w-2.54)<.15,
+  `nur Varianten-Namen + Bankkarte: Größen des Shops, 32 gemessen (Bund ${n32&&n32.w}), 30 ≈ ${n30&&n30.w}`);
 
 // Shop sperrt automatische Abrufe
 z=await link(B+'/gesperrt'); pruefe(/lässt keine automatischen Abrufe zu/.test(z.m),'gesperrter Shop: '+z.m.slice(0,90));

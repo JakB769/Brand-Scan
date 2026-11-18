@@ -1,0 +1,5 @@
+# Hosen der Shops (Daten der Händler) und Zugangsdaten nie ins Repo
+server/daten/
+.env
+.shopify/
+node_modules/

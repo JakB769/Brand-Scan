@@ -10,7 +10,7 @@ const seite=process.argv[2]||hier+'testseite-mit-simulierter-person.html';
 const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
 let fehler=0; const pruefe=(ok,text)=>{ console.log((ok?'ok    ':'FEHLER')+' '+text); if(!ok) fehler++; };
 const neu=async url=>{ const ctx=await b.newContext({viewport:{width:1000,height:950},acceptDownloads:true}); const p=await ctx.newPage(); const errs=[];
-  p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error'&&!/GL Driver/.test(m.text())) errs.push(m.text()); });
+  p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error'&&!/GL Driver/.test(m.text())&&!/\/api\/hosen/.test((m.location()||{}).url||'')) errs.push(m.text()+' '+((m.location()||{}).url||'')); });   // /api/hosen fehlt hier wie bei Netlify Drop: 404 gewollt
   await p.goto(url); await p.waitForTimeout(500); return {ctx,p,errs}; };
 const anlegen=async(p,front,back,name,mat)=>{ await p.setInputFiles('#own-front',front); await p.setInputFiles('#own-back',back?[back]:[]);
   await p.fill('#own-waist','40'); await p.fill('#own-name',name); await p.fill('#own-mat',mat||'');
@@ -54,9 +54,11 @@ await B.ctx.close();
 //    Löschen bleibt gelöscht
 const ordner=ausgabe+'netlify/'; fs.mkdirSync(ordner,{recursive:true});
 fs.copyFileSync(seite,ordner+'index.html'); fs.copyFileSync(datei,ordner+'hosen.json');
+// Hosen-Auswahl liegt in der Testseite unter ../../app/ (von / aus: /app/)
+fs.mkdirSync(ordner+'app',{recursive:true}); fs.copyFileSync(hier+'../../app/hosen-auswahl.js',ordner+'app/hosen-auswahl.js');
 const srv=http.createServer((q,r)=>{ const f=ordner+(q.url.split('?')[0]==='/'?'index.html':decodeURIComponent(q.url.split('?')[0].slice(1)));
   if(!fs.existsSync(f)){ r.writeHead(404); r.end(); return; }
-  r.writeHead(200,{'content-type':f.endsWith('.json')?'application/json':'text/html; charset=utf-8'}); r.end(fs.readFileSync(f)); });
+  r.writeHead(200,{'content-type':f.endsWith('.json')?'application/json':f.endsWith('.js')?'application/javascript':'text/html; charset=utf-8'}); r.end(fs.readFileSync(f)); });
 await new Promise(r=>srv.listen(0,'127.0.0.1',r)); const url=`http://127.0.0.1:${srv.address().port}/`;
 const C=await neu(url); await C.p.waitForTimeout(800);
 const l3=await liste(C.p), sp=await C.p.evaluate(()=>JSON.parse(localStorage.getItem('massScanHosen')||'[]').length);

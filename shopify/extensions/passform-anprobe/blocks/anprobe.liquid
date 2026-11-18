@@ -1,0 +1,33 @@
+{% comment %}
+  App-Block „Passform-Anprobe“ für die Produktseite. Der Händler fügt ihn im Theme-Editor hinzu (Apps → Passform-Anprobe).
+  Der Knopf öffnet die Anprobe über den App-Proxy unter der Adresse des Shops (/apps/passform/anprobe): dort läuft die Seite
+  mit Kamera im Vollbild, ohne iframe. Kein JavaScript im Block, damit er das Theme nicht bremst.
+  Ob es für das Produkt eine Hose gibt, weiß nur der Server; ohne Hose zeigt die Anprobe-Seite das an.
+{% endcomment %}
+{%- assign produkt = block.settings.product | default: product -%}
+{%- if produkt -%}
+  <div class="passform-anprobe" {{ block.shopify_attributes }}>
+    <a class="passform-anprobe__knopf" href="{{ routes.root_url | append: '/apps/passform/anprobe?produkt=' | replace: '//', '/' | append: produkt.id }}"
+       style="--pf-farbe: {{ block.settings.farbe }};" rel="nofollow">
+      {{ block.settings.text | escape }}
+    </a>
+    {%- if block.settings.hinweis != blank -%}
+      <p class="passform-anprobe__hinweis">{{ block.settings.hinweis | escape }}</p>
+    {%- endif -%}
+  </div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Passform-Anprobe",
+  "target": "section",
+  "enabled_on": { "templates": ["product"] },
+  "stylesheet": "anprobe.css",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Produkt", "autofill": true },
+    { "type": "text", "id": "text", "label": "Text auf dem Knopf", "default": "▶ Live anprobieren" },
+    { "type": "text", "id": "hinweis", "label": "Hinweis darunter", "default": "Mit deiner Kamera. Bilder bleiben auf deinem Gerät." },
+    { "type": "color", "id": "farbe", "label": "Farbe des Knopfs", "default": "#0071e3" }
+  ]
+}
+{% endschema %}

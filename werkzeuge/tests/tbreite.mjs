@@ -10,13 +10,16 @@ const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.mess
 await p.goto('file://'+hier+'testseite-mit-simulierter-person.html'); await p.waitForTimeout(500);
 await p.setInputFiles('#own-front',fotos+'front.jpg'); await p.setInputFiles('#own-back',fotos+'back.jpg');
 await p.fill('#own-waist','40'); await p.click('#own-go'); await p.waitForTimeout(1500);
+// ohne Stoff-Fall: eine zu lange Hose staucht sich auf dem Schuh absichtlich bis 15 % weiter (PASSFORM.fallSaumWeit),
+// geprüft wird hier nur, ob verrauschte Tiefe die gerechnete Form verbreitert
+await p.evaluate(()=>{ window.__dbg.PASSFORM.fall=false; });
 await p.click('#quick'); await p.waitForTimeout(3000);
 await p.click('#clean'); await p.waitForTimeout(2500);
 // Breite eines Beins in cm am Saum und kurz unter dem Schritt, so wie sie im Bild erscheint
 const miss=()=>p.evaluate(()=>{
   // Form vor den Stauchfalten (Zustand der Stoffphysik): die Falten am Knöchel beulen den Saum absichtlich etwas aus,
   // geprüft wird hier aber, ob verrauschte Tiefe die Breite verfälscht
-  const {g3,cam,GARMENTS,g}=window.__dbg, M=GARMENTS[g.key].m3, C=13, NR=M.nr, pos=g3.cx||g3.pos;
+  const {g3,cam,GARMENTS,g}=window.__dbg, M=(g3.M||GARMENTS[g.key].m3), C=13, NR=M.nr, pos=g3.cx||g3.pos;
   const vw=1280, vh=720, foc=cam.fk*Math.max(vw,vh), pc=[vw/2,vh/2];
   const cmH=g.flat/M.wf, S=cmH;               // Länge in cm
   const breite=(s,i)=>{ let lo=1e9,hi=-1e9;
@@ -25,9 +28,10 @@ const miss=()=>p.evaluate(()=>{
   const ic=g3.ic, i1=Math.min(NR-1,ic+8), i2=NR-1;
   // Bildpunkte je cm aus dem Bund: der liegt genau auf der flachen Bundbreite
   const r=(s,i)=>breite(s,i);
-  // Breite von vorn einer Ellipse mit Umfang 2·flache Breite und Tiefe/Breite PASSFORM.beinTiefe (rund wäre 2·hw/π)
-  const q=window.__dbg.PASSFORM.beinTiefe, RQ=Math.PI*(3*(1+q)-Math.sqrt((3+q)*(1+3*q)));
-  const soll=i=>4*M.hw[i]*cmH/RQ;
+  // Breite von vorn einer Ellipse mit Umfang 2·flache Breite und Tiefe/Breite nach dem Verlauf der App (rund wäre 2·hw/π):
+  // unter dem Schritt PASSFORM.beinTiefe, am Saum beinTiefeSaum (seit 14.10.; vorher überall 0,8)
+  const PF=window.__dbg.PASSFORM, RQ=q=>Math.PI*(3*(1+q)-Math.sqrt((3+q)*(1+3*q)));
+  const soll=i=>4*M.hw[i]*cmH/RQ(i===NR-1?PF.beinTiefeSaum:PF.beinTiefe);
   const ppc=g3.S/cmH;                         // Bildpunkte je cm
   return {oben:[r(0,i1),r(1,i1)].map(v=>v/ppc), saum:[r(0,i2),r(1,i2)].map(v=>v/ppc), sollOben:soll(i1), sollSaum:soll(i2)};
 });
