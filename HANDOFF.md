@@ -208,3 +208,8 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
 - `docs/vorher/`, `docs/nachher/` gelöscht: Vergleichsbilder vom 14.10., veraltet (`werkzeuge/ansichten.mjs`, `python/vorher_nachher.py` erzeugen sie neu).
 - `docs/vergleich/avatar_v1_*` gelöscht: ersetzt durch `avatar_v2_*`.
 
+## Eigener Avatar, Scan-Oberfläche, Modus (18.11.)
+- Avatar lud nach „langsam drehen“ nicht: Scan-Ende lief nur bei gültigen Bildern (zum Handy gehen = keine mehr), Seiten-Proben fielen weg (Winkelsprünge galten als „zu schnell“). Jetzt Ende per Uhr (`avatarDrehStand`/`avatarDrehEnde`: 20/24 Winkel mit Proben, nach 12 s mit fast ganzer Drehung, spätestens 30 s), Sprünge gefiltert. Test: `node werkzeuge/avatar-kamera.mjs --k .76` (Clip v2-02 als Chromium-Testkamera in Echtzeit, Avatar nach etwa 30 s).
+- Scan-Oberfläche `#scanUI`: Fortschritt Vorne/Seite/Hinten, Drehung in %, Mini-Avatar `#scanMini` (Maße bis jetzt, dreht mit, Winkel-Ring grün/grau), Ansagen „Noch hinten fehlt“ usw., „Scan fertig“ → 3D-Avatar. `body.scanmodus` blendet Anprobe-Elemente aus, im Scan keine Hose und keine Messlinien (`draw`).
+- Kunden-/Entwicklermodus: `#modusBtn` (Zahnrad), `MODUS.kunde`, `localStorage` `passformModus`, technische Teile mit Klasse `nurdev`; Kundenmodus ohne Messlinien und Debug. Test `werkzeuge/tests/tmodus.mjs`. Bilder `docs/tests/scan-interface.png`, `kundenmodus.png`, `entwicklermodus.png`.
+

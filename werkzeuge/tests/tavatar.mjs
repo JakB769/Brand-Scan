@@ -62,8 +62,8 @@ pruefe(/drehen/i.test(coach),`Anzeige: „${coach}“`);
 // Attrappe dreht sich gleichmäßig (0,55 rad/s, eine Drehung in etwa 11 s)
 await p.evaluate(()=>{ const t0=performance.now(); window.__dreh=setInterval(()=>{ let y=((performance.now()-t0)/1000*.55)%(2*Math.PI); if(y>Math.PI) y-=2*Math.PI; window.__mode.yaw=y; },30); });
 const hinweise=new Set(), proz=[];
-for(let t=0;t<120;t++){ await p.waitForTimeout(250); const z=await p.evaluate(()=>({f:!!window.__dbg.AV.form,c:document.getElementById('coachBig').textContent,s:document.getElementById('coachSmall').textContent}));
-  if(z.c) hinweise.add(z.c); const q=/Fortschritt (\d+) %/.exec(z.s); if(q) proz.push(+q[1]); if(z.f) break; }
+for(let t=0;t<120;t++){ await p.waitForTimeout(250); const z=await p.evaluate(()=>({f:!!window.__dbg.AV.form,c:document.getElementById('coachBig').textContent,s:(document.getElementById('scanPct')||{}).textContent||'',ui:!document.getElementById('scanUI').hidden}));   // Fortschritt seit 18.11. in der Scan-Oberfläche
+  if(z.c) hinweise.add(z.c); const q=z.ui&&/Drehung (\d+) %/.exec(z.s); if(q) proz.push(+q[1]); if(z.f) break; }
 await p.evaluate(()=>{ clearInterval(window.__dreh); window.__mode.yaw=0; });
 const r=await p.evaluate(()=>{ const d=window.__dbg; return {form:!!d.AV.form,daten:d.AV.daten,on:d.AVS.on,cam:!!(document.getElementById('video').srcObject),
   n:Object.fromEntries(Object.entries(d.AVS.proben||{}).map(([k,v])=>[k,v.length]))}; });

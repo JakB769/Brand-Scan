@@ -296,10 +296,29 @@ body.kunde #quick,body.kunde label:has(#person),body.kunde #link-form,body.kunde
 body.kunde #drop-msg,body.kunde #checkRow,body.kunde #drop-fit,body.kunde .gdel:not(#avDel),body.kunde #gdims,body.kunde .row:has(#g-fab),body.kunde #g-glb,
 body.kunde .row:has(#g-clear),body.kunde details.adv:has(#ownBox),body.kunde details.adv:has(#g-debug),body.kunde #compareCard,
 body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!important}
+/* Scan-Oberfläche (18.11.): beim eigenen Avatar Fortschritt (vorne/Seite/hinten), Mini-Avatar, der sich aufbaut, klare Ansagen;
+   Bedienelemente der Live-Anprobe sind dann aus */
+.scanui{position:absolute;inset:0;pointer-events:none;z-index:4}
+.scanui[hidden]{display:none}
+.scanbar{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 64px);display:flex;flex-direction:column;gap:6px}
+.scansegs{display:flex;gap:6px}
+.scanseg{flex:1;text-align:center;font-weight:600;font-size:13px;padding:5px 0;border-radius:999px;background:rgba(110,110,110,.6);color:#fff}
+.scanseg.ok{background:#22a35a}
+.scanseg.ok::after{content:" ✓"}
+.scanpct{position:relative;height:18px;border-radius:9px;background:rgba(255,255,255,.22);overflow:hidden}
+.scanpct>div{height:100%;width:0;background:#22a35a;transition:width .3s}
+.scanpct>span{position:absolute;inset:0;text-align:center;font-size:12px;font-weight:600;line-height:18px;color:#fff}
+#scanMini{position:absolute;left:auto;top:auto;transform:none!important;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);width:96px;height:150px;border-radius:12px;background:rgba(0,0,0,.5)}
+.scanmodus .hud-bottom .chips,.scanmodus #hudRead,.scanmodus #szchips,.scanmodus #gchips,.scanmodus #szshop,.scanmodus #szwhy,.scanmodus #nearHint{display:none!important}
+/* Kunden-/Entwicklermodus (18.11.): im Kundenmodus nur Scan, Live-Anprobe, Produkt/Größe und Avatar drehen */
+.modusbtn{position:absolute;top:10px;right:10px;z-index:20;font-size:13px;padding:6px 10px;border-radius:999px}
+.kunde .modusbtn{font-size:15px;padding:4px 8px;opacity:.45;background:transparent;border-color:transparent}
+.kunde .nurdev{display:none!important}
 </style>
 <style>#video{filter:grayscale(1) contrast(.15) brightness(1.5)}</style></head>
 <body>
 <div class="wrap">
+  <button id="modusBtn" class="modusbtn" aria-pressed="false">⚙ Kundenmodus</button>
 
   <header>
     <span class="eyebrow">Passform</span>
@@ -343,6 +362,11 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     <button class="shopx" id="shopClose" aria-label="Anprobe schließen" title="Schließen">✕</button>
     <div class="szwhy" id="szwhy" aria-live="polite"></div>
     <div class="szrow szshop" id="szshop" role="group" aria-label="Größe wählen"></div>
+    <div class="scanui" id="scanUI" hidden aria-live="polite">
+      <div class="scanbar"><div class="scansegs"><div class="scanseg" id="scanVorn">Vorne</div><div class="scanseg" id="scanSeite">Seite</div><div class="scanseg" id="scanHinten">Hinten</div></div>
+        <div class="scanpct"><div id="scanFill"></div><span id="scanPct"></span></div></div>
+      <canvas id="scanMini" width="192" height="300" aria-label="Dein Avatar baut sich auf: gescannte Winkel farbig, fehlende grau"></canvas>
+    </div>
     <div class="hud" id="hud" hidden>
       <div class="hud-top">
         <div class="pill"><span class="dot" id="dot"></span><span id="statusText">Bereit</span></div>
@@ -1592,6 +1616,7 @@ function render(s){
 
 /* ---------- Zeichnen ---------- */
 function draw(L,b,ys,bands,legs,cmPerUnit,vw,vh){
+  if(MODUS.kunde||(AVS.on&&!dbg.on)) return;          // Kundenmodus und Avatar-Scan: keine Messlinien und Punkte
   const X=n=>n*vw, Y=n=>n*vh, chalk="#ffffff", brass="#ffd60a";
   const F=Math.round(vw/46);
   ctx.font=`600 ${F}px ${UIFONT}`; ctx.textBaseline="middle"; ctx.lineJoin="round";
@@ -1673,7 +1698,7 @@ function legHinge(B,h,upRef,okT,okS,zBack){
 function drawGarment(hipBand,anchorY,pxPerCm,botN,turn,bone,yCrotch,vw,vh,ext){
   // ausgeblendet (trackSure): nichts rechnen; nur wenn allein das Netz verzerrt war, die Form weiter rechnen (nicht zeigen),
   // sonst würde nie wieder erkannt, dass sie wieder sauber ist
-  if(!g.key||!g.img||(g.trk<=0&&g.unsicher!=="verzerrt")) return;
+  if(!g.key||!g.img||(g.trk<=0&&g.unsicher!=="verzerrt")||AVS.on) return;   // im Avatar-Scan keine Hose übers Bild (eigene Oberfläche)
   const G=GARMENTS[g.key], Wcm=garmentWidthCm();
   if(!Wcm) return;
   const cx=bone?(bone[0][0].x+bone[1][0].x)/2:(hipBand?hipBand.l+hipBand.w/2:.5)*vw;
@@ -3058,7 +3083,7 @@ function normals3d(P,rotL,piv){
 }
 /* Debug-Ansicht: Achsen der Hose (X rot = Breite, Y grün = Länge nach oben, Z blau = Tiefe zur Kamera),
    Box um alle Punkte im Hosen-Koordinatensystem, Maße in cm und die Tiefe jedes Gelenks. Ursprung: Mitte des Bunds. */
-const dbg={on:false};
+const dbg={on:false}, MODUS={kunde:false};
 try{ dbg.on=localStorage.getItem("massScanDebug")==="1"; }catch(_){}
 function drawDebug3d(B,foc,pc,ppc,vw){
   const F=g3.frame, pos=g3.pos; if(!F||!pos) return;
@@ -4375,7 +4400,7 @@ function avatarScanLos(){
   // Größe wie von Hand eingetragen: gespeichert, Testpersonen-Markierung, Größenauswahl
   if($("height").value.trim()!==String(H)){ $("height").value=String(H); for(const t of ["input","change"]) $("height").dispatchEvent(new Event(t)); }
   Object.assign(AVS,{on:true,stufe:"start",H,proben:{vorn:[],hinten:[],seiteL:[],seiteR:[]},bins:new Set(),ly:null,lt:0,w:0,t0:0,voll:[],tVoll:0,farben:{haut:[],haare:[],oberteil:[],fuss:[]}});
-  AV.fehler=""; avatarUI();
+  AV.fehler=""; avatarUI(); clearInterval(AVS.uiUhr); AVS.uiUhr=setInterval(scanUI,250); scanUI();
   // Körpermodell schon laden, während man sich hinstellt; fehlt es (z. B. nur index.html hochgeladen), gleich abbrechen statt
   // nach der ganzen Drehung
   avatarDaten().catch(e=>{ if(!AVS.on) return; avatarAbbruch(); endTryon(); avatarFehler("Das Körpermodell (avatar/koerper.js neben der Seite) ließ sich nicht laden: "+(e&&e.message||e)+". Bitte den ganzen Ordner hochladen."); });
@@ -4389,6 +4414,9 @@ function avatarScanLos(){
 function avatarFehler(t){ AV.fehler=t; avatarUI(); setTimeout(()=>{ const e=$("avMsg"); if(!e.hidden) e.scrollIntoView({block:"center",behavior:"smooth"}); },300); }
 /* nach dem Frontal-Scan (captureCal): jetzt drehen */
 function avatarScanGeeicht(){ if(!AVS.on) return; AVS.stufe="drehen"; AVS.t0=performance.now();
+  // Ende per Uhr prüfen (18.11.): vorher nur in avatarScanBild, also nur bei gültigen Bildern. Ging man nach der Drehung zum
+  // Handy (zu nah, kein Maßstab), kam keins mehr an, der Scan endete nie und der eigene Avatar erschien nicht
+  clearInterval(AVS.uhr); AVS.uhr=setInterval(()=>{ if(!AVS.on||AVS.stufe!=="drehen"){ clearInterval(AVS.uhr); return; } if(avatarDrehStand().fertig) avatarDrehEnde(); },400);
   coach("Jetzt langsam einmal drehen","Etwa 10 Sekunden für eine ganze Drehung","good",true,"Jetzt langsam einmal um dich selbst drehen"); }
 /* je Bild während der Drehung (aus analyse, mit deren Maske, Punkten und Maßstab) */
 /* Erscheinung (18.10.): Farben von Haut (Wange), Haaren (über der Stirn), Oberteil (Brust) und Füßen aus dem Kamerabild,
@@ -4431,7 +4459,9 @@ function avatarFarbenFertig(F){
 function avatarScanBild(o){
   if(!AVS.on||AVS.stufe!=="drehen") return;
   const now=performance.now(), yw=wrapA(fc.yaw);
-  if(AVS.ly!=null){ const dt=(now-AVS.lt)/1000; if(dt>0&&dt<.5) AVS.w=.75*AVS.w+.25*Math.abs(wrapA(yw-AVS.ly))/dt; }
+  // Drehgeschwindigkeit ohne Sprünge der Winkelschätzung (18.11.): vorn/hinten verwechselt springt der Winkel um bis zu π; das
+  // galt als „zu schnell“, alle Proben wurden verworfen (Echtzeit-Test mit v2-02: Seiten 0/0, Hinweis dauernd „Langsamer drehen“)
+  if(AVS.ly!=null){ const dt=(now-AVS.lt)/1000, dy=Math.abs(wrapA(yw-AVS.ly)); if(dt>0&&dt<1&&dy<.9) AVS.w=.75*AVS.w+.25*dy/dt; }
   AVS.ly=yw; AVS.lt=now; AVS.bins.add(Math.floor((yw+Math.PI)/(2*Math.PI)*24)%24);
   const ay=Math.abs(yw), sek=ay<.3?"vorn":ay>Math.PI-.3?"hinten":Math.abs(ay-Math.PI/2)<.28?(yw>0?"seiteL":"seiteR"):null;
   const zuSchnell=AVS.w>1.6;
@@ -4440,16 +4470,52 @@ function avatarScanBild(o){
     const fr=sek==="vorn"||sek==="hinten", cm=n=>n*o.aspect*o.cmPerUnit;
     const w=torsoSpan(o.m,o.waistY,o.L,o.armHalfN,fr), h=torsoSpan(o.m,o.hipY,o.L,o.armHalfN,fr), c=o.chestY!=null?torsoSpan(o.m,o.chestY,o.L,o.armHalfN,fr):null;
     if(w&&h&&w.w>0&&h.w>0) AVS.proben[sek].push({waist:cm(w.w),hip:cm(h.w),chest:c&&c.w>0&&!c.unsure?cm(c.w):NaN}); }
-  const P=AVS.proben, seiten=(P.seiteL.length>=2)+(P.seiteR.length>=2), pct=Math.min(100,Math.round(AVS.bins.size/24*100)), t=now-AVS.t0;
-  // fertig: vorn, hinten, eine Seite und 3/4 der Drehung; nach 30 s mit einer Seite; nach 45 s mit dem, was da ist (Tiefe dann
-  // geschätzt, Hinweis)
-  const fertig=(P.hinten.length>=2&&seiten>=1&&AVS.bins.size>=18)||(t>30000&&seiten>=1)||t>45000;
-  if(fertig){ AVS.stufe="rechnen"; beep(1040,160); setTimeout(()=>beep(1320,200),190); cue("Fertig. Du kannst zurückkommen.",true);
-    coach("Fertig!","Dein Avatar wird berechnet","good",true); setTimeout(avatarScanFertig,0); return; }   // nicht mitten in analyse
+  const {P,seiten,t,fertig}=avatarDrehStand(), pct=Math.min(100,Math.round(AVS.bins.size/24*100));
+  if(fertig){ avatarDrehEnde(); return; }
   // großer Text ruhig (wechselt nur mit dem Hinweis), Fortschritt in der kleinen Zeile
-  const big=zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg, ganzer Körper ins Bild":!seiten&&t>15000?"Ganz zur Seite drehen":"Langsam weiter drehen";
-  coach(big,"Fortschritt "+pct+" %",zuSchnell||!o.ganz?"warn":"good",false,zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg":"");
+  const fehlt=P.hinten.length<1?"Noch hinten fehlt":!seiten?"Noch eine Seite fehlt":"";
+  const big=zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg, ganzer Körper ins Bild":AVS.bins.size>=12&&fehlt?fehlt+" · weiter drehen":"Langsam weiter drehen";
+  coach(big,"",zuSchnell||!o.ganz?"warn":"good",false,zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg":"");
 }
+/* Scan-Oberfläche (18.11.): Fortschritt je Blickrichtung, Prozent der Drehung (24 Winkel), Mini-Avatar mit den Maßen bis jetzt,
+   der sich mit dir dreht; Ring unter den Füßen: gescannte Winkel grün, fehlende grau. Läuft per Uhr, solange der Scan an ist. */
+function scanUI(){
+  const an=AVS.on&&["start","drehen","rechnen"].includes(AVS.stufe);
+  document.body.classList.toggle("scanmodus",an); $("scanUI").hidden=!an; if(!an){ clearInterval(AVS.uiUhr); return; }
+  const P=AVS.proben||{vorn:[],hinten:[],seiteL:[],seiteR:[]}, fertig=AVS.stufe==="rechnen";
+  const ok={scanVorn:AVS.stufe!=="start",scanSeite:P.seiteL.length+P.seiteR.length>=2,scanHinten:P.hinten.length>=1};
+  for(const [id,v] of Object.entries(ok)) $(id).classList.toggle("ok",v||fertig);
+  const pct=AVS.stufe==="start"?0:fertig?100:Math.min(100,Math.round(AVS.bins.size/24*100));
+  $("scanFill").style.width=pct+"%"; $("scanPct").textContent=AVS.stufe==="start"?"Gerade hinstellen, Arme leicht weg":fertig?"Scan fertig":"Drehung "+pct+" %";
+  scanMini(pct);
+}
+function scanMini(pct){
+  const c=$("scanMini"), x=c.getContext("2d"), W=c.width, H=c.height; x.clearRect(0,0,W,H);
+  const cal=caps.cal||{}, Hc=AVS.H||175, P=AVS.proben||{}, med=(a,k)=>{ const v=a.map(q=>q[k]).filter(v=>v>0).sort((p,q)=>p-q); return v.length?v[v.length>>1]:NaN; };
+  const fw=(k,f)=>{ const v=med([...(P.vorn||[]),...(P.hinten||[])],k); return v>0?v:cal[k]>0?cal[k]:f*Hc; }, sd=(k,f)=>{ const v=med([...(P.seiteL||[]),...(P.seiteR||[])],k); return v>0?v:f; };
+  const sh=cal.shoulder>0?cal.shoulder:.23*Hc, wa=fw("waist",.16), hi=fw("hip",.19), th=cal.thighL>0&&cal.thighR>0?(cal.thighL+cal.thighR)/2:.09*Hc;
+  const yw=AVS.stufe==="drehen"&&AVS.ly!=null?AVS.ly:0, cs=Math.abs(Math.cos(yw)), sn=Math.abs(Math.sin(yw)), br=(w,d)=>Math.hypot(w*cs,d*sn)/2;
+  const s=(H-44)/Hc, cx=W/2, Y=f=>10+f*Hc*s, X=v=>v*s;
+  // Ring der Winkel unter den Füßen (von oben): vorn zur Kamera unten
+  for(let i=0;i<24;i++){ const t=Math.PI/2+(-Math.PI+(i+.5)*Math.PI/12); x.beginPath(); x.ellipse(cx,H-20,W*.42,13,0,t-Math.PI/24+.04,t+Math.PI/24-.04);
+    x.strokeStyle=AVS.bins&&AVS.bins.has(i)?"#22a35a":"rgba(190,190,190,.45)"; x.lineWidth=7; x.stroke(); }
+  const figur=()=>{ x.beginPath(); x.arc(cx,Y(.065),X(.05*Hc),0,2*Math.PI); x.fill();
+    const L=[[.13,X(br(.07*Hc,.09*Hc))],[.18,X(br(sh,.13*Hc))],[.28,X(br(.92*sh,.15*Hc))],[.38,X(br(wa,sd("waist",.75*wa)))],[.48,X(br(hi,sd("hip",.8*hi)))],[.53,X(br(hi,sd("hip",.8*hi)))]];
+    x.beginPath(); L.forEach(([f,w],k)=>k?x.lineTo(cx+w,Y(f)):x.moveTo(cx+w,Y(f))); [...L].reverse().forEach(([f,w])=>x.lineTo(cx-w,Y(f))); x.closePath(); x.fill();
+    for(const sg of [-1,1]){ const m=cx+sg*Math.max(X(th*.5)*cs,X(.02*Hc)); x.beginPath(); x.moveTo(m-X(th/2),Y(.5)); x.lineTo(m+X(th/2),Y(.5)); x.lineTo(m+X(.035*Hc),Y(.74)); x.lineTo(m+X(.025*Hc),Y(.96));
+      x.lineTo(m-X(.025*Hc),Y(.96)); x.lineTo(m-X(.035*Hc),Y(.74)); x.closePath(); x.fill(); }
+    x.lineCap="round"; x.lineWidth=X(.045*Hc); x.strokeStyle=x.fillStyle;
+    for(const sg of [-1,1]){ const a=cx+sg*X(br(sh,.1*Hc))*.92; x.beginPath(); x.moveTo(a,Y(.2)); x.lineTo(a+sg*X(.025*Hc)*cs,Y(.47)); x.stroke(); } };
+  x.fillStyle="rgba(170,170,170,.75)"; figur();
+  // gescannt: von den Füßen nach oben eingefärbt (Anteil der Drehung)
+  x.save(); x.beginPath(); x.rect(0,Y(1)-(Y(1)-Y(0))*pct/100,W,H); x.clip(); x.fillStyle="#22a35a"; figur(); x.restore();
+}
+/* Stand der Drehung: fertig, wenn eine Drehung fast ganz gesehen ist (20 von 24 Winkeln) und vorn, hinten und eine Seite Proben
+   haben; mit fast ganzer Drehung nach 12 s auch ohne alle Proben (Tiefe dann geschätzt); spätestens nach 30 s mit dem, was da ist */
+function avatarDrehStand(){ const P=AVS.proben, seiten=(P.seiteL.length>=2)+(P.seiteR.length>=2), t=performance.now()-AVS.t0, b=AVS.bins.size;
+  return {P,seiten,t,b,fertig:(b>=20&&P.vorn.length>=2&&P.hinten.length>=2&&seiten>=1)||(b>=20&&t>12000)||(t>20000&&b>=12)||t>30000}; }
+function avatarDrehEnde(){ if(AVS.stufe!=="drehen") return; clearInterval(AVS.uhr); AVS.stufe="rechnen"; beep(1040,160); setTimeout(()=>beep(1320,200),190); cue("Scan fertig. Du kannst zurückkommen.",true);
+  coach("Scan fertig","Dein Avatar wird berechnet","good",true); setTimeout(avatarScanFertig,0); }   // nicht mitten in analyse
 const quantil=(a,q)=>{ const b=a.filter(v=>isFinite(v)&&v>0).sort((x,y)=>x-y); return b.length?b[Math.min(b.length-1,Math.floor(q*b.length))]:NaN; };
 /* Ziele aus dem Scan: Breiten = Frontal-Scan im Stehen und Bilder von vorn/hinten, Tiefen = beide Seiten. Etwas schräg gesehen
    ist ein Körper von vorn schmaler und von der Seite breiter (Projektion einer Ellipse): Breite darum aus dem oberen, Tiefe aus
@@ -8886,6 +8952,20 @@ $("avOption").addEventListener("click",()=>{
   // „zuerst eine Hose anlegen“ und der Scan begann gar nicht.
   if(avatarAktiv()){ view3dKick(); $("g3dcard").hidden=false; $("g3dbox").hidden=false; $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"}); return; }
   avatarScanStart(); });
+/* Kunden-/Entwicklermodus (18.11.): Zahnrad oben rechts, Einstellung gespeichert. Kundenmodus: nur Scan starten, Live-Anprobe,
+   Produkt/Größe wählen, Avatar drehen; Hochladen, Messwerte, Testpersonen, Testreihe, Debug und Messlinien sind aus. */
+function modusSetzen(k){
+  MODUS.kunde=!!k; try{ localStorage.setItem("passformModus",MODUS.kunde?"kunde":"entwickler"); }catch(_){}
+  document.body.classList.toggle("kunde",MODUS.kunde); const b=$("modusBtn");
+  b.textContent=MODUS.kunde?"⚙":"⚙ Kundenmodus"; b.title=MODUS.kunde?"Entwicklermodus einschalten":"Kundenmodus einschalten"; b.setAttribute("aria-pressed",String(MODUS.kunde));
+  if(MODUS.kunde) dbg.on=false; else try{ dbg.on=localStorage.getItem("massScanDebug")==="1"; }catch(_){}
+}
+{ const dev=[...["hoseCard","otCard","resultCard","compareCard","seriesCard","g-glb","hudRead"].map(i=>$(i)), $("person").closest("label"), $("m-cal").parentElement,
+    document.querySelector(".quickrow"), [...document.querySelectorAll("section.card h2")].find(h=>h.textContent.trim()==="Deine Maße")?.closest("section"),
+    [...document.querySelectorAll("summary")].find(s=>s.textContent.trim()==="Ton und Stimme")?.closest("details")];
+  for(const e of dev) if(e) e.classList.add("nurdev");
+  let gespeichert=null; try{ gespeichert=localStorage.getItem("passformModus"); }catch(_){}
+  modusSetzen(gespeichert==="kunde"); $("modusBtn").addEventListener("click",()=>modusSetzen(!MODUS.kunde)); }
 loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,parseSizeText:typeof parseSizeText!=="undefined"?parseSizeText:null,sizeSeries:typeof sizeSeries!=="undefined"?sizeSeries:null,tableDims:typeof tableDims!=="undefined"?tableDims:null,PERF:typeof PERF!=="undefined"?PERF:null,HIPF:typeof HIPF!=="undefined"?HIPF:null,segGarment:typeof segGarment!=="undefined"?segGarment:null,findReference:typeof findReference!=="undefined"?findReference:null,refFarbe:typeof refFarbe!=="undefined"?refFarbe:null,orderQuad:typeof orderQuad!=="undefined"?orderQuad:null,scaleCanvas:typeof scaleCanvas!=="undefined"?scaleCanvas:null,readPhotoMeta:typeof readPhotoMeta!=="undefined"?readPhotoMeta:null,levelBySensor:typeof levelBySensor!=="undefined"?levelBySensor:null,isSkin:typeof isSkin!=="undefined"?isSkin:null,kmeans:typeof kmeans!=="undefined"?kmeans:null,fileToCanvas:typeof fileToCanvas!=="undefined"?fileToCanvas:null,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null,wornMask:typeof wornMask!=="undefined"?wornMask:null,wornSeeds:typeof wornSeeds!=="undefined"?wornSeeds:null,loadAiSeg:typeof loadAiSeg!=="undefined"?loadAiSeg:null,cropGarment:typeof cropGarment!=="undefined"?cropGarment:null,findGaps:typeof findGaps!=="undefined"?findGaps:null,flatSideScore:typeof flatSideScore!=="undefined"?flatSideScore:null,GEN:typeof GEN!=="undefined"?GEN:null,legCm:typeof legCm!=="undefined"?legCm:null,clearSm:typeof clearSm!=="undefined"?clearSm:null,trk:typeof trk!=="undefined"?trk:null,sizeAll:typeof sizeAll!=="undefined"?sizeAll:null,sizeVerdict:typeof sizeVerdict!=="undefined"?sizeVerdict:null,sizeReason:typeof sizeReason!=="undefined"?sizeReason:null,bodyMeas:typeof bodyMeas!=="undefined"?bodyMeas:null,sizeGarment:typeof sizeGarment!=="undefined"?sizeGarment:null,cutOf:typeof cutOf!=="undefined"?cutOf:null,AUS:typeof AUS!=="undefined"?AUS:null,AV:typeof AV!=="undefined"?AV:null,AVS:typeof AVS!=="undefined"?AVS:null,avatarAnpassen:typeof avatarAnpassen!=="undefined"?avatarAnpassen:null,avatarBauen:typeof avatarBauen!=="undefined"?avatarBauen:null,avatarDaten:typeof avatarDaten!=="undefined"?avatarDaten:null,avatarAnzeigen:typeof avatarAnzeigen!=="undefined"?avatarAnzeigen:null,avMasse:typeof avMasse!=="undefined"?avMasse:null,avatarScanZiele:typeof avatarScanZiele!=="undefined"?avatarScanZiele:null,OT:typeof OT!=="undefined"?OT:null,segGarment0:typeof segGarment0!=="undefined"?segGarment0:null,otLoecherZu:typeof otLoecherZu!=="undefined"?otLoecherZu:null,otFotoProfil:typeof otFotoProfil!=="undefined"?otFotoProfil:null,otTabelle:typeof otTabelle!=="undefined"?otTabelle:null,otUrteil:typeof otUrteil!=="undefined"?otUrteil:null,otKoerper:typeof otKoerper!=="undefined"?otKoerper:null,otFuer:typeof otFuer!=="undefined"?otFuer:null,otAktiv:typeof otAktiv!=="undefined"?otAktiv:null,avatarKnochen:typeof avatarKnochen!=="undefined"?avatarKnochen:null,avatarHaltung:typeof avatarHaltung!=="undefined"?avatarHaltung:null,otUeberHose:typeof otUeberHose!=="undefined"?otUeberHose:null,otVorlage:typeof otVorlage!=="undefined"?otVorlage:null,v3d:typeof v3d!=="undefined"?v3d:null,caps:typeof caps!=="undefined"?caps:null,garmentDims:typeof garmentDims!=="undefined"?garmentDims:null}; buildPicker(); renderSeries(); loadSharedGarments().then(wolkeStart); otInit();
 avatarUI(); { const a=avatarGespeichert(); if(a) avatarAnzeigen(a).catch(e=>console.warn("Avatar",e)); }   // gespeicherter Avatar
 </script>
