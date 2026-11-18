@@ -1,0 +1,36 @@
+# Nach jedem Push auf main (Netlify veröffentlicht dann neu) und täglich: Live-Seite prüfen.
+# 1. alle Dateien der App (avatar/koerper.js usw.) online, HTTP 200, gleicher Stand wie im Repo
+# 2. Ende-zu-Ende-Avatar-Test gegen die LIVE-Seite (tavatar.mjs --live)
+# Live-Adresse: Repo-Variable LIVE_URL (Settings → Secrets and variables → Actions → Variables).
+name: live-pruefung
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LIVE_URL: ${{ vars.LIVE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Auf den Netlify-Deploy warten
+        if: github.event_name == 'push'
+        run: |
+          for i in $(seq 1 30); do
+            node werkzeuge/live-pruefung.mjs --ohne-extern > /dev/null && exit 0
+            sleep 20
+          done
+          echo "Live-Seite nach 10 min noch nicht auf dem Stand von main"
+      - name: Alle Dateien auf der Live-Adresse
+        run: node werkzeuge/live-pruefung.mjs
+      - name: Ende-zu-Ende-Avatar-Test gegen die Live-Seite
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+          node werkzeuge/tests/tavatar.mjs --live "$LIVE_URL"

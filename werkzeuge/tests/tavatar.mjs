@@ -15,10 +15,15 @@ const TYP={'.json':'application/json','.html':'text/html; charset=utf-8','.js':'
 const srv=http.createServer((req,res)=>{ const f=path.resolve(R+decodeURIComponent(new URL(req.url,'http://x').pathname.slice(1)));
   if(!f.startsWith(R)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){ res.writeHead(404); return res.end(); }
   res.writeHead(200,{'content-type':TYP[path.extname(f)]||'application/octet-stream'}); fs.createReadStream(f).pipe(res); });
-await new Promise(ok=>srv.listen(0,'127.0.0.1',ok)); const URL0=`http://127.0.0.1:${srv.address().port}/werkzeuge/tests/testseite-mit-simulierter-person.html`;
-const b=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
+// --live https://….netlify.app/: Seite und Körpermodell von der LIVE-Adresse (nicht lokal), nur die Kamera ist simuliert
+const li=process.argv.indexOf('--live'), LIVE=li>0?process.argv[li+1]:null;
+if(LIVE){ fs.mkdirSync(hier+'ausgabe',{recursive:true});
+  const {execFileSync}=await import('child_process'); execFileSync(process.execPath,[hier+'baue-testseite.mjs','--live',LIVE,hier+'ausgabe/live-testseite.html'],{stdio:'inherit'}); }
+await new Promise(ok=>srv.listen(0,'127.0.0.1',ok)); const URL0=`http://127.0.0.1:${srv.address().port}/werkzeuge/tests/`+(LIVE?'ausgabe/live-testseite.html':'testseite-mit-simulierter-person.html');
+const b=await chromium.launch({executablePath:process.env.CHROMIUM||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
 const ctx=await b.newContext({permissions:['camera'],viewport:{width:1000,height:1000}});
-const p=await ctx.newPage(); const errs=[];  p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error'&&!/GL Driver/.test(m.text())) errs.push(m.text()+' '+JSON.stringify(m.location().url||'')); });
+const p=await ctx.newPage(); const errs=[], liveDateien={};
+p.on('response',r=>{ if(LIVE&&r.url().startsWith(new URL(LIVE).origin)) { if(!(r.url() in liveDateien)) liveDateien[r.url()]=r.status(); } });  p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error'&&!/GL Driver/.test(m.text())) errs.push(m.text()+' '+JSON.stringify(m.location().url||'')); });
 await p.goto(URL0); await p.waitForTimeout(400);
 await p.setInputFiles('#own-front',fotos+'front.jpg'); await p.setInputFiles('#own-back',fotos+'back.jpg'); await p.fill('#own-waist','40'); await p.click('#own-go');
 await p.waitForFunction(()=>/Fertig/.test(document.getElementById('own-msg').textContent),null,{timeout:60000});
@@ -210,5 +215,7 @@ await p.click('#avDel'); await p.click('#avDel'); await p.waitForTimeout(300);
 // ohne Hosen-Sammlung auf diesem Testserver (hosen.json, /api/hosen): 404 ist dort normal
 const errs2=errs.filter(e=>!/404/.test(e)||!/hosen\.json|api\/hosen/.test(e)); errs.length=0; errs.push(...errs2);
 pruefe(errs.length===0,'keine Skriptfehler'+(errs.length?': '+[...new Set(errs)].slice(0,3).join(' | '):''));
+if(LIVE){ const kv=Object.entries(liveDateien).find(([u])=>/avatar\/koerper\.js$/.test(u));
+  pruefe(kv&&(kv[1]===200||kv[1]===304),`LIVE: Körpermodell von ${kv?kv[0]:'(nicht angefragt)'} geladen (HTTP ${kv?kv[1]:'-'})`); }
 await b.close(); srv.close();
 console.log(fehler?`${fehler} Fehler`:'Avatar in Ordnung'); process.exit(fehler?1:0);
