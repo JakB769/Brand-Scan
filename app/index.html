@@ -314,6 +314,8 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
 .modusbtn{position:absolute;top:10px;right:10px;z-index:20;font-size:13px;padding:6px 10px;border-radius:999px}
 .kunde .modusbtn{font-size:15px;padding:4px 8px;opacity:.45;background:transparent;border-color:transparent}
 .kunde .nurdev{display:none!important}
+.avstatus{margin-top:12px;padding:12px 14px;border-radius:12px;background:rgba(255,159,10,.14);border:1px solid rgba(255,159,10,.45)}
+.avstatus p{margin:0 0 10px}
 .subblock{margin-top:16px}
 .subblock h3{margin:0 0 8px;font-size:17px}
 .pruefcard:not(:has(> div:not([hidden]))){display:none}
@@ -340,7 +342,6 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     </div>
     <div class="row">
       <button id="start" class="primary">Kamera starten</button>
-      <button id="avOption" title="Einmal langsam drehen: daraus entsteht dein 3D-Avatar, darauf probierst du alle Hosen an">🧍 Eigener Avatar</button>
       <button class="iconbtn voicebtn" id="voiceBtn" aria-pressed="false" aria-label="Sprachausgabe" title="Sprachausgabe an/aus"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="won" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="woff" d="M17 9l5 6M22 9l-5 6"/></svg></button>
     </div>
     <div class="row quickrow" role="group" aria-label="Testpersonen: Größe eintragen und Kamera sofort starten">
@@ -401,6 +402,20 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
   </div>
   <p class="hint">Tippe ins Bild, um die letzte Ansage zu wiederholen.</p>
 
+  <section class="card" id="avCard">
+    <h2>Eigenen Avatar erstellen</h2>
+    <p class="sub">Einmal langsam um dich selbst drehen: daraus entsteht dein 3D-Avatar in deinen Maßen. Darauf probierst du Kleidung
+      und Größen in Ruhe an. Die Kamerabilder bleiben auf deinem Gerät.</p>
+    <div class="row">
+      <button id="avOption" class="primary" title="Einmal langsam drehen: daraus entsteht dein 3D-Avatar, darauf probierst du alle Hosen an">🧍 Avatar-Scan starten</button>
+      <button id="avAnsehen" hidden>Meinen Avatar ansehen</button>
+    </div>
+    <div id="avStatus" class="avstatus" hidden role="alert">
+      <p id="avStatusText"></p>
+      <button id="avNochmal" class="primary">Nochmal versuchen</button>
+    </div>
+  </section>
+
 
   <section class="card" id="hoseCard">
     <h2>Hose oder Rock hochladen</h2>
@@ -436,7 +451,6 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
       <p id="fit-txt"></p>
     </div>
     <div class="gwrap" id="gwrap"></div>
-    </div>
     <div class="row otart" id="g-kat" role="group" aria-label="Art (automatisch erkannt, hier ändern)" hidden>
       <button class="chip" data-kat="hose" aria-pressed="false" title="Lange Hose: Saum am Knöchel">👖 Hose</button>
       <button class="chip" data-kat="shorts" aria-pressed="false" title="Kurze Hose: Saum zwischen Oberschenkel und Knie">🩳 Shorts</button>
@@ -549,7 +563,6 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     </div>
     <div class="dropmsg" id="ot-msg" aria-live="polite"></div>
     <div class="otliste" id="ot-liste" role="group" aria-label="Oberteile"></div>
-    </div>
     <details class="adv" id="ot-mass"><summary>Maße und Maßtabelle des Oberteils</summary><div class="advbody">
       <label>Brustumfang des Oberteils, cm <span class="sub">(flach gemessen × 2)</span><input type="text" autocomplete="off" id="ot-brust" inputmode="decimal" placeholder="geschätzt"></label>
       <label>Länge, cm <span class="sub">vom Schulterpunkt am Kragen bis zum Saum</span><input type="text" autocomplete="off" id="ot-laenge" inputmode="decimal" placeholder="aus dem Foto"></label>
@@ -579,9 +592,11 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     <div class="gsizes" id="g-sizes" hidden>
       <div class="szrow" id="g-szrow" role="group" aria-label="Größe wählen"></div>
       <div class="szmsg" id="g-szmsg" aria-live="polite"></div>
+    </div>
     <div class="gsizes" id="ot-sizes" hidden>
       <div class="szrow" id="ot-szrow" role="group" aria-label="Größe des Oberteils wählen"></div>
       <div class="szmsg" id="ot-szmsg" aria-live="polite"></div>
+    </div>
   </section>
 
   <section class="card">
@@ -703,7 +718,7 @@ const video=$("video"), cv=$("overlay"), ctx=cv.getContext("2d"), stage=$("stage
 // Mit der Selfie-Kamera ist die Leinwand per CSS gespiegelt: Schrift an Ort und Stelle zurückspiegeln, damit sie lesbar bleibt
 const fillT=(t,x,y)=>{ if(!stage.classList.contains("mirror")) return ctx.fillText(t,x,y);
   const w=ctx.measureText(t).width; ctx.save(); ctx.translate(x+w/2,0); ctx.scale(-1,1); ctx.fillText(t,-w/2,y); ctx.restore(); };
-let landmarker=null, stream=null, running=false, starting=false;
+let landmarker=null, stream=null, running=false, starting=false, camFehler=null;
 let facing="user", lastTime=-1, held=false;         // Frontkamera: man sieht sich selbst (Wechsel mit dem Knopf)
 let mode="cal", phase="cal";
 const scanProben=[];                                  // Messwerte im Haltefenster des Scans (Median beim Erfassen)
@@ -935,10 +950,22 @@ async function openStream0(){
   cam.fk=wide?.42:.8;                          // Ultraweitwinkel hat etwa die halbe Brennweite
   // welche Kamera es wirklich ist (wo der Browser es sagt): danach richtet sich die Spiegelung
   try{ const fm=stream.getVideoTracks()[0].getSettings().facingMode; if(fm==="user"||fm==="environment") facing=fm; }catch(_){}
+  { const tr=stream.getVideoTracks()[0]; if(tr) tr.addEventListener("ended",()=>{ if(!stream||stream.getVideoTracks()[0]!==tr||!(running||starting)) return;
+      const scan=AVS.on&&AVS.stufe!=="rechnen"; stopCamera(); if(scan) avatarStatus("Die Kamera wurde unterbrochen (z. B. App gewechselt oder Bildschirm aus). Der Scan ist abgebrochen."); else showError("Die Kamera wurde unterbrochen. Bitte neu starten."); }); }
   video.srcObject=stream; await video.play();
   stage.classList.toggle("mirror",facing==="user");
   $("flip").hidden=!(camCount>1&&matchMedia("(pointer:coarse)").matches);
 }
+/* Kamerafehler für Menschen (18.11.): was los ist und was zu tun ist */
+function kameraText(e){ const n=e&&e.name||"", m=e&&e.message||String(e||"");
+  if(n==="NotAllowedError"||n==="SecurityError") return "Die Kamera ist nicht erlaubt. Bitte die Kamera für diese Seite erlauben (iPhone: „aA“ links in der Adressleiste → Website-Einstellungen → Kamera → Erlauben; Android/Chrome: Schloss-Symbol neben der Adresse → Berechtigungen → Kamera) und dann „Nochmal versuchen“ tippen.";
+  if(n==="NotFoundError"||n==="OverconstrainedError") return "Es wurde keine Kamera gefunden. Bitte die Seite auf einem Gerät mit Kamera öffnen.";
+  if(n==="NotReadableError"||n==="AbortError"||/gewechselt/.test(m)) return "Die Kamera wird gerade anderswo benutzt (andere App oder anderer Tab). Bitte dort schließen und „Nochmal versuchen“ tippen.";
+  if(n==="TimeoutError") return "Die Kamera antwortet nicht. Bitte „Nochmal versuchen“ tippen; hilft das nicht, die Seite neu laden.";
+  if(n==="Unsicher") return "Die Kamera geht nur, wenn die Seite über https:// geöffnet ist.";
+  return "Die Kamera ließ sich nicht starten ("+m+"). Bitte „Nochmal versuchen“ tippen.";
+}
+const kameraLebt=()=>!!(stream&&stream.getVideoTracks().some(t=>t.readyState==="live"));
 async function startCamera(){
   if(starting) return;
   const h=num($("height").value);
@@ -953,9 +980,18 @@ async function startCamera(){
   try{ if(voiceOn()){ const u=new SpeechSynthesisUtterance("Bereit"); u.lang="de-DE"; speechSynthesis.speak(u); } }catch(_){}
   // Kamera zuerst: die Freigabe-Frage kommt sofort beim Tippen, nicht erst nach dem Modell
   const aus=()=>{ if(gen===camGen) return false; try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null; try{ video.srcObject=null; }catch(_){} return true; };
-  try{ await openStream(); if(aus()) return; }
+  camFehler=null;
+  try{
+    if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)) throw Object.assign(new Error("kein sicherer Kontext"),{name:"Unsicher"});
+    // höchstens 20 s auf die Kamera warten (sonst hing „starting“ für immer und jeder weitere Tipp tat nichts)
+    const p=openStream(); let uhr;
+    try{ await Promise.race([p,new Promise((_,nein)=>{ uhr=setTimeout(()=>nein(Object.assign(new Error("Kamera antwortet nicht"),{name:"TimeoutError"})),20000); })]); }
+    catch(e){ if(e.name==="TimeoutError"){ camGen++; p.then(()=>{ if(!running&&!starting){ try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null; } }).catch(()=>{}); } throw e; }
+    finally{ clearTimeout(uhr); }
+    if(aus()) return;
+  }
   catch(e){
-    showError("Kamera nicht verfügbar: "+e.message+" — die Seite muss über https:// laufen und die Kamera muss im Browser erlaubt sein.");
+    camFehler=e; showError(kameraText(e));
     starting=false; camUI(); return;
   }
   $("placeholder").hidden=true; $("hud").hidden=false;
@@ -4278,25 +4314,34 @@ function avatarScanStart(){
   $("avDlg").hidden=false; $("avJa").focus();
 }
 const avatarAbbruch=()=>{ if(AVS.stufe!=="rechnen"){ AVS.on=false; AVS.stufe=""; } };
-function avatarScanLos(){
-  const H=num($("avGroesse").value);
-  if(!(H>=120&&H<=230)){ $("avGroesse").focus(); $("avGroesse").select(); return; }
-  $("avDlg").hidden=true;
+function avatarScanLos(nochmal){
+  const H=nochmal===true?AVS.letzteH:num($("avGroesse").value);
+  if(!(H>=120&&H<=230)){ if(nochmal===true){ avatarScanStart(); return; } $("avGroesse").focus(); $("avGroesse").select(); return; }
+  $("avDlg").hidden=true; avatarStatus("");
+  // Kamera tot, Zustand noch „läuft“ (iOS nach App-Wechsel oder Bildschirm aus): erst beenden, dann neu holen (18.11.)
+  if(running&&!kameraLebt()){ AVS.still=true; stopCamera(); AVS.still=false; }
+  if($("height").value.trim()!==String(H)) $("height").value=String(H);          // startCamera prüft die Größe
+  Object.assign(AVS,{on:true,stufe:"start",H,letzteH:H,tStart:performance.now(),proben:{vorn:[],hinten:[],seiteL:[],seiteR:[]},bins:new Set(),ly:null,lt:0,w:0,t0:0,voll:[],tVoll:0,farben:{haut:[],haare:[],oberteil:[],fuss:[]}});
+  try{ scanZuruecksetzen(); }catch(e){ console.warn("Scan zurücksetzen",e); }       // frischer Scan: Frontal-Scan im Stehen, dann drehen
+  // Kamera zuerst, direkt im Tipp (iOS); nichts davor darf scheitern (18.11.: vorher liefen Oberfläche und Größenlogik davor, ein
+  // Fehler dort hätte die Kamera nie gefragt). Verweigert oder Fehler: Scan nicht scharf lassen, Hinweis mit „Nochmal versuchen“.
+  if(!(running||starting)) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="start"&&!running&&!starting){ avatarAbbruch(); avatarStatus(kameraText(camFehler||new Error("Kamera nicht gestartet"))); } });
   // Größe wie von Hand eingetragen: gespeichert, Testpersonen-Markierung, Größenauswahl
-  if($("height").value.trim()!==String(H)){ $("height").value=String(H); for(const t of ["input","change"]) $("height").dispatchEvent(new Event(t)); }
-  Object.assign(AVS,{on:true,stufe:"start",H,proben:{vorn:[],hinten:[],seiteL:[],seiteR:[]},bins:new Set(),ly:null,lt:0,w:0,t0:0,voll:[],tVoll:0,farben:{haut:[],haare:[],oberteil:[],fuss:[]}});
-  AV.fehler=""; avatarUI(); clearInterval(AVS.uiUhr); AVS.uiUhr=setInterval(scanUI,250); scanUI();
+  try{ for(const t of ["input","change"]) $("height").dispatchEvent(new Event(t)); }catch(e){ console.warn("Größe",e); }
+  try{ AV.fehler=""; avatarUI(); clearInterval(AVS.uiUhr); AVS.uiUhr=setInterval(scanUI,250); scanUI(); }catch(e){ console.warn("Scan-Oberfläche",e); }
   // Körpermodell schon laden, während man sich hinstellt; fehlt es (z. B. nur index.html hochgeladen), gleich abbrechen statt
   // nach der ganzen Drehung
   avatarDaten().catch(e=>{ if(!AVS.on) return; avatarAbbruch(); endTryon(); avatarFehler("Das Körpermodell (avatar/koerper.js neben der Seite) ließ sich nicht laden: "+(e&&e.message||e)+". Bitte den ganzen Ordner hochladen."); });
-  scanZuruecksetzen();                               // frischer Scan: Frontal-Scan im Stehen, dann drehen
-  // Kamera verweigert oder Erkennung nicht geladen: Avatar-Scan nicht scharf lassen (sonst würde der nächste normale Scan
-  // ohne Einwilligung zum Avatar)
-  if(!camOn()) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="start"&&!running&&!starting) avatarAbbruch(); });
   $("stage").scrollIntoView({block:"start",behavior:"smooth"});
 }
+/* Hinweis im Bereich „Eigenen Avatar erstellen“ (18.11.): Kamera verweigert, Scan abgebrochen, nicht ganz im Bild; mit
+   „Nochmal versuchen“ (startet sofort neu, Einwilligung und Größe von eben). Leer: ausblenden. */
+function avatarStatus(t){
+  const b=$("avStatus"); if(!b) return; b.hidden=!t; $("avStatusText").textContent=t||"";
+  if(t) setTimeout(()=>{ if(!b.hidden) b.scrollIntoView({block:"center",behavior:"smooth"}); },150);
+}
 /* Fehler beim Avatar: beim 3D-Bereich zeigen (oben auf der Seite sähe man ihn nicht) */
-function avatarFehler(t){ AV.fehler=t; avatarUI(); setTimeout(()=>{ const e=$("avMsg"); if(!e.hidden) e.scrollIntoView({block:"center",behavior:"smooth"}); },300); }
+function avatarFehler(t){ AV.fehler=t; avatarUI(); avatarStatus(t); setTimeout(()=>{ const e=$("avMsg"); if(!e.hidden) e.scrollIntoView({block:"center",behavior:"smooth"}); },300); }
 /* nach dem Frontal-Scan (captureCal): jetzt drehen */
 function avatarScanGeeicht(){ if(!AVS.on) return; AVS.stufe="drehen"; AVS.t0=performance.now();
   // Ende per Uhr prüfen (18.11.): vorher nur in avatarScanBild, also nur bei gültigen Bildern. Ging man nach der Drehung zum
@@ -4365,6 +4410,9 @@ function avatarScanBild(o){
 /* Scan-Oberfläche (18.11.): Fortschritt je Blickrichtung, Prozent der Drehung (24 Winkel), Mini-Avatar mit den Maßen bis jetzt,
    der sich mit dir dreht; Ring unter den Füßen: gescannte Winkel grün, fehlende grau. Läuft per Uhr, solange der Scan an ist. */
 function scanUI(){
+  if(AVS.on&&AVS.stufe==="start"&&running&&AVS.tStart&&performance.now()-AVS.tStart>90000){     // 90 s ohne Scan von vorn
+    avatarAbbruch(); AVS.still=true; endTryon(); AVS.still=false;
+    avatarStatus("Scan abgebrochen: Du warst nicht ganz im Bild. Handy auf Hüfthöhe stellen, 2–3 m zurückgehen, bis Kopf und Füße zu sehen sind, und nochmal versuchen."); }
   const an=AVS.on&&["start","drehen","rechnen"].includes(AVS.stufe);
   document.body.classList.toggle("scanmodus",an); $("scanUI").hidden=!an; if(!an){ clearInterval(AVS.uiUhr); return; }
   const P=AVS.proben||{vorn:[],hinten:[],seiteL:[],seiteR:[]}, fertig=AVS.stufe==="rechnen";
@@ -4396,11 +4444,13 @@ function scanMini(pct){
   x.save(); x.beginPath(); x.rect(0,Y(1)-(Y(1)-Y(0))*pct/100,W,H); x.clip(); x.fillStyle="#22a35a"; figur(); x.restore();
 }
 /* Stand der Drehung: fertig, wenn eine Drehung fast ganz gesehen ist (20 von 24 Winkeln) und vorn, hinten und eine Seite Proben
-   haben; mit fast ganzer Drehung nach 12 s auch ohne alle Proben (Tiefe dann geschätzt); spätestens nach 30 s mit dem, was da ist */
-function avatarDrehStand(){ const P=AVS.proben, seiten=(P.seiteL.length>=2)+(P.seiteR.length>=2), t=performance.now()-AVS.t0, b=AVS.bins.size;
-  return {P,seiten,t,b,fertig:(b>=20&&P.vorn.length>=2&&P.hinten.length>=2&&seiten>=1)||(b>=20&&t>12000)||(t>20000&&b>=12)||t>30000}; }
+   haben; nach 12 s mit fast ganzer Drehung, wenn es Proben von hinten und von der Seite gibt; nach 20 s mit 3/4 der Drehung und
+   Proben von hinten oder der Seite; spätestens nach 30 s mit dem, was da ist (fehlende Maße dann vom Durchschnitt). 18.11.: vorher
+   endete er nach 12 s auch ganz ohne Seiten- und Rückenproben; der Avatar war dann fast der Standardkörper. */
+function avatarDrehStand(){ const P=AVS.proben, sl=P.seiteL.length+P.seiteR.length, seiten=(P.seiteL.length>=2)+(P.seiteR.length>=2), t=performance.now()-AVS.t0, b=AVS.bins.size;
+  return {P,seiten,t,b,fertig:(b>=20&&P.vorn.length>=2&&P.hinten.length>=2&&seiten>=1)||(b>=20&&t>12000&&P.hinten.length>=1&&sl>=2)||(t>20000&&b>=18&&(P.hinten.length>=1||sl>=2))||t>30000}; }
 function avatarDrehEnde(){ if(AVS.stufe!=="drehen") return; clearInterval(AVS.uhr); AVS.stufe="rechnen"; beep(1040,160); setTimeout(()=>beep(1320,200),190); cue("Scan fertig. Du kannst zurückkommen.",true);
-  coach("Scan fertig","Dein Avatar wird berechnet","good",true); setTimeout(avatarScanFertig,0); }   // nicht mitten in analyse
+  coach("Scan fertig","Dein Avatar wird berechnet","good",true); setTimeout(avatarScanFertig,1200); }   // „Scan fertig“ kurz zeigen, nicht mitten in analyse
 const quantil=(a,q)=>{ const b=a.filter(v=>isFinite(v)&&v>0).sort((x,y)=>x-y); return b.length?b[Math.min(b.length-1,Math.floor(q*b.length))]:NaN; };
 /* Ziele aus dem Scan: Breiten = Frontal-Scan im Stehen und Bilder von vorn/hinten, Tiefen = beide Seiten. Etwas schräg gesehen
    ist ein Körper von vorn schmaler und von der Seite breiter (Projektion einer Ellipse): Breite darum aus dem oberen, Tiefe aus
@@ -4447,10 +4497,12 @@ async function avatarScanFertig(){
     const f=avatarAnpassen(kd,g,zf,lose), A=avatarBauen(kd,g,f.p,H);
     const r1=x=>Math.round(x*10)/10, m=Object.fromEntries(Object.entries(A.m).map(([k,v])=>[k,r1(v)]));
     const ohneTiefe=!isFinite(z.hipD)&&!isFinite(z.waistD);
-    const d={v:1,g,H,p:f.p,m,z:Object.fromEntries(Object.entries(z).filter(([,v])=>isFinite(v)).map(([k,v])=>[k,r1(v)])),lose,kamera,ohneTiefe,farben,rest:r1(f.rest),at:Date.now()};
+    const np=AVS.proben?["vorn","hinten","seiteL","seiteR"].map(k=>AVS.proben[k].length):null;     // Proben je Blickrichtung (Prüfung)
+    const d={v:1,g,H,np,p:f.p,m,z:Object.fromEntries(Object.entries(z).filter(([,v])=>isFinite(v)).map(([k,v])=>[k,r1(v)])),lose,kamera,ohneTiefe,farben,rest:r1(f.rest),at:Date.now()};
     try{ localStorage.setItem(AV_KEY,JSON.stringify(d)); }catch(_){}
     AV.form=A; AV.daten=d; AV.rechnet=false; v3d.ohneAvatar=false; v3d.zoom=1; v3d.pan=0; v3d.ziel=0; avatarUI(); renderSizes(true); view3dKick();
-    $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"});
+    // eigener Avatar sofort sichtbar (18.11.): 3D-Bereich zeigen und hinscrollen (vorher nur Scrollen zu einem noch verborgenen Kasten)
+    setTimeout(()=>{ if(!running){ $("g3dcard").hidden=false; $("g3dbox").hidden=false; view3dKick(); } $("g3dcard").scrollIntoView({block:"start",behavior:"smooth"}); },60);
   }catch(e){ AV.rechnet=false; avatarFehler("Der Avatar ließ sich nicht berechnen: "+(e&&e.message||e)); }
 }
 /* gespeicherter Avatar: Geschlecht, Regler, Größe, Maße (keine Bilder) */
@@ -4474,6 +4526,7 @@ function avatarLoeschen(){
 function avatarAktiv(){ const h=num($("height").value); return !!(AV.form&&!v3d.ohneAvatar&&(!(h>=120&&h<=230)||Math.abs(h-AV.form.H)<=1)); }
 function avatarUI(){
   const da=!!AV.form, ak=avatarAktiv(), b=$("avDel"), D=da&&AV.daten||{}; $("avScan").textContent=da?"🧍 Neu scannen":"🧍 Avatar aus Selbst-Scan";
+  $("avAnsehen").hidden=!da; $("avOption").textContent=da?"🧍 Neu scannen":"🧍 Avatar-Scan starten";
   b.hidden=!da; b.classList.remove("sure"); b.textContent="✕"; b.setAttribute("aria-label","Avatar löschen");
   for(const e of document.querySelectorAll(".avansicht")) e.hidden=!ak;
   const t=AV.rechnet?"Dein Avatar wird berechnet …":AV.fehler?AV.fehler:[
@@ -7172,7 +7225,7 @@ function closeShop(){
 let camGen=0;
 function stopCamera(){
   camGen++; starting=false; running=false; lastTime=-1;
-  if(AVS.on&&AVS.stufe!=="rechnen"){ AVS.on=false; AVS.stufe=""; }      // Avatar-Scan abgebrochen
+  if(AVS.on&&AVS.stufe!=="rechnen"){ AVS.on=false; AVS.stufe=""; if(!AVS.still) avatarStatus("Scan abgebrochen. Du kannst ihn jederzeit neu starten."); }      // Avatar-Scan abgebrochen
   try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null;
   try{ video.pause(); video.srcObject=null; }catch(_){}
   try{ speechSynthesis.cancel(); }catch(_){}
@@ -8831,11 +8884,12 @@ customElements.whenDefined("passform-produkte").then(hosenAuswahlDaten).catch(()
 $("avHosen").addEventListener("produkt-gewaehlt",e=>{ const d=e.detail||{}; if(d.typ!=="oberteil"||KUNDE_PRODUKTE) return;
   OT.aktiv=d.id&&OT.liste[d.id]?d.id:null; otSpeichern(); otUI(); view3dKick(); });
 // zweiter Einstieg: eigener Avatar (vorhanden: zur Ansicht; sonst scannen). Ohne gewählte Hose die erste nehmen.
+$("avNochmal").addEventListener("click",()=>{ avatarStatus(""); if(AVS.letzteH) avatarScanLos(true); else avatarScanStart(); });
+$("avAnsehen").addEventListener("click",()=>{ v3d.ohneAvatar=false; view3dKick(); $("g3dcard").hidden=false; $("g3dbox").hidden=false; $("g3dcard").scrollIntoView({block:"start",behavior:"smooth"}); });
 $("avOption").addEventListener("click",()=>{
   if(!g.key){ const k=Object.keys(GARMENTS).find(k=>GARMENTS[k].m3&&!GARMENTS[k].bad); if(k) pickGarment(k,false); }
-  // ohne Hose geht es auch (30.10.): der Avatar steht dann allein oder mit Oberteil in der 3D-Ansicht. Vorher hieß es hier
-  // „zuerst eine Hose anlegen“ und der Scan begann gar nicht.
-  if(avatarAktiv()){ view3dKick(); $("g3dcard").hidden=false; $("g3dbox").hidden=false; $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"}); return; }
+  // ohne Hose geht es auch (30.10.). 18.11.: der Knopf startet immer einen neuen Scan (vorher zeigte er bei gespeichertem Avatar nur
+  // die 3D-Ansicht und die Kamera ging nicht auf); den gespeicherten Avatar zeigt „Meinen Avatar ansehen“.
   avatarScanStart(); });
 /* Kunden-/Entwicklermodus (18.11.): Zahnrad oben rechts, Einstellung gespeichert. Kundenmodus: nur Scan starten, Live-Anprobe,
    Produkt/Größe wählen, Avatar drehen; Hochladen, Messwerte, Testpersonen, Testreihe, Debug und Messlinien sind aus. */

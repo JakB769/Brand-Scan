@@ -17,7 +17,7 @@ live mit der Kamera oder auf ihrem eigenen 3D-Avatar, und bekommen die passende 
 
 ## Funktionen
 - **Live-Anprobe:** Größe eintragen, ganz ins Bild stellen, nach etwa 1 s sitzt die Hose (3D, Rig, Stoffphysik), Oberteil darüber.
-- **Selbst-Scan → eigener Avatar:** einmal langsam drehen; eigene Scan-Oberfläche mit Fortschritt (Vorne/Seite/Hinten), Mini-Avatar und Ansagen; danach Anprobe am Avatar in 3D.
+- **Selbst-Scan → eigener Avatar:** Bereich „Eigenen Avatar erstellen“ (auch im Kundenmodus) → Hinweis und Einwilligung → Kamera → eigene Scan-Oberfläche (zurückgehen, langsam drehen, Fortschritt Vorne/Seite/Hinten, Mini-Avatar) → „Scan fertig“ → eigener Avatar in 3D (drehen, zoomen) → Kleidung und Größen. Fehler (Kamera verweigert/belegt, nicht ganz im Bild, abgebrochen) mit „Nochmal versuchen“.
 - **Kleidung hochladen:** Hose/Shorts/Rock oder Oberteil aus Fotos vorne + hinten (Bankkarte oder A4 als Maßstab), Link zur Hose im Shop, Maßtabelle (auch per Texterkennung).
 - **Größenempfehlung je Zone** (Bund, Hüfte, Oberschenkel, Knie, Länge; Oberteile Brust usw.), Größenwechsel im 3D.
 - **Modelle speichern und löschen** (Gerät, Server-Sammlung, Datei), Avatar nur als Zahlen.
@@ -32,8 +32,10 @@ Vorlagen-Meshes je Kategorie (Hose: parametrische Ringe mit Rig Hüfte/Knie; Obe
 ## Aktueller Stand
 **Funktioniert:** neue Hose aus 2 Fotos mit Bankkarte (Länge 106,4 cm bei Maßband 105); Produktform der Hose nahe an der KI-Referenz
 (Umriss wie im Foto geprüft, Qualitätsgedächtnis); Oberteile aus Fotos (Art erkannt, live und am Avatar); Avatar-Scan lädt nach der
-Drehung (Echtzeit-Test mit Clip v2-02: Avatar nach etwa 30 s); Scan-Oberfläche; Kunden-/Entwicklermodus; Größen je Zone; Live-Tracking
-mit Ausblenden; Server-Sammlung (Netlify Blobs).
+Drehung; Avatar-Scan Ende zu Ende im Kundenmodus geprüft (`tavatarscan`: Desktop-Chrome, iPhone- und Android-Emulation, Kamera
+verweigert, Wechsel mit der Live-Anprobe; eigener Avatar nach etwa 35–40 s, Brust 9–16 cm, Hüfte/Taille einige cm anders als der
+Durchschnitt beim Referenzclip); Scan-Oberfläche; Kunden-/Entwicklermodus; Größen je Zone; Live-Tracking mit Ausblenden;
+Server-Sammlung (Netlify Blobs).
 
 **Offen / nicht gut:**
 - Eckige flache Flecken in der Hosen-Textur zwischen den Beinen (Ursache `spaltSchatten`, siehe `werkzeuge/qualitaet.json`).
@@ -42,7 +44,10 @@ mit Ausblenden; Server-Sammlung (Netlify Blobs).
 - Avatar in weiter Kleidung: Umfänge nur nach oben begrenzt; Eichung an gerenderten Körpern, nicht an echten Personen.
 - Oberteile nur an künstlichen Testbildern geprüft; Hoodie, Hemd, Kleid fehlen.
 - Shopify: Gerüst und Tests stehen; echter Entwicklungs-Shop, Händler-Seite im Admin und Abrechnung fehlen.
-- Safari/echtes iPhone nicht automatisch testbar; Messgenauigkeit mit 20–30 Personen gegen Maßband nicht gemacht.
+- Safari/echtes iPhone und Android-Gerät nicht automatisch testbar: geprüft nur in Chromium mit Geräte-Emulation (Bildschirm, Touch,
+  Kennung) und Testkamera aus Clips; Kamera-Freigabe, Leistung und WebGL am echten Handy ungeprüft.
+- Avatar-Maße streuen von Scan zu Scan (Referenzclip, weite Kleidung: Taille −6 bis +2 cm, Hüfte −8 bis +4 cm zum Durchschnitt).
+- Messgenauigkeit mit 20–30 Personen gegen Maßband nicht gemacht.
 - Bekannte rote Tests: `tseiten` (Kennzeichnung), `tlag` (Testmaschine zu langsam), `tfreistellung` (Diagnose).
 - Netlify: Produktions-Branch muss `main` sein (der frühere `claude/new-session-fbr0jp` ist gelöscht).
 
@@ -57,6 +62,12 @@ mit Ausblenden; Server-Sammlung (Netlify Blobs).
 - Weite Kleidung beim Scan: Umriss ist nur Obergrenze. Eichung Scan ↔ Körpermodell an gerenderten Körpern (`werkzeuge/avatar-eichen.mjs`).
 - Hose: Innenkanten der Beine als Gerade ab der Spaltöffnung im Foto; Umriss Foto/3D ist das Prüfmaß (Nutzer: „perfekt“).
 - Getragen-Look und Falten nicht von Hand modellieren (Nutzer: sah schlecht aus), später per Physik.
-- Avatar-Scan endet per Uhr (fast ganze Drehung, spätestens 30 s), nicht nur bei gültigen Bildern.
+- Avatar-Scan endet per Uhr, nicht nur bei gültigen Bildern: fast ganze Drehung mit Proben von hinten und der Seite, sonst nach 20 s
+  mit 3/4 Drehung, spätestens nach 30 s (ohne Rücken-/Seitenproben war der Avatar fast der Standardkörper).
+- „Avatar-Scan starten“ startet immer einen neuen Scan; den gespeicherten Avatar zeigt „Meinen Avatar ansehen“ (vorher öffnete der
+  Knopf bei gespeichertem Avatar nur die 3D-Ansicht, die Kamera ging nicht auf).
+- Kamera wird beim Tipp zuerst angefragt (höchstens 20 s Warten, tote Kamera nach App-Wechsel wird neu geholt); Fehler stehen im
+  Avatar-Bereich mit „Nochmal versuchen“, nicht nur oben auf der Seite.
+- HTML der Hosen- und Oberteil-Karte repariert (überzählige `</div>` schlossen Karte und Seitenrahmen zu früh).
 - Kundenmodus blendet aus statt zu löschen; Standard ist der Entwicklermodus (Tests, Entwicklung).
 - Website: „Umfänge“ in „Deine Maße“, „Maßband prüfen“ + „Testreihe“ in einer Karte; Sprache nur per Knopf, Stimme im Bereich „Stimme“.
