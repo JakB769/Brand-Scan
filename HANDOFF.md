@@ -199,3 +199,12 @@ Nicht im Repo (absichtlich): `node_modules/`, Testausgaben und Modell-Cache `wer
 - Testbilder: `material/produktfotos/` (Bershka front/back), `material/testbilder/` (Freistellung, Maßstab, echt, Rock, getragen).
 - Referenzen: `assets/referenz/README.md`, Spezifikation `docs/referenz-analyse/spezifikation.md`.
 - Archiv (nicht mehr pflegen): `PROGRESS.md`, `doku/verlauf.md`, `doku/chatverlauf.md`, `doku/code-karte.md` (Nachschlagen).
+
+## Aufräumen 18.11.
+- Sicherung vor dem Aufräumen: Branch `backup-2026-11-18` (Tags pushen und Branches löschen sind aus der Cloud-Sitzung gesperrt, HTTP 403; das geht nur lokal).
+- Branches gelöscht (lokal, alle in `claude/quirky-euler-jp345b` enthalten): `3d-modell-verbesserung`, `claude/claude-md-schlank`, `claude/new-session-fbr0jp`, `test-verbindung-133212`, `test-verbindung-133538`.
+- `prototypen/` gelöscht: 7 HTML-Prototypen vom 3.–7.10., ersetzt durch `app/index.html`.
+- `material/freisteller-alt/` gelöscht: alte Freisteller, nirgends benutzt.
+- `docs/vorher/`, `docs/nachher/` gelöscht: Vergleichsbilder vom 14.10., veraltet (`werkzeuge/ansichten.mjs`, `python/vorher_nachher.py` erzeugen sie neu).
+- `docs/vergleich/avatar_v1_*` gelöscht: ersetzt durch `avatar_v2_*`.
+
