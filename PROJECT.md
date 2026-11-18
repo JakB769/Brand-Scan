@@ -48,7 +48,7 @@ Server-Sammlung (Netlify Blobs).
   Kennung) und Testkamera aus Clips; Kamera-Freigabe, Leistung und WebGL am echten Handy ungeprüft.
 - Avatar-Maße streuen von Scan zu Scan (Referenzclip, weite Kleidung: Taille −6 bis +2 cm, Hüfte −8 bis +4 cm zum Durchschnitt).
 - Messgenauigkeit mit 20–30 Personen gegen Maßband nicht gemacht.
-- Bekannte rote Tests: `tseiten` (Kennzeichnung), `tlag` (Testmaschine zu langsam), `tfreistellung` (Diagnose).
+- Bekannte rote Tests: `tseiten` (Kennzeichnung), `tlag` (Testmaschine zu langsam), `tfreistellung` (Diagnose), `tfall` (Stoff-Fall der Anprobe-Form: Saum liegt nicht wie geprüft; Test lief seit der Produktansicht als Standard gar nicht mehr, jetzt läuft er durch und zeigt 6 rote Saum-Prüfungen).
 - Netlify: Produktions-Branch muss `main` sein (der frühere `claude/new-session-fbr0jp` ist gelöscht).
 
 ## Entscheidungen (nicht neu herausfinden)
@@ -70,4 +70,5 @@ Server-Sammlung (Netlify Blobs).
   Avatar-Bereich mit „Nochmal versuchen“, nicht nur oben auf der Seite.
 - HTML der Hosen- und Oberteil-Karte repariert (überzählige `</div>` schlossen Karte und Seitenrahmen zu früh).
 - Kundenmodus blendet aus statt zu löschen; Standard ist der Entwicklermodus (Tests, Entwicklung).
+- Im Shop (Shopify-Seite mit `PASSFORM_KUNDE`) gilt immer der Kundenmodus, ohne Zahnrad (Kunden sollen nicht in den Entwicklermodus).
 - Website: „Umfänge“ in „Deine Maße“, „Maßband prüfen“ + „Testreihe“ in einer Karte; Sprache nur per Knopf, Stimme im Bereich „Stimme“.

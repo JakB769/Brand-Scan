@@ -5,7 +5,8 @@
    Einwilligung → Kamera (Frontkamera) → Scan-Oberfläche → „Scan fertig“ → eigener Avatar in 3D (messbar anders als der
    Standardkörper, passend zu Jakob 1,79 m) → drehen, zoomen → Hose am Avatar → Größe wechseln → danach Live-Anprobe mit Hose →
    umgekehrt: Live-Anprobe läuft, dann Avatar-Scan (bei gespeichertem Avatar) → Abbruch mit Hinweis. Dazu „Kamera verweigert“:
-   verständlicher Hinweis, nichts hängt, „Nochmal versuchen“ startet die Kamera.
+   verständlicher Hinweis, nichts hängt, „Nochmal versuchen“ startet die Kamera. Und „nicht ganz im Bild“ (Kamera zu nah, Kopf und
+   Füße abgeschnitten): Hinweis „zurückgehen“, kein Scan, nach der Wartezeit Abbruch mit Hinweis und „Nochmal versuchen“.
    Bilder: docs/tests/avatar/<gerät>_<nr>_<schritt>.jpg
      node werkzeuge/tests/tavatarscan.mjs [--geraete desktop,iphone,android] [--ohneBilder]          Braucht ffmpeg. */
 import { chromium, devices } from "playwright";
@@ -18,7 +19,8 @@ import { starte } from "../server.mjs";
 
 const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..") + "/", A = R + "werkzeuge/tests/ausgabe/", NM = R + "node_modules/";
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i < 0 ? d : process.argv[i + 1]; };
-const GERAETE = arg("geraete", "desktop,iphone,android").split(","), BILDER = !process.argv.includes("--ohneBilder"), OUT = R + "docs/tests/avatar/";
+const GERAETE = arg("geraete", "desktop,iphone,android").split(",").filter(g => ["desktop", "iphone", "android"].includes(g)),   // „keine“: nur die Fehlerfälle
+  BILDER = !process.argv.includes("--ohneBilder"), OUT = R + "docs/tests/avatar/";
 const GER = { desktop: { viewport: { width: 1280, height: 900 } }, iphone: devices["iPhone 13"], android: devices["Pixel 7"] };
 let fehler = 0; const pruefe = (ok, t) => { console.log((ok ? "ok    " : "FEHLER") + " " + t); if (!ok) fehler++; return ok; };
 if (BILDER) { fs.mkdirSync(OUT, { recursive: true }); for (const f of fs.readdirSync(OUT)) if (/\.jpg$/.test(f) && GERAETE.some(g => f.startsWith(g + "_"))) fs.unlinkSync(OUT + f); }
@@ -36,8 +38,8 @@ const srv = await starte(0), port = srv.address().port, URL0 = `http://localhost
 const typ = f => f.endsWith(".wasm") ? "application/wasm" : /\.m?js$/.test(f) ? "application/javascript" : "application/octet-stream";
 const b = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-video-capture=" + MJ,
   "--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
-async function kontext(opt, extra = {}) {
-  const ctx = await b.newContext({ ...opt, permissions: ["camera"], ...extra });
+async function kontext(opt, extra = {}, br = b) {
+  const ctx = await br.newContext({ ...opt, permissions: ["camera"], ...extra });
   await ctx.route("**/@mediapipe/tasks-vision@0.10.18/**", r => { const f = NM + "@mediapipe/tasks-vision/" + decodeURIComponent(r.request().url().split("@0.10.18/")[1].split("?")[0]);
     if (!fs.existsSync(f)) return r.abort(); r.fulfill({ status: 200, contentType: typ(f), headers: { "access-control-allow-origin": "*" }, body: fs.readFileSync(f) }); });
   for (const n of ["magic_touch.tflite", "pose_landmarker_full.task", "pose_landmarker_lite.task"])
@@ -107,10 +109,10 @@ for (const gname of GERAETE) {
   const av = await p.evaluate(() => { const d = window.__dbg, A = d.AV.form, S = d.avatarBauen(d.AV.kd, A.g, {}, A.H).m, r = x => Math.round(x * 10) / 10;
     const k = ["shoulder", "chest", "waist", "hip", "thigh", "leg"].filter(q => A.m[q] > 0 && S[q] > 0);
     return { H: A.H, g: A.g, m: Object.fromEntries(k.map(q => [q, r(A.m[q])])), std: Object.fromEntries(k.map(q => [q, r(S[q])])), ziele: Object.keys(d.AV.daten && d.AV.daten.z || {}).length }; });
-  const diff = Object.keys(av.m).map(q => Math.abs(av.m[q] - av.std[q])), anders = diff.filter(x => x >= 1).length;
+  const diff = Object.keys(av.m).map(q => Math.abs(av.m[q] - av.std[q])), anders = diff.filter(x => x >= 1).length, summe = diff.reduce((a, x) => a + x, 0);
   console.log("       Avatar:", JSON.stringify(av.m), "Standard:", JSON.stringify(av.std));
   pruefe(av.H === 179 && av.g === "m" && av.ziele >= 5, `Avatar aus dem Scan (179 cm, Mann, ${av.ziele} Ziele aus dem Scan)`);
-  pruefe(anders >= 2 && Math.max(...diff) >= 2, `eigener Avatar unterscheidet sich vom Standardkörper (${anders} Maße um ≥ 1 cm, größte Abweichung ${Math.max(...diff).toFixed(1)} cm)`);
+  pruefe(Math.max(...diff) >= 3 && summe >= 5, `eigener Avatar unterscheidet sich vom Standardkörper (größte Abweichung ${Math.max(...diff).toFixed(1)} cm, zusammen ${summe.toFixed(1)} cm, ${anders} Maße um ≥ 1 cm)`);
   pruefe(av.m.leg > 80 && av.m.leg < 100 && av.m.waist > 60 && av.m.waist < 100 && av.m.hip > 80 && av.m.hip < 112, `Proportionen passen zu 1,79 m (Bein ${av.m.leg}, Taille ${av.m.waist}, Hüfte ${av.m.hip} cm)`);
   // drehen und zoomen
   const y0 = await p.evaluate(() => window.__dbg.v3d.yaw); await p.click('.avansicht button[data-ansicht="1.5708"]').catch(() => {}); await p.waitForTimeout(1200);
@@ -151,11 +153,29 @@ for (const gname of GERAETE) {
   let z = await warte(p, z => !!z.status, 10000);
   pruefe(!!z && /nicht erlaubt/.test(z.status) && z.nochmal, `Hinweis: „${z ? z.status.slice(0, 70) : "–"}…“ mit „Nochmal versuchen“`);
   z = await zustand(p); pruefe(!z.on && !z.kamera && !z.scanUI, "nichts hängt: Scan aus, keine Scan-Oberfläche");
-  if (BILDER) await p.screenshot({ path: OUT + "desktop_99_kamera-verweigert.jpg", type: "jpeg", quality: 70 });
+  if (BILDER) { await p.locator("#avStatus").scrollIntoViewIfNeeded(); await p.waitForTimeout(600); await p.screenshot({ path: OUT + "desktop_99_kamera-verweigert.jpg", type: "jpeg", quality: 70 }); }
   await p.evaluate(() => { window.__verweigern = false; }); await p.click("#avNochmal");
   z = await warte(p, z => z.kamera && z.on && z.scanUI, 20000); pruefe(!!z, "nach Erlauben: „Nochmal versuchen“ startet Kamera und Scan");
   pruefe(errs.length === 0, "keine Skriptfehler" + (errs.length ? ": " + [...new Set(errs)].slice(0, 3).join(" | ") : ""));
   await ctx.close(); }
+
+// Nicht ganz im Bild: zweite Testkamera (Ausschnitt ohne Kopf und Füße), Wartezeit für den Test 15 s statt 90 s
+{ console.log("\n=== Nicht ganz im Bild ===");
+  const MJ2 = TMP + "/nah.mjpeg";
+  execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-t", "8", "-i", C + "v2-01_stehen-neutral-vorne.mp4", "-vf", "crop=iw*0.7:ih*0.62:iw*0.15:ih*0.16,scale=720:1280,fps=30,setsar=1", "-q:v", "5", "-f", "mjpeg", MJ2]);
+  const b2 = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-video-capture=" + MJ2, "--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
+  const ctx = await kontext(GER.desktop, { storageState: speicher }, b2), p = await ctx.newPage(); const errs = []; p.on("pageerror", e => errs.push(e.message));
+  await p.addInitScript(() => { window.__frontalMaxMs = 15000; });
+  await p.goto(URL0); await p.waitForTimeout(800); await p.click("#modusBtn"); await p.waitForTimeout(200);
+  await p.locator("#avCard").scrollIntoViewIfNeeded(); await p.click("#avOption"); await p.fill("#avGroesse", "179"); await p.click("#avJa");
+  let z = await warte(p, z => z.kamera && /zurück|nicht sichtbar|ins Bild/i.test(z.coach), 20000);
+  pruefe(!!z, `Hinweis zum Zurückgehen: „${z ? z.coach : (await zustand(p)).coach}“`); if (BILDER && z) await p.screenshot({ path: OUT + "desktop_97_nicht-ganz-im-bild.jpg", type: "jpeg", quality: 70 });
+  z = await zustand(p); pruefe(z.stufe === "start", "kein Scan, solange nicht ganz im Bild");
+  z = await warte(p, z => !!z.status, 30000, 500);
+  pruefe(!!z && /nicht ganz im Bild/.test(z.status) && z.nochmal && !z.kamera && !z.on, `nach der Wartezeit: „${z ? z.status.slice(0, 60) : "–"}…“ mit „Nochmal versuchen“, Kamera aus`);
+  if (BILDER && z) { await p.locator("#avStatus").scrollIntoViewIfNeeded(); await p.waitForTimeout(600); await p.screenshot({ path: OUT + "desktop_98_abbruch-nicht-im-bild.jpg", type: "jpeg", quality: 70 }); }
+  pruefe(errs.length === 0, "keine Skriptfehler" + (errs.length ? ": " + [...new Set(errs)].slice(0, 3).join(" | ") : ""));
+  await ctx.close(); await b2.close(); }
 
 await b.close(); srv.close(); fs.rmSync(TMP, { recursive: true, force: true });
 if (BILDER) console.log("Bilder: docs/tests/avatar/");

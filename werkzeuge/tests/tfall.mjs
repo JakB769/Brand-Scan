@@ -14,13 +14,14 @@ await p.fill('#height','179');
 await p.setInputFiles('#own-front',fotos+'front.jpg'); await p.setInputFiles('#own-back',fotos+'back.jpg'); await p.fill('#own-waist','40'); await p.click('#own-go');
 await p.waitForFunction(()=>/Fertig/.test(document.getElementById('own-msg').textContent),null,{timeout:60000});
 const box=await p.$('#g3dview'); await box.scrollIntoViewIfNeeded();
-const laenge=async l=>{ await p.fill('#g-len',String(l)); await p.dispatchEvent('#g-len','input'); await p.waitForTimeout(400);
+// Anprobe-Form messen, nicht die Produktform (seit 10.11. Standard der 3D-Ansicht; wie tgroessen, tpassform)
+const laenge=async l=>{ await p.evaluate(()=>{ window.__dbg.v3d.produkt=false; window.__dbg.g3.cOk=false; }); await p.fill('#g-len',String(l)); await p.dispatchEvent('#g-len','input'); await p.waitForTimeout(400);
   for(let t=0;t<200;t++){ if(await p.evaluate(()=>{ const c=window.__dbg.g3.drape; return !!c&&[...c.values()].every(j=>j.done); })) break; await p.waitForTimeout(300); }
   await p.evaluate(()=>{ const v=window.__dbg.v3d; v.yaw=0; v.idle=1e15; }); await p.waitForTimeout(1200); };
 // Lage in der 3D-Ansicht (wie view3dPose, Drehung 0): Höhe über dem Boden und Abstand zur Knöchelachse je Bein, in cm
 const form=()=>p.evaluate(()=>{ const d=window.__dbg, G=d.GARMENTS[d.g.key], c=document.getElementById('g3dview'), W=c.width, H=c.height;
   const Hc=179, beltH=.52*Hc+.045*Hc, len=+document.getElementById('g-len').value.replace(',','.'), ppc=H*.9/Math.max(beltH+6,len+10), floor=H*.955, half=.075*Hc*ppc;   // Knöchel der Puppe (seit 14.10. Füße 27 cm auseinander)
-  const M=d.g3.M, NR=M.nr, n=d.g3.nRing, C=n/(4*NR), P=d.g3.pos; let ok=true;
+  const M=d.g3.M||G.m3, NR=M.nr, n=d.g3.nRing, C=n/(4*NR), P=d.g3.pos; let ok=true;
   for(let k=0;k<d.g3.nv*3;k++) if(!isFinite(P[k])) ok=false;
   const o={ok,minH:1e9,saumMin:1e9,saumMax:-1e9,rBoden:0,rSaum:0,rOben:0,vorUnten:-1e9,vorOben:-1e9,kreuz:0,mitte:[],vh:[],hinten:0};
   for(let s=0;s<2;s++){ const ax=W/2+(s?-1:1)*half;

@@ -50,7 +50,7 @@ const ok = await p.evaluate(() => { const d = window.__dbg; return !!(d.AV && d.
 if (arg("bild")) await p.screenshot({ path: path.resolve(arg("bild")) });
 if (ok) console.log("Avatar:", JSON.stringify(await p.evaluate(() => { const d = window.__dbg, A = d.AV.form, D = d.AV.daten, S = d.avatarBauen(d.AV.kd, A.g, {}, A.H).m, r = x => Math.round(x * 10) / 10;
   const k = ["shoulder", "chest", "waist", "hip", "thigh", "knee", "leg"].filter(q => A.m[q] > 0);
-  return { np: D.np, lose: D.lose, kamera: D.kamera, ohneTiefe: D.ohneTiefe, rest: D.rest, ziele: D.z, regler: Object.fromEntries(Object.entries(D.p).filter(([, v]) => Math.abs(v) > .01).map(([q, v]) => [q, r(v * 100) / 100])),
+  return { np: d.AV.np, lose: D.lose, kamera: D.kamera, ohneTiefe: D.ohneTiefe, rest: D.rest, ziele: D.z, regler: Object.fromEntries(Object.entries(D.p).filter(([, v]) => Math.abs(v) > .01).map(([q, v]) => [q, r(v * 100) / 100])),
     avatar: Object.fromEntries(k.map(q => [q, r(A.m[q])])), standard: Object.fromEntries(k.map(q => [q, r(S[q])])) }; })));
 console.log(ok ? `Eigener Avatar steht in der 3D-Ansicht (nach ${Math.round((Date.now() - t0) / 1000)} s)` : "FEHLER: kein eigener Avatar" + (fertig ? " sichtbar" : " berechnet"), errs.length ? "| Skriptfehler: " + [...new Set(errs)].slice(0, 3).join(" | ") : "");
 await b.close(); srv.close(); fs.rmSync(TMP, { recursive: true, force: true }); process.exit(ok ? 0 : 1);

@@ -1079,7 +1079,7 @@ function kameraText(e){ const n=e&&e.name||"", m=e&&e.message||String(e||"");
   if(n==="Unsicher") return "Die Kamera geht nur, wenn die Seite über https:// geöffnet ist.";
   return "Die Kamera ließ sich nicht starten ("+m+"). Bitte „Nochmal versuchen“ tippen.";
 }
-const kameraLebt=()=>!!(stream&&stream.getVideoTracks().some(t=>t.readyState==="live"));
+const kameraLebt=()=>!!(stream&&stream.getVideoTracks().some(t=>t.readyState==="live"&&!t.muted));   // iOS: nach App-Wechsel „stumm“
 async function startCamera(){
   if(starting) return;
   const h=num($("height").value);
@@ -4445,7 +4445,7 @@ function avatarScanLos(nochmal){
   try{ scanZuruecksetzen(); }catch(e){ console.warn("Scan zurücksetzen",e); }       // frischer Scan: Frontal-Scan im Stehen, dann drehen
   // Kamera zuerst, direkt im Tipp (iOS); nichts davor darf scheitern (18.11.: vorher liefen Oberfläche und Größenlogik davor, ein
   // Fehler dort hätte die Kamera nie gefragt). Verweigert oder Fehler: Scan nicht scharf lassen, Hinweis mit „Nochmal versuchen“.
-  if(!(running||starting)) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="start"&&!running&&!starting){ avatarAbbruch(); avatarStatus(kameraText(camFehler||new Error("Kamera nicht gestartet"))); } });
+  if(!(running||starting)) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="start"&&!running&&!starting){ avatarAbbruch(); $("error").hidden=true; avatarStatus(kameraText(camFehler||new Error("Kamera nicht gestartet"))); } });
   // Größe wie von Hand eingetragen: gespeichert, Testpersonen-Markierung, Größenauswahl
   try{ for(const t of ["input","change"]) $("height").dispatchEvent(new Event(t)); }catch(e){ console.warn("Größe",e); }
   try{ AV.fehler=""; avatarUI(); clearInterval(AVS.uiUhr); AVS.uiUhr=setInterval(scanUI,250); scanUI(); }catch(e){ console.warn("Scan-Oberfläche",e); }
@@ -4530,7 +4530,7 @@ function avatarScanBild(o){
 /* Scan-Oberfläche (18.11.): Fortschritt je Blickrichtung, Prozent der Drehung (24 Winkel), Mini-Avatar mit den Maßen bis jetzt,
    der sich mit dir dreht; Ring unter den Füßen: gescannte Winkel grün, fehlende grau. Läuft per Uhr, solange der Scan an ist. */
 function scanUI(){
-  if(AVS.on&&AVS.stufe==="start"&&running&&AVS.tStart&&performance.now()-AVS.tStart>90000){     // 90 s ohne Scan von vorn
+  if(AVS.on&&AVS.stufe==="start"&&running&&AVS.tStart&&performance.now()-AVS.tStart>(window.__frontalMaxMs||90000)){     // 90 s ohne Scan von vorn (Test: kürzer)
     avatarAbbruch(); AVS.still=true; endTryon(); AVS.still=false;
     avatarStatus("Scan abgebrochen: Du warst nicht ganz im Bild. Handy auf Hüfthöhe stellen, 2–3 m zurückgehen, bis Kopf und Füße zu sehen sind, und nochmal versuchen."); }
   const an=AVS.on&&["start","drehen","rechnen"].includes(AVS.stufe);
@@ -4618,7 +4618,8 @@ async function avatarScanFertig(){
     const r1=x=>Math.round(x*10)/10, m=Object.fromEntries(Object.entries(A.m).map(([k,v])=>[k,r1(v)]));
     const ohneTiefe=!isFinite(z.hipD)&&!isFinite(z.waistD);
     const np=AVS.proben?["vorn","hinten","seiteL","seiteR"].map(k=>AVS.proben[k].length):null;     // Proben je Blickrichtung (Prüfung)
-    const d={v:1,g,H,np,p:f.p,m,z:Object.fromEntries(Object.entries(z).filter(([,v])=>isFinite(v)).map(([k,v])=>[k,r1(v)])),lose,kamera,ohneTiefe,farben,rest:r1(f.rest),at:Date.now()};
+    AV.np=np;
+    const d={v:1,g,H,p:f.p,m,z:Object.fromEntries(Object.entries(z).filter(([,v])=>isFinite(v)).map(([k,v])=>[k,r1(v)])),lose,kamera,ohneTiefe,farben,rest:r1(f.rest),at:Date.now()};
     try{ localStorage.setItem(AV_KEY,JSON.stringify(d)); }catch(_){}
     AV.form=A; AV.daten=d; AV.rechnet=false; v3d.ohneAvatar=false; v3d.zoom=1; v3d.pan=0; v3d.ziel=0; avatarUI(); renderSizes(true); view3dKick();
     // eigener Avatar sofort sichtbar (18.11.): 3D-Bereich zeigen und hinscrollen (vorher nur Scrollen zu einem noch verborgenen Kasten)
@@ -9013,9 +9014,9 @@ $("avOption").addEventListener("click",()=>{
   avatarScanStart(); });
 /* Kunden-/Entwicklermodus (18.11.): Zahnrad oben rechts, Einstellung gespeichert. Kundenmodus: nur Scan starten, Live-Anprobe,
    Produkt/Größe wählen, Avatar drehen; Hochladen, Messwerte, Testpersonen, Testreihe, Debug und Messlinien sind aus. */
-function modusSetzen(k){
-  MODUS.kunde=!!k; try{ localStorage.setItem("passformModus",MODUS.kunde?"kunde":"entwickler"); }catch(_){}
-  document.body.classList.toggle("kunde",MODUS.kunde); const b=$("modusBtn");
+function modusSetzen(k,merken=true){
+  MODUS.kunde=!!k; if(merken) try{ localStorage.setItem("passformModus",MODUS.kunde?"kunde":"entwickler"); }catch(_){}
+  document.body.classList.toggle("kunde",MODUS.kunde||!!KUNDE); const b=$("modusBtn");
   b.textContent=MODUS.kunde?"⚙":"⚙ Kundenmodus"; b.title=MODUS.kunde?"Entwicklermodus einschalten":"Kundenmodus einschalten"; b.setAttribute("aria-pressed",String(MODUS.kunde));
   if(MODUS.kunde) dbg.on=false; else try{ dbg.on=localStorage.getItem("massScanDebug")==="1"; }catch(_){}
 }
@@ -9024,7 +9025,10 @@ function modusSetzen(k){
     [...document.querySelectorAll("summary")].find(s=>s.textContent.trim()==="Stimme")?.closest("details")];
   for(const e of dev) if(e) e.classList.add("nurdev");
   let gespeichert=null; try{ gespeichert=localStorage.getItem("passformModus"); }catch(_){}
-  modusSetzen(gespeichert==="kunde"); $("modusBtn").addEventListener("click",()=>modusSetzen(!MODUS.kunde)); }
+  // im Shop (Shopify-Server setzt PASSFORM_KUNDE) immer Kundenmodus, ohne Umschalter (18.11.: vorher nahm der Umschalter im
+  // Entwicklermodus die Klasse „kunde“ weg und im Shop waren Händler-Werkzeuge zu sehen)
+  if(KUNDE){ $("modusBtn").hidden=true; modusSetzen(true,false); } else modusSetzen(gespeichert==="kunde");
+  $("modusBtn").addEventListener("click",()=>{ if(!KUNDE) modusSetzen(!MODUS.kunde); }); }
 loadOwn(); window.__dbg={fc,g,GARMENTS,g3,cam,dbg,parseSizeText:typeof parseSizeText!=="undefined"?parseSizeText:null,sizeSeries:typeof sizeSeries!=="undefined"?sizeSeries:null,tableDims:typeof tableDims!=="undefined"?tableDims:null,PERF:typeof PERF!=="undefined"?PERF:null,HIPF:typeof HIPF!=="undefined"?HIPF:null,segGarment:typeof segGarment!=="undefined"?segGarment:null,findReference:typeof findReference!=="undefined"?findReference:null,refFarbe:typeof refFarbe!=="undefined"?refFarbe:null,orderQuad:typeof orderQuad!=="undefined"?orderQuad:null,scaleCanvas:typeof scaleCanvas!=="undefined"?scaleCanvas:null,readPhotoMeta:typeof readPhotoMeta!=="undefined"?readPhotoMeta:null,levelBySensor:typeof levelBySensor!=="undefined"?levelBySensor:null,isSkin:typeof isSkin!=="undefined"?isSkin:null,kmeans:typeof kmeans!=="undefined"?kmeans:null,fileToCanvas:typeof fileToCanvas!=="undefined"?fileToCanvas:null,STOFFE:typeof STOFFE!=="undefined"?STOFFE:null,stoffAusText:typeof stoffAusText!=="undefined"?stoffAusText:null,PASSFORM:typeof PASSFORM!=="undefined"?PASSFORM:null,UP:typeof UP!=="undefined"?UP:null,findPerson:typeof findPerson!=="undefined"?findPerson:null,loadPoseImg:typeof loadPoseImg!=="undefined"?loadPoseImg:null,sceneParts:typeof sceneParts!=="undefined"?sceneParts:null,twoLegs:typeof twoLegs!=="undefined"?twoLegs:null,v3d:typeof v3d!=="undefined"?v3d:null,drapeFor:typeof drapeFor!=="undefined"?drapeFor:null,shirt:typeof shirt!=="undefined"?shirt:null,wornMask:typeof wornMask!=="undefined"?wornMask:null,wornSeeds:typeof wornSeeds!=="undefined"?wornSeeds:null,loadAiSeg:typeof loadAiSeg!=="undefined"?loadAiSeg:null,cropGarment:typeof cropGarment!=="undefined"?cropGarment:null,findGaps:typeof findGaps!=="undefined"?findGaps:null,flatSideScore:typeof flatSideScore!=="undefined"?flatSideScore:null,GEN:typeof GEN!=="undefined"?GEN:null,legCm:typeof legCm!=="undefined"?legCm:null,clearSm:typeof clearSm!=="undefined"?clearSm:null,trk:typeof trk!=="undefined"?trk:null,sizeAll:typeof sizeAll!=="undefined"?sizeAll:null,sizeVerdict:typeof sizeVerdict!=="undefined"?sizeVerdict:null,sizeReason:typeof sizeReason!=="undefined"?sizeReason:null,bodyMeas:typeof bodyMeas!=="undefined"?bodyMeas:null,sizeGarment:typeof sizeGarment!=="undefined"?sizeGarment:null,cutOf:typeof cutOf!=="undefined"?cutOf:null,AUS:typeof AUS!=="undefined"?AUS:null,AV:typeof AV!=="undefined"?AV:null,AVS:typeof AVS!=="undefined"?AVS:null,avatarAnpassen:typeof avatarAnpassen!=="undefined"?avatarAnpassen:null,avatarBauen:typeof avatarBauen!=="undefined"?avatarBauen:null,avatarDaten:typeof avatarDaten!=="undefined"?avatarDaten:null,avatarAnzeigen:typeof avatarAnzeigen!=="undefined"?avatarAnzeigen:null,avMasse:typeof avMasse!=="undefined"?avMasse:null,avatarScanZiele:typeof avatarScanZiele!=="undefined"?avatarScanZiele:null,OT:typeof OT!=="undefined"?OT:null,segGarment0:typeof segGarment0!=="undefined"?segGarment0:null,otLoecherZu:typeof otLoecherZu!=="undefined"?otLoecherZu:null,otFotoProfil:typeof otFotoProfil!=="undefined"?otFotoProfil:null,otTabelle:typeof otTabelle!=="undefined"?otTabelle:null,otUrteil:typeof otUrteil!=="undefined"?otUrteil:null,otKoerper:typeof otKoerper!=="undefined"?otKoerper:null,otFuer:typeof otFuer!=="undefined"?otFuer:null,otAktiv:typeof otAktiv!=="undefined"?otAktiv:null,avatarKnochen:typeof avatarKnochen!=="undefined"?avatarKnochen:null,avatarHaltung:typeof avatarHaltung!=="undefined"?avatarHaltung:null,otUeberHose:typeof otUeberHose!=="undefined"?otUeberHose:null,otVorlage:typeof otVorlage!=="undefined"?otVorlage:null,v3d:typeof v3d!=="undefined"?v3d:null,caps:typeof caps!=="undefined"?caps:null,garmentDims:typeof garmentDims!=="undefined"?garmentDims:null}; buildPicker(); renderSeries(); loadSharedGarments().then(wolkeStart); otInit();
 avatarUI(); { const a=avatarGespeichert(); if(a) avatarAnzeigen(a).catch(e=>console.warn("Avatar",e)); }   // gespeicherter Avatar
 </script>
