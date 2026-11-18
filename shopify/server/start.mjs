@@ -1,4 +1,4 @@
-/* Server der Shopify-App (ohne Abhängigkeiten, nur Node 18+). Siehe doku/shopify-einrichten.md.
+/* Server der Shopify-App (ohne Abhängigkeiten, nur Node 18+). Einrichten: ARCHITECTURE.md (Starten, Deploy).
 
    Kunde im Shop                       Shopify (App-Proxy, signiert)              dieser Server
    /apps/passform/anprobe?produkt=ID → /proxy/anprobe?produkt=ID&shop=…&signature=… → app/index.html im Kunden-Modus

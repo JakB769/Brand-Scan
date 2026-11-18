@@ -1,8 +1,8 @@
 /* Avatar neben dem Referenz-Menschen „Joe“ (assets/referenz/mensch, nur Vergleich, keine Lizenz): gleiche Ansichten (vorn,
    Seite, hinten), gleicher Maßstab (cm), gleiches Licht wie die Avatar-Darstellung der Seite (eigene kleine WebGL-Zeichnung).
    Gezeigt: Joe (1,67 m), der Durchschnitts-Avatar in Joes Größe (Mann, alle Regler 0) und, falls vorhanden, der Avatar aus dem
-   Scan der Referenzclips (docs/vergleich/avatar_v2.json, Jakob 1,79 m).
-     node werkzeuge/mensch-vergleich.mjs [--aus docs/vergleich]
+   Scan der Referenzclips (werkzeuge/tests/ausgabe/vergleich/avatar_v2.json, Jakob 1,79 m).
+     node werkzeuge/mensch-vergleich.mjs [--aus werkzeuge/tests/ausgabe/vergleich]
    Braucht Python mit usd-core (pip install usd-core) zum Lesen von Joe.usdc. */
 import { chromium } from "playwright";
 import { execFileSync } from "node:child_process";
@@ -13,7 +13,7 @@ import { starte } from "./server.mjs";
 
 const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + "/";
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i < 0 ? d : process.argv[i + 1]; };
-const OUT = path.resolve(R, arg("aus", "docs/vergleich")) + "/"; fs.mkdirSync(OUT, { recursive: true });
+const OUT = path.resolve(R, arg("aus", "werkzeuge/tests/ausgabe/vergleich")) + "/"; fs.mkdirSync(OUT, { recursive: true });
 const TMP = fs.mkdtempSync("/tmp/mensch-");
 // Joe: alle Meshes in Weltkoordinaten (cm, Y oben), Vielecke als Fächer geteilt
 execFileSync("python3", ["-c", `

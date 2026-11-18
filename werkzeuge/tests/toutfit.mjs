@@ -1,7 +1,7 @@
 // Kern-Test 2 (22.10.): Oberteil und Unterteil zusammen. T-Shirt + Shorts und Trägertop + Rock über die beiden Bereiche
 // „Oberteil hochladen“ und „Hose oder Rock hochladen“: Art richtig erkannt, Sitz nach den Metadaten (Shorts-Saum zwischen
 // Oberschenkel und Knie, Rock nie bis zum Boden, T-Shirt über dem Bund), 3D am Standardkörper (179 cm) ohne Fehler.
-// Renders nach docs/tests/ (oder --bilder <Ordner>).
+// Renders nach werkzeuge/tests/ausgabe/outfit/ (oder --bilder <Ordner>).
 //   node werkzeuge/tests/toutfit.mjs [--bilder <Ordner>]
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 const hier=fileURLToPath(new URL('.',import.meta.url)), R=path.resolve(hier,'../..')+'/', T=R+'material/testbilder/';
 const arg=(n,d)=>{ const i=process.argv.indexOf('--'+n); return i<0?d:process.argv[i+1]; };
-const AUS=path.resolve(arg('bilder',R+'docs/tests'))+'/'; fs.mkdirSync(AUS,{recursive:true});
+const AUS=path.resolve(arg('bilder',R+'werkzeuge/tests/ausgabe/outfit'))+'/'; fs.mkdirSync(AUS,{recursive:true});
 const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
 const p=await (await b.newContext({viewport:{width:900,height:1100}})).newPage(); const errs=[];
 p.on('pageerror',e=>errs.push(e.message)); p.on('console',m=>{ if(m.type()==='error'&&!/GL Driver|KI im Test|Failed to load/.test(m.text())) errs.push(m.text()); });

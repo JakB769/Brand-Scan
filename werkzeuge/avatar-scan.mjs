@@ -2,7 +2,7 @@
    Selbst-Scan“ → Einwilligung → Frontal-Scan im Stehen (Standbild aus dem Steh-Clip) → Drehung (Dreh-Clip, Bild für Bild mit
    virtueller Uhr, 30 Bilder/s, bei Bedarf zweimal) → Avatar. Vorher wird die Testhose aus den flachen Fotos gebaut.
      node werkzeuge/avatar-scan.mjs [--clip assets/referenz/videos/clips/v2-02_drehung-360.mp4] [--scan <steh-clip>]
-                                    [--k .82] [--groesse 179] [--aus docs/vergleich] [--name v2]
+                                    [--k .82] [--groesse 179] [--aus werkzeuge/tests/ausgabe/vergleich] [--name v2]
    --k: Bild verkleinert in die Mitte gesetzt (im Clip ist der Kopf am oberen Rand angeschnitten; so steht man „weit genug weg“).
    Ergebnis: Ziele aus dem Scan und Maße des Avatars in der Konsole und in <aus>/avatar_<name>.json; Bilder des Avatars mit Hose
    von vorn, von der Seite und von hinten neben den passenden Bildern aus dem Clip: <aus>/avatar_<name>_hose_vs_foto.jpg.
@@ -18,7 +18,7 @@ const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + "/"
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i < 0 ? d : process.argv[i + 1]; };
 const CLIP = path.resolve(R, arg("clip", "assets/referenz/videos/clips/v2-02_drehung-360.mp4")), K = +arg("k", .82), H = +arg("groesse", 179);
 const SCAN = path.resolve(R, arg("scan", path.basename(CLIP).startsWith("v1") ? "assets/referenz/videos/clips/v1-01_stehen-neutral-vorne.mp4" : "assets/referenz/videos/clips/v2-01_stehen-neutral-vorne.mp4"));
-const OUT = path.resolve(R, arg("aus", "docs/vergleich")) + "/", NAME = arg("name", path.basename(CLIP).slice(0, 2)), FPS = 30;
+const OUT = path.resolve(R, arg("aus", "werkzeuge/tests/ausgabe/vergleich")) + "/", NAME = arg("name", path.basename(CLIP).slice(0, 2)), FPS = 30;
 const [VORNE, HINTEN] = ["assets/referenz/fotos/flach-vorne-hinten/vorne.jpg", "assets/referenz/fotos/flach-vorne-hinten/hinten.jpg"].map(f => R + f);
 fs.mkdirSync(OUT, { recursive: true }); const TMP = fs.mkdtempSync("/tmp/avatar-scan-");
 execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-i", CLIP, "-vf", `fps=${FPS}`, TMP + "/f%04d.jpg"]);

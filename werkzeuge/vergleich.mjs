@@ -1,6 +1,6 @@
 /* Vergleich mit der Referenz: die echte Seite mit echter Erkennung (MediaPipe), als Kamerabild nacheinander Referenzfotos und
    Einzelbilder aus den Referenz-Clips (assets/referenz/). Die Hose wird aus Vorder- und Rückseite gebaut (Felder), dann je Bild:
-   Bühne ohne Hose (Original), mit Hose, beides gemischt → nebeneinander in docs/vergleich/<zeit>/<name>.jpg.
+   Bühne ohne Hose (Original), mit Hose, beides gemischt → nebeneinander in werkzeuge/tests/ausgabe/vergleich/<zeit>/<name>.jpg.
      node werkzeuge/vergleich.mjs [--liste werkzeuge/vergleich-liste.json] [--nur name,name] [--aus dir] [--groesse 179]
                                   [--hose vorne.jpg,hinten.jpg] [--warten 3500] [--debug] [--seite datei.html]
                                   [--passform '{"beinTiefe":1.1}']
@@ -19,7 +19,7 @@ const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..") + "/"
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i < 0 ? d : (process.argv[i + 1] && !process.argv[i + 1].startsWith("--") ? process.argv[i + 1] : true); };
 const jetzt = new Date(), stempel = jetzt.toISOString().slice(0, 16).replace("T", "_").replace(":", "");
 const liste = JSON.parse(fs.readFileSync(path.resolve(R, arg("liste", "werkzeuge/vergleich-liste.json")), "utf8"));
-const nur = arg("nur", "") ? String(arg("nur")).split(",") : null, OUT = path.resolve(R, arg("aus", "docs/vergleich/" + stempel)) + "/";
+const nur = arg("nur", "") ? String(arg("nur")).split(",") : null, OUT = path.resolve(R, arg("aus", "werkzeuge/tests/ausgabe/vergleich/" + stempel)) + "/";
 const [VORNE, HINTEN] = String(arg("hose", "assets/referenz/fotos/flach-vorne-hinten/vorne.jpg,assets/referenz/fotos/flach-vorne-hinten/hinten.jpg")).split(",").map(f => path.resolve(R, f));
 const GROESSE = String(arg("groesse", "179")), WARTEN = +arg("warten", 3500), DEBUG = !!arg("debug", false), SEITE = arg("seite", "werkzeuge/tests/vergleichsseite.html");
 fs.mkdirSync(OUT, { recursive: true }); const TMP = fs.mkdtempSync("/tmp/vergleich-");

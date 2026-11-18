@@ -1,19 +1,7 @@
-# Brand-Scan · Passform
+# Passform
 
-Live-Anprobe für Hosen per Handy- oder Laptop-Kamera, geplant als Shopify-App.
+Virtuelle Anprobe für Mode-Shops (Shopify-App): live mit der Kamera oder am eigenen 3D-Avatar, mit Größenempfehlung.
 
-- **Aktueller Stand:** `app/index.html` (eine Datei, kein Build). Kamera braucht https, z. B. über app.netlify.com/drop.
-- **Einstieg und Übergabe:** `CLAUDE.md`
-- **Geschäftsplan:** `doku/pitch-plan.md`
-
-## Tests
-
-```sh
-npm install
-npm test
-```
-
-Läuft gegen `werkzeuge/tests/testseite-mit-simulierter-person.html` (Attrappe statt MediaPipe).
-Screenshots landen in `werkzeuge/tests/ausgabe/`.
-
-Hinweis: Die Bershka-Fotos unter `material/` sind nur interne Testdaten.
+- Was und warum, Stand, Entscheidungen: `PROJECT.md`
+- Dateien, Dienste, Starten, Tests, Deploy: `ARCHITECTURE.md`
+- Arbeitsregeln und Arbeitsweise: `CLAUDE.md`, `PROMPTING.md`

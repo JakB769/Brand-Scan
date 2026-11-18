@@ -2,7 +2,7 @@
    Jakob 1,79 m, Fabian 1,87 m und Philip 1,70 m (Körpermaße nur aus der Größe, wie ohne Scan) je Größe und Zone das Urteil der App.
      node werkzeuge/passform-rechnung.mjs [--vorne <foto>] [--hinten <foto>]
    Ausgabe: Tabelle in der Konsole und werkzeuge/tests/ausgabe/passform-rechnung.json (Hose, Körper, Urteile). Gegenrechnung von
-   Hand: PROGRESS.md, Abschnitt „Passform-Rechnung“. */
+   Ergebnis in der Konsole. */
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
