@@ -2,7 +2,7 @@
 // und auf dem Stand des Repos? Hintergrund (18.11.): Live fehlte avatar/koerper.js, lokal lief alles.
 // Aufruf: node werkzeuge/live-pruefung.mjs https://….netlify.app/   (oder LIVE_URL=… node werkzeuge/live-pruefung.mjs)
 //         --ohne-extern: CDN- und Modell-Dateien (jsdelivr, Google) nicht prüfen
-// Läuft automatisch: Netlify-Plugin netlify/plugins/live-pruefung (nach jedem erfolgreichen Deploy) und GitHub-Workflow live-pruefung.
+// Läuft automatisch: GitHub-Workflow live-pruefung (nach Push auf main und täglich, sobald die Repo-Variable LIVE_URL gesetzt ist).
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';

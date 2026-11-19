@@ -15,6 +15,8 @@ jobs:
     timeout-minutes: 20
     env:
       LIVE_URL: ${{ vars.LIVE_URL }}
+    # ohne Live-Adresse (Repo-Variable LIVE_URL) nichts zu prüfen
+    if: ${{ vars.LIVE_URL != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

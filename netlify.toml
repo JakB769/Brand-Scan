@@ -12,7 +12,3 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"          # bündelt @netlify/blobs (Sammlung der Hosen) in die Funktion
-
-# Nach jedem Deploy alle benötigten Dateien auf der Live-Adresse prüfen (fehlte am 18.11.: avatar/koerper.js)
-[[plugins]]
-  package = "./netlify/plugins/live-pruefung"
