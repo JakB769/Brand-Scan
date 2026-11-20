@@ -1005,8 +1005,25 @@ async function loadModel(){
     runningMode:"VIDEO",numPoses:1,outputSegmentationMasks:true,
     // bei schnellen Bewegungen lieber weiterverfolgen als neu suchen (sonst springen die Punkte, wenn die Suche kurz ausfällt)
     minPoseDetectionConfidence:.5,minPosePresenceConfidence:.4,minTrackingConfidence:.35};
+  try{ if(localStorage.getItem("passformErkennung")==="cpu") o.baseOptions.delegate="CPU"; }catch(_){}   // auf diesem Gerät ging GPU nicht
+  // eigene Zeichenfläche für die Grafik der Erkennung (20.11.): ohne sie legt MediaPipe eine OffscreenCanvas an; die kann in Safari
+  // (WebKit) kein WebGL, jede Erkennung scheiterte mit „GLctx.activeTexture“ und die Person wurde nie erkannt
+  o.canvas=document.createElement("canvas");
   try{ landmarker=await PoseLandmarker.createFromOptions(vision,o); }
   catch(_){ o.baseOptions.delegate="CPU"; landmarker=await PoseLandmarker.createFromOptions(vision,o); }
+}
+/* Erkennung fällt beim Laufen aus (20.11.): in der Safari-Engine startet die GPU-Erkennung, scheitert dann aber bei jedem Bild
+   („kGpuService“, WebGL); der Fehler wurde verschluckt, die Person nie erkannt, der Avatar-Scan kam nie über „zurückgehen“ hinaus.
+   Nach 5 Fehlern in Folge: Erkennung auf der CPU neu anlegen und das für dieses Gerät merken. */
+const ERK={fehler:0,wechsel:false,cpu:false};
+function erkennungFehler(){
+  if(++ERK.fehler<5||ERK.wechsel||ERK.cpu) return; ERK.wechsel=true;
+  (async()=>{ try{ const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
+      const lm=await PoseLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:PERF.lite?POSE_LITE:POSE_URL,delegate:"CPU"},runningMode:"VIDEO",numPoses:1,outputSegmentationMasks:true,
+        minPoseDetectionConfidence:.5,minPosePresenceConfidence:.4,minTrackingConfidence:.35,canvas:document.createElement("canvas")});
+      const alt=landmarker; landmarker=lm; ERK.cpu=true; try{ alt&&alt.close&&alt.close(); }catch(_){}
+      try{ localStorage.setItem("passformErkennung","cpu"); }catch(_){}
+    }catch(e){ console.warn("Erkennung auf der CPU",e); } finally{ ERK.fehler=0; ERK.wechsel=false; } })();
 }
 /* Kamera holen, mehrere Wege nacheinander: (1) bekanntes Gerät nach Namen (vorne/hinten, erst nach einer Freigabe lesbar),
    (2) facingMode exact, (3) facingMode als Wunsch. iOS Safari gibt bei „Wunsch“ oft wieder dieselbe Kamera, und direkt nach
@@ -1031,6 +1048,7 @@ async function getCam(want,size){
   }
   throw last||new Error("Keine Kamera gefunden");
 }
+const bisZu=(p,ms)=>Promise.race([Promise.resolve(p).catch(()=>null),new Promise(r=>setTimeout(()=>r(null),ms))]);   // Wert oder null, nie hängen
 let camBusy=false;
 async function openStream(){
   if(camBusy) throw new Error("Kamera wird gerade gewechselt");
@@ -1044,7 +1062,7 @@ async function openStream0(){
   stream=await getCam(facing,size);
   // Gerätenamen sind erst nach der Freigabe lesbar: jetzt die Ultraweitwinkel-Linse suchen
   try{
-    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="videoinput");
+    const devs=(await bisZu(navigator.mediaDevices.enumerateDevices(),1500)||[]).filter(d=>d.kind==="videoinput");
     camCount=devs.length;
     if(facing==="environment"){
       const uw=devs.find(d=>/ultra|0[.,]5/i.test(d.label)&&!/front|vorder|face/i.test(d.label));
@@ -1058,7 +1076,8 @@ async function openStream0(){
   // Wo die Kamera einen Zoom anbietet: ganz herausfahren
   try{
     const t=stream.getVideoTracks()[0], caps=t.getCapabilities?t.getCapabilities():{};
-    if(caps.zoom&&typeof caps.zoom.min==="number") await t.applyConstraints({advanced:[{zoom:caps.zoom.min}]});
+    const z0=(t.getSettings&&t.getSettings().zoom)||0;
+    if(caps.zoom&&typeof caps.zoom.min==="number"&&z0>caps.zoom.min) await bisZu(t.applyConstraints({advanced:[{zoom:caps.zoom.min}]}),1500);
   }catch(_){}
   try{ wide=wide||/ultra|0[.,]5/i.test(stream.getVideoTracks()[0].label||""); }catch(_){}
   cam.fk=wide?.42:.8;                          // Ultraweitwinkel hat etwa die halbe Brennweite
@@ -1066,7 +1085,9 @@ async function openStream0(){
   try{ const fm=stream.getVideoTracks()[0].getSettings().facingMode; if(fm==="user"||fm==="environment") facing=fm; }catch(_){}
   { const tr=stream.getVideoTracks()[0]; if(tr) tr.addEventListener("ended",()=>{ if(!stream||stream.getVideoTracks()[0]!==tr||!(running||starting)) return;
       const scan=AVS.on&&AVS.stufe!=="rechnen"; stopCamera(); if(scan) avatarStatus("Die Kamera wurde unterbrochen (z. B. App gewechselt oder Bildschirm aus). Der Scan ist abgebrochen."); else showError("Die Kamera wurde unterbrochen. Bitte neu starten."); }); }
-  video.srcObject=stream; await video.play();
+  // play(): höchstens 3 s warten und nie den Start scheitern lassen (iOS: hängt oder „NotAllowedError“, obwohl die Kamera erlaubt
+  // ist; das Bild kommt dann über autoplay oder beim Tipp ins Bild). Vorher hieß das „Kamera nicht erlaubt“.
+  video.srcObject=stream; await bisZu(video.play().catch(e=>console.warn("Video abspielen",e)),3000);
   stage.classList.toggle("mirror",facing==="user");
   $("flip").hidden=!(camCount>1&&matchMedia("(pointer:coarse)").matches);
 }
@@ -1077,6 +1098,7 @@ function kameraText(e){ const n=e&&e.name||"", m=e&&e.message||String(e||"");
   if(n==="NotReadableError"||n==="AbortError"||/gewechselt/.test(m)) return "Die Kamera wird gerade anderswo benutzt (andere App oder anderer Tab). Bitte dort schließen und „Nochmal versuchen“ tippen.";
   if(n==="TimeoutError") return "Die Kamera antwortet nicht. Bitte „Nochmal versuchen“ tippen; hilft das nicht, die Seite neu laden.";
   if(n==="Unsicher") return "Die Kamera geht nur, wenn die Seite über https:// geöffnet ist.";
+  if(n==="ErkennungFehlt") return "Die Kamera geht, aber die Personenerkennung ließ sich nicht laden ("+m+"). Bitte Internetverbindung prüfen und „Nochmal versuchen“ tippen.";
   return "Die Kamera ließ sich nicht starten ("+m+"). Bitte „Nochmal versuchen“ tippen.";
 }
 const kameraLebt=()=>!!(stream&&stream.getVideoTracks().some(t=>t.readyState==="live"&&!t.muted));   // iOS: nach App-Wechsel „stumm“
@@ -1097,11 +1119,10 @@ async function startCamera(){
   camFehler=null;
   try{
     if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)) throw Object.assign(new Error("kein sicherer Kontext"),{name:"Unsicher"});
-    // höchstens 20 s auf die Kamera warten (sonst hing „starting“ für immer und jeder weitere Tipp tat nichts)
-    const p=openStream(); let uhr;
-    try{ await Promise.race([p,new Promise((_,nein)=>{ uhr=setTimeout(()=>nein(Object.assign(new Error("Kamera antwortet nicht"),{name:"TimeoutError"})),20000); })]); }
-    catch(e){ if(e.name==="TimeoutError"){ camGen++; p.then(()=>{ if(!running&&!starting){ try{ stream&&stream.getTracks().forEach(t=>t.stop()); }catch(_){} stream=null; } }).catch(()=>{}); } throw e; }
-    finally{ clearTimeout(uhr); }
+    // Freigabe dauert (Fenster des Browsers offen): Hinweis, kein Abbruch; die Kamera kommt, sobald man erlaubt (20.11.: vorher brach
+    // eine 20-s-Grenze ab, auch während das Fenster offen war, und verwarf die danach erlaubte Kamera)
+    const hinweis=setTimeout(()=>{ if(starting&&gen===camGen) coach("Kamera erlauben","Im Fenster des Browsers auf „Erlauben“ tippen","warn",true); },4000);
+    try{ await openStream(); } finally{ clearTimeout(hinweis); }
     if(aus()) return;
   }
   catch(e){
@@ -1112,6 +1133,7 @@ async function startCamera(){
   stage.scrollIntoView({behavior:"smooth",block:"center"});
   try{ if(!landmarker){ coach("Einen Moment","Erkennung wird geladen","warn",true); await loadModel(); } if(aus()) return; }
   catch(e){
+    camFehler=Object.assign(new Error(e&&e.message||String(e)),{name:"ErkennungFehlt"});
     showError("Die Erkennung konnte nicht geladen werden: "+e.message+" — Internetverbindung prüfen und neu starten.");
     coach("Erkennung nicht geladen","Internet prüfen, dann Anprobe beenden und neu starten","bad",true); setStatus("Erkennung nicht geladen","bad");
     starting=false; camUI(); return;
@@ -1320,8 +1342,8 @@ function perfTick(ms){ if(!window.__perfTest) return;
 async function loadLite(){
   PERF.liteLaden=true;
   try{ const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
-    const o={baseOptions:{modelAssetPath:POSE_LITE,delegate:"GPU"},runningMode:"VIDEO",numPoses:1,outputSegmentationMasks:true,
-      minPoseDetectionConfidence:.5,minPosePresenceConfidence:.4,minTrackingConfidence:.35};
+    const o={baseOptions:{modelAssetPath:POSE_LITE,delegate:ERK.cpu?"CPU":"GPU"},runningMode:"VIDEO",numPoses:1,outputSegmentationMasks:true,
+      minPoseDetectionConfidence:.5,minPosePresenceConfidence:.4,minTrackingConfidence:.35,canvas:document.createElement("canvas")};
     let lm; try{ lm=await PoseLandmarker.createFromOptions(vision,o); }catch(_){ o.baseOptions.delegate="CPU"; lm=await PoseLandmarker.createFromOptions(vision,o); }
     const alt=landmarker; landmarker=lm; PERF.lite=true; try{ alt&&alt.close&&alt.close(); }catch(_){}
   }catch(_){ PERF.liteLaden=false; }                     // kein Netz: beim vollen Modell bleiben
@@ -1331,8 +1353,8 @@ function loop(){
   if(video.videoWidth&&video.currentTime!==lastTime&&(!window.__gate||window.__gate())){
     lastTime=video.currentTime;
     let res=null; const t0=performance.now();
-    try{ res=landmarker.detectForVideo(inferSrc(),t0); analyse(res); }
-    catch(e){ console.error("ANALYSE",e&&e.stack||e); setStatus("Fehler bei der Erkennung","bad"); }
+    try{ res=landmarker.detectForVideo(inferSrc(),t0); ERK.fehler=0; analyse(res); }
+    catch(e){ console.error("ANALYSE",(e&&e.name)+": "+(e&&e.message)+" | "+(e&&e.stack||e)); setStatus("Fehler bei der Erkennung","bad"); erkennungFehler(); }
     finally{ try{ res&&res.close&&res.close(); }catch(_){} }
     perfTick(performance.now()-t0);
   }
@@ -3773,7 +3795,7 @@ function view3dFrame0(now){
    und Schritt über dem Boden), gleichmäßig auf die Körpergröße skaliert. Die Umfänge für die Größenauswahl kommen aus dem
    Querschnitt des Avatars (konvexe Hülle, wie ein Maßband), nicht aus einer angenommenen Ellipse. Gespeichert werden nur
    Geschlecht, Regler und Maße, keine Bilder. */
-const AV={kd:null,laed:null,form:null,gl:null,key:null,zeit:0};
+const AV={kd:null,laed:null,kdFehler:null,form:null,gl:null,key:null,zeit:0};
 const AV_KEY="passformAvatar", AV_PAR=["gewicht","muskel","waist-circ","hips-circ","gesaess","waisttohip-dist","thigh-circ","knee-circ","calf-circ","upperleg-height","lowerleg-height",
   // 22.10. (Körpermodell v2): Oberkörper und Arme, damit der Scan auch in weiter Kleidung die Form bestimmt (Schulterbreite,
   // Rumpf- und Armlängen, Arme als Maß für Gewicht/Muskeln); fehlen im Körpermodell v1 → wirken nicht
@@ -3790,12 +3812,12 @@ function avatarDaten(){
           d:t.b===8?new Int8Array(bin,t.d,t.n*3):new Int16Array(bin,t.d,t.n*3)})),
         // Skelett-Gewichte (Körpermodell v2, 22.10.): je Vertex 4 Knochengruppen und Gewichte (Summe 255), für Oberteile und Posen
         gew:M.gew?{i:new Uint8Array(bin,M.gew.i,M.nV*4),w:new Uint8Array(bin,M.gew.w,M.nV*4),gruppen:M.gruppen}:null};
-      delete window.PASSFORM_KOERPER; ok(AV.kd); }catch(e){ AV.laed=null; no(e); } };
+      delete window.PASSFORM_KOERPER; AV.kdFehler=null; ok(AV.kd); }catch(e){ AV.laed=null; AV.kdFehler=e; no(e); } };
     if(window.PASSFORM_KOERPER) return fertig();
     // erst avatar/koerper.js, sonst koerper.js direkt neben der Seite (Dateien flach hochgeladen, z. B. Netlify Drop ohne Unterordner)
     const wege=window.PASSFORM_AVATAR_URL?[window.PASSFORM_AVATAR_URL]:["avatar/koerper.js","koerper.js"];
     const lade=i=>{ const sc=document.createElement("script"); sc.src=wege[i]; sc.async=true; sc.onload=fertig;
-      sc.onerror=()=>{ sc.remove(); if(i+1<wege.length) lade(i+1); else { AV.laed=null; no(new Error("Körpermodell nicht geladen (avatar/koerper.js fehlt)")); } }; document.head.appendChild(sc); };
+      sc.onerror=()=>{ sc.remove(); if(i+1<wege.length) lade(i+1); else { AV.laed=null; no(AV.kdFehler=Object.assign(new Error("Körpermodell nicht geladen (avatar/koerper.js fehlt)"),{name:"KoerperFehlt"})); } }; document.head.appendChild(sc); };
     lade(0); });
 }
 /* Form aus Geschlecht g ("m"/"f") und Reglern p (je −1…1), cm, Y oben, Z vorn, Füße auf 0, noch nicht auf die Größe skaliert */
@@ -4432,12 +4454,18 @@ function avatarScanStart(){
   if(AV.daten&&(AV.daten.g==="m"||AV.daten.g==="f")) AVS.g=AV.daten.g;      // „Neu scannen“: wie beim letzten Mal
   $("avMann").setAttribute("aria-pressed",String(AVS.g==="m")); $("avFrau").setAttribute("aria-pressed",String(AVS.g==="f"));
   $("avDlg").hidden=false; $("avJa").focus();
+  avatarDaten().catch(()=>{});      // schon laden, während man liest und die Größe einträgt
 }
 const avatarAbbruch=()=>{ if(AVS.stufe!=="rechnen"){ AVS.on=false; AVS.stufe=""; } };
 function avatarScanLos(nochmal){
   const H=nochmal===true?AVS.letzteH:num($("avGroesse").value);
   if(!(H>=120&&H<=230)){ if(nochmal===true){ avatarScanStart(); return; } $("avGroesse").focus(); $("avGroesse").select(); return; }
   $("avDlg").hidden=true; avatarStatus("");
+  // Körpermodell (avatar/koerper.js) fehlt (20.11.: Live-Seite ohne den Ordner avatar/ hochgeladen): gar nicht erst die Kamera
+  // fragen. Vorher kam die Kamera-Frage, dann brach der Scan im Hintergrund ab, die Seite sprang zur „Anprobe in 3D“ und die
+  // Kamera ging nie auf. Jetzt: noch einmal laden, sonst Hinweis hier mit „Nochmal versuchen“.
+  if(AV.kdFehler&&!AV.kd&&!AV.laed){ AVS.letzteH=H; avatarStatus("Einen Moment …");
+    avatarDaten().then(()=>{ if(!AVS.on) avatarScanLos(true); },e=>{ if(!AVS.on) avatarStatus(koerperText(e)); }); return; }   // nicht doppelt starten (zweiter Tipp)
   // Kamera tot, Zustand noch „läuft“ (iOS nach App-Wechsel oder Bildschirm aus): erst beenden, dann neu holen (18.11.)
   if(running&&!kameraLebt()){ AVS.still=true; stopCamera(); AVS.still=false; }
   if($("height").value.trim()!==String(H)) $("height").value=String(H);          // startCamera prüft die Größe
@@ -4445,13 +4473,15 @@ function avatarScanLos(nochmal){
   try{ scanZuruecksetzen(); }catch(e){ console.warn("Scan zurücksetzen",e); }       // frischer Scan: Frontal-Scan im Stehen, dann drehen
   // Kamera zuerst, direkt im Tipp (iOS); nichts davor darf scheitern (18.11.: vorher liefen Oberfläche und Größenlogik davor, ein
   // Fehler dort hätte die Kamera nie gefragt). Verweigert oder Fehler: Scan nicht scharf lassen, Hinweis mit „Nochmal versuchen“.
-  if(!(running||starting)) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="start"&&!running&&!starting){ avatarAbbruch(); $("error").hidden=true; avatarStatus(kameraText(camFehler||new Error("Kamera nicht gestartet"))); } });
+  if(!(running||starting)) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="start"&&!running&&!starting){ avatarAbbruch(); $("error").hidden=true;
+      if(stream) stopCamera();                                                       // z. B. Erkennung nicht geladen: Kamera nicht offen lassen
+      avatarStatus(kameraText(camFehler||new Error("Kamera nicht gestartet"))); } });
   // Größe wie von Hand eingetragen: gespeichert, Testpersonen-Markierung, Größenauswahl
   try{ for(const t of ["input","change"]) $("height").dispatchEvent(new Event(t)); }catch(e){ console.warn("Größe",e); }
   try{ AV.fehler=""; avatarUI(); clearInterval(AVS.uiUhr); AVS.uiUhr=setInterval(scanUI,250); scanUI(); }catch(e){ console.warn("Scan-Oberfläche",e); }
   // Körpermodell schon laden, während man sich hinstellt; fehlt es (z. B. nur index.html hochgeladen), gleich abbrechen statt
   // nach der ganzen Drehung
-  avatarDaten().catch(e=>{ if(!AVS.on) return; avatarAbbruch(); endTryon(); avatarFehler("Das Körpermodell (avatar/koerper.js neben der Seite) ließ sich nicht laden: "+(e&&e.message||e)+". Bitte den ganzen Ordner hochladen."); });
+  avatarDaten().catch(e=>{ if(!AVS.on) return; avatarAbbruch(); endTryon(); avatarStatus(koerperText(e)); });
   $("stage").scrollIntoView({block:"start",behavior:"smooth"});
 }
 /* Hinweis im Bereich „Eigenen Avatar erstellen“ (18.11.): Kamera verweigert, Scan abgebrochen, nicht ganz im Bild; mit
@@ -4459,6 +4489,10 @@ function avatarScanLos(nochmal){
 function avatarStatus(t){
   const b=$("avStatus"); if(!b) return; b.hidden=!t; $("avStatusText").textContent=t||"";
   if(t) setTimeout(()=>{ if(!b.hidden) b.scrollIntoView({block:"center",behavior:"smooth"}); },150);
+}
+function koerperText(e){
+  return e&&e.name==="KoerperFehlt"?"Der Avatar-Scan geht auf dieser Seite gerade nicht: Die Datei „avatar/koerper.js“ (Körpermodell) fehlt auf der Website. Wer die Seite betreut: immer den ganzen Ordner „app“ samt Unterordner „avatar“ hochladen."
+    :"Das Körpermodell für den Avatar ließ sich nicht laden ("+(e&&e.message||e)+"). Bitte „Nochmal versuchen“ tippen.";
 }
 /* Fehler beim Avatar: beim 3D-Bereich zeigen (oben auf der Seite sähe man ihn nicht) */
 function avatarFehler(t){ AV.fehler=t; avatarUI(); avatarStatus(t); setTimeout(()=>{ const e=$("avMsg"); if(!e.hidden) e.scrollIntoView({block:"center",behavior:"smooth"}); },300); }
@@ -7365,7 +7399,9 @@ $("clean").addEventListener("click",e=>{ e.stopPropagation(); setClean(true); })
 stage.addEventListener("click",e=>{
   if(shopMode) return;
   if(clean){ setClean(false); return; }
-  if(e.target.closest("button")) return; cue(spoken||"Stell dich ins Bild",true); });
+  if(e.target.closest("button")) return;
+  if(video.srcObject&&video.paused) video.play().catch(()=>{});           // Bild stand (iOS ohne autoplay): Tipp startet es
+  cue(spoken||"Stell dich ins Bild",true); });
 $("flip").addEventListener("click",async()=>{
   if(camBusy||starting) return;
   const vorher=facing; facing=facing==="user"?"environment":"user"; $("flip").disabled=true;

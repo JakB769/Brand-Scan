@@ -33,7 +33,8 @@ Vorlagen-Meshes je Kategorie (Hose: parametrische Ringe mit Rig Hüfte/Knie; Obe
 **Funktioniert:** neue Hose aus 2 Fotos mit Bankkarte (Länge 106,4 cm bei Maßband 105); Produktform der Hose nahe an der KI-Referenz
 (Umriss wie im Foto geprüft, Qualitätsgedächtnis); Oberteile aus Fotos (Art erkannt, live und am Avatar); Avatar-Scan lädt nach der
 Drehung; Avatar-Scan Ende zu Ende im Kundenmodus geprüft (`tavatarscan`: Desktop-Chrome, iPhone- und Android-Emulation, Kamera
-verweigert, Wechsel mit der Live-Anprobe; eigener Avatar nach etwa 35–40 s, Brust 9–16 cm, Hüfte/Taille einige cm anders als der
+verweigert, Körpermodell fehlt, Wechsel mit der Live-Anprobe; zusätzlich in der Safari-Engine WebKit 26 mit iPhone-13-Emulation,
+`tavatarsafari`); eigener Avatar nach etwa 35–40 s, Brust 9–16 cm, Hüfte/Taille einige cm anders als der
 Durchschnitt beim Referenzclip); Scan-Oberfläche; Kunden-/Entwicklermodus; Größen je Zone; Live-Tracking mit Ausblenden;
 Server-Sammlung (Netlify Blobs).
 
@@ -44,8 +45,10 @@ Server-Sammlung (Netlify Blobs).
 - Avatar in weiter Kleidung: Umfänge nur nach oben begrenzt; Eichung an gerenderten Körpern, nicht an echten Personen.
 - Oberteile nur an künstlichen Testbildern geprüft; Hoodie, Hemd, Kleid fehlen.
 - Shopify: Gerüst und Tests stehen; echter Entwicklungs-Shop, Händler-Seite im Admin und Abrechnung fehlen.
-- Safari/echtes iPhone und Android-Gerät nicht automatisch testbar: geprüft nur in Chromium mit Geräte-Emulation (Bildschirm, Touch,
-  Kennung) und Testkamera aus Clips; Kamera-Freigabe, Leistung und WebGL am echten Handy ungeprüft.
+- Echtes iPhone und Android-Gerät ungeprüft: geprüft in Chromium (Desktop-, iPhone-, Android-Emulation, Testkamera aus Clips) und in
+  der Safari-Engine WebKit 26 (iPhone-13-Emulation, Ersatzkamera aus Einzelbildern); Kamera-Freigabe, Leistung und GPU am echten Handy ungeprüft.
+- Live-Seite: am 18.11. fehlte `avatar/koerper.js` (nur ein Teil hochgeladen), der Avatar-Scan brach ab. Immer den ganzen Ordner `app/`
+  veröffentlichen (Merge in `main` bzw. ganzer Ordner); automatische Live-Prüfung liegt im offenen PR „Live-Prüfung nach jedem Deploy“.
 - Avatar-Maße streuen von Scan zu Scan (Referenzclip, weite Kleidung: Taille −6 bis +2 cm, Hüfte −8 bis +4 cm zum Durchschnitt).
 - Messgenauigkeit mit 20–30 Personen gegen Maßband nicht gemacht.
 - Bekannte rote Tests: `tseiten` (Kennzeichnung), `tlag` (Testmaschine zu langsam), `tfreistellung` (Diagnose), `tfall` (Stoff-Fall der Anprobe-Form: Saum liegt nicht wie geprüft; Test lief seit der Produktansicht als Standard gar nicht mehr, jetzt läuft er durch und zeigt 6 rote Saum-Prüfungen).
@@ -66,8 +69,14 @@ Server-Sammlung (Netlify Blobs).
   mit 3/4 Drehung, spätestens nach 30 s (ohne Rücken-/Seitenproben war der Avatar fast der Standardkörper).
 - „Avatar-Scan starten“ startet immer einen neuen Scan; den gespeicherten Avatar zeigt „Meinen Avatar ansehen“ (vorher öffnete der
   Knopf bei gespeichertem Avatar nur die 3D-Ansicht, die Kamera ging nicht auf).
-- Kamera wird beim Tipp zuerst angefragt (höchstens 20 s Warten, tote Kamera nach App-Wechsel wird neu geholt); Fehler stehen im
-  Avatar-Bereich mit „Nochmal versuchen“, nicht nur oben auf der Seite.
+- Kamera wird beim Tipp zuerst angefragt, ohne Zeitgrenze für die Freigabe (Hinweis nach 4 s; eine 20-s-Grenze verwarf die später
+  erlaubte Kamera). Nebenschritte (Geräteliste, Zoom, Abspielen) warten höchstens 1,5–3 s; scheitert das Abspielen, läuft der Start weiter
+  (Tipp ins Bild startet es). Tote Kamera nach App-Wechsel wird neu geholt. Fehler stehen im Avatar-Bereich mit „Nochmal versuchen“;
+  lädt die Erkennung nicht, heißt es so (nicht „Kamera ließ sich nicht starten“).
+- Körpermodell (`avatar/koerper.js`) lädt schon beim Öffnen der Einwilligung; fehlt es, keine Kamera-Frage, sondern ein Hinweis im
+  Avatar-Bereich. Vorher: Kamera-Frage, dann Sprung zur „Anprobe in 3D“, Kamera ging nie auf (Fehlerbild des Nutzers, 20.11.).
+- MediaPipe bekommt immer eine eigene Zeichenfläche (`canvas`): sonst scheiterte in Safari jede Erkennung („GLctx.activeTexture“) und der
+  Scan kam nie über „zurückgehen“ hinaus. Nach 5 Fehlern in Folge Erkennung auf der CPU (für das Gerät gemerkt).
 - HTML der Hosen- und Oberteil-Karte repariert (überzählige `</div>` schlossen Karte und Seitenrahmen zu früh).
 - Kundenmodus blendet aus statt zu löschen; Standard ist der Entwicklermodus (Tests, Entwicklung).
 - Im Shop (Shopify-Seite mit `PASSFORM_KUNDE`) gilt immer der Kundenmodus, ohne Zahnrad (Kunden sollen nicht in den Entwicklermodus).

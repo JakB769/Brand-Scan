@@ -4,7 +4,7 @@
    Je Gerät (Desktop-Chrome, iPhone 13, Pixel 7 als Emulation): Kundenmodus → runterscrollen → „Eigenen Avatar erstellen“ →
    Einwilligung → Kamera (Frontkamera) → Scan-Oberfläche → „Scan fertig“ → eigener Avatar in 3D (messbar anders als der
    Standardkörper, passend zu Jakob 1,79 m) → drehen, zoomen → Hose am Avatar → Größe wechseln → danach Live-Anprobe mit Hose →
-   umgekehrt: Live-Anprobe läuft, dann Avatar-Scan (bei gespeichertem Avatar) → Abbruch mit Hinweis. Dazu „Kamera verweigert“:
+   umgekehrt: Live-Anprobe läuft, dann Avatar-Scan (bei gespeichertem Avatar) → Abbruch mit Hinweis. Dazu „Körpermodell fehlt“ (keine Kamera-Frage, Hinweis im Avatar-Bereich), „Kamera verweigert“:
    verständlicher Hinweis, nichts hängt, „Nochmal versuchen“ startet die Kamera. Und „nicht ganz im Bild“ (Kamera zu nah, Kopf und
    Füße abgeschnitten): Hinweis „zurückgehen“, kein Scan, nach der Wartezeit Abbruch mit Hinweis und „Nochmal versuchen“.
    Bilder: docs/tests/avatar/<gerät>_<nr>_<schritt>.jpg
@@ -156,6 +156,24 @@ for (const gname of GERAETE) {
   if (BILDER) { await p.locator("#avStatus").scrollIntoViewIfNeeded(); await p.waitForTimeout(600); await p.screenshot({ path: OUT + "desktop_99_kamera-verweigert.jpg", type: "jpeg", quality: 70 }); }
   await p.evaluate(() => { window.__verweigern = false; }); await p.click("#avNochmal");
   z = await warte(p, z => z.kamera && z.on && z.scanUI, 20000); pruefe(!!z, "nach Erlauben: „Nochmal versuchen“ startet Kamera und Scan");
+  pruefe(errs.length === 0, "keine Skriptfehler" + (errs.length ? ": " + [...new Set(errs)].slice(0, 3).join(" | ") : ""));
+  await ctx.close(); }
+
+// Körpermodell fehlt auf der Website (20.11.: Live-Seite ohne avatar/koerper.js hochgeladen): früher Kamera-Frage, dann Sprung zur
+// „Anprobe in 3D“, Kamera nie offen. Jetzt: keine Kamera-Frage, klarer Hinweis im Avatar-Bereich; Datei wieder da → „Nochmal versuchen“ geht
+{ console.log("\n=== Körpermodell fehlt ===");
+  const ctx = await kontext(GER.iphone, { storageState: speicher }), p = await ctx.newPage(); const errs = []; p.on("pageerror", e => errs.push(e.message));
+  let fehlt = true; await ctx.route("**/koerper.js*", r => fehlt ? r.fulfill({ status: 404, body: "fehlt" }) : r.fallback());
+  await p.goto(URL0); await p.waitForTimeout(800); await p.click("#modusBtn"); await p.waitForTimeout(200);
+  await p.locator("#avCard").scrollIntoViewIfNeeded(); await p.click("#avOption"); await p.fill("#avGroesse", "179"); await p.waitForTimeout(500); await p.click("#avJa");
+  let z = await warte(p, z => !!z.status && !/Moment/.test(z.status), 10000);
+  pruefe(!!z && /koerper\.js/.test(z.status) && z.nochmal, `Hinweis: „${z ? z.status.slice(0, 70) : "–"}…“ mit „Nochmal versuchen“`);
+  await p.waitForTimeout(1000); z = await zustand(p);       // sanftes Scrollen zum Hinweis abwarten
+  const lage = await p.evaluate(() => { const r = document.getElementById("avStatus").getBoundingClientRect(); return { oben: Math.round(r.top), unten: Math.round(r.bottom), h: innerHeight }; }), imBild = lage.oben < lage.h && lage.unten > 0;
+  pruefe(z.gum === 0 && !z.on && !z.kamera && !z.scanUI && imBild, `keine Kamera-Frage (${z.gum}×), kein Scan (${z.on ? "an" : "aus"}, Kamera ${z.kamera ? "an" : "aus"}, Oberfläche ${z.scanUI ? "an" : "aus"}), Hinweis im Bild (${lage.oben}–${lage.unten} von ${lage.h} px, kein Sprung zur 3D-Anprobe)`);
+  if (BILDER) await p.screenshot({ path: OUT + "iphone_96_koerpermodell-fehlt.jpg", type: "jpeg", quality: 70 });
+  fehlt = false; await p.click("#avNochmal");
+  z = await warte(p, z => z.kamera && z.on && z.scanUI, 20000); pruefe(!!z, "Datei wieder da: „Nochmal versuchen“ startet Kamera und Scan");
   pruefe(errs.length === 0, "keine Skriptfehler" + (errs.length ? ": " + [...new Set(errs)].slice(0, 3).join(" | ") : ""));
   await ctx.close(); }
 

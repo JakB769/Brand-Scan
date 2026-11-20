@@ -30,7 +30,7 @@ ersetze('  const m={d:mk.getAsFloat32Array(),w:mk.width,h:mk.height};','  const 
 // Rechenzeit je Bild ohne Erkennung (Glätten, Messen, Form, Stoff, Zeichnen): window.__ta (handy.mjs, Handy-Emulation)
 ersetze('function analyse(res){','function analyse(res){ const _ta=performance.now(); analyse0(res); if(window.__ta) window.__ta.push(performance.now()-_ta); }\nfunction analyse0(res){');
 // 5. Fehler bei der Erkennung sichtbar machen
-ersetze('catch(_){ setStatus("Fehler bei der Erkennung","bad"); }','catch(e){ console.error("ANALYSE",e&&e.stack||e); setStatus("Fehler bei der Erkennung","bad"); }');
+ersetze('catch(_){ setStatus("Fehler bei der Erkennung","bad"); erkennungFehler(); }','catch(e){ console.error("ANALYSE",(e&&e.name)+": "+(e&&e.message)+" | "+(e&&e.stack||e)); setStatus("Fehler bei der Erkennung","bad"); erkennungFehler(); }');
 if(!echt){
 // 6. Feste graue Umgebungsfarbe
 ersetze('scn.x.drawImage(video,0,0,24,24);',"scn.x.fillStyle='rgb(150,146,140)'; scn.x.fillRect(0,0,24,24);");

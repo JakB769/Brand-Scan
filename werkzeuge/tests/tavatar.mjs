@@ -39,11 +39,13 @@ await p.fill('#avGroesse','18'); await p.click('#avJa'); await p.waitForTimeout(
 pruefe(await p.evaluate(()=>!document.getElementById('avDlg').hidden&&!window.__dbg.AVS.on),'unsinnige Größe: Dialog bleibt, keine Kamera');
 await p.click('#avNein'); await p.waitForTimeout(200);
 pruefe(await p.evaluate(()=>document.getElementById('avDlg').hidden&&!window.__dbg.AVS.on),'Abbrechen: Dialog zu, kein Scan');
-// Körpermodell fehlt (nur index.html hochgeladen): gleich abgebrochen, Hinweis beim 3D-Bereich, Kamera aus
-await p.evaluate(()=>{ window.__avUrl=window.PASSFORM_AVATAR_URL; window.PASSFORM_AVATAR_URL='fehlt/koerper.js'; });
+// Körpermodell fehlt (nur index.html hochgeladen): gleich abgebrochen, Kamera aus, Hinweis im Avatar-Bereich (20.11.: nicht mehr beim
+// 3D-Bereich, der Sprung dorthin nach der Kamera-Frage sah aus wie „fertig, aber Kamera geht nicht auf“)
+// (die Einwilligung oben hat das Körpermodell schon geladen: hier vergessen, als wäre die Datei nie da gewesen)
+await p.evaluate(()=>{ const A=window.__dbg.AV; A.kd=null; A.laed=null; A.kdFehler=null; window.__avUrl=window.PASSFORM_AVATAR_URL; window.PASSFORM_AVATAR_URL='fehlt/koerper.js'; });
 await p.click('#avScan'); await p.fill('#avGroesse','180'); await p.click('#avJa'); await p.waitForTimeout(2500);
-const fe=await p.evaluate(()=>({on:window.__dbg.AVS.on,cam:!!document.getElementById('video').srcObject,msg:document.getElementById('avMsg').hidden?'':document.getElementById('avMsg').textContent}));
-pruefe(!fe.on&&!fe.cam&&/Körpermodell/.test(fe.msg),`Körpermodell fehlt: Scan abgebrochen, Kamera aus, Hinweis „${fe.msg.slice(0,60)}…“`);
+const fe=await p.evaluate(()=>({on:window.__dbg.AVS.on,cam:!!document.getElementById('video').srcObject,msg:document.getElementById('avStatus').hidden?'':document.getElementById('avStatusText').textContent}));
+pruefe(!fe.on&&!fe.cam&&/koerper\.js/.test(fe.msg),`Körpermodell fehlt: Scan abgebrochen, Kamera aus, Hinweis im Avatar-Bereich „${fe.msg.slice(0,60)}…“`);
 await p.evaluate(()=>{ window.PASSFORM_AVATAR_URL=window.__avUrl; });
 // Kamera verweigert: Avatar-Scan nicht scharf (sonst würde der nächste normale Scan ohne Einwilligung zum Avatar)
 await p.evaluate(()=>{ window.__gum=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getUserMedia=()=>Promise.reject(new DOMException('verweigert','NotAllowedError')); });

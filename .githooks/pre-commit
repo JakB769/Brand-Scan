@@ -3,7 +3,7 @@
 # Fotos → Vorder-/Rückseite → Karte → 3D-Hose → Rig und Physik. Eingeschaltet über `npm install` (Skript „prepare“ setzt
 # core.hooksPath auf .githooks). Nur im Notfall überspringen: git commit --no-verify
 geaendert=$(git diff --cached --name-only)
-echo "$geaendert" | grep -qE '^(app/index\.html|app/hosen-auswahl\.js|werkzeuge/tests/tneuehose\.mjs|werkzeuge/tests/tavatarscan\.mjs|werkzeuge/tests/baue-testseite\.mjs)$' || exit 0
+echo "$geaendert" | grep -qE '^(app/index\.html|app/hosen-auswahl\.js|werkzeuge/tests/tneuehose\.mjs|werkzeuge/tests/tavatarscan\.mjs|werkzeuge/tests/tavatarsafari\.mjs|werkzeuge/tests/baue-testseite\.mjs)$' || exit 0
 # Stellen der Modellerzeugung (Funktionsnamen in den Änderungen oder im Kopf der Änderungsblöcke)
 muster='buildGarment|loadGarmentPhoto|photoWithReference|levelBySensor|findReference|refineReference|snapQuadToEdges|localContrastMask|quadCheck|segGarment|segClassic|segColor|fuseMasks|aiMask|finishMask|classifyFlat|upAssign|upBuild|upAdd|garmentProfile|normalizeProfile|alignRows|fillLegGap|pantsShape|rockShape|flatSideScore|pocketEdges|garmentDims|drape3d|cloth3d|pose3d|draw3d|hiHalf'
 if echo "$geaendert" | grep -q '^werkzeuge/tests/tneuehose\.mjs$' || git diff --cached -U0 -- app/index.html | grep -E '^(@@|[+-])' | grep -qE "$muster"; then
@@ -16,9 +16,11 @@ fi
 # Pflicht-Test „Avatar-Scan Ende zu Ende“ (18.11.) vor jedem Commit, der Kamera, Scan, Avatar oder Modus berührt: Kundenmodus →
 # Eigenen Avatar erstellen → Kamera (Testkamera aus Clip v2-02) → Scan → eigener Avatar → Hose/Größe → Live-Anprobe; Kamera verweigert.
 # Desktop und iPhone-Emulation (alle Geräte: npm test). Etwa 5 Minuten. Bilder nach werkzeuge/tests/ausgabe/ (nicht ins Repo).
-muster2='startCamera|openStream|getCam|stopCamera|endTryon|camOn|kameraText|kameraLebt|avatarScan|avatarDreh|avatarStatus|avatarUI|scanUI|scanMini|AVS|modusSetzen|MODUS|avCard|avOption|avDlg|avJa|avNochmal|avStatus|scanZuruecksetzen|analyse\('
-if echo "$geaendert" | grep -q '^werkzeuge/tests/tavatarscan\.mjs$' || git diff --cached -U0 -- app/index.html | grep -E '^(@@|[+-])' | grep -qE "$muster2"; then
+muster2='startCamera|openStream|getCam|stopCamera|endTryon|camOn|kameraText|kameraLebt|avatarScan|avatarDreh|avatarStatus|avatarUI|scanUI|scanMini|AVS|modusSetzen|MODUS|avCard|avOption|avDlg|avJa|avNochmal|avStatus|scanZuruecksetzen|analyse\(|loadModel|erkennungFehler|avatarDaten|koerperText'
+if echo "$geaendert" | grep -qE '^werkzeuge/tests/tavatar(scan|safari)\.mjs$' || git diff --cached -U0 -- app/index.html | grep -E '^(@@|[+-])' | grep -qE "$muster2"; then
   echo "Kamera/Scan/Avatar geändert: Pflicht-Test „Avatar-Scan Ende zu Ende“ läuft (etwa 5 Minuten) …"
   node werkzeuge/tests/tavatarscan.mjs --geraete desktop,iphone --ohneBilder || { echo "Avatar-Scan Ende zu Ende: Test rot, Commit abgebrochen."; exit 1; }
+  # Safari-Engine (WebKit, iPhone 13): nur wo WebKit installiert ist, sonst übersprungen (20.11.: Erkennung scheiterte nur dort)
+  node werkzeuge/tests/tavatarsafari.mjs || { echo "Avatar-Scan in Safari (WebKit): Test rot, Commit abgebrochen."; exit 1; }
 fi
 exit 0
