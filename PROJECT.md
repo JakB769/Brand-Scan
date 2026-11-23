@@ -44,6 +44,9 @@ Server-Sammlung (Netlify Blobs).
 - Eckige flache Flecken in der Hosen-Textur zwischen den Beinen (Ursache `spaltSchatten`, siehe `werkzeuge/qualitaet.json`).
 - Beinbreite im Bildvergleich etwa 2 cm anders als im Foto (prüfen).
 - Falten nur angedeutet; echte Falten später per Stoffphysik (nicht von Hand).
+- Anzughose in Bewegung nur mit der Testhose (Anzugstoff, grau eingefärbt) geprüft: die Fotos der echten Anzughose liegen nicht im
+  Repo, am Gerät nachsehen. Beim hohen Knieheben (Hüfte über 45°) blendet die Anprobe jede Hose wie vorgesehen aus; die weicheren
+  Kniefalten sieht man bei mäßiger Beugung.
 - Avatar in weiter Kleidung: Umfänge nur nach oben begrenzt; Eichung an gerenderten Körpern, nicht an echten Personen.
 - Oberteile nur an künstlichen Testbildern geprüft; Hoodie, Hemd, Kleid fehlen.
 - Shopify: Gerüst und Tests stehen; echter Entwicklungs-Shop, Händler-Seite im Admin und Abrechnung fehlen.
@@ -53,7 +56,7 @@ Server-Sammlung (Netlify Blobs).
   veröffentlichen (Merge in `main` bzw. ganzer Ordner); automatische Live-Prüfung liegt im offenen PR „Live-Prüfung nach jedem Deploy“.
 - Avatar-Maße streuen von Scan zu Scan (Referenzclip, weite Kleidung: Taille −6 bis +2 cm, Hüfte −8 bis +4 cm zum Durchschnitt).
 - Messgenauigkeit mit 20–30 Personen gegen Maßband nicht gemacht.
-- Bekannte rote Tests: `tseiten` (Kennzeichnung), `tlag` (Testmaschine zu langsam), `tfreistellung` (Diagnose), `tfall` (Stoff-Fall der Anprobe-Form: Saum liegt nicht wie geprüft; Test lief seit der Produktansicht als Standard gar nicht mehr, jetzt läuft er durch und zeigt 6 rote Saum-Prüfungen).
+- Bekannte rote Tests: `tseiten` (Kennzeichnung), `tlag` (Testmaschine zu langsam), `tfreistellung` (Diagnose), `tfall` (Stoff-Fall der Anprobe-Form: bricht mit „Cannot read properties of null“ ab, vor und nach dem 23.11. gleich).
 - Netlify: Produktions-Branch muss `main` sein (der frühere `claude/new-session-fbr0jp` ist gelöscht).
 
 ## Entscheidungen (nicht neu herausfinden)
@@ -67,6 +70,11 @@ Server-Sammlung (Netlify Blobs).
 - Weite Kleidung beim Scan: Umriss ist nur Obergrenze. Eichung Scan ↔ Körpermodell an gerenderten Körpern (`werkzeuge/avatar-eichen.mjs`).
 - Hose: Innenkanten der Beine als Gerade ab der Spaltöffnung im Foto; Umriss Foto/3D ist das Prüfmaß (Nutzer: „perfekt“).
 - Getragen-Look und Falten nicht von Hand modellieren (Nutzer: sah schlecht aus), später per Physik.
+- Bewegung des Stoffs über Werte je Stoffart (`STOFFE`), nie je Hose. Anzug (23.11., Nutzer: „sieht gut aus, ist aber zu steif“):
+  Eigenfrequenz 1,0 statt 1,4 Hz, Dämpfung 0,24 statt 0,29 (schwingt nach, flattert nicht), unten weniger steif (`steif` 3 statt 5),
+  2,5 cm mehr Spiel zum Bein (`spiel`), Kniefalten 4,6 cm × 0,85 statt 3,8 × 0,6, Durchhängen 0,6, Abweichung bis 6 cm. Jeans und
+  alle anderen Stoffe unverändert (Vorgaben 5 und 1; geprüft: alle Punkte der Jeans in drei Clips höchstens 0,09 Bildpunkte
+  anders). Vergleich `docs/tests/anzughose/` (Knie heben, Drehung, Ausfallschritt).
 - Avatar-Scan (23.11., Live-Test des Nutzers: Fortschritt lief, bevor er ganz im Bild war; „fertig“ ohne Drehung; danach schwarzes
   Vollbild ohne Ausweg): Start erst bei ganzem Körper (Sichtbarkeit ≥ 0,75, nicht am Rand, von vorn) und 1 s ruhig (Hüfte < 10 % der
   Körperhöhe bewegt), dann 3-2-1; die Maße von vorn kommen aus den Countdown-Bildern. Fortschritt nur aus der Körperausrichtung
