@@ -60,7 +60,7 @@ const t0=Date.now(); let st='';
 for(let t=0;t<60&&st!=='drehen';t++){ await p.waitForTimeout(250); st=await p.evaluate(()=>window.__dbg.AVS.stufe); }
 pruefe(st==='drehen',`Frontal-Scan fertig nach ${((Date.now()-t0)/1000).toFixed(1)} s, Aufforderung zum Drehen`);
 const coach=await p.evaluate(()=>document.getElementById('coachBig').textContent);
-pruefe(/drehen/i.test(coach),`Anzeige: „${coach}“`);
+pruefe(/dreh/i.test(coach),`Anzeige: „${coach}“`);
 // Attrappe dreht sich gleichmäßig (0,55 rad/s, eine Drehung in etwa 11 s)
 await p.evaluate(()=>{ const t0=performance.now(); window.__dreh=setInterval(()=>{ let y=((performance.now()-t0)/1000*.55)%(2*Math.PI); if(y>Math.PI) y-=2*Math.PI; window.__mode.yaw=y; },30); });
 const hinweise=new Set(), proz=[];

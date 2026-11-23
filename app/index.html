@@ -304,6 +304,13 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
 .scansegs{display:flex;gap:6px}
 .scanseg{flex:1;text-align:center;font-weight:600;font-size:13px;padding:5px 0;border-radius:999px;background:rgba(110,110,110,.6);color:#fff}
 .scanseg.ok{background:#22a35a}
+.scanbar[hidden]{display:none}
+.scancount{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-size:min(34vw,170px);font-weight:800;color:#fff;text-shadow:0 4px 24px rgba(0,0,0,.65);line-height:1}
+.scancount[hidden],.scanladen[hidden]{display:none}
+.scanladen{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:14px;color:#fff;font-weight:700;font-size:20px;text-align:center;width:80%}
+.scanladen .spin{width:46px;height:46px;border-radius:50%;border:5px solid rgba(255,255,255,.25);border-top-color:#fff;animation:pfspin 1s linear infinite}
+@keyframes pfspin{to{transform:rotate(360deg)}}
+.scanab{position:absolute;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);pointer-events:auto;background:rgba(255,255,255,.94);color:#111;border:0;border-radius:999px;padding:11px 18px;font-weight:700;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
 .scanseg.ok::after{content:" ✓"}
 .scanpct{position:relative;height:18px;border-radius:9px;background:rgba(255,255,255,.22);overflow:hidden}
 .scanpct>div{height:100%;width:0;background:#22a35a;transition:width .3s}
@@ -367,7 +374,10 @@ body.kunde #seriesCard,body.kunde #gwrap:not(:has(.gitem)){display:none!importan
     <div class="szwhy" id="szwhy" aria-live="polite"></div>
     <div class="szrow szshop" id="szshop" role="group" aria-label="Größe wählen"></div>
     <div class="scanui" id="scanUI" hidden aria-live="polite">
-      <div class="scanbar"><div class="scansegs"><div class="scanseg" id="scanVorn">Vorne</div><div class="scanseg" id="scanSeite">Seite</div><div class="scanseg" id="scanHinten">Hinten</div></div>
+      <div class="scancount" id="scanCount" hidden></div>
+      <div class="scanladen" id="scanLaden" hidden><div class="spin"></div>Avatar wird erstellt …</div>
+      <button class="scanab" id="scanAbbruch" type="button">✕ Abbrechen</button>
+      <div class="scanbar" id="scanBar"><div class="scansegs"><div class="scanseg" id="scanVorn">Vorne</div><div class="scanseg" id="scanSeite">Seite</div><div class="scanseg" id="scanHinten">Hinten</div></div>
         <div class="scanpct"><div id="scanFill"></div><span id="scanPct"></span></div></div>
       <canvas id="scanMini" width="192" height="300" aria-label="Dein Avatar baut sich auf: gescannte Winkel farbig, fehlende grau"></canvas>
     </div>
@@ -1223,7 +1233,8 @@ function perfTick(ms){
   // 3D in geringerer Auflösung, solange es eng wird (wieder hoch, wenn Luft ist)
   if(PERF.ms>48) PERF.rs=Math.max(.6,PERF.rs-.1); else if(PERF.ms<28) PERF.rs=Math.min(1,PERF.rs+.1);
   // dauerhaft zu langsam: leichtes Modell (nur in der Anprobe, der Scan ist dann schon gemacht)
-  if(PERF.ms>55&&phase!=="cal"&&!PERF.lite&&!PERF.liteLaden) loadLite();
+  // nie während des Avatar-Scans (23.11.): das Laden hielt die Erkennung etwa 5 s an, mitten in der Drehung fehlten dann Winkel
+  if(PERF.ms>55&&phase!=="cal"&&!AVS.on&&!PERF.lite&&!PERF.liteLaden) loadLite();
 }
 async function loadLite(){
   PERF.liteLaden=true;
@@ -1289,6 +1300,8 @@ function analyse(res){
   if(!mk){ setStatus("Silhouette fehlt","warn"); stableSince=0; return; }
   const m={d:mk.getAsFloat32Array(),w:mk.width,h:mk.height};
   const bounds=personBounds(m,L);
+  // Körperausrichtung für den Avatar-Scan (23.11.): aus den rohen Punkten, vor legSanity/hipFix
+  const richtung=AVS.on?avatarRichtung(koerperRichtung(L,res.worldLandmarks&&res.worldLandmarks[0]),performance.now()):null;
 
   const aspect=vw/vh;
   L=legSanity(L);                             // Bein-Punkte über der Hüfte bei aufrechtem Rumpf: Fehlerkennung, nicht verwenden
@@ -1411,7 +1424,8 @@ function analyse(res){
     chest:!isSide&&m?(b=>b&&!b.unsure?toCm(b.w):null)(torsoSpan(m,shY+.22*(hipY-shY),L,armHalfN,true)):null
   };
   if(!held) live=s;
-  if(AVS.on) avatarScanBild({m,L,hipY,waistY,chestY:shY+.22*(hipY-shY),aspect,cmPerUnit,armHalfN,ganz:full});   // Dreh-Scan für den Avatar
+  if(AVS.on) avatarScanBild({m,L,hipY,waistY,chestY:shY+.22*(hipY-shY),aspect,cmPerUnit,armHalfN,ganz:full,richtung,   // Dreh-Scan für den Avatar
+    gueltig:full&&(V(11)||V(12))&&(V(23)||V(24))&&[27,28].some(i=>V(i)&&L[i].y<.985)});
 
   wasStraight=legsOk;
   const vis=isSide?Math.max(L[23].visibility??1,L[24].visibility??1)
@@ -1422,22 +1436,20 @@ function analyse(res){
   // Scan: einmal ganz im Bild, gerade und kurz ruhig → Maße von vorn, die Hose liegt sofort auf. Danach frei bewegen und näher
   // kommen; dreht man sich einmal ganz im Bild zur Seite und hält kurz still, wird die Körpertiefe nebenbei gemessen.
   let ok=false,big="",small="",lvl="warn",voice="";
-  const nowT=performance.now();
+  const nowT=performance.now(), avStart=AVS.on&&(AVS.stufe==="warten"||AVS.stufe==="countdown");
   if(held){ setStatus("Messwert eingefroren","ok"); lvl=null; }
+  else if(phase==="cal"&&avStart){
+    // Avatar-Scan (23.11.): erst warten, bis der ganze Körper sicher und ruhig im Bild ist, dann 3-2-1; die Maße von vorn kommen
+    // aus den Bildern des Countdowns (Median). Vorher lief der normale Frontal-Scan mit, Fortschritt und „fertig“ kamen zu früh.
+    if(avatarStartBild({L,V,full,topN,botN,aspect,live,isSide,now:nowT,richtung,calH})) return;
+  }
   else if(phase==="cal"){
-    // Avatar-Scan (30.10.): Beine dürfen leicht gebeugt sein (weite Hose verdeckt die Knie, der Winkel springt) und der Körper
-    // etwas schwanken (bis 7 cm): gemessen wird ohnehin der Median vieler Bilder, die Form kommt vor allem aus der Drehung.
-    // Wer 8 s ganz im Bild steht, wird mit dem Median dieser Bilder gescannt. Vorher wurde der Scan in Echtzeit mit dem
-    // Referenzclip (weite Hose, leichtes Schwanken) teils nie fertig: „Bein angewinkelt“ / „In Bewegung“ im Wechsel.
-    const avS=AVS.on&&AVS.stufe==="start";
-    if(avS&&full&&!isSide&&live&&live.hip!=null&&live.shoulder!=null){ AVS.voll.push({...live}); if(AVS.voll.length>120) AVS.voll.shift(); if(!AVS.tVoll) AVS.tVoll=nowT; }
-    if(avS&&AVS.tVoll&&nowT-AVS.tVoll>8000&&AVS.voll.length>=6&&calH){ scanProben.length=0; scanProben.push(...AVS.voll); live=AVS.voll[AVS.voll.length-1]; captureCal(); return; }
     if(!full){ const w=ganzGrund(topN,botN,L,V,nowT);
       setStatus(w||"Für die Maße einmal ganz ins Bild","warn"); big="Weiter zurück"; small=w||"Ganz ins Bild, von Kopf bis Fuß"; voice=w?big+", "+w:big; }
-    else if(!legsOk&&!avS){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
+    else if(!legsOk){ setStatus("Bein angewinkelt","warn"); big="Stell dich gerade hin"; voice=big; }
     else if(!upright){ setStatus("Beine nicht senkrecht","warn"); big="Stell dich gerade hin"; voice=big; }
     else if(vis<.5){ setStatus("Hüfte schlecht sichtbar","warn"); big="Bleib kurz so"; }
-    else if(drift==null||drift>(avS?7:STABLE_CM)){ setStatus(drift==null?"Messe …":`In Bewegung, ${drift.toFixed(1)} cm`,"warn"); }
+    else if(drift==null||drift>STABLE_CM){ setStatus(drift==null?"Messe …":`In Bewegung, ${drift.toFixed(1)} cm`,"warn"); }
     else ok=true;
   }
   else if(!caps.side&&full&&isSide&&tr>.85&&(legs[0].straight||legs[1].straight)&&drift!=null&&drift<=STABLE_CM){
@@ -1448,7 +1460,7 @@ function analyse(res){
 
   // Kurze Aussetzer brechen den Scan nicht ab: erst nach 0,45 s ohne Ruhe von vorn
   if(ok) badSince=0; else if(!badSince) badSince=nowT;
-  const counting=!held&&phase==="cal"&&(ok||(stableSince>0&&nowT-badSince<450));
+  const counting=!held&&phase==="cal"&&!avStart&&(ok||(stableSince>0&&nowT-badSince<450));
   if(counting){
     if(!stableSince){ stableSince=nowT; scanProben.length=0; }
     if(ok&&live) scanProben.push(live);
@@ -1459,7 +1471,7 @@ function analyse(res){
     stableSince=0;
     if(phase!=="cal"&&!held){ if(AVS.on) setStatus("Avatar-Scan","ok");          // Anzeige macht avatarScanBild
       else { setStatus(caps.side?"Anprobe":"Anprobe · zur Seite drehen misst die Tiefe","ok"); coach("","",null); } }
-    else coach(big,small,lvl,false,voice);
+    else if(!avStart) coach(big,small,lvl,false,voice);
   }
 
   // Knochen in Bildpunkten: Hüfte, Knie, Knöchel je Seite.
@@ -3656,7 +3668,7 @@ function view3dFrame(now){
   $("avForm").addEventListener("click",()=>{ v3d.produkt=v3d.produkt===false; g3.cOk=false; view3dKick(); });
   $("avReset").addEventListener("click",()=>{ v3d.ziel=.45; v3d.pan=0; zoomAuf(1); });
   $("avScan").addEventListener("click",()=>avatarScanStart());
-  $("avNein").addEventListener("click",()=>{ $("avDlg").hidden=true; });
+  $("avNein").addEventListener("click",()=>{ if(history.state&&history.state.pf==="dialog") history.back(); else $("avDlg").hidden=true; });
   $("avJa").addEventListener("click",()=>avatarScanLos());
   for(const [id,gg] of [["avMann","m"],["avFrau","f"]]) $(id).addEventListener("click",()=>{ AVS.g=gg;
     $("avMann").setAttribute("aria-pressed",String(gg==="m")); $("avFrau").setAttribute("aria-pressed",String(gg==="f")); });
@@ -4328,15 +4340,72 @@ function avatarBand(floor,ppc){
    der Drehung) → langsam einmal drehen: in jedem Bild Breite von Taille und Hüfte aus der Maske (ungeglättet), sortiert nach
    Blickrichtung (vorn, hinten, je Seite = Tiefe). Rückmeldung: ganzer Körper, langsamer, Fortschritt. Fertig, wenn vorn,
    hinten und mindestens eine Seite da sind und 3/4 der Drehung gesehen wurde (oder nach 30 s mit dem, was da ist). */
-const AVS={on:false,stufe:"",g:"m",H:0,proben:null,bins:null,ly:null,lt:0,w:0,t0:0};
+const AVS={on:false,stufe:"",g:"m",H:0,proben:null,sek:null,ly:null,lt:0,w:0,t0:0,lauf:0};
+/* Ablauf (23.11., nach Live-Test des Nutzers: Fortschritt lief schon, als er nicht ganz im Bild war; „fertig“ ohne Drehung; danach
+   schwarzer Vollbild-Bildschirm ohne Ausweg): warten (Kamera an, „Geh zurück …“, kein Fortschritt) → countdown (ganzer Körper sicher
+   erkannt und 1 s ruhig, dann 3-2-1; daraus die Maße von vorn) → drehen (Fortschritt NUR aus der erkannten Körperausrichtung, 8
+   Abschnitte zu 45°) → rechnen (Kamera aus, „Avatar wird erstellt …“) → eigener Avatar. Abbrechen, Escape und Browser-Zurück führen
+   in jedem Schritt zur Seite zurück. */
+const wrapG=a=>((a+180)%360+360)%360-180;
+/* Körperausrichtung in Grad (0 = zur Kamera) aus Schultern und Hüfte: Weltpunkte von MediaPipe (3D), sonst die Bildpunkte mit Tiefe.
+   An den Clips gemessen: folgt der ganzen Drehung (v2-02: 32° → 91° → 172° → −92° → 0°), im Stehen höchstens ±15°. */
+function koerperRichtung(L,W){
+  const P=W&&W.length>24?W:L; if(!P||!P[11]||!P[12]||!P[23]||!P[24]) return null;
+  const a=(i,j)=>Math.atan2(P[i].z-P[j].z,P[i].x-P[j].x), s=a(11,12), h=a(23,24);
+  return Math.atan2(Math.sin(s)+Math.sin(h),Math.cos(s)+Math.cos(h))*180/Math.PI;
+}
+/* geglättet; ein Sprung über 60° (vorn/hinten kurz verwechselt) gilt erst, wenn er 0,5 s anhält */
+function avatarRichtung(roh,now){
+  const R=AVS.rf||(AVS.rf={w:null,pend:null,pendT:0});
+  if(roh==null) return R.w;
+  if(R.w==null){ R.w=roh; return R.w; }
+  const d=wrapG(roh-R.w);
+  if(Math.abs(d)>60){ if(R.pend==null||Math.abs(wrapG(roh-R.pend))>25){ R.pend=roh; R.pendT=now; } if(now-R.pendT>=500){ R.w=roh; R.pend=null; } }
+  else { R.pend=null; R.w=wrapG(R.w+.6*d); }
+  return R.w;
+}
+/* Start erst, wenn sicher: Kopf bis Füße mit hoher Sicherheit (Sichtbarkeit ≥ 0,75), nicht am Bildrand, von vorn, etwa 1 s ruhig.
+   Dann Countdown 3-2-1 (Bilder des Countdowns = Maße von vorn). Gibt true zurück, wenn der Scan von vorn eben fertig wurde. */
+function avatarStartBild(o){
+  const L=o.L, now=o.now, v=i=>L[i]?(L[i].visibility??1):0;
+  const kern=Math.min(v(0),v(11),v(12),v(23),v(24),v(25),v(26),v(27),v(28),Math.max(v(29),v(31)),Math.max(v(30),v(32)));
+  const xs=[11,12,23,24,27,28].map(i=>L[i].x), drin=L[0].y>.02&&Math.max(L[27].y,L[28].y)<.97&&Math.min(...xs)>.01&&Math.max(...xs)<.99;
+  const T=Math.hypot((L[11].x+L[12].x-L[23].x-L[24].x)/2*o.aspect,(L[11].y+L[12].y-L[23].y-L[24].y)/2)||1e-6, sw=(L[11].x-L[12].x)*o.aspect/T;
+  const ganz=o.full&&drin, sicher=ganz&&kern>=.75, frontal=o.richtung!=null&&Math.abs(o.richtung)<30&&sw>.45, ok=sicher&&frontal;
+  AVS.tor={full:o.full,drin,kern:+kern.toFixed(2),sw:+sw.toFixed(2),r:o.richtung==null?null:Math.round(o.richtung)};     // für Tests und Fehlersuche
+  // ruhig: in der letzten Sekunde Hüfte höchstens 10 % (seitlich) bzw. 8 % (Höhe) der Körperhöhe im Bild bewegt, Körperhöhe ±6 %.
+  // An den Clips gemessen: wer still steht, schwankt bis etwa 6 %; wer läuft oder sich dreht, deutlich mehr.
+  if(ok){ AVS.gateT=now; AVS.gateNein=0; const B=AVS.ruh||(AVS.ruh=[]); B.push({t:now,x:(L[23].x+L[24].x)/2*o.aspect,y:(L[23].y+L[24].y)/2,s:o.botN-o.topN}); while(B.length>2&&B[0].t<now-1200) B.shift(); }
+  else { AVS.ruh=null; AVS.gateNein=(AVS.gateNein||0)+1; }
+  // auch bei wenigen Bildern je Sekunde (Safari, langsames Handy: 2–3): mindestens zwei Bilder, die eine Sekunde umspannen
+  const ruhig=()=>{ const B=AVS.ruh; if(!B||B.length<2||now-B[0].t<1000) return false; const w=B.filter(q=>q.t>=now-1100); if(w.length<2) return false;
+    const r=k=>Math.max(...w.map(q=>q[k]))-Math.min(...w.map(q=>q[k])), sp=w[w.length-1].s;
+    return r("x")<.1*sp&&r("y")<.08*sp&&r("s")<.06*sp; };
+  if(AVS.stufe==="countdown"&&!ok&&AVS.gateNein>=2){ AVS.stufe="warten"; AVS.voll=[]; }      // zwei Bilder nacheinander nicht ganz/nicht von vorn: neu warten
+  if(AVS.stufe==="warten"){
+    if(ok&&ruhig()){ AVS.stufe="countdown"; AVS.cd0=now; AVS.cdZahl=0; AVS.voll=[]; coach("","Stillstehen, gleich geht's los","good",true,"Stillstehen"); return false; }
+    if(!ganz){ const w=ganzGrund(o.topN,o.botN,L,o.V,now); coach("Geh zurück, bis du ganz im Bild bist",w||"Von Kopf bis Fuß, Handy auf Hüfthöhe","warn",false,"Geh zurück, bis du ganz im Bild bist"); }
+    else if(!sicher) coach("Geh etwas weiter zurück","Kopf und Füße müssen gut zu sehen sein","warn",false,"Geh etwas weiter zurück");
+    else if(!frontal) coach("Schau zur Kamera","Gerade hinstellen, Gesicht zur Kamera","warn",false,"Schau zur Kamera");
+    else coach("Bleib kurz ruhig stehen","Gleich startet der Countdown","good",false,"");
+    return false;
+  }
+  if(AVS.stufe!=="countdown") return false;
+  if(ok&&!o.isSide&&o.live&&o.live.hip!=null&&o.live.shoulder!=null){ AVS.voll.push({...o.live}); if(AVS.voll.length>150) AVS.voll.shift(); }
+  const t=now-AVS.cd0;
+  if(t>=3000&&ok&&o.calH&&AVS.voll.length>=4){ scanProben.length=0; scanProben.push(...AVS.voll); live=AVS.voll[AVS.voll.length-1]; captureCal(); return true; }
+  if(t>=8000){ AVS.stufe="warten"; AVS.voll=[]; AVS.ruh=null; }                       // 5 s nach dem Countdown noch keine Maße: neu
+  return false;
+}
 function avatarScanStart(){
   $("avGroesse").value=AV.daten&&AV.daten.H?String(AV.daten.H):$("height").value||"";
   if(AV.daten&&(AV.daten.g==="m"||AV.daten.g==="f")) AVS.g=AV.daten.g;      // „Neu scannen“: wie beim letzten Mal
   $("avMann").setAttribute("aria-pressed",String(AVS.g==="m")); $("avFrau").setAttribute("aria-pressed",String(AVS.g==="f"));
   $("avDlg").hidden=false; $("avJa").focus();
+  try{ if(!(history.state&&history.state.pf==="dialog")) history.pushState({pf:"dialog"},""); }catch(_){}   // Zurück schließt den Dialog
   avatarDaten().catch(()=>{});      // schon laden, während man liest und die Größe einträgt
 }
-const avatarAbbruch=()=>{ if(AVS.stufe!=="rechnen"){ AVS.on=false; AVS.stufe=""; } };
+const avatarAbbruch=()=>{ if(AVS.stufe!=="rechnen"){ AVS.on=false; AVS.stufe=""; scanUI(); seiteZurueck(); } };   // Oberfläche sofort weg, Verlauf zur Seite
 function avatarScanLos(nochmal){
   const H=nochmal===true?AVS.letzteH:num($("avGroesse").value);
   if(!(H>=120&&H<=230)){ if(nochmal===true){ avatarScanStart(); return; } $("avGroesse").focus(); $("avGroesse").select(); return; }
@@ -4346,14 +4415,17 @@ function avatarScanLos(nochmal){
   // Kamera ging nie auf. Jetzt: noch einmal laden, sonst Hinweis hier mit „Nochmal versuchen“.
   if(AV.kdFehler&&!AV.kd&&!AV.laed){ AVS.letzteH=H; avatarStatus("Einen Moment …");
     avatarDaten().then(()=>{ if(!AVS.on) avatarScanLos(true); },e=>{ if(!AVS.on) avatarStatus(koerperText(e)); }); return; }   // nicht doppelt starten (zweiter Tipp)
+  // Browser-Zurück beendet den Scan, statt die Seite (oder den Tab) zu verlassen
+  try{ if(history.state&&history.state.pf==="dialog") history.replaceState({pf:"scan"},""); else if(!(history.state&&history.state.pf==="scan")) history.pushState({pf:"scan"},""); }catch(_){}
   // Kamera tot, Zustand noch „läuft“ (iOS nach App-Wechsel oder Bildschirm aus): erst beenden, dann neu holen (18.11.)
   if(running&&!kameraLebt()){ AVS.still=true; stopCamera(); AVS.still=false; }
   if($("height").value.trim()!==String(H)) $("height").value=String(H);          // startCamera prüft die Größe
-  Object.assign(AVS,{on:true,stufe:"start",H,letzteH:H,tStart:performance.now(),proben:{vorn:[],hinten:[],seiteL:[],seiteR:[]},bins:new Set(),ly:null,lt:0,w:0,t0:0,voll:[],tVoll:0,farben:{haut:[],haare:[],oberteil:[],fuss:[]}});
+  Object.assign(AVS,{on:true,stufe:"warten",H,letzteH:H,tStart:performance.now(),proben:{vorn:[],hinten:[],seiteL:[],seiteR:[]},sek:new Set(),ly:null,lt:0,w:0,t0:0,voll:[],
+    rf:null,ruh:null,gateT:0,cd0:0,cdZahl:0,th0:0,inS:{k:-1,n:0,t:0},neuT:0,gueltigT:0,lauf:AVS.lauf+1,farben:{haut:[],haare:[],oberteil:[],fuss:[]}});
   try{ scanZuruecksetzen(); }catch(e){ console.warn("Scan zurücksetzen",e); }       // frischer Scan: Frontal-Scan im Stehen, dann drehen
   // Kamera zuerst, direkt im Tipp (iOS); nichts davor darf scheitern (18.11.: vorher liefen Oberfläche und Größenlogik davor, ein
   // Fehler dort hätte die Kamera nie gefragt). Verweigert oder Fehler: Scan nicht scharf lassen, Hinweis mit „Nochmal versuchen“.
-  if(!(running||starting)) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="start"&&!running&&!starting){ avatarAbbruch(); $("error").hidden=true;
+  if(!(running||starting)) startCamera().then(()=>{ if(AVS.on&&AVS.stufe==="warten"&&!running&&!starting){ avatarAbbruch(); $("error").hidden=true;
       if(stream) stopCamera();                                                       // z. B. Erkennung nicht geladen: Kamera nicht offen lassen
       avatarStatus(kameraText(camFehler||new Error("Kamera nicht gestartet"))); } });
   // Größe wie von Hand eingetragen: gespeichert, Testpersonen-Markierung, Größenauswahl
@@ -4377,11 +4449,9 @@ function koerperText(e){
 /* Fehler beim Avatar: beim 3D-Bereich zeigen (oben auf der Seite sähe man ihn nicht) */
 function avatarFehler(t){ AV.fehler=t; avatarUI(); avatarStatus(t); setTimeout(()=>{ const e=$("avMsg"); if(!e.hidden) e.scrollIntoView({block:"center",behavior:"smooth"}); },300); }
 /* nach dem Frontal-Scan (captureCal): jetzt drehen */
-function avatarScanGeeicht(){ if(!AVS.on) return; AVS.stufe="drehen"; AVS.t0=performance.now();
-  // Ende per Uhr prüfen (18.11.): vorher nur in avatarScanBild, also nur bei gültigen Bildern. Ging man nach der Drehung zum
-  // Handy (zu nah, kein Maßstab), kam keins mehr an, der Scan endete nie und der eigene Avatar erschien nicht
-  clearInterval(AVS.uhr); AVS.uhr=setInterval(()=>{ if(!AVS.on||AVS.stufe!=="drehen"){ clearInterval(AVS.uhr); return; } if(avatarDrehStand().fertig) avatarDrehEnde(); },400);
-  coach("Jetzt langsam einmal drehen","Etwa 10 Sekunden für eine ganze Drehung","good",true,"Jetzt langsam einmal um dich selbst drehen"); }
+function avatarScanGeeicht(){ if(!AVS.on) return; const now=performance.now();
+  Object.assign(AVS,{stufe:"drehen",t0:now,th0:AVS.rf&&AVS.rf.w!=null?AVS.rf.w:0,sek:new Set([0]),inS:{k:-1,n:0,t:now},neuT:now,gueltigT:now,ly:null,w:0,lphi:null});
+  coach("Dreh dich langsam einmal im Kreis","Der Fortschritt folgt deiner Drehung","good",true,"Dreh dich jetzt langsam einmal im Kreis"); }
 /* je Bild während der Drehung (aus analyse, mit deren Maske, Punkten und Maßstab) */
 /* Erscheinung (18.10.): Farben von Haut (Wange), Haaren (über der Stirn), Oberteil (Brust) und Füßen aus dem Kamerabild,
    je Bild ein paar Bildpunkte aus einer Mini-Kopie (96 Punkte breit), am Ende je Farbe der Median. Gespeichert werden nur die
@@ -4421,40 +4491,58 @@ function avatarFarbenFertig(F){
   const o={}; for(const k of ["haut","haare","oberteil","fuss"]){ const v=med(F[k]); if(v) o[k]=v; } return Object.keys(o).length?o:null;
 }
 function avatarScanBild(o){
-  if(!AVS.on||AVS.stufe!=="drehen") return;
-  const now=performance.now(), yw=wrapA(fc.yaw);
-  // Drehgeschwindigkeit ohne Sprünge der Winkelschätzung (18.11.): vorn/hinten verwechselt springt der Winkel um bis zu π; das
-  // galt als „zu schnell“, alle Proben wurden verworfen (Echtzeit-Test mit v2-02: Seiten 0/0, Hinweis dauernd „Langsamer drehen“)
-  if(AVS.ly!=null){ const dt=(now-AVS.lt)/1000, dy=Math.abs(wrapA(yw-AVS.ly)); if(dt>0&&dt<1&&dy<.9) AVS.w=.75*AVS.w+.25*dy/dt; }
-  AVS.ly=yw; AVS.lt=now; AVS.bins.add(Math.floor((yw+Math.PI)/(2*Math.PI)*24)%24);
-  const ay=Math.abs(yw), sek=ay<.3?"vorn":ay>Math.PI-.3?"hinten":Math.abs(ay-Math.PI/2)<.28?(yw>0?"seiteL":"seiteR"):null;
-  const zuSchnell=AVS.w>1.6;
-  try{ avatarFarbProbe(o.L,sek,o.m); }catch(_){}
-  if(sek&&o.cmPerUnit&&!zuSchnell){                    // auch ohne Kopf im Bild: Maßstab dann aus der Rumpflänge des Frontal-Scans
+  if(!AVS.on||AVS.stufe!=="drehen"||o.richtung==null) return;
+  const now=performance.now(), phi=wrapG(o.richtung-AVS.th0), yw=phi*Math.PI/180;      // Drehung seit dem Start (Grad bzw. rad)
+  if(AVS.ly!=null){ const dt=(now-AVS.lt)/1000, dy=Math.abs(wrapA(yw-AVS.ly)); if(dt>0&&dt<1&&dy<1) AVS.w=.75*AVS.w+.25*dy/dt; }
+  AVS.ly=yw; AVS.lt=now;
+  // Abschnitte (8 × 45°): gilt erst, wenn die Ausrichtung zwei Bilder lang nah an seiner Mitte (±15°) liegt und man ganz im Bild ist.
+  // Stillstehen, Wackeln (±15°) oder halb aus dem Bild bringen keinen Fortschritt.
+  // Bei wenigen Bildern je Sekunde (langsames Handy, schnelle Drehung) liegt oft kein Bild nah an der Mitte: dann zählt auch, wenn
+  // die Mitte zwischen zwei gültigen Bildern kurz hintereinander überquert wurde (höchstens 45° Schritt; Sprünge zählen nie).
+  const neu=k=>{ if(!AVS.sek.has(k)){ AVS.sek.add(k); AVS.neuT=now; } };
+  if(o.gueltig){ AVS.gueltigT=now;
+    const k=((Math.round(phi/45)%8)+8)%8, ab=Math.abs(wrapG(phi-k*45));
+    if(ab<=15){ if(AVS.inS.k!==k) AVS.inS={k,n:0,t:now}; AVS.inS.n++; if(AVS.inS.n>=2&&now-AVS.inS.t>=60) neu(k); }
+    else AVS.inS={k:-1,n:0,t:now};
+    const lp=AVS.lphi;
+    if(lp&&now-lp.t<600){ const d=wrapG(phi-lp.p); if(Math.abs(d)<=45&&Math.abs(d)>0) for(let c=0;c<8;c++){ const a=wrapG(c*45-lp.p); if(a*d>0&&Math.abs(a)<Math.abs(d)) neu(c); } }
+    AVS.lphi={p:phi,t:now}; }
+  else AVS.lphi=null;
+  const ay=Math.abs(phi), sek=ay<17?"vorn":ay>163?"hinten":Math.abs(ay-90)<16?(phi>0?"seiteL":"seiteR"):null, zuSchnell=AVS.w>1.6;
+  if(o.gueltig){ try{ avatarFarbProbe(o.L,sek,o.m); }catch(_){} }
+  if(o.gueltig&&sek&&o.cmPerUnit&&!zuSchnell){
     const fr=sek==="vorn"||sek==="hinten", cm=n=>n*o.aspect*o.cmPerUnit;
     const w=torsoSpan(o.m,o.waistY,o.L,o.armHalfN,fr), h=torsoSpan(o.m,o.hipY,o.L,o.armHalfN,fr), c=o.chestY!=null?torsoSpan(o.m,o.chestY,o.L,o.armHalfN,fr):null;
     if(w&&h&&w.w>0&&h.w>0) AVS.proben[sek].push({waist:cm(w.w),hip:cm(h.w),chest:c&&c.w>0&&!c.unsure?cm(c.w):NaN}); }
-  const {P,seiten,t,fertig}=avatarDrehStand(), pct=Math.min(100,Math.round(AVS.bins.size/24*100));
-  if(fertig){ avatarDrehEnde(); return; }
-  // großer Text ruhig (wechselt nur mit dem Hinweis), Fortschritt in der kleinen Zeile
-  const fehlt=P.hinten.length<1?"Noch hinten fehlt":!seiten?"Noch eine Seite fehlt":"";
-  const big=zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg, ganzer Körper ins Bild":AVS.bins.size>=12&&fehlt?fehlt+" · weiter drehen":"Langsam weiter drehen";
-  coach(big,"",zuSchnell||!o.ganz?"warn":"good",false,zuSchnell?"Langsamer drehen":!o.ganz?"Weiter weg":"");
+  const st=avatarDrehStand();
+  if(st.fertig){ avatarDrehEnde(); return; }
+  // Hinweise: nicht ganz im Bild → zurück; zu schnell; seit 2,5 s kein neuer Abschnitt (steht still) → weiter drehen
+  const steht=now-AVS.neuT>2500, rundum=st.n>=8;
+  const big=!o.gueltig?"Zurück ins Bild":zuSchnell?"Langsamer drehen":rundum?"Noch einmal langsam herum":steht?"Weiter drehen":"Langsam weiter drehen";
+  coach(big,!o.gueltig?"Ganz ins Bild, von Kopf bis Fuß":steht&&!rundum?"Dreh dich weiter im Kreis":"",!o.gueltig||zuSchnell||steht?"warn":"good",false,
+    !o.gueltig?"Zurück ins Bild":zuSchnell?"Langsamer drehen":steht||rundum?"Weiter drehen":"");
 }
 /* Scan-Oberfläche (18.11.): Fortschritt je Blickrichtung, Prozent der Drehung (24 Winkel), Mini-Avatar mit den Maßen bis jetzt,
    der sich mit dir dreht; Ring unter den Füßen: gescannte Winkel grün, fehlende grau. Läuft per Uhr, solange der Scan an ist. */
 function scanUI(){
-  if(AVS.on&&AVS.stufe==="start"&&running&&AVS.tStart&&performance.now()-AVS.tStart>(window.__frontalMaxMs||90000)){     // 90 s ohne Scan von vorn (Test: kürzer)
-    avatarAbbruch(); AVS.still=true; endTryon(); AVS.still=false;
-    avatarStatus("Scan abgebrochen: Du warst nicht ganz im Bild. Handy auf Hüfthöhe stellen, 2–3 m zurückgehen, bis Kopf und Füße zu sehen sind, und nochmal versuchen."); }
-  const an=AVS.on&&["start","drehen","rechnen"].includes(AVS.stufe);
-  document.body.classList.toggle("scanmodus",an); $("scanUI").hidden=!an; if(!an){ clearInterval(AVS.uiUhr); return; }
-  const P=AVS.proben||{vorn:[],hinten:[],seiteL:[],seiteR:[]}, fertig=AVS.stufe==="rechnen";
-  const ok={scanVorn:AVS.stufe!=="start",scanSeite:P.seiteL.length+P.seiteR.length>=2,scanHinten:P.hinten.length>=1};
-  for(const [id,v] of Object.entries(ok)) $(id).classList.toggle("ok",v||fertig);
-  const pct=AVS.stufe==="start"?0:fertig?100:Math.min(100,Math.round(AVS.bins.size/24*100));
-  $("scanFill").style.width=pct+"%"; $("scanPct").textContent=AVS.stufe==="start"?"Gerade hinstellen, Arme leicht weg":fertig?"Scan fertig":"Drehung "+pct+" %";
-  scanMini(pct);
+  const now=performance.now();
+  if(AVS.on&&AVS.stufe==="warten"&&running&&AVS.tStart&&now-AVS.tStart>(window.__frontalMaxMs||90000)){     // 90 s nicht ganz im Bild (Test: kürzer)
+    avatarAbbrechen("Scan abgebrochen: Du warst nicht ganz im Bild. Handy auf Hüfthöhe stellen, 2–3 m zurückgehen, bis Kopf und Füße zu sehen sind, und nochmal versuchen."); return; }
+  if(AVS.on&&AVS.stufe==="countdown"&&now-(AVS.gateT||0)>1500){ AVS.stufe="warten"; AVS.voll=[]; AVS.ruh=null; }    // 1,5 s kein passendes Bild: aus dem Bild gegangen
+  const an=AVS.on&&["warten","countdown","drehen","rechnen"].includes(AVS.stufe);
+  document.body.classList.toggle("scanmodus",an); $("scanUI").hidden=!an;
+  const st=an?AVS.stufe:"", drehen=st==="drehen", fertig=st==="rechnen", S=AVS.sek||new Set(), n=S.size;
+  $("scanUI").dataset.stufe=st; $("scanUI").dataset.abschnitte=String(an?n:0);    // Schritt und erkannte Abschnitte (Tests, auch live)
+  if(!an){ clearInterval(AVS.uiUhr); $("scanLaden").hidden=true; if(!running&&!starting) $("placeholder").hidden=false; return; }   // nach dem Bau: keine leere schwarze Fläche
+  const cd=st==="countdown"?Math.max(1,3-Math.floor((now-AVS.cd0)/1000)):0;      // großer Countdown 3-2-1
+  $("scanCount").hidden=!cd; if(cd){ $("scanCount").textContent=String(cd); if(cd!==AVS.cdZahl){ AVS.cdZahl=cd; beep(880,110,.25); } }
+  $("scanBar").hidden=!(drehen||fertig);                                       // vor dem Drehen kein Fortschritt
+  for(const [id,v] of [["scanVorn",drehen||fertig],["scanSeite",(S.has(2)&&S.has(6))||fertig],["scanHinten",S.has(4)||fertig]]) $(id).classList.toggle("ok",!!v);
+  const pct=fertig?100:drehen?Math.round(Math.max(0,n-1)/7*100):0;
+  $("scanFill").style.width=pct+"%"; $("scanPct").textContent=fertig?"Scan fertig":"Drehung "+pct+" %";
+  const laden=fertig&&!running; $("scanLaden").hidden=!laden; if(laden) $("placeholder").hidden=true;
+  if(drehen&&now-(AVS.gueltigT||0)>1500) coach("Zurück ins Bild","Ganz ins Bild, von Kopf bis Fuß","warn",false,"Zurück ins Bild");   // keine gültigen Bilder
+  $("scanMini").hidden=laden||!(drehen||fertig); if(!$("scanMini").hidden) scanMini(pct);
 }
 function scanMini(pct){
   const c=$("scanMini"), x=c.getContext("2d"), W=c.width, H=c.height; x.clearRect(0,0,W,H);
@@ -4464,8 +4552,8 @@ function scanMini(pct){
   const yw=AVS.stufe==="drehen"&&AVS.ly!=null?AVS.ly:0, cs=Math.abs(Math.cos(yw)), sn=Math.abs(Math.sin(yw)), br=(w,d)=>Math.hypot(w*cs,d*sn)/2;
   const s=(H-44)/Hc, cx=W/2, Y=f=>10+f*Hc*s, X=v=>v*s;
   // Ring der Winkel unter den Füßen (von oben): vorn zur Kamera unten
-  for(let i=0;i<24;i++){ const t=Math.PI/2+(-Math.PI+(i+.5)*Math.PI/12); x.beginPath(); x.ellipse(cx,H-20,W*.42,13,0,t-Math.PI/24+.04,t+Math.PI/24-.04);
-    x.strokeStyle=AVS.bins&&AVS.bins.has(i)?"#22a35a":"rgba(190,190,190,.45)"; x.lineWidth=7; x.stroke(); }
+  for(let i=0;i<8;i++){ const t=Math.PI/2+i*Math.PI/4; x.beginPath(); x.ellipse(cx,H-20,W*.42,13,0,t-Math.PI/8+.06,t+Math.PI/8-.06);
+    x.strokeStyle=AVS.sek&&AVS.sek.has(i)?"#22a35a":"rgba(190,190,190,.45)"; x.lineWidth=7; x.stroke(); }
   const figur=()=>{ x.beginPath(); x.arc(cx,Y(.065),X(.05*Hc),0,2*Math.PI); x.fill();
     const L=[[.13,X(br(.07*Hc,.09*Hc))],[.18,X(br(sh,.13*Hc))],[.28,X(br(.92*sh,.15*Hc))],[.38,X(br(wa,sd("waist",.75*wa)))],[.48,X(br(hi,sd("hip",.8*hi)))],[.53,X(br(hi,sd("hip",.8*hi)))]];
     x.beginPath(); L.forEach(([f,w],k)=>k?x.lineTo(cx+w,Y(f)):x.moveTo(cx+w,Y(f))); [...L].reverse().forEach(([f,w])=>x.lineTo(cx-w,Y(f))); x.closePath(); x.fill();
@@ -4481,10 +4569,11 @@ function scanMini(pct){
    haben; nach 12 s mit fast ganzer Drehung, wenn es Proben von hinten und von der Seite gibt; nach 20 s mit 3/4 der Drehung und
    Proben von hinten oder der Seite; spätestens nach 30 s mit dem, was da ist (fehlende Maße dann vom Durchschnitt). 18.11.: vorher
    endete er nach 12 s auch ganz ohne Seiten- und Rückenproben; der Avatar war dann fast der Standardkörper. */
-function avatarDrehStand(){ const P=AVS.proben, sl=P.seiteL.length+P.seiteR.length, seiten=(P.seiteL.length>=2)+(P.seiteR.length>=2), t=performance.now()-AVS.t0, b=AVS.bins.size;
-  return {P,seiten,t,b,fertig:(b>=20&&P.vorn.length>=2&&P.hinten.length>=2&&seiten>=1)||(b>=20&&t>12000&&P.hinten.length>=1&&sl>=2)||(t>20000&&b>=18&&(P.hinten.length>=1||sl>=2))||t>30000}; }
-function avatarDrehEnde(){ if(AVS.stufe!=="drehen") return; clearInterval(AVS.uhr); AVS.stufe="rechnen"; beep(1040,160); setTimeout(()=>beep(1320,200),190); cue("Scan fertig. Du kannst zurückkommen.",true);
-  coach("Scan fertig","Dein Avatar wird berechnet","good",true); setTimeout(avatarScanFertig,1200); }   // „Scan fertig“ kurz zeigen, nicht mitten in analyse
+function avatarDrehStand(){ const P=AVS.proben, n=AVS.sek?AVS.sek.size:0;
+  return {P,n,fertig:n>=8&&P.hinten.length>=1&&P.seiteL.length+P.seiteR.length>=2}; }
+function avatarDrehEnde(){ if(AVS.stufe!=="drehen") return; AVS.stufe="rechnen"; beep(1040,160); setTimeout(()=>beep(1320,200),190);
+  cue("Scan fertig. Dein Avatar wird erstellt.",true); coach("Scan fertig","Avatar wird erstellt …","good",true);
+  const lauf=AVS.lauf; setTimeout(()=>{ if(AVS.lauf===lauf) avatarScanFertig(); },700); }   // „Scan fertig“ kurz zeigen, nicht mitten in analyse
 const quantil=(a,q)=>{ const b=a.filter(v=>isFinite(v)&&v>0).sort((x,y)=>x-y); return b.length?b[Math.min(b.length-1,Math.floor(q*b.length))]:NaN; };
 /* Ziele aus dem Scan: Breiten = Frontal-Scan im Stehen und Bilder von vorn/hinten, Tiefen = beide Seiten. Etwas schräg gesehen
    ist ein Körper von vorn schmaler und von der Seite breiter (Projektion einer Ellipse): Breite darum aus dem oberen, Tiefe aus
@@ -4521,11 +4610,16 @@ function avatarLoseArme(z,kd,g){
   return breit&&z.foreW<=1.1*E.foreW[0]*m0.foreW;
 }
 async function avatarScanFertig(){
-  AVS.stufe="rechnen"; const z=avatarScanZiele(), g=AVS.g, H=AVS.H, farben=avatarFarbenFertig(AVS.farben); AVS.farben=null;   // vor dem Warten festhalten (neuer Scan könnte beginnen)
-  AVS.on=false; endTryon();                            // Kamera aus (auch Shop-Vollbild): Bilder sind verworfen, nur die Zahlen bleiben
-  AVS.stufe=""; AV.fehler=""; AV.rechnet=true; avatarUI(); $("g3dbox").scrollIntoView({block:"center",behavior:"smooth"});
-  await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,30)));   // „wird berechnet“ erst zeigen, dann rechnen
+  if(!AVS.on||AVS.stufe!=="rechnen") return;           // inzwischen abgebrochen
+  const lauf=AVS.lauf, z=avatarScanZiele(), g=AVS.g, H=AVS.H, farben=avatarFarbenFertig(AVS.farben); AVS.farben=null;   // vor dem Warten festhalten
+  // Kamera sauber aus, Vollbild zu (vorher blieb ein schwarzes Vollbild „Kamera noch nicht gestartet“ ohne Ausweg); Bilder sind
+  // verworfen, nur die Zahlen bleiben. Die Scan-Oberfläche zeigt solange „Avatar wird erstellt …“ mit „Abbrechen“.
+  AVS.still=true; endTryon(); AVS.still=false; vollbildAus();
+  AV.fehler=""; AV.rechnet=true; avatarUI(); scanUI(); stage.scrollIntoView({block:"center",behavior:"smooth"});
+  await new Promise(r=>requestAnimationFrame(()=>setTimeout(r,30+(window.__avatarVerzoegerung||0))));   // Ladeanzeige erst zeigen, dann rechnen (Test: länger)
+  if(AVS.lauf!==lauf||!AVS.on) return;
   try{
+    if(window.__avatarFehlerTest) throw new Error(window.__avatarFehlerTest);
     const kd=await avatarDaten(), lose=avatarLose(z)||avatarLoseArme(z,kd,g), zf={...z}, kamera=avatarLaengen(zf);
     // weite Kleidung: Umriss nur als Obergrenze (avatarAnpassen); vorher wurde jede Zone durch den Durchschnittskörper ersetzt
     const f=avatarAnpassen(kd,g,zf,lose), A=avatarBauen(kd,g,f.p,H);
@@ -4535,11 +4629,26 @@ async function avatarScanFertig(){
     AV.np=np;
     const d={v:1,g,H,p:f.p,m,z:Object.fromEntries(Object.entries(z).filter(([,v])=>isFinite(v)).map(([k,v])=>[k,r1(v)])),lose,kamera,ohneTiefe,farben,rest:r1(f.rest),at:Date.now()};
     try{ localStorage.setItem(AV_KEY,JSON.stringify(d)); }catch(_){}
+    if(AVS.lauf!==lauf||!AVS.on) return;
+    AVS.on=false; AVS.stufe=""; scanUI(); seiteZurueck();
     AV.form=A; AV.daten=d; AV.rechnet=false; v3d.ohneAvatar=false; v3d.zoom=1; v3d.pan=0; v3d.ziel=0; avatarUI(); renderSizes(true); view3dKick();
     // eigener Avatar sofort sichtbar (18.11.): 3D-Bereich zeigen und hinscrollen (vorher nur Scrollen zu einem noch verborgenen Kasten)
     setTimeout(()=>{ if(!running){ $("g3dcard").hidden=false; $("g3dbox").hidden=false; view3dKick(); } $("g3dcard").scrollIntoView({block:"start",behavior:"smooth"}); },60);
-  }catch(e){ AV.rechnet=false; avatarFehler("Der Avatar ließ sich nicht berechnen: "+(e&&e.message||e)); }
+  }catch(e){ if(AVS.lauf!==lauf) return; AVS.on=false; AVS.stufe=""; AV.rechnet=false; scanUI(); seiteZurueck();
+    const t="Der Avatar ließ sich nicht erstellen ("+(e&&e.message||e)+"). Bitte „Nochmal versuchen“ tippen."; AV.fehler=t; avatarUI(); avatarStatus(t); }
 }
+/* Abbrechen, Escape, Browser-Zurück (23.11.): in jedem Schritt zurück zur Seite. Kamera aus, Vollbild zu, Hinweis mit „Nochmal
+   versuchen“. Gibt false zurück, wenn kein Scan lief. */
+function avatarAbbrechen(grund){
+  if(!(AVS.on||AV.rechnet)) return false;
+  AVS.lauf++; AVS.on=false; AVS.stufe=""; AV.rechnet=false;
+  AVS.still=true; if(running||starting||stream) endTryon(); AVS.still=false;
+  vollbildAus(); scanUI(); avatarUI(); seiteZurueck();
+  avatarStatus(grund||"Scan abgebrochen. Du kannst ihn jederzeit neu starten.");
+  return true;
+}
+/* Eintrag des Scans im Verlauf wird wieder zur Seite: ein Zurück danach bleibt auf der Seite (schließt nie den Tab) */
+function seiteZurueck(){ try{ if(history.state&&history.state.pf==="scan") history.replaceState({pf:"seite"},""); }catch(_){} }
 /* gespeicherter Avatar: Geschlecht, Regler, Größe, Maße (keine Bilder) */
 function avatarGespeichert(){
   try{ const a=JSON.parse(localStorage.getItem(AV_KEY)||"null");
@@ -7265,7 +7374,7 @@ function stopCamera(){
   try{ video.pause(); video.srcObject=null; }catch(_){}
   try{ speechSynthesis.cancel(); }catch(_){}
   ctx.clearRect(0,0,cv.width,cv.height); $("placeholder").hidden=false; $("hud").hidden=true;
-  coach("","",null,true); camUI(); view3dKick();
+  coach("","",null,true); camUI(); view3dKick(); vollbildAus();               // Kamera aus: nie im schwarzen Vollbild bleiben
 }
 $("tryon").addEventListener("click",openShop);
 $("shopClose").addEventListener("click",e=>{ e.stopPropagation(); if(history.state&&history.state.shop) history.back(); else closeShop(); });
@@ -7294,6 +7403,21 @@ $("flip").addEventListener("click",async()=>{
     showError("Kamerawechsel hat nicht geklappt"+(e&&e.message?": "+e.message:"")+". Die bisherige Kamera läuft weiter."); }
   finally{ $("flip").disabled=false; }
 });
+const VOLL_SVG=$("full").innerHTML;
+/* Vollbild immer sauber verlassen (Kamera aus, Escape, Vollbild vom Browser beendet): nie ein schwarzes Vollbild ohne Knöpfe */
+function vollbildAus(){
+  if(!shopMode&&stage.classList.contains("full")){ stage.classList.remove("full"); document.body.classList.remove("locked"); $("full").innerHTML=VOLL_SVG; }
+  try{ if(!shopMode&&document.fullscreenElement) document.exitFullscreen().catch(()=>{}); else if(!shopMode&&document.webkitFullscreenElement&&document.webkitExitFullscreen) document.webkitExitFullscreen(); }catch(_){}
+}
+for(const ev of ["fullscreenchange","webkitfullscreenchange"]) document.addEventListener(ev,()=>{
+  if(!(document.fullscreenElement||document.webkitFullscreenElement)&&!shopMode&&stage.classList.contains("full")){ stage.classList.remove("full"); document.body.classList.remove("locked"); $("full").innerHTML=VOLL_SVG; } });
+addEventListener("popstate",()=>{ const pf=history.state&&history.state.pf;
+  if(!$("avDlg").hidden&&pf!=="dialog") $("avDlg").hidden=true;                // Zurück im Dialog: Dialog zu
+  if((AVS.on||AV.rechnet)&&pf!=="scan") avatarAbbrechen(); });                  // Zurück im Scan: zur Seite, Tab bleibt offen
+addEventListener("keydown",e=>{ if(e.key!=="Escape"||shopMode) return;
+  if(!$("avDlg").hidden){ if(history.state&&history.state.pf==="dialog") history.back(); else $("avDlg").hidden=true; return; }
+  if(!avatarAbbrechen()) vollbildAus(); });
+$("scanAbbruch").addEventListener("click",e=>{ e.stopPropagation(); avatarAbbrechen(); });
 $("full").addEventListener("click",()=>{
   const on=stage.classList.toggle("full");
   document.body.classList.toggle("locked",on);

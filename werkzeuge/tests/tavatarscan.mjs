@@ -45,14 +45,16 @@ async function kontext(opt, extra = {}, br = b) {
   for (const n of ["magic_touch.tflite", "pose_landmarker_full.task", "pose_landmarker_lite.task"])
     await ctx.route("**/" + n, r => fs.existsSync(A + n) ? r.fulfill({ status: 200, body: fs.readFileSync(A + n), headers: { "access-control-allow-origin": "*" } }) : r.abort());
   await ctx.route("**/fonts.g*/**", r => r.abort());
-  // getUserMedia mitschreiben (Aufrufe, Wunsch); window.__verweigern: wie „Kamera nicht erlaubt“
+  // getUserMedia mitschreiben (Aufrufe, Wunsch); window.__verweigern: wie „Kamera nicht erlaubt“. Breite/Höhe-Wünsche gehen nicht an die
+  // Fake-Kamera: neuere Chromium schneiden sonst aus dem Hochformat ein Quadrat aus (Kopf und Füße weg), echte Kameras tun das nicht
   await ctx.addInitScript(() => { window.__cpu = true; window.__gum = []; const md = navigator.mediaDevices; if (!md) return; const orig = md.getUserMedia.bind(md);
-    md.getUserMedia = c => { window.__gum.push(JSON.stringify(c)); return window.__verweigern ? Promise.reject(new DOMException("Permission denied", "NotAllowedError")) : orig(c); }; });
+    md.getUserMedia = c => { window.__gum.push(JSON.stringify(c)); if (window.__verweigern) return Promise.reject(new DOMException("Permission denied", "NotAllowedError"));
+      if (c && c.video && typeof c.video === "object") { const v = { ...c.video }; delete v.width; delete v.height; c = { ...c, video: v }; } return orig(c); }; });
   return ctx;
 }
 const zustand = p => p.evaluate(() => { const d = window.__dbg, S = d.AVS || {}, P = S.proben || {}, t = id => (document.getElementById(id) || {}).innerText || "", sicht = id => { const e = document.getElementById(id); return !!e && e.getClientRects().length > 0; };
   const v = document.getElementById("video"), tr = v.srcObject && v.srcObject.getVideoTracks ? v.srcObject.getVideoTracks()[0] : null;
-  return { stufe: S.stufe || "", on: !!S.on, sek: S.bins ? S.bins.size : 0, proben: P.vorn ? [P.vorn.length, P.hinten.length, P.seiteL.length, P.seiteR.length] : [], pct: t("scanPct"),
+  return { stufe: S.stufe || "", on: !!S.on, sek: S.sek ? S.sek.size : 0, proben: P.vorn ? [P.vorn.length, P.hinten.length, P.seiteL.length, P.seiteR.length] : [], pct: t("scanPct"),
     kamera: !!(tr && tr.readyState === "live" && v.videoWidth > 0), scanUI: sicht("scanUI"), avatar: !!(d.AV && d.AV.form), karte3d: sicht("g3dcard"), status: sicht("avStatus") ? t("avStatusText") : "",
     nochmal: sicht("avNochmal"), coach: t("coachBig"), gum: window.__gum.length, kunde: document.body.classList.contains("kunde"), trk: d.g ? d.g.trk : 0 }; });
 const warte = async (p, f, ms, schritt = 250) => { const t0 = Date.now(); let z; while (Date.now() - t0 < ms) { z = await zustand(p); if (f(z)) return z; await p.waitForTimeout(schritt); } return null; };
@@ -98,7 +100,7 @@ for (const gname of GERAETE) {
   await p.waitForTimeout(800); await bild("kamera-zurueckgehen");
   z = await warte(p, z => z.stufe === "drehen" || !z.on, 120000, 500);
   pruefe(!!z && z.stufe === "drehen", `Scan von vorn fertig, jetzt drehen (nach ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
-  z = await warte(p, z => z.sek >= 10 || !z.on, 40000, 250); if (z && z.on) await bild("scan-laeuft");
+  z = await warte(p, z => z.sek >= 3 || !z.on, 40000, 250); if (z && z.on) await bild("scan-laeuft");
   pruefe(!!z && z.scanUI && /Drehung \d+ %/.test(z.pct), `Fortschritt angezeigt: „${z ? z.pct : "–"}“, Mini-Avatar ${z && z.scanUI ? "da" : "fehlt"}`);
   z = await warte(p, z => z.pct === "Scan fertig" || z.avatar || !z.on, 60000, 150);
   pruefe(!!z && (z.pct === "Scan fertig" || z.avatar), "„Scan fertig“ erscheint"); if (z && z.pct === "Scan fertig") await bild("scan-fertig");
@@ -137,7 +139,7 @@ for (const gname of GERAETE) {
   pruefe(await p.evaluate(() => !document.getElementById("avDlg").hidden), "bei gespeichertem Avatar: „Neu scannen“ öffnet die Einwilligung");
   await p.click("#avJa");
   z = await warte(p, z => z.on && z.kamera && z.scanUI, 15000); pruefe(!!z, "Wechsel Live-Anprobe → Avatar-Scan: Kamera läuft weiter, Scan-Oberfläche da");
-  z = await warte(p, z => (z.stufe === "drehen" && z.sek >= 6) || !z.on, 120000, 500); pruefe(!!z && z.stufe === "drehen", "Wechsel: Scan kommt in die Drehung"); if (z && z.on) await bild("wechsel-scan");
+  z = await warte(p, z => (z.stufe === "drehen" && z.sek >= 2) || !z.on, 120000, 500); pruefe(!!z && z.stufe === "drehen", "Wechsel: Scan kommt in die Drehung"); if (z && z.on) await bild("wechsel-scan");
   await p.click("#camOff").catch(() => {}); await p.waitForTimeout(600);
   z = await zustand(p); pruefe(!z.on && !z.kamera && /abgebrochen/.test(z.status) && z.nochmal, `Scan abgebrochen: Hinweis „${z.status.slice(0, 60)}…“ mit „Nochmal versuchen“`); await bild("abgebrochen");
   pruefe(errs.length === 0, "keine Skriptfehler" + (errs.length ? ": " + [...new Set(errs)].slice(0, 3).join(" | ") : ""));
@@ -188,7 +190,7 @@ for (const gname of GERAETE) {
   await p.locator("#avCard").scrollIntoViewIfNeeded(); await p.click("#avOption"); await p.fill("#avGroesse", "179"); await p.click("#avJa");
   let z = await warte(p, z => z.kamera && /zurück|nicht sichtbar|ins Bild/i.test(z.coach), 20000);
   pruefe(!!z, `Hinweis zum Zurückgehen: „${z ? z.coach : (await zustand(p)).coach}“`); if (BILDER && z) await p.screenshot({ path: OUT + "desktop_97_nicht-ganz-im-bild.jpg", type: "jpeg", quality: 70 });
-  z = await zustand(p); pruefe(z.stufe === "start", "kein Scan, solange nicht ganz im Bild");
+  z = await zustand(p); pruefe(z.stufe === "warten", "kein Scan, solange nicht ganz im Bild");
   z = await warte(p, z => !!z.status, 30000, 500);
   pruefe(!!z && /nicht ganz im Bild/.test(z.status) && z.nochmal && !z.kamera && !z.on, `nach der Wartezeit: „${z ? z.status.slice(0, 60) : "–"}…“ mit „Nochmal versuchen“, Kamera aus`);
   if (BILDER && z) { await p.locator("#avStatus").scrollIntoViewIfNeeded(); await p.waitForTimeout(600); await p.screenshot({ path: OUT + "desktop_98_abbruch-nicht-im-bild.jpg", type: "jpeg", quality: 70 }); }

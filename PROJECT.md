@@ -17,7 +17,7 @@ live mit der Kamera oder auf ihrem eigenen 3D-Avatar, und bekommen die passende 
 
 ## Funktionen
 - **Live-Anprobe:** Größe eintragen, ganz ins Bild stellen, nach etwa 1 s sitzt die Hose (3D, Rig, Stoffphysik), Oberteil darüber.
-- **Selbst-Scan → eigener Avatar:** Bereich „Eigenen Avatar erstellen“ (auch im Kundenmodus) → Hinweis und Einwilligung → Kamera → eigene Scan-Oberfläche (zurückgehen, langsam drehen, Fortschritt Vorne/Seite/Hinten, Mini-Avatar) → „Scan fertig“ → eigener Avatar in 3D (drehen, zoomen) → Kleidung und Größen. Fehler (Kamera verweigert/belegt, nicht ganz im Bild, abgebrochen) mit „Nochmal versuchen“.
+- **Selbst-Scan → eigener Avatar:** Bereich „Eigenen Avatar erstellen“ (auch im Kundenmodus) → Hinweis und Einwilligung → Kamera → warten („Geh zurück, bis du ganz im Bild bist“, kein Fortschritt) → ganzer Körper sicher erkannt und 1 s ruhig → Countdown 3-2-1 → „Dreh dich langsam einmal im Kreis“ (Fortschritt nur aus der erkannten Drehung, 8 Abschnitte zu 45°; Hinweise „Weiter drehen“, „Zurück ins Bild“) → Kamera aus, „Avatar wird erstellt …“ → eigener Avatar in 3D (drehen, zoomen) → Kleidung und Größen. In jedem Schritt „Abbrechen“, Escape und Browser-Zurück führen zur Seite (Kamera aus, nie schwarzes Vollbild, Tab bleibt offen). Fehler (Kamera verweigert/belegt, nicht ganz im Bild, Bau gescheitert, abgebrochen) mit „Nochmal versuchen“.
 - **Kleidung hochladen:** Hose/Shorts/Rock oder Oberteil aus Fotos vorne + hinten (Bankkarte oder A4 als Maßstab), Link zur Hose im Shop, Maßtabelle (auch per Texterkennung).
 - **Größenempfehlung je Zone** (Bund, Hüfte, Oberschenkel, Knie, Länge; Oberteile Brust usw.), Größenwechsel im 3D.
 - **Modelle speichern und löschen** (Gerät, Server-Sammlung, Datei), Avatar nur als Zahlen.
@@ -34,7 +34,9 @@ Vorlagen-Meshes je Kategorie (Hose: parametrische Ringe mit Rig Hüfte/Knie; Obe
 (Umriss wie im Foto geprüft, Qualitätsgedächtnis); Oberteile aus Fotos (Art erkannt, live und am Avatar); Avatar-Scan lädt nach der
 Drehung; Avatar-Scan Ende zu Ende im Kundenmodus geprüft (`tavatarscan`: Desktop-Chrome, iPhone- und Android-Emulation, Kamera
 verweigert, Körpermodell fehlt, Wechsel mit der Live-Anprobe; zusätzlich in der Safari-Engine WebKit 26 mit iPhone-13-Emulation,
-`tavatarsafari`); eigener Avatar nach etwa 35–40 s, Brust 9–16 cm, Hüfte/Taille einige cm anders als der
+`tavatarsafari`); Scan-Ablauf geprüft (`tavatarablauf` auf der echten Seite `app/index.html`, Desktop/iPhone/Android-Emulation: Countdown erst bei
+ganzem Körper, Fortschritt folgt der Drehung, Stehen/halb im Bild/leeres Bild ohne Fortschritt, Abbrechen/Escape/Zurück in jedem Schritt, Fehler beim
+Bau); eigener Avatar nach etwa 25–40 s, Brust 9–16 cm, Hüfte/Taille einige cm anders als der
 Durchschnitt beim Referenzclip); Scan-Oberfläche; Kunden-/Entwicklermodus; Größen je Zone; Live-Tracking mit Ausblenden;
 Server-Sammlung (Netlify Blobs).
 
@@ -65,8 +67,17 @@ Server-Sammlung (Netlify Blobs).
 - Weite Kleidung beim Scan: Umriss ist nur Obergrenze. Eichung Scan ↔ Körpermodell an gerenderten Körpern (`werkzeuge/avatar-eichen.mjs`).
 - Hose: Innenkanten der Beine als Gerade ab der Spaltöffnung im Foto; Umriss Foto/3D ist das Prüfmaß (Nutzer: „perfekt“).
 - Getragen-Look und Falten nicht von Hand modellieren (Nutzer: sah schlecht aus), später per Physik.
-- Avatar-Scan endet per Uhr, nicht nur bei gültigen Bildern: fast ganze Drehung mit Proben von hinten und der Seite, sonst nach 20 s
-  mit 3/4 Drehung, spätestens nach 30 s (ohne Rücken-/Seitenproben war der Avatar fast der Standardkörper).
+- Avatar-Scan (23.11., Live-Test des Nutzers: Fortschritt lief, bevor er ganz im Bild war; „fertig“ ohne Drehung; danach schwarzes
+  Vollbild ohne Ausweg): Start erst bei ganzem Körper (Sichtbarkeit ≥ 0,75, nicht am Rand, von vorn) und 1 s ruhig (Hüfte < 10 % der
+  Körperhöhe bewegt), dann 3-2-1; die Maße von vorn kommen aus den Countdown-Bildern. Fortschritt nur aus der Körperausrichtung
+  (MediaPipe-Weltpunkte Schultern + Hüfte; folgt in allen Clips der ganzen Drehung, im Stehen ±15°), 8 Abschnitte zu 45°: einer zählt,
+  wenn die Ausrichtung 2 Bilder nah an seiner Mitte (±15°) liegt oder zwischen zwei gültigen Bildern (≤ 45° Schritt) darüber läuft;
+  Sprünge über 60° gelten erst nach 0,5 s. Fertig nur mit allen 8 Abschnitten und Proben von hinten und beiden Seiten, keine Uhr.
+- Während des Avatar-Scans kein Wechsel auf das leichte Erkennungsmodell (das Laden hielt die Erkennung etwa 5 s an, Winkel fehlten).
+- Vollbild endet immer mit der Kamera (auch Escape/Vollbild vom Browser beendet). Verlauf: Einwilligung und Scan sind eigene Einträge;
+  Zurück schließt den Dialog bzw. beendet den Scan, der Eintrag wird danach zur Seite (ein Zurück mehr bleibt auf der Seite).
+- Tests mit der Fake-Kamera von Chromium: Breite/Höhe-Wünsche weglassen (neuere Chromium schneiden sonst aus dem Hochformat ein
+  Quadrat aus, Kopf und Füße fehlen); echte Kameras tun das nicht, die App fragt unverändert.
 - „Avatar-Scan starten“ startet immer einen neuen Scan; den gespeicherten Avatar zeigt „Meinen Avatar ansehen“ (vorher öffnete der
   Knopf bei gespeichertem Avatar nur die 3D-Ansicht, die Kamera ging nicht auf).
 - Kamera wird beim Tipp zuerst angefragt, ohne Zeitgrenze für die Freigabe (Hinweis nach 4 s; eine 20-s-Grenze verwarf die später
