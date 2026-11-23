@@ -1992,6 +1992,10 @@ function shirtCut(src,sh,vw,vh,ppc,bone){
    hang: wie weit loser Stoff unter einem angehobenen Bein durchhängt (Anteil des Abstands zum Bein),
    dev: wie weit der Stoff höchstens von der Form am Skelett abweicht (cm; an den Beinen höchstens Spiel zum Bein + 1 cm),
    fold: Faltenlänge (cm, ≈ 2,1 · Biegelänge lg), foldK: Faltentiefe, bump: Relief aus dem Foto, gloss: Glanz.
+   steif: wie viel steifer der Stoff nach oben wird (Eigenfrequenz am Bund (1+steif)-mal die am Saum, Vorgabe 5), spiel: wie weit der
+   Stoff über den Abstand zum Bein hinaus ausschwingen darf (cm, Vorgabe 1). 23.11. Anzug (Nutzer: „sieht gut aus, ist aber zu steif“):
+   weicher und leichter gedämpft (1 Hz, ζ 0,24 wie Wolle: schwingt nach, flattert nicht), unten weniger steif (steif 3) mit mehr Spiel
+   (2,5 cm), weichere, längere Kniefalten (4,6 cm, Tiefe 0,85); alle anderen Stoffe, auch Jeans, unverändert.
    Nur zur Herleitung: gsm Flächengewicht (g/m², Herstellerangaben), B Biegesteifigkeit (µN·m; Jeans und Sweat aus Messdaten
    von Wang et al. 2011, der Rest geschätzt), lg = (B/(gsm·g))^(1/3) (Cerda/Mahadevan/Pasini 2004), air Luftdämpfung (1/s). */
 const STOFFE={
@@ -1999,7 +2003,7 @@ const STOFFE={
   stretch:  {name:"Stretch-Jeans",                       gsm:350, B:50, lg:2.44, air:.51, hz:3.4, zeta:.56, hang:.12, dev:1.8, fold:4.5, foldK:.8,   bump:3,   gloss:.03},
   chino:    {name:"Chino / Baumwoll-Twill",              gsm:270, B:40, lg:2.47, air:.67, hz:2.2, zeta:.4,  hang:.3,  dev:4,   fold:5.2, foldK:.9,   bump:2.6, gloss:.02},
   cord:     {name:"Cord",                                gsm:300, B:60, lg:2.73, air:.6,  hz:2.2, zeta:.44, hang:.28, dev:4,   fold:5.7, foldK:.9,   bump:3,   gloss:.04},
-  anzug:    {name:"Anzughose (Wolle / Polyester)",       gsm:260, B:15, lg:1.8,  air:.69, hz:1.4, zeta:.29, hang:.55, dev:5,   fold:3.8, foldK:.6,   bump:1.6, gloss:.08},
+  anzug:    {name:"Anzughose (Wolle / Polyester)",       gsm:260, B:15, lg:1.8,  air:.69, hz:1,   zeta:.24, hang:.6,  dev:6,   fold:4.6, foldK:.85,  bump:1.6, gloss:.08, steif:3, spiel:2.5},
   sweat:    {name:"Jogginghose / Sweat / Fleece",        gsm:320, B:35, lg:2.23, air:.56, hz:2,   zeta:.4,  hang:.45, dev:4.5, fold:4.7, foldK:1.15, bump:2,   gloss:0},
   leinen:   {name:"Leinen",                              gsm:190, B:30, lg:2.52, air:.95, hz:1.2, zeta:.26, hang:.45, dev:6,   fold:5.3, foldK:1,    bump:2.4, gloss:.02},
   fliessend:{name:"Viskose / Seide / Satin (fließend)",  gsm:120, B:5,  lg:1.62, air:1.5, hz:1,   zeta:.22, hang:.8,  dev:8,   fold:3.4, foldK:.6,   bump:1.2, gloss:.3},
@@ -2813,7 +2817,7 @@ function cloth3d(M,P,dt){
     if(i>=g3.ic){ // an den Beinen: Spiel zum Bein begrenzt, wie weit der Stoff ausschwingen kann; Unterseiten hängen durch
       const ch=P.bone[s], c=closestOnChain(ch,T[q],T[q+1],T[q+2]);
       const gap=Math.max(0,c.d-rb(c.u)*1.05);
-      DV[k]=Math.min(fab.dev*ppc,gap+1*ppc);
+      DV[k]=Math.min(fab.dev*ppc,gap+(fab.spiel??1)*ppc);
       // Mit Stoff-Fall (drape3d) ist das Durchhängen bei geraden Beinen schon drin: dann nur, soweit das Bein hier schräg
       // steht (angehobenes Knie), sonst sänken die Falten am Saum unter den Boden
       let kd=1; if(dr&&i>=P.drape.iS){ const a=c.u<.5?ch[0]:ch[1], e=c.u<.5?ch[1]:ch[2], dx=e[0]-a[0], dy=e[1]-a[1], dz=e[2]-a[2];
@@ -2829,7 +2833,7 @@ function cloth3d(M,P,dt){
   const steps=Math.min(4,Math.ceil(dt/.016)), h=dt/steps;
   for(let s=0;s<2;s++) for(let i=0;i<NR;i++){
     const u=clamp(M.v[i],0,1), pin=M.v[i]<.02;
-    const hz=Math.min(20,fab.hz*(1+5*Math.pow(1-u,2))), w=2*Math.PI*hz, kk=w*w, cc=2*fab.zeta*w;
+    const hz=Math.min(20,fab.hz*(1+(fab.steif??5)*Math.pow(1-u,2))), w=2*Math.PI*hz, kk=w*w, cc=2*fab.zeta*w;
     for(let f=0;f<2;f++) for(let j=0;j<C;j++){
       const q=(((s*NR+i)*2+f)*C+j)*3;
       if(pin){ for(let c=0;c<3;c++){ V[q+c]=(Tg[q+c]-X[q+c])/dt; X[q+c]=Tg[q+c]; } continue; }
