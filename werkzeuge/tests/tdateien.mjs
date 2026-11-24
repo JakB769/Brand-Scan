@@ -110,7 +110,7 @@ const r3=await (async()=>{ const box=await p.$('#g3dview'); await box.scrollInto
 pruefe(!r3.nan&&r3.rock,'Rock in der 3D-Ansicht ohne ungültige Werte');
 // „⇄ Hose“: als Hose bauen lassen, dann wieder Rock
 await p.click('#drop-art'); z=await warte();
-pruefe(!/Fertig \(Rock\)/.test(z.m)&&/Fertig|realistische/.test(z.m),'Umschalter baut ihn als Hose: '+z.m.slice(Math.max(0,z.m.indexOf('Fertig')),Math.max(0,z.m.indexOf('Fertig'))+40));
+pruefe(!/Fertig \(Rock\)/.test(z.m)&&/Fertig|realistische|Modell fehlerhaft/.test(z.m),'Umschalter baut ihn als Hose (oder die Schranke lehnt ihn als Hose ab): '+z.m.slice(Math.max(0,z.m.indexOf('Fertig')),Math.max(0,z.m.indexOf('Fertig'))+40));
 await p.click('#drop-art'); z=await warte();
 pruefe(/Fertig \(Rock\)/.test(z.m),'und wieder als Rock');
 // 9b) Jeans mit Gürtel: Gürtel weg, Maße wie ohne Gürtel; ohne Gürtel kein Fehlalarm

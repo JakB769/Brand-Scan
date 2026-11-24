@@ -1,0 +1,374 @@
+{
+ "vorab_testhose": {
+  "label": "Testhose",
+  "bad": null,
+  "maengel": [],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.084,
+    0.197
+   ],
+   "sl": [
+    -0.032,
+    0.379
+   ]
+  },
+  "kuenstlich": false,
+  "beine": {
+   "produkt": {
+    "zeilen": 64,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.0088
+   },
+   "anprobe": {
+    "zeilen": 64,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.0393
+   }
+  }
+ },
+ "vorab_anzugtest": {
+  "label": "Anzughose (Test)",
+  "bad": null,
+  "maengel": [],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.067,
+    0.197
+   ],
+   "sl": [
+    -0.039,
+    0.383
+   ]
+  },
+  "kuenstlich": false,
+  "beine": {
+   "produkt": {
+    "zeilen": 64,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.0088
+   },
+   "anprobe": {
+    "zeilen": 64,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.0393
+   }
+  }
+ },
+ "vorab_markjeans": {
+  "label": "Mark-Jeans",
+  "bad": null,
+  "maengel": [],
+  "ori": {
+   "v": 1,
+   "s": 1.61,
+   "pk": [
+    0.133,
+    0.144
+   ],
+   "sl": [
+    0.116,
+    0.209
+   ]
+  },
+  "kuenstlich": false,
+  "beine": {
+   "produkt": {
+    "zeilen": 63,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.0101
+   },
+   "anprobe": {
+    "zeilen": 63,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.1043
+   }
+  }
+ },
+ "vorab_echtjeans": {
+  "label": "Echt-Jeans",
+  "bad": null,
+  "maengel": [],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.039,
+    0.229
+   ],
+   "sl": [
+    -0.187,
+    0.175
+   ]
+  },
+  "kuenstlich": false,
+  "beine": {
+   "produkt": {
+    "zeilen": 64,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.0098
+   },
+   "anprobe": {
+    "zeilen": 64,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.1098
+   }
+  }
+ },
+ "vorab_testhose_falsch": {
+  "label": "Testhose (falsch gedreht)",
+  "bad": null,
+  "maengel": [],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.068,
+    0.195
+   ],
+   "sl": [
+    -0.041,
+    0.383
+   ],
+   "getauscht": true,
+   "vorher": -5
+  },
+  "kuenstlich": true,
+  "beine": {
+   "produkt": {
+    "zeilen": 64,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.0088
+   },
+   "anprobe": {
+    "zeilen": 64,
+    "verbunden": 0,
+    "kleinsterSpalt": 0.0393
+   }
+  }
+ },
+ "vorab_testhose_falschgesch": {
+  "label": "Testhose (falsch gedreht, Rückseite geschätzt)",
+  "bad": "Modell fehlerhaft – bitte Fotos neu hochladen",
+  "maengel": [
+   "Schlitz nicht vorne (Vorder- und Rückseite vertauscht)"
+  ],
+  "ori": {
+   "v": 1,
+   "s": -5,
+   "pk": [
+    0.195,
+    0.068
+   ],
+   "sl": [
+    0.383,
+    -0.041
+   ]
+  },
+  "kuenstlich": true
+ },
+ "vorab_testhose_spitze": {
+  "label": "Testhose (Spitze)",
+  "bad": "Modell fehlerhaft – bitte Fotos neu hochladen",
+  "maengel": [
+   "Hosenbeine breiter als der Bund (Foto quer oder Untergrund mit erkannt)"
+  ],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.067,
+    0.197
+   ],
+   "sl": [
+    -0.04,
+    0.379
+   ]
+  },
+  "kuenstlich": true
+ },
+ "vorab_anzugtest_falsch": {
+  "label": "Anzughose (Test) (falsch gedreht)",
+  "bad": null,
+  "maengel": [],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.07,
+    0.189
+   ],
+   "sl": [
+    -0.04,
+    0.381
+   ],
+   "getauscht": true,
+   "vorher": -5
+  },
+  "kuenstlich": true
+ },
+ "vorab_anzugtest_falschgesch": {
+  "label": "Anzughose (Test) (falsch gedreht, Rückseite geschätzt)",
+  "bad": "Modell fehlerhaft – bitte Fotos neu hochladen",
+  "maengel": [
+   "Schlitz nicht vorne (Vorder- und Rückseite vertauscht)"
+  ],
+  "ori": {
+   "v": 1,
+   "s": -5,
+   "pk": [
+    0.189,
+    0.07
+   ],
+   "sl": [
+    0.381,
+    -0.04
+   ]
+  },
+  "kuenstlich": true
+ },
+ "vorab_anzugtest_spitze": {
+  "label": "Anzughose (Test) (Spitze)",
+  "bad": "Modell fehlerhaft – bitte Fotos neu hochladen",
+  "maengel": [
+   "Hosenbeine breiter als der Bund (Foto quer oder Untergrund mit erkannt)"
+  ],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.07,
+    0.189
+   ],
+   "sl": [
+    -0.04,
+    0.381
+   ]
+  },
+  "kuenstlich": true
+ },
+ "vorab_markjeans_falsch": {
+  "label": "Mark-Jeans (falsch gedreht)",
+  "bad": null,
+  "maengel": [],
+  "ori": {
+   "v": 1,
+   "s": 1.53,
+   "pk": [
+    0.132,
+    0.144
+   ],
+   "sl": [
+    0.119,
+    0.205
+   ],
+   "getauscht": true,
+   "vorher": -1.53
+  },
+  "kuenstlich": true
+ },
+ "vorab_markjeans_falschgesch": {
+  "label": "Mark-Jeans (falsch gedreht, Rückseite geschätzt)",
+  "bad": "Modell fehlerhaft – bitte Fotos neu hochladen",
+  "maengel": [
+   "Schlitz nicht vorne (Vorder- und Rückseite vertauscht)"
+  ],
+  "ori": {
+   "v": 1,
+   "s": -1.53,
+   "pk": [
+    0.144,
+    0.132
+   ],
+   "sl": [
+    0.205,
+    0.119
+   ]
+  },
+  "kuenstlich": true
+ },
+ "vorab_markjeans_spitze": {
+  "label": "Mark-Jeans (Spitze)",
+  "bad": "Modell fehlerhaft – bitte Fotos neu hochladen",
+  "maengel": [
+   "Hosenbeine breiter als der Bund (Foto quer oder Untergrund mit erkannt)"
+  ],
+  "ori": {
+   "v": 1,
+   "s": 1.52,
+   "pk": [
+    0.133,
+    0.144
+   ],
+   "sl": [
+    0.118,
+    0.204
+   ]
+  },
+  "kuenstlich": true
+ },
+ "vorab_echtjeans_falsch": {
+  "label": "Echt-Jeans (falsch gedreht)",
+  "bad": null,
+  "maengel": [],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.039,
+    0.226
+   ],
+   "sl": [
+    -0.189,
+    0.175
+   ],
+   "getauscht": true,
+   "vorher": -5
+  },
+  "kuenstlich": true
+ },
+ "vorab_echtjeans_falschgesch": {
+  "label": "Echt-Jeans (falsch gedreht, Rückseite geschätzt)",
+  "bad": "Modell fehlerhaft – bitte Fotos neu hochladen",
+  "maengel": [
+   "Schlitz nicht vorne (Vorder- und Rückseite vertauscht)"
+  ],
+  "ori": {
+   "v": 1,
+   "s": -5,
+   "pk": [
+    0.226,
+    0.039
+   ],
+   "sl": [
+    0.175,
+    -0.189
+   ]
+  },
+  "kuenstlich": true
+ },
+ "vorab_echtjeans_spitze": {
+  "label": "Echt-Jeans (Spitze)",
+  "bad": "Modell fehlerhaft – bitte Fotos neu hochladen",
+  "maengel": [
+   "Spitzen im Umriss"
+  ],
+  "ori": {
+   "v": 1,
+   "s": 5,
+   "pk": [
+    0.039,
+    0.228
+   ],
+   "sl": [
+    -0.188,
+    0.172
+   ]
+  },
+  "kuenstlich": true
+ }
+}

@@ -99,9 +99,10 @@ await ctx.route("**/@mediapipe/tasks-vision@0.10.18/**", r => { const f = NM + "
 await ctx.route("**/magic_touch.tflite", r => r.fulfill({ status: 200, body: fs.readFileSync(A + "magic_touch.tflite"), headers: { "access-control-allow-origin": "*" } }));
 await ctx.route("**/fonts.g*/**", r => r.abort());
 if (!process.argv.includes("--ohneKI")) await ctx.addInitScript(() => { window.__kiTest = true; }); else await ctx.addInitScript(() => { window.__innenLog = true; });
-if (process.argv.includes("--ohneSpalt")) await ctx.addInitScript(() => { window.__ohneSpalt = true; });   // Fehlersuche: ohne Ersatz der Spaltschatten in der Textur
+if (process.argv.includes("--mitSpalt")) await ctx.addInitScript(() => { window.__mitSpalt = true; });   // Fehlersuche: mit Ersatz der Spaltschatten (bis 23.11.)
 if (process.argv.includes("--ohneLuecke")) await ctx.addInitScript(() => { window.__ohneLuecke = true; });   // Fehlersuche: ohne Füllung des Beinspalts im Foto
 if (process.argv.includes("--ohneSaeubern")) await ctx.addInitScript(() => { window.__ohneSaeubern = true; });
+if (process.argv.includes("--bilder")) await ctx.addInitScript(() => { window.__dbgBilder = []; });   // Fehlersuche: Zwischenbilder (Zuschnitt, Atlas) als <name>_dbg_*.png
 const p = await ctx.newPage(); const errs = []; p.on("pageerror", e => errs.push(e.message));
 await p.goto("file://" + R + "werkzeuge/tests/testseite-mit-simulierter-person.html"); await p.waitForTimeout(500);
 await p.fill("#height", arg("groesse", "179")); await p.dispatchEvent("#height", "change");
@@ -117,6 +118,8 @@ for (let t = 0; t < 240; t++) { await p.waitForTimeout(500);
   if (/segDlg/.test(o)) await p.click("#segOk").catch(() => {}); if (/refDlg/.test(o)) await p.click("#refOk").catch(() => {});
   if (/Fertig|nicht|kein/i.test(await p.evaluate(() => document.getElementById("own-msg").textContent))) break; }
 console.log("Seite:", (await p.evaluate(() => document.getElementById("own-msg").textContent)).slice(0, +arg("msglen", 220)));
+if (process.argv.includes("--bilder")) for (const [k, [n, url]] of (await p.evaluate(() => window.__dbgBilder || [])).entries())
+  fs.writeFileSync(OUT + `${name}_dbg_${k}_${n}.png`, Buffer.from(url.split(",")[1], "base64"));
 const box = await p.$("#g3dview"); await box.scrollIntoViewIfNeeded(); await p.waitForTimeout(1500);
 for (const [n, y] of [["vorn", 0], ["seite", Math.PI / 2], ["hinten", Math.PI]]) {
   await p.evaluate(y => { const v = window.__dbg.v3d; v.ziel = null; v.yaw = y; v.idle = performance.now() + 1e7; }, y); await p.waitForTimeout(1300);
@@ -125,10 +128,13 @@ const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), 
 await dl.saveAs(OUT + name + ".glb"); console.log("Schatten:", JSON.stringify(await p.evaluate(() => window.__schattenStat || null)), "Innenbund:", JSON.stringify(await p.evaluate(() => window.__innen || null)), "Produktform:", await p.evaluate(() => window.__dbg.g3.produkt));
 // Messung in der App (g3.umriss: Fotokanten der Freistellung gegen die Form), Grenzen regelnApp; nur Fehler ausgeben
 { const UA = await p.evaluate(() => window.__dbg.g3.umriss || null);
-  if (UA) { const E = bewerten(UA, laden(), null, "regelnApp"); if (!E.ok) console.log("Umriss App: " + E.zeilen.filter(z => z.startsWith("FEHLER")).join(" | ")); } }
+  if (UA) { const E = bewerten(UA, laden(), null, "regelnApp"); console.log("Umriss App:", JSON.stringify(UA)); if (!E.ok) console.log("Umriss App: " + E.zeilen.filter(z => z.startsWith("FEHLER")).join(" | ")); } }
+// Failsafe vorne/hinten und Qualitäts-Schranke (24.11.)
+console.log("Ausrichtung:", JSON.stringify(await p.evaluate(() => { const d = window.__dbg, G = d.GARMENTS[d.g.key]; return G && G.m3 ? G.m3.ori || null : null; })),
+  "Schranke:", JSON.stringify(await p.evaluate(() => { const d = window.__dbg, G = d.GARMENTS[d.g.key]; return G ? { bad: G.bad || null, maengel: G.qMaengel || [] } : null; })));
 // --json: die fertige Hose wie im Gerät gespeichert (für eine Seite mit vorab eingebauten Hosen)
 if (process.argv.includes("--json")) fs.writeFileSync(OUT + name + ".json", await p.evaluate(n => { const d = window.__dbg, G = { ...d.GARMENTS[d.g.key] };
-  for (const k of ["unsaved", "shared", "prof", "bad"]) delete G[k]; G.label = n; return JSON.stringify({ key: "vorab_" + n.replace(/[^a-z0-9]/gi, "").toLowerCase(), G }); }, arg("label", name)));
+  for (const k of ["unsaved", "shared", "prof", "bad", "qMaengel"]) delete G[k]; G.label = n; return JSON.stringify({ key: "vorab_" + n.replace(/[^a-z0-9]/gi, "").toLowerCase(), G }); }, arg("label", name)));
 if (process.argv.includes("--dump")) fs.writeFileSync(OUT + name + "_netz.json", JSON.stringify(await p.evaluate(() => { const d = window.__dbg, G = d.GARMENTS[d.g.key], M = G.m3, g3 = d.g3;
   return { nr: g3.nr, nv: g3.nv, v: Array.from(M.v), vc: M.vc, f: M.f, b: M.b, tv: M.tv, tvb: M.tvb, mat: G.material || G.mat || null, pos: Array.from(g3.pos.slice(0, g3.nv * 3)) }; }))); console.log("GLB:", OUT + name + ".glb", errs.length ? errs.slice(0, 3) : "");
 await ctx.close();

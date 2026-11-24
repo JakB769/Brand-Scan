@@ -41,7 +41,9 @@ Durchschnitt beim Referenzclip); Scan-Oberfläche; Kunden-/Entwicklermodus; Grö
 Server-Sammlung (Netlify Blobs).
 
 **Offen / nicht gut:**
-- Eckige flache Flecken in der Hosen-Textur zwischen den Beinen (Ursache `spaltSchatten`, siehe `werkzeuge/qualitaet.json`).
+- Echte Anzughose des Nutzers nicht geprüft (Fotos nicht im Repo); „verkehrt herum“ an der Testfassung nicht nachvollziehbar (Schlitz
+  vorn in allen Ansichten), der Failsafe prüft jede Hose beim Laden. Bildvergleich Foto/3D (`hose-render`) braucht Fotos mit einfarbigem
+  Hintergrund (Shopfotos Jeans/Anzug nur intern); mit den Holzboden-Fotos im Repo misst er Unsinn, dort gilt die Messung in der App.
 - Beinbreite im Bildvergleich etwa 2 cm anders als im Foto (prüfen).
 - Falten nur angedeutet; echte Falten später per Stoffphysik (nicht von Hand).
 - Anzughose in Bewegung nur mit der Testhose (Anzugstoff, grau eingefärbt) geprüft: die Fotos der echten Anzughose liegen nicht im
@@ -69,7 +71,27 @@ Server-Sammlung (Netlify Blobs).
 - Körpermodell MakeHuman (CC0); Figur „Joe“ und `assets/pants/` (Lizenz unklar) nur intern als Referenz.
 - Rückseite ohne Foto: Textursynthese aus ruhigen Stoffstellen der Vorderseite, oder Rückenfoto einer ähnlichen Hose als Vorlage.
 - Weite Kleidung beim Scan: Umriss ist nur Obergrenze. Eichung Scan ↔ Körpermodell an gerenderten Körpern (`werkzeuge/avatar-eichen.mjs`).
-- Hose: Innenkanten der Beine als Gerade ab der Spaltöffnung im Foto; Umriss Foto/3D ist das Prüfmaß (Nutzer: „perfekt“).
+- Hose: Beine trennen sich am Schrittpunkt wie die Innennähte im Foto (umgekehrtes V, Gerade aus dem Schritt mit der Neigung der
+  Innenkante darunter, mindestens 0,75 cm je 10 cm). 24.11., Nutzer: „zwischen den Beinen eine Stoffverbindung“; bis dahin lagen die
+  Beine bis zur Spaltöffnung im Foto aneinander (dazwischen liegt flach fotografiert die hintere Lage). Die Textur jedes Beins endet an
+  der Innennaht (`innenNaht`); unter dem Schritt wird nichts mehr übermalt (die übermalten Stellen waren die grauen, eckigen Flecken).
+  Vor dem 24.11. gebaute Hosen: innen am Schritt beginnt die Textur weiter außen (Flecken nicht sichtbar). Umriss Foto/3D bleibt das
+  Prüfmaß; der Schritt wird im Bildvergleich an der Spitze des V gemessen.
+- Failsafe vorne/hinten nach jeder Modellerzeugung und beim Laden: beide Atlashälften mit denselben Merkmalen wie beim Hochladen
+  vergleichen (Gesäßtaschen-Kanten, Passe gegen Eingriff der Vordertaschen), als Vergleich der zwei Seiten derselben Hose. Sicher
+  vertauscht (Wert ≤ −1,5) und mit Rückenfoto: Hälften tauschen und erneut prüfen. Ohne Rückenfoto (Rückseite geschätzt, glatter als
+  jedes Foto) zählt nur die Vorderseite für sich (Taschenkanten ≥ 0,13 und Passe ≥ 0,15 = Rückseite): dann blendet die Schranke aus.
+  Unsicher (|Wert| < 1,5): Zuordnung vom Hochladen bleibt. Gemessen: Testhose, Echt-Jeans 5; Mark-Jeans nur 1,6 (knapp).
+- Qualitäts-Schranke vor dem Anzeigen („lieber keine Hose als eine komische“): Zahlen gültig, keine Spitzen im Umriss, keine
+  verzerrten Flächen, Beine im Foto unter dem Schritt getrennt, Schritt und Gesäß plausibel, Schlitz vorn. Durchgefallen: im Kundenmodus
+  ausgeblendet, im Entwicklermodus „Modell fehlerhaft – bitte Fotos neu hochladen“ mit Grund. Beim Hochladen kommt die genauere
+  Meldung „keine realistische Hose“ zuerst. Prüfung: `werkzeuge/hosen-check.mjs` (Bilder `docs/tests/hosen-check/`).
+- Übermalen der Textur am Schritt (`spaltSchatten`) ganz aus (24.11.): gab graue, eckige Flecken am Ende des Schlitzes; mit der
+  Innennaht nicht mehr nötig (geprüft an Testhose und Mark-Jeans, ohne dunklen Block).
+- Stoff-Bewegung (24.11., Nutzer: „die Hosen wackeln zu viel“): ein Regler für alle Stoffe, Vorgabe 35 % (100 % = Stand 23.11.):
+  weniger Spiel, höhere Eigenfrequenz, mehr Dämpfung; Jeans bei der Drehung im Mittel etwa 60 % weniger Schwingen am Saum. Regler nur im
+  Entwicklermodus (wirkt sofort, gespeichert), „Als Standard übernehmen“ gilt für den Kundenmodus auf diesem Gerät; für alle Geräte
+  `PASSFORM.stoffBewegung` im Code.
 - Getragen-Look und Falten nicht von Hand modellieren (Nutzer: sah schlecht aus), später per Physik.
 - Bewegung des Stoffs über Werte je Stoffart (`STOFFE`), nie je Hose. Anzug (23.11., Nutzer: „sieht gut aus, ist aber zu steif“):
   Eigenfrequenz 1,0 statt 1,4 Hz, Dämpfung 0,24 statt 0,29 (schwingt nach, flattert nicht), unten weniger steif (`steif` 3 statt 5),

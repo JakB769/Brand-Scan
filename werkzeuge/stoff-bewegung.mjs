@@ -5,7 +5,7 @@
                                        [--fps 30] [--bilder 1] [--bis 6] [--dumpPos]
    --k: Clip und Scan verkleinert in die Mitte (Vorgabe 0,82; im Clip ist der Kopf am Rand angeschnitten), --werte '{"hz":1.4}': Werte der Stoffart für diesen Lauf (z. B. die alten für „vorher“), --stoff: Stoffart der Hose für diesen Lauf (sonst wie gespeichert), --farbe anthrazit: Stoff im Atlas dunkelgrau (Anzug-Optik
    für die Testhose), --bilder n: jedes n-te Bild als <name>_NNN.jpg (Bühne), --bis: Sekunden des Clips, --dumpPos: Punkte der Hose je
-   Bild (Prüfung „Jeans unverändert“).
+   Bild (Prüfung „Jeans unverändert“). --bewegung 0…1: Regler „Stoff-Bewegung“ für diesen Lauf (1 = wie bis 23.11.; ohne: Vorgabe).
    Ergebnis: <aus>/<name>.json je Bild: Schwingen am Saum und am Unterschenkel (cm, Abstand der Hose zur starren Form am Skelett),
    Ruck (cm/s², Flattern), Punkte im Bein (Durchstoßen); dazu die Bilder. Seite: werkzeuge/tests/vergleichsseite.html (--echt). */
 import { chromium } from "playwright";
@@ -37,8 +37,9 @@ await ctx.route("**/@mediapipe/tasks-vision@0.10.18/**", r => { const f = NM + "
   if (!fs.existsSync(f)) return r.abort(); r.fulfill({ status: 200, contentType: typ(f), headers: { "access-control-allow-origin": "*" }, body: fs.readFileSync(f) }); });
 for (const n of ["magic_touch.tflite", "pose_landmarker_full.task", "pose_landmarker_lite.task"]) await ctx.route("**/" + n, r => fs.existsSync(A + n) ? r.fulfill({ status: 200, body: fs.readFileSync(A + n), headers: { "access-control-allow-origin": "*" } }) : r.abort());
 await ctx.route("**/fonts.g*/**", r => r.abort());
-await ctx.addInitScript(([hose]) => {
-  try { localStorage.setItem("massScanHosen", JSON.stringify([hose])); localStorage.setItem("passformModus", "entwickler"); } catch (_) {}
+await ctx.addInitScript(([hose, bew]) => {
+  try { localStorage.setItem("massScanHosen", JSON.stringify([hose])); localStorage.setItem("passformModus", "entwickler");
+    if (bew !== "") localStorage.setItem("passformStoffBewegung", bew); } catch (_) {}
   window.__cpu = true; const echt = performance.now.bind(performance); let vt = 0, an = false, eps = 0, frei = 0;
   window.__gate = () => !an || (frei > 0 && (frei--, true)); window.__frei = n => { frei += n; };
   window.__uhr = { an: t => { vt = t ?? echt(); an = true; }, weiter: ms => { vt += ms; eps = 0; } };
@@ -49,7 +50,7 @@ await ctx.addInitScript(([hose]) => {
   setInterval(zeichne, 30);
   navigator.mediaDevices.getUserMedia = async () => c.captureStream(30);
   navigator.mediaDevices.enumerateDevices = async () => [{ kind: "videoinput", deviceId: "ref", label: "Referenz (front)", groupId: "ref", toJSON() { return this; } }];
-}, [HOSE]);
+}, [HOSE, arg("bewegung", "")]);
 const p = await ctx.newPage(); const errs = []; p.on("pageerror", e => errs.push(e.message));
 await p.goto(`http://localhost:${port}/werkzeuge/tests/vergleichsseite.html`); await p.waitForTimeout(800);
 await p.addStyleTag({ content: ".stage{aspect-ratio:9/16!important;max-height:none!important;width:720px!important}.stage.mirror video,.stage.mirror canvas{transform:none!important}#coachBig,#coachSmall{display:none!important}" });

@@ -43,6 +43,18 @@ export function vergleichBilder(F, M, laenge) {
   // Außenkante über dem Schritt (Becken); darunter die Breite jedes Beins: die Form stellt die Beine bewusst gerade (spreizGrad),
   // die Lage der Beinkanten weicht darum vom gespreizt liegenden Foto ab, die Breite nicht
   const pF = spitze(A), pM = spitze(B), dA = [], dI = [], pS = Math.min(pF ?? k95, pM ?? k95);
+  // Schrittpunkt (24.11., Nutzer: „zwischen den Beinen eine Stoffverbindung“): Spitze des umgekehrten V der Innenkanten. Flach
+  // fotografiert liegt unter dem Schritt zwischen den vorderen Innennähten noch die hintere Lage, der Hintergrund zeigt sich erst
+  // tiefer; die 3D-Hose trennt die Beine am Schrittpunkt. Darum beide Innenkanten unter der Spitze des Spalts als Geraden nach oben
+  // verlängern, bis sie sich treffen (Foto und 3D gleich gemessen; bis 23.11. zählte die Spitze des sichtbaren Spalts).
+  const vSpitze = (Z, p) => { if (p == null) return null; const e = Math.min(k95, p + Math.round(.15 * N)), L = [], Q = [];
+    for (let k = p + 1; k <= e; k++) if (Z[k] && Z[k][1] != null && Z[k][2] != null) { L.push([k, Z[k][1]]); Q.push([k, Z[k][2]]); }
+    if (L.length < 6) return p;
+    const fit = P => { const mk = P.reduce((a, q) => a + q[0], 0) / P.length, mx = P.reduce((a, q) => a + q[1], 0) / P.length; let sxy = 0, sxx = 0;
+      for (const [k, x] of P) { sxy += (k - mk) * (x - mx); sxx += (k - mk) ** 2; } const m = sxx ? sxy / sxx : 0; return [m, mx - m * mk]; };
+    const [m1, b1] = fit(L), [m2, b2] = fit(Q); if (!(m2 - m1 > 1e-6)) return p;
+    return Math.max(p - .2 * N, Math.min(p, (b1 - b2) / (m2 - m1))); };
+  const spF = vSpitze(A, pF), spM = vSpitze(B, pM);
   for (let k = k05; k <= k95; k++) { if (!A[k] || !B[k]) continue; if (k < pS) dA.push(Math.abs(A[k][0] - B[k][0]), Math.abs(A[k][3] - B[k][3]));
     if (pF != null && pM != null && k >= Math.max(pF, pM) + 2 && A[k][1] != null && B[k][1] != null)
       dI.push(Math.abs((A[k][1] - A[k][0]) - (B[k][1] - B[k][0])), Math.abs((A[k][3] - A[k][2]) - (B[k][3] - B[k][2]))); }
@@ -56,7 +68,7 @@ export function vergleichBilder(F, M, laenge) {
     for (const j of [1, 2]) krumm = Math.max(krumm, rest(B, j, ai, k95) - rest(A, j, ai, k95)); }
   const r1 = x => x == null ? null : Math.round(x * 10) / 10;
   return { aussenCm: r1(mittel(dA)), aussenMaxCm: r1(p90(dA)), beinCm: r1(mittel(dI)), beinMaxCm: r1(p90(dI)),
-    schrittCm: pF == null || pM == null ? null : r1((pM - pF) / (N - 1) * laenge), krummCm: r1(krumm), laengeCm: laenge, foto: A, modell: B };
+    schrittCm: spF == null || spM == null ? null : r1((spM - spF) / (N - 1) * laenge), krummCm: r1(krumm), laengeCm: laenge, foto: A, modell: B };
 }
 
 /* Prüfen: jede Regel (Grenze) und, wenn es für die Hose einen guten Stand gibt, ob ein Wert deutlich schlechter geworden ist. */

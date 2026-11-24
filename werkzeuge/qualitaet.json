@@ -21,7 +21,7 @@
     "schrittCm": {
       "max": 2,
       "betrag": true,
-      "text": "Spalt zwischen den Beinen beginnt auf der Höhe wie im Foto"
+      "text": "Schrittpunkt (Spitze des umgekehrten V der Innenkanten) auf der Höhe wie im Foto (ab 24.11. so gemessen; gute Stände vom 17.11. maßen die Spitze des sichtbaren Spalts)"
     },
     "krummCm": {
       "max": 0.3,
@@ -110,8 +110,8 @@
       "datum": "2026-11-17",
       "hose": "alle",
       "urteil": "schlecht",
-      "status": "offen",
-      "notiz": "Eckige flache Flecken in der Textur unter dem Schlitz und am Innenbein. Ursache: spaltSchatten ersetzt dunkle Stellen mit festem Zeilenton plus Körnung, Breiten als Maximum über ±5 Zeilen (Rechtecke). Gespiegelter Stoff half bei der Jeans, gab bei der Anzughose Streifen; fester Versatz gab helle Flecken. Nächster Ansatz: Grundton vom Rand der Stelle je Zeile, Körnung von daneben"
+      "status": "behoben",
+      "notiz": "Eckige flache Flecken in der Textur unter dem Schlitz und am Innenbein. Ursache: spaltSchatten ersetzt dunkle Stellen mit festem Zeilenton plus Körnung, Breiten als Maximum über ±5 Zeilen (Rechtecke). Gespiegelter Stoff half bei der Jeans, gab bei der Anzughose Streifen; fester Versatz gab helle Flecken. Nächster Ansatz: Grundton vom Rand der Stelle je Zeile, Körnung von daneben | 24.11. behoben: unter dem Schritt wird nichts mehr übermalt (spaltSchatten nur noch über dem Schritt, randTextur innen aus); die Textur jedes Beins endet an der Innennaht (innenNaht), das V der hinteren Lage liegt nicht mehr auf den Beinen. Ältere Modelle: innen am Schritt weiter außen (Flecken nicht sichtbar)."
     },
     {
       "datum": "2026-11-17",
@@ -147,6 +147,20 @@
         "schrittCm": -0.4,
         "krummCm": 0.1
       }
+    },
+    {
+      "datum": "2026-11-24",
+      "hose": "alle",
+      "urteil": "schlecht",
+      "status": "behoben",
+      "notiz": "Nutzer 24.11.: zwei Hosen (Testhose, Anzughose (Test)) haben zwischen den Beinen eine Stoffverbindung; Beine sollen unter dem Schritt sauber getrennt sein. Ursache: Produktform ließ die Beine bis zur Höhe des Fotospalts aneinander, dazu übermalte Flecken (grau, eckig) am Innenbein. Behoben: Beine trennen sich am Schrittpunkt wie die Innennähte im Foto (umgekehrtes V), Textur bis zur Innennaht, keine Flecken mehr. Schranke prüft getrennte Beine."
+    },
+    {
+      "datum": "2026-11-24",
+      "hose": "anzug",
+      "urteil": "schlecht",
+      "status": "behoben",
+      "notiz": "Nutzer 24.11.: Anzughose sitzt verkehrt herum. Die Testfassung (Anzughose (Test)) lag in allen Ansichten richtig (Schlitz vorn); neu: Failsafe vergleicht vorn/hinten im Atlas (Gesäßtaschen, Passe/Vordertaschen) und tauscht sicher vertauschte Seiten automatisch, sonst blendet die Schranke aus."
     }
   ],
   "regelnApp": {
