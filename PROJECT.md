@@ -53,7 +53,8 @@ Server-Sammlung (Netlify Blobs).
 - Echtes iPhone und Android-Gerät ungeprüft: geprüft in Chromium (Desktop-, iPhone-, Android-Emulation, Testkamera aus Clips) und in
   der Safari-Engine WebKit 26 (iPhone-13-Emulation, Ersatzkamera aus Einzelbildern); Kamera-Freigabe, Leistung und GPU am echten Handy ungeprüft.
 - Live-Seite: am 18.11. fehlte `avatar/koerper.js` (nur ein Teil hochgeladen), der Avatar-Scan brach ab. Immer den ganzen Ordner `app/`
-  veröffentlichen (Merge in `main` bzw. ganzer Ordner); automatische Live-Prüfung liegt im offenen PR „Live-Prüfung nach jedem Deploy“.
+  veröffentlichen (Merge in `main` bzw. ganzer Ordner). Live-Tests (Dateien, Avatar, Scan-Ablauf) laufen als GitHub-Workflow, sobald die
+  Repo-Variable `LIVE_URL` mit der Live-Adresse gesetzt ist; die Adresse ist hier nicht bekannt, live getestet ist darum noch nichts.
 - Avatar-Maße streuen von Scan zu Scan (Referenzclip, weite Kleidung: Taille −6 bis +2 cm, Hüfte −8 bis +4 cm zum Durchschnitt).
 - Messgenauigkeit mit 20–30 Personen gegen Maßband nicht gemacht.
 - Bekannte rote Tests: `tseiten` (Kennzeichnung), `tlag` (Testmaschine zu langsam), `tfreistellung` (Diagnose), `tfall` (Stoff-Fall der Anprobe-Form: bricht mit „Cannot read properties of null“ ab, vor und nach dem 23.11. gleich).

@@ -6,8 +6,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 const hier=fileURLToPath(new URL('.',import.meta.url));
-const argv=process.argv.slice(2), echt=argv.includes('--echt'), ziel=argv.find(a=>!a.startsWith('--'));
-let s=fs.readFileSync(hier+'../../app/index.html','utf8');
+//         node werkzeuge/tests/baue-testseite.mjs --live https://….netlify.app/ ziel.html: Seite und Dateien von der LIVE-Adresse
+//         (Ende-zu-Ende-Test gegen das, was wirklich online ist; tavatar.mjs --live)
+const argv=process.argv.slice(2), echt=argv.includes('--echt'), li=argv.indexOf('--live'), live=li>=0?new URL(argv[li+1]).href.replace(/\/?$/,'/'):null;
+const ziel=argv.find((a,i)=>!a.startsWith('--')&&!(li>=0&&i===li+1));
+let s;
+if(live){ const r=await fetch(live,{cache:'no-store'}); if(!r.ok) throw new Error('Live-Seite nicht erreichbar: HTTP '+r.status+' '+live); s=await r.text(); }
+else s=fs.readFileSync(hier+'../../app/index.html','utf8');
 const ersetze=(alt,neu)=>{ if(!s.includes(alt)) throw new Error('Stelle nicht gefunden: '+alt.slice(0,60)); s=s.replace(alt,neu); };
 // 1. Schriften nicht aus dem Netz laden
 s=s.replace(/<link[^>]*fonts\.(googleapis|gstatic)\.com[^>]*>/g,'');
@@ -64,9 +69,9 @@ s=s.replace(/loadOwn\(\);\s*buildPicker\(\);/,'loadOwn(); window.__dbg={fc,g,GAR
 if(!s.includes('window.__dbg')) throw new Error('Einblick nicht eingefügt');
 // 11. Körpermodell des Avatars (app/avatar/koerper.js) relativ zur erzeugten Seite
 const zielPfad=ziel||hier+(echt?'vergleichsseite.html':'testseite-mit-simulierter-person.html');
-const avUrl=path.relative(path.dirname(path.resolve(zielPfad)),path.resolve(hier,'../../app/avatar/koerper.js')).split(path.sep).join('/');
+const avUrl=live?live+'avatar/koerper.js':path.relative(path.dirname(path.resolve(zielPfad)),path.resolve(hier,'../../app/avatar/koerper.js')).split(path.sep).join('/');
 ersetze('<script type="module">','<script>window.PASSFORM_AVATAR_URL='+JSON.stringify(avUrl)+';</script>\n<script type="module">');
 // Hosen-Auswahl (app/hosen-auswahl.js) relativ zur erzeugten Seite
-ersetze('<script src="hosen-auswahl.js" defer></script>','<script defer src='+JSON.stringify(path.relative(path.dirname(path.resolve(zielPfad)),path.resolve(hier,'../../app/hosen-auswahl.js')).split(path.sep).join('/'))+'></script>');
+ersetze('<script src="hosen-auswahl.js" defer></script>','<script defer src='+JSON.stringify(live?live+'hosen-auswahl.js':path.relative(path.dirname(path.resolve(zielPfad)),path.resolve(hier,'../../app/hosen-auswahl.js')).split(path.sep).join('/'))+'></script>');
 fs.writeFileSync(zielPfad,s);   // anderer Ort: z. B. während eine Testreihe läuft
-console.log(echt?'Vergleichsseite (echte Erkennung) neu erzeugt.':'Testseite neu erzeugt.');
+console.log(live?'Testseite aus der LIVE-Seite '+live+' erzeugt.':echt?'Vergleichsseite (echte Erkennung) neu erzeugt.':'Testseite neu erzeugt.');
