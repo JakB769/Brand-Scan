@@ -101,6 +101,7 @@ for (const gname of GERAETE) {
     // Ziffern 3 → 2 → 1 nacheinander (der Countdown kann beim Drehen im Clip abbrechen und neu beginnen)
     const ziffern = new Set(); let d0 = Date.now();
     while (Date.now() - d0 < 45000) { z = await zustand(p); if (z.countdown) ziffern.add(z.countdown); if (z.stufe === "drehen") break; await p.waitForTimeout(100); }
+    const pctStart = z.stufe === "drehen" ? z.pct : -1;      // Stand im Moment des Wechsels ins Drehen (danach kann sich die Person sofort drehen)
     pruefe(["3", "2", "1"].every(c => ziffern.has(c)) && z.stufe === "drehen", `Countdown ${[...ziffern].join("-")} → drehen`);
     await p.click("#full").catch(() => {}); await p.waitForTimeout(300);           // Vollbild wie beim Nutzer
     const verlauf = []; d0 = Date.now(); let sahDrehenBild = false;
@@ -108,7 +109,7 @@ for (const gname of GERAETE) {
       if (z.stufe === "drehen") { verlauf.push(z.pct); if (!sahDrehenBild && z.pct >= 40) { sahDrehenBild = true; await bild(p, gname, "04", "drehen"); } }
       if (z.stufe === "rechnen" || z.stufe === "") break; await p.waitForTimeout(150); }
     const werte = [...new Set(verlauf)], monoton = verlauf.every((v, i) => !i || v >= verlauf[i - 1]);
-    pruefe(verlauf[0] === 0 && monoton && werte.length >= 5 && verlauf.filter(v => v === 0).length >= 3, `Fortschritt folgt der Drehung: ${werte.join(" → ")} % (beginnt bei 0, nie rückwärts, in Schritten)`);
+    pruefe(pctStart === 0 && monoton && werte.filter(v => v > 0).length >= 5, `Fortschritt folgt der Drehung: ${pctStart} → ${werte.join(" → ")} % (beginnt bei 0, nie rückwärts, in Schritten; Stillstehen ohne Fortschritt prüft „Stehen“)`);
     z = await warte(p, z => z.laden, 8000, 100); if (z) { await p.waitForTimeout(400); z = await zustand(p); }       // Vollbild schließt der Browser kurz danach
     pruefe(!!z && z.laden && !z.kamera && !z.voll && !z.gesperrt && z.abbrechen, "fertig gedreht: Kamera aus, kein Vollbild, „Avatar wird erstellt …“ mit „Abbrechen“"
       + (z ? "" : " | Zustand: " + JSON.stringify(await zustand(p)).slice(0, 300))); if (z) await bild(p, gname, "05", "avatar-wird-erstellt");
