@@ -38,6 +38,7 @@ Nur Tests: `NEUEHOSE_BILDER`, `DREH_LOG`, `STOFF_LOG`, `VERGLEICH_LOG`. `npm tes
 ## Starten, Deploy
 - Lokal: `node werkzeuge/server.mjs` (Seite + `/api/*`, Sammlung in `.hosen-lokal/`). Kamera braucht https oder localhost.
 - Netlify (Live-URL: feste `*.netlify.app`-Adresse im Netlify-Konto des Nutzers): mit GitHub verbunden, `netlify.toml` (publish `app/`, Funktionen `netlify/functions/`, kein Build). **Produktions-Branch: `main`** (Netlify → Site configuration → Build & deploy → Branches). Push/Merge auf `main` → nach etwa 1 min online. Team-Code als Umgebungsvariable `PASSFORM_TEAMCODE`.
+- **Live-Prüfung nach jedem Deploy:** `node werkzeuge/live-pruefung.mjs <live-url>` (jede Datei aus `app/` online, HTTP 200, gleicher Stand wie im Repo, dazu MediaPipe/CDN-Dateien) und `node werkzeuge/tests/tavatar.mjs --live <live-url>` (Avatar Ende zu Ende mit Seite und Körpermodell von der Live-Adresse). Läuft automatisch: GitHub-Workflow `.github/workflows/live-pruefung.yml` (Push auf `main`, täglich; Repo-Variable `LIVE_URL`). Nie nur `index.html` hochladen (Netlify Drop): immer den ganzen Ordner `app/` mit `avatar/`.
 - Shopify: Partnerkonto + Entwicklungs-Shop; in `shopify/`: `npm install`, `npx shopify app config link`, Server `server/start.mjs` öffentlich per https (oder `npx shopify app dev` mit Tunnel), `npx shopify app deploy`, App im Shop installieren, Hose dem Produkt zuordnen, App-Block „Passform-Anprobe“ im Theme auf die Produktseite. Noch nie mit echtem Shop getestet.
 
 ## Tests
